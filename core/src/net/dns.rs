@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
-use std::collections::BTreeMap;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::collections::{BTreeMap, BTreeSet};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
@@ -23,7 +23,7 @@ use rpc_toolkit::{
     Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async, from_fn_blocking,
 };
 use serde::{Deserialize, Serialize};
-use tokio::net::{TcpListener, UdpSocket};
+use tokio::net::UdpSocket;
 use tokio::sync::RwLock;
 use tracing::instrument;
 use ts_rs::TS;
@@ -32,13 +32,13 @@ use crate::context::{CliContext, RpcContext};
 use crate::db::model::Database;
 use crate::db::model::public::NetworkInterfaceInfo;
 use crate::net::gateway::NetworkInterfaceWatcher;
-use crate::net::utils::is_private_ip;
+use crate::net::utils::{bind_tokio_listener, ipv6_is_link_local};
 use crate::prelude::*;
 use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::file_string_stream;
 use crate::util::serde::{HandlerExtSerde, display_serializable};
 use crate::util::sync::{SyncRwLock, Watch};
-use crate::{GatewayId, OptionExt, PackageId};
+use crate::{GatewayId, HOST_IP, OptionExt, PackageId};
 
 pub fn dns_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -208,7 +208,7 @@ pub async fn dump_table(
 
 #[derive(Default)]
 struct ResolveMap {
-    private_domains: BTreeMap<InternedString, Weak<()>>,
+    private_domains: BTreeMap<InternedString, (BTreeSet<GatewayId>, Weak<()>)>,
     services: BTreeMap<Option<PackageId>, BTreeMap<Ipv4Addr, Weak<()>>>,
     challenges: BTreeMap<InternedString, (InternedString, Weak<()>)>,
 }
@@ -225,23 +225,34 @@ lazy_static::lazy_static! {
     static ref EMBASSY: Name = Name::from_ascii("embassy").unwrap();
 }
 
+/// What private domains a resolver (one per bound socket) may answer.
+#[derive(Clone)]
+enum PrivateScope {
+    /// Wildcard catch-all — never answers private domains.
+    None,
+    /// A gateway interface — answers a private domain only when its gateway set
+    /// contains this gateway, returning that gateway's own address.
+    Gateway(GatewayId),
+    /// Loopback / container bridge — answers every private domain, returning
+    /// these fixed local addresses so the host and service containers can always
+    /// reach a private domain locally.
+    Local(Vec<IpAddr>),
+}
+
 struct Resolver {
     catalog: Arc<RwLock<Catalog>>,
     resolve: Arc<SyncRwLock<ResolveMap>>,
     net_iface: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
-    _thread: NonDetachingJoinHandle<()>,
+    scope: PrivateScope,
 }
-impl Resolver {
-    fn new(
-        db: TypedPatchDb<Database>,
-        net_iface: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
-    ) -> Self {
-        let catalog = Arc::new(RwLock::new(Catalog::new()));
-        Self {
-            catalog: catalog.clone(),
-            resolve: Arc::new(SyncRwLock::new(ResolveMap::default())),
-            net_iface,
-            _thread: tokio::spawn(async move {
+
+/// Keep the forwarder authority in `catalog` in sync with resolv.conf and the
+/// user's static upstream servers.
+fn spawn_forwarder(
+    db: TypedPatchDb<Database>,
+    catalog: Arc<RwLock<Catalog>>,
+) -> NonDetachingJoinHandle<()> {
+    tokio::spawn(async move {
                 let mut prev = crate::util::serde::hash_serializable::<sha2::Sha256, _>(&(
                     ResolverConfig::new(),
                     ResolverOpts::default(),
@@ -369,9 +380,9 @@ impl Resolver {
                     }
                 }
             })
-            .into(),
-        }
-    }
+        .into()
+}
+impl Resolver {
     fn resolve(&self, name: &Name, mut src: IpAddr) -> Option<Vec<IpAddr>> {
         if name.zone_of(&*LOCALHOST) {
             return Some(vec![Ipv4Addr::LOCALHOST.into(), Ipv6Addr::LOCALHOST.into()]);
@@ -386,43 +397,38 @@ impl Resolver {
             }
             a => a,
         };
+        let domain = name.to_lowercase().to_utf8();
+        let domain = domain.trim_end_matches('.');
         self.resolve.peek(|r| {
-            if !src.is_loopback()
-                && r.private_domains
-                    .get(&*name.to_lowercase().to_utf8().trim_end_matches('.'))
-                    .map_or(false, |d| d.strong_count() > 0)
-            {
-                if let Some(res) = self.net_iface.peek(|i| {
-                    i.values()
-                        .filter_map(|i| i.ip_info.as_ref())
-                        .find(|i| i.subnets.iter().any(|s| s.contains(&src)))
-                        .map(|ip_info| {
-                            let mut res = ip_info.subnets.iter().collect::<Vec<_>>();
-                            res.sort_by_cached_key(|a| !a.contains(&src));
-                            res.into_iter().map(|s| s.addr()).collect()
-                        })
-                }) {
-                    return Some(res);
-                } else if is_private_ip(src) {
-                    // Source is a private IP not in any known subnet (e.g. VPN on a different VLAN).
-                    // Return all private IPs from all interfaces.
-                    let res: Vec<IpAddr> = self.net_iface.peek(|i| {
-                        i.values()
-                            .filter_map(|i| i.ip_info.as_ref())
-                            .flat_map(|ip_info| ip_info.subnets.iter().map(|s| s.addr()))
-                            .collect()
-                    });
-                    if !res.is_empty() {
-                        return Some(res);
+            match &self.scope {
+                PrivateScope::None => {}
+                PrivateScope::Gateway(my_gateway) => {
+                    let serves_here = r
+                        .private_domains
+                        .get(domain)
+                        .filter(|(_, rc)| rc.strong_count() > 0)
+                        .map_or(false, |(gateways, _)| gateways.contains(my_gateway));
+                    if serves_here {
+                        if let Some(res) = self.net_iface.peek(|i| {
+                            i.get(my_gateway)
+                                .and_then(|info| info.ip_info.as_ref())
+                                .map(|ip_info| {
+                                    let mut res = ip_info.subnets.iter().collect::<Vec<_>>();
+                                    res.sort_by_cached_key(|a| !a.contains(&src));
+                                    res.into_iter().map(|s| s.addr()).collect()
+                                })
+                        }) {
+                            return Some(res);
+                        }
                     }
-                } else {
-                    tracing::warn!(
-                        "{}",
-                        t!(
-                            "net.dns.could-not-determine-source-interface",
-                            src = src.to_string()
-                        )
-                    );
+                }
+                PrivateScope::Local(addrs) => {
+                    if r.private_domains
+                        .get(domain)
+                        .map_or(false, |(_, rc)| rc.strong_count() > 0)
+                    {
+                        return Some(addrs.clone());
+                    }
                 }
             }
             if STARTOS.zone_of(name) || EMBASSY.zone_of(name) {
@@ -611,43 +617,137 @@ impl RequestHandler for Resolver {
     }
 }
 
+fn bind_reuse_udp(addr: SocketAddr, dual_stack: bool) -> Result<UdpSocket, Error> {
+    let domain = match addr {
+        SocketAddr::V4(_) => socket2::Domain::IPV4,
+        SocketAddr::V6(_) => socket2::Domain::IPV6,
+    };
+    let socket = socket2::Socket::new(domain, socket2::Type::DGRAM, Some(socket2::Protocol::UDP))
+        .with_kind(ErrorKind::Network)?;
+    socket
+        .set_reuse_address(true)
+        .with_kind(ErrorKind::Network)?;
+    if matches!(addr, SocketAddr::V6(_)) {
+        socket
+            .set_only_v6(!dual_stack)
+            .with_kind(ErrorKind::Network)?;
+    }
+    socket.set_nonblocking(true).with_kind(ErrorKind::Network)?;
+    socket.bind(&addr.into()).with_kind(ErrorKind::Network)?;
+    UdpSocket::from_std(socket.into()).with_kind(ErrorKind::Network)
+}
+
+fn dns_server_on(resolver: Resolver, addr: SocketAddr) -> Result<ServerFuture<Resolver>, Error> {
+    let dual_stack = matches!(addr, SocketAddr::V6(v6) if v6.ip().is_unspecified());
+    let mut server = ServerFuture::new(resolver);
+    server.register_listener(
+        bind_tokio_listener(addr).with_kind(ErrorKind::Network)?,
+        Duration::from_secs(30),
+    );
+    server.register_socket(bind_reuse_udp(addr, dual_stack)?);
+    Ok(server)
+}
+
+/// Serve DNS on a wildcard catch-all socket plus a socket bound to each gateway
+/// interface address, loopback, and the container bridge. Because each specific
+/// socket only receives datagrams sent to its address, the kernel routes a query
+/// to the socket for the interface it ingressed on. A gateway socket answers a
+/// private domain only when the domain is configured for that gateway (so it
+/// never leaks across interfaces), while loopback and the container bridge answer
+/// every private domain locally; the wildcard answers none.
+async fn run_dns_servers(
+    db: TypedPatchDb<Database>,
+    catalog: Arc<RwLock<Catalog>>,
+    resolve: Arc<SyncRwLock<ResolveMap>>,
+    mut net_iface: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
+) -> Result<(), Error> {
+    let _forwarder = spawn_forwarder(db, catalog.clone());
+    let resolver_iface = net_iface.clone();
+    let resolver = |scope: PrivateScope| Resolver {
+        catalog: catalog.clone(),
+        resolve: resolve.clone(),
+        net_iface: resolver_iface.clone(),
+        scope,
+    };
+
+    let loopback = vec![IpAddr::V4(Ipv4Addr::LOCALHOST), IpAddr::V6(Ipv6Addr::LOCALHOST)];
+    let host_ip = IpAddr::V4(Ipv4Addr::from(HOST_IP));
+
+    let mut servers: BTreeMap<SocketAddr, ServerFuture<Resolver>> = BTreeMap::new();
+    loop {
+        let mut desired: BTreeMap<SocketAddr, PrivateScope> = BTreeMap::new();
+        net_iface.peek(|ifaces| {
+            for (gw, info) in ifaces {
+                let Some(ip_info) = info.ip_info.as_ref() else {
+                    continue;
+                };
+                for subnet in &ip_info.subnets {
+                    let addr = match subnet.addr() {
+                        IpAddr::V6(v6) if ipv6_is_link_local(v6) => {
+                            SocketAddr::V6(SocketAddrV6::new(v6, 53, 0, ip_info.scope_id))
+                        }
+                        ip => SocketAddr::new(ip, 53),
+                    };
+                    desired.insert(addr, PrivateScope::Gateway(gw.clone()));
+                }
+            }
+        });
+        // wildcard catch-all + the always-on loopback / container-bridge scopes,
+        // inserted last so they win over any gateway that reports the same address.
+        desired.insert(
+            SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 53),
+            PrivateScope::None,
+        );
+        desired.insert(
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 53),
+            PrivateScope::Local(loopback.clone()),
+        );
+        desired.insert(
+            SocketAddr::new(IpAddr::V6(Ipv6Addr::LOCALHOST), 53),
+            PrivateScope::Local(loopback.clone()),
+        );
+        desired.insert(
+            SocketAddr::new(host_ip, 53),
+            PrivateScope::Local(vec![host_ip]),
+        );
+
+        servers.retain(|addr, _| desired.contains_key(addr));
+        for (addr, scope) in desired {
+            if !servers.contains_key(&addr) {
+                match dns_server_on(resolver(scope), addr) {
+                    Ok(server) => {
+                        servers.insert(addr, server);
+                    }
+                    Err(e) => {
+                        tracing::error!("failed to bind DNS on {addr}: {e}");
+                        tracing::debug!("{e:?}");
+                    }
+                }
+            }
+        }
+
+        net_iface.changed().await;
+    }
+}
+
 impl DnsController {
     #[instrument(skip_all)]
     pub async fn init(
         db: TypedPatchDb<Database>,
         watcher: &NetworkInterfaceWatcher,
     ) -> Result<Self, Error> {
-        let resolver = Resolver::new(db, watcher.subscribe());
-        let resolve = Arc::downgrade(&resolver.resolve);
-        let mut server = ServerFuture::new(resolver);
+        let resolve = Arc::new(SyncRwLock::new(ResolveMap::default()));
+        let catalog = Arc::new(RwLock::new(Catalog::new()));
+        let weak = Arc::downgrade(&resolve);
+        let net_iface = watcher.subscribe();
 
-        let dns_server = tokio::spawn(
-            async move {
-                server.register_listener(
-                    TcpListener::bind((Ipv6Addr::UNSPECIFIED, 53))
-                        .await
-                        .with_kind(ErrorKind::Network)?,
-                    Duration::from_secs(30),
-                );
-                server.register_socket(
-                    UdpSocket::bind((Ipv6Addr::UNSPECIFIED, 53))
-                        .await
-                        .with_kind(ErrorKind::Network)?,
-                );
-
-                server
-                    .block_until_done()
-                    .await
-                    .with_kind(ErrorKind::Network)
-            }
-            .map(|r| {
-                r.log_err();
-            }),
-        )
+        let dns_server = tokio::spawn(run_dns_servers(db, catalog, resolve, net_iface).map(|r| {
+            r.log_err();
+        }))
         .into();
 
         Ok(Self {
-            resolve,
+            resolve: weak,
             dns_server,
         })
     }
@@ -694,15 +794,20 @@ impl DnsController {
         }
     }
 
-    pub fn add_private_domain(&self, fqdn: InternedString) -> Result<Arc<()>, Error> {
+    pub fn add_private_domain(
+        &self,
+        fqdn: InternedString,
+        gateways: BTreeSet<GatewayId>,
+    ) -> Result<Arc<()>, Error> {
         if let Some(resolve) = Weak::upgrade(&self.resolve) {
             resolve.mutate(|writable| {
-                let weak = writable.private_domains.entry(fqdn).or_default();
-                let rc = if let Some(rc) = Weak::upgrade(&*weak) {
+                let entry = writable.private_domains.entry(fqdn).or_default();
+                entry.0 = gateways;
+                let rc = if let Some(rc) = Weak::upgrade(&entry.1) {
                     rc
                 } else {
                     let new = Arc::new(());
-                    *weak = Arc::downgrade(&new);
+                    entry.1 = Arc::downgrade(&new);
                     new
                 };
                 Ok(rc)
@@ -754,7 +859,7 @@ impl DnsController {
             resolve.mutate(|writable| {
                 for domain in domains {
                     if let Some((k, v)) = writable.private_domains.remove_entry(domain) {
-                        if v.strong_count() > 0 {
+                        if v.1.strong_count() > 0 {
                             writable.private_domains.insert(k, v);
                         }
                     }

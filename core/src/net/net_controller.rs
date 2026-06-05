@@ -19,7 +19,6 @@ use crate::net::forward::{
     ForwardRequirements, InterfacePortForwardController, START9_BRIDGE_IFACE, nft_rule,
 };
 use crate::net::gateway::NetworkInterfaceController;
-use crate::net::host::address::HostAddress;
 use crate::net::host::binding::{AddSslOptions, BindId, BindOptions};
 use crate::net::host::{Host, Hosts, host_for};
 use crate::net::service_interface::HostnameMetadata;
@@ -182,21 +181,11 @@ impl NetServiceData {
     async fn update(&mut self, ctrl: &NetController, id: HostId, host: Host) -> Result<(), Error> {
         let mut forwards: BTreeMap<u16, (SocketAddrV4, ForwardRequirements)> = BTreeMap::new();
         let mut vhosts: BTreeMap<(Option<InternedString>, u16), ProxyTarget> = BTreeMap::new();
-        let mut private_dns: BTreeSet<InternedString> = BTreeSet::new();
+        let mut private_dns: BTreeMap<InternedString, BTreeSet<GatewayId>> = BTreeMap::new();
         let binds = self.binds.entry(id.clone()).or_default();
 
         let net_ifaces = ctrl.net_iface.watcher.ip_info();
         let host_addresses: Vec<_> = host.addresses().collect();
-
-        // Collect private DNS entries (domains without public config)
-        for HostAddress {
-            address, public, ..
-        } in &host_addresses
-        {
-            if public.is_none() {
-                private_dns.insert(address.clone());
-            }
-        }
 
         // ── Build controller entries from enabled addresses ──
         for (port, bind) in host.bindings.iter() {
@@ -209,6 +198,28 @@ impl NetServiceData {
 
             let enabled_addresses = bind.addresses.enabled();
             let addr: SocketAddr = (self.ip, *port).into();
+
+            // Key private DNS by its live gateways so the resolver only answers
+            // locally over those gateways — works even when also public (split DNS).
+            for addr_info in &enabled_addresses {
+                if let HostnameMetadata::PrivateDomain { gateways } = &addr_info.metadata {
+                    let live: BTreeSet<GatewayId> = gateways
+                        .iter()
+                        .filter(|gw| {
+                            net_ifaces
+                                .get(*gw)
+                                .map_or(false, |info| info.ip_info.is_some())
+                        })
+                        .cloned()
+                        .collect();
+                    if !live.is_empty() {
+                        private_dns
+                            .entry(addr_info.hostname.clone())
+                            .or_default()
+                            .extend(live);
+                    }
+                }
+            }
 
             // SSL vhosts
             if let Some(ssl) = &bind.options.add_ssl {
@@ -462,17 +473,17 @@ impl NetServiceData {
 
         let mut rm = BTreeSet::new();
         binds.private_dns.retain(|fqdn, _| {
-            if private_dns.remove(fqdn) {
+            if private_dns.contains_key(fqdn) {
                 true
             } else {
                 rm.insert(fqdn.clone());
                 false
             }
         });
-        for fqdn in private_dns {
+        for (fqdn, gateways) in private_dns {
             binds
                 .private_dns
-                .insert(fqdn.clone(), ctrl.dns.add_private_domain(fqdn)?);
+                .insert(fqdn.clone(), ctrl.dns.add_private_domain(fqdn, gateways)?);
         }
         ctrl.dns.gc_private_domains(&rm)?;
 
