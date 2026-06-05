@@ -28,7 +28,14 @@ import { NetworkRestartService } from 'src/app/services/network-restart.service'
 import { LanIpv4Ip } from './form/ip'
 import { LanIpv4Service } from './service'
 import { LanIpv4Summary } from './summary'
-import { buildRouterIp, getLanIpv4Form, LanIpv4Form } from './utils'
+import {
+  buildRouterIp,
+  getLanIpv4Form,
+  getSecondOctetRange,
+  isSecondOctetInRange,
+  LanIpv4Form,
+  resolveSecondOctet,
+} from './utils'
 
 @Component({
   template: `
@@ -91,12 +98,34 @@ export default class LanIpv4 {
   )
 
   readonly saveBlocked = computed(() => {
+    const current = this.formValue()
+
+    // Out-of-range second octet: block save and show the allowed RFC values.
+    // Resolve first so the locked 192 block (whose control may hold a stale
+    // value from a previous block) is never falsely flagged.
+    const first = current.ip?.firstOctet
+    const rawSecond = current.ip?.secondOctet
+    const second =
+      first != null && rawSecond != null
+        ? resolveSecondOctet(first, rawSecond)
+        : rawSecond
+    if (
+      first != null &&
+      second != null &&
+      !isSecondOctetInRange(first, second)
+    ) {
+      const { min, max } = getSecondOctetRange(first)
+      return `Second octet must be ${min}–${max}`
+    }
+
     if (!this.hasStaticIps()) return null
     const data = this.service.data()
     if (!data) return null
-    const current = this.formValue()
+    // data.ip.secondOctet is backend-canonical (already resolved), so compare
+    // against the resolved current value.
     if (
-      current.ip?.firstOctet !== data.ip.firstOctet ||
+      first !== data.ip.firstOctet ||
+      second !== data.ip.secondOctet ||
       current.ip?.routerOctet !== data.ip.routerOctet
     ) {
       return 'Cannot change subnet while devices have static IP reservations'

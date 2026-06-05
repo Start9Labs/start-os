@@ -174,6 +174,7 @@ pub(crate) struct UciProfile {
 }
 
 /// Snapshot of profile fields before an update, for activity log diffing.
+#[derive(Debug)]
 struct OldProfileState {
     outbound: Option<String>,
     wan_access: Option<String>,
@@ -1127,11 +1128,45 @@ fn get_lan_ip(cfgs: &uciedit::Configs) -> Option<Ipv4Addr> {
     None
 }
 
+/// Validate a profile's gateway IP stays within the allowed network block.
+///
+/// The LAN-owning (admin) profile defines the block, so it must itself be a
+/// valid RFC 1918 selection — the same rule `lan::ipv4_set` enforces (this is a
+/// second path that sets the LAN /16). Every other profile must live inside the
+/// admin LAN's /16 (matching first two octets) so VLAN subnets can't escape the
+/// chosen private range — `sync_cross_subnet_routes` assumes siblings share the
+/// block, and an out-of-block subnet would also dodge the LAN-level boundary.
+fn validate_profile_block(
+    cfgs: &Configs,
+    profile: &Profile<ProfileIdOpt>,
+) -> Result<(), Error> {
+    if profile.owns_lan {
+        return crate::lan::validate_lan_block(profile.gateway_ip);
+    }
+    if let Some(lan) = get_lan_ip(cfgs) {
+        let g = profile.gateway_ip.octets();
+        let l = lan.octets();
+        if g[0] != l[0] || g[1] != l[1] {
+            return Err(Error::new(
+                eyre!(
+                    "profile subnet {} is outside the LAN network block {}.{}.0.0/16",
+                    profile.gateway_ip,
+                    l[0],
+                    l[1]
+                ),
+                ErrorKind::InvalidRequest,
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn set_config<C: CtrlContext>(
     ctx: C,
     cfgs: &mut Configs,
     profile: &Profile<ProfileIdOpt>,
 ) -> Result<(ProfileId, Option<OldProfileState>), Error> {
+    validate_profile_block(cfgs, profile)?;
     let ipv6 = is_ipv6_enabled(cfgs)
         && outbound_supports_ipv6(cfgs, &profile.outbound);
     // Check fullname uniqueness before renaming
@@ -1379,6 +1414,7 @@ fn create_config(
     profile: &Profile<ProfileIdOpt>,
     pre_allocated_interface: Option<String>,
 ) -> Result<ProfileId, Error> {
+    validate_profile_block(cfgs, profile)?;
     let ipv6 = is_ipv6_enabled(cfgs)
         && outbound_supports_ipv6(cfgs, &profile.outbound);
     let interface = if profile.owns_lan {
@@ -3756,6 +3792,118 @@ config dhcp 'lan'
             Some("br-lan.200"),
             "set_config should prefer br-lan even when br-guest appears first"
         );
+    }
+
+    #[tokio::test]
+    async fn set_config_rejects_out_of_block_subnet() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path()); // LAN is 192.168.1.1
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+
+        // Non-admin profile whose subnet escapes the LAN's 192.168.0.0/16 block.
+        let escaping = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(10, 0, 5, 1),
+            outbound: "wan".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            dns_source: String::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+        let err = set_config(ctx.clone(), &mut cfgs, &escaping).unwrap_err();
+        assert_eq!(
+            err.kind,
+            ErrorKind::InvalidRequest,
+            "non-admin subnet outside the LAN /16 must be rejected"
+        );
+
+        // The admin profile defines the block, so it must itself be a valid
+        // RFC 1918 selection — this is a second path that sets the LAN /16.
+        let bad_admin = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Admin".into()),
+                interface: Some("lan".into()),
+                vlan_tag: Some(99),
+            },
+            gateway_ip: Ipv4Addr::new(8, 8, 8, 8),
+            outbound: "wan".into(),
+            lan_access: LanAccess::All,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            dns_source: String::new(),
+            access_to_new_profiles: true,
+            owns_lan: true,
+        };
+        let err = set_config(ctx.clone(), &mut cfgs, &bad_admin).unwrap_err();
+        assert_eq!(
+            err.kind,
+            ErrorKind::InvalidRequest,
+            "admin gateway outside RFC 1918 ranges must be rejected"
+        );
+    }
+
+    #[tokio::test]
+    async fn validate_profile_block_accepts_alternate_rfc1918_block() {
+        // A LAN in 10.42.0.0/16 must accept siblings within that block and an
+        // admin keeping a valid RFC 1918 selection, while still rejecting a
+        // sibling that leaves the block. Locks in that non-192.168 blocks pass.
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("network"),
+            "\
+config interface 'lan'
+\toption device 'br-lan'
+\toption proto 'static'
+\toption ipaddr '10.42.1.1'
+\toption netmask '255.255.255.0'
+",
+        )
+        .unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        let arena = Arena::new();
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["network"]).await.unwrap();
+
+        let make = |gw: Ipv4Addr, owns_lan: bool| Profile {
+            id: ProfileIdOpt {
+                fullname: Some("X".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: gw,
+            outbound: "wan".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            dns_source: String::new(),
+            access_to_new_profiles: false,
+            owns_lan,
+        };
+
+        // Sibling inside the LAN's 10.42.0.0/16 — accepted.
+        validate_profile_block(&cfgs, &make(Ipv4Addr::new(10, 42, 5, 1), false))
+            .expect("sibling in the LAN /16 should be accepted");
+        // Admin keeping a valid RFC 1918 selection — accepted.
+        validate_profile_block(&cfgs, &make(Ipv4Addr::new(10, 42, 1, 1), true))
+            .expect("admin in a valid RFC 1918 block should be accepted");
+        // Sibling escaping the block — still rejected.
+        let err = validate_profile_block(&cfgs, &make(Ipv4Addr::new(192, 168, 5, 1), false))
+            .unwrap_err();
+        assert_eq!(err.kind, ErrorKind::InvalidRequest);
     }
 
     #[tokio::test]

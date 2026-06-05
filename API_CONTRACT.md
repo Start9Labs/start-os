@@ -485,9 +485,20 @@ struct LanIpv4Response {
 #[derive(Deserialize)]
 struct LanIpv4SetRequest {
     address: String,
+    /// When true, forcibly delete VPN peers that would break due to the change.
+    #[serde(default)]
+    force: bool,
 }
 // Response: null
-// Backend: updates UCI network.lan ipaddr, sets netmask to /16, restarts network
+// Backend: updates UCI network.lan ipaddr (netmask /24), restarts network.
+// Validation: address must fall inside an RFC 1918 block at one of the
+//   selectable /16 boundaries, else ErrorKind::InvalidRequest:
+//     10.0.0.0/8     — second octet 0..=255
+//     172.16.0.0/12  — second octet 16..=31
+//     192.168.0.0/16 — second octet == 168
+//   (3rd/4th octets unconstrained.) The same rule is enforced on the admin
+//   profile via profiles.set/create; non-admin profiles must additionally
+//   share the admin LAN's first two octets (stay inside its /16).
 ```
 
 ### `lan.ipv6-get`
@@ -1079,6 +1090,9 @@ struct ProfileCreateRequest {
     dns_override: Option<Vec<DnsServer>>,
 }
 // Response: ProfileId
+// Validation: gateway_ip must stay inside the LAN network block (see
+//   lan.ipv4-set). owns_lan profiles must be a valid RFC 1918 selection;
+//   others must share the admin LAN's first two octets, else InvalidRequest.
 ```
 
 ### `profiles.set`
@@ -1100,6 +1114,7 @@ struct ProfileUpdateRequest {
     dns_override: Option<Vec<DnsServer>>,
 }
 // Response: ProfileId
+// Validation: same gateway_ip block check as profiles.create.
 ```
 
 ### `profiles.delete`

@@ -15,6 +15,30 @@ pub const LAN_INTERFACE: &str = "lan";
 pub const WAN6_INTERFACE: &str = "wan6";
 pub const LAN_NETMASK: Ipv4Addr = Ipv4Addr::new(255, 255, 255, 0);
 
+/// Reject any LAN IPv4 outside the RFC 1918 ranges the UI offers.
+///
+/// [`Ipv4Addr::is_private`] already encodes exactly the per-block second-octet
+/// boundaries that bound each selectable /16:
+///   10.0.0.0/8     — second octet 0..=255 (256 /16s)
+///   172.16.0.0/12  — second octet 16..=31 (16 /16s)
+///   192.168.0.0/16 — second octet == 168 (the whole block, a single /16)
+///
+/// The third/fourth octets (subnet + host within the block) are intentionally
+/// unconstrained — they're the user's `routerOctet` and the fixed `.1` host.
+pub(crate) fn validate_lan_block(addr: Ipv4Addr) -> Result<(), Error> {
+    if addr.is_private() {
+        Ok(())
+    } else {
+        Err(Error::new(
+            eyre!(
+                "LAN IPv4 {addr} is outside the supported private ranges \
+                 (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)"
+            ),
+            ErrorKind::InvalidRequest,
+        ))
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LanIpv4Response {
     pub address: String,
@@ -93,6 +117,9 @@ pub async fn ipv4_set<C: CtrlContext>(
         .address
         .parse()
         .map_err(|_| Error::new(eyre!("Invalid IPv4 address: {}", req.address), ErrorKind::ParseNetAddress))?;
+    // Enforce the RFC 1918 block boundaries the UI exposes — fail before
+    // touching any config so a bad value can't partially apply.
+    validate_lan_block(address)?;
 
     let mut retries = 4;
     loop {
@@ -727,6 +754,65 @@ config profile lan
 ",
         )
         .unwrap();
+    }
+
+    // ── Block validation ────────────────────────────────────────
+
+    #[test]
+    fn validate_lan_block_accepts_supported_ranges() {
+        for ip in [
+            "10.0.0.1",
+            "10.255.0.1",
+            "172.16.0.1",
+            "172.31.0.1",
+            "192.168.0.1",
+            "192.168.255.1",
+        ] {
+            assert!(
+                validate_lan_block(ip.parse().unwrap()).is_ok(),
+                "{ip} should be accepted"
+            );
+        }
+    }
+
+    #[test]
+    fn validate_lan_block_rejects_out_of_block() {
+        for ip in [
+            "172.15.0.1", // below the 172.16/12 block
+            "172.32.0.1", // above the 172.16/12 block
+            "192.167.0.1",
+            "192.169.0.1",
+            "8.8.8.8",
+            "127.0.0.1",
+            "169.254.0.1",
+        ] {
+            let err = validate_lan_block(ip.parse().unwrap()).unwrap_err();
+            assert_eq!(
+                err.kind,
+                ErrorKind::InvalidRequest,
+                "{ip} should be rejected as InvalidRequest"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn ipv4_set_rejects_out_of_block_address() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_fixtures(dir.path());
+        setup_startwrt(dir.path());
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let err = ipv4_set(
+            ctx,
+            DeserializeStdin(LanIpv4SetRequest {
+                address: "172.15.0.1".to_string(),
+                force: false,
+            }),
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(err.kind, ErrorKind::InvalidRequest);
     }
 
     // ── IPv4 tests ──────────────────────────────────────────────
