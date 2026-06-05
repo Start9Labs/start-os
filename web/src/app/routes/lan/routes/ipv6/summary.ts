@@ -3,18 +3,23 @@ import { TuiBadge, TuiStatus } from '@taiga-ui/kit'
 import { Summary } from 'src/app/components/summary'
 import { injectFormService } from 'src/app/services/form.service'
 import { LanIpv6Data } from './service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   selector: '[lanIpv6Summary]',
   template: `
     <section>
       <div appSummary>
-        Status
+        {{ 'Status' | i18n }}
         <span tuiSubtitle [style.gap.rem]="0.375">
           @if (slaac()) {
-            <span tuiBadge tuiStatus appearance="positive">Enabled</span>
+            <span tuiBadge tuiStatus appearance="positive">
+              {{ 'Enabled' | i18n }}
+            </span>
           } @else {
-            <span tuiBadge tuiStatus appearance="neutral">Disabled</span>
+            <span tuiBadge tuiStatus appearance="neutral">
+              {{ 'Disabled' | i18n }}
+            </span>
           }
           @if (dhcpv6()) {
             <span tuiBadge tuiStatus appearance="positive">DHCPv6</span>
@@ -22,17 +27,17 @@ import { LanIpv6Data } from './service'
         </span>
       </div>
       @if (ip6addr(); as addr) {
-        <div [appSummary]="addr">Router IP</div>
+        <div [appSummary]="addr">{{ 'Router IP' | i18n }}</div>
       }
       @if (prefix(); as p) {
         <div appSummary>
-          Prefix Length
+          {{ 'Prefix Length' | i18n }}
           <span tuiSubtitle>{{ p }}</span>
         </div>
       }
     </section>
   `,
-  imports: [TuiBadge, TuiStatus, Summary],
+  imports: [TuiBadge, TuiStatus, Summary, i18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LanIpv6Summary {

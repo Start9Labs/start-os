@@ -9,33 +9,38 @@ import { TuiAvatar, TuiAvatarLabeled, TuiBadge, TuiStatus } from '@taiga-ui/kit'
 import { Summary } from 'src/app/components/summary'
 import { buildConnectionPath } from 'src/app/routes/outbound/utils'
 import OutboundVPN from 'src/app/routes/outbound/routes/vpn/index'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   selector: '[vpnSummary]',
   template: `
     <section>
       <label appSummary>
-        Status
+        {{ 'Status' | i18n }}
         <span tuiSubtitle>
           @if (parent.data()?.enabled) {
-            <span tuiBadge tuiStatus appearance="positive">Connected</span>
+            <span tuiBadge tuiStatus appearance="positive">
+              {{ 'Connected' | i18n }}
+            </span>
           } @else {
-            <span tuiBadge tuiStatus appearance="neutral">Disabled</span>
+            <span tuiBadge tuiStatus appearance="neutral">
+              {{ 'Disabled' | i18n }}
+            </span>
           }
         </span>
       </label>
       <label appSummary>
-        Used by
+        {{ 'Used by' | i18n }}
         <span tuiSubtitle>{{ parent.data()?.used_by?.join(', ') || '-' }}</span>
       </label>
     </section>
     <section>
       <label appSummary>
-        Connection path
+        {{ 'Connection path' | i18n }}
         <span tuiSubtitle>
           @for (step of connectionPath(); track $index; let last = $last) {
             @if (step === 'Internet') {
-              <tui-avatar-labeled label="Internet">
+              <tui-avatar-labeled [label]="'Internet' | i18n">
                 <span
                   tuiAvatar="@tui.globe"
                   size="m"
@@ -63,7 +68,15 @@ import OutboundVPN from 'src/app/routes/outbound/routes/vpn/index'
       margin: 0;
     }
   `,
-  imports: [TuiBadge, TuiStatus, Summary, TuiAvatarLabeled, TuiAvatar, TuiIcon],
+  imports: [
+    TuiBadge,
+    TuiStatus,
+    Summary,
+    TuiAvatarLabeled,
+    TuiAvatar,
+    TuiIcon,
+    i18nPipe,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VPNSummary {

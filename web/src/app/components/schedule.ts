@@ -19,6 +19,7 @@ import {
   quarterHourToTime,
   timeToQuarterHour,
 } from 'src/app/utils/schedule'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   selector: 'app-schedule',
@@ -30,7 +31,7 @@ import {
         [max]="96"
         [template]="gap"
       >
-        <span class="day">{{ labels[col.day] }}</span>
+        <span class="day">{{ labels[col.day] | i18n }}</span>
         @for (block of col.blocks; track block.windowIndex + '-' + block.kind) {
           <label
             tuiTimelineItem
@@ -60,7 +61,7 @@ import {
               appearance="secondary-grayscale"
               (click)="add(col.day, index, timeline.value())"
             >
-              Add
+              {{ 'Add' | i18n }}
             </button>
           </div>
         </ng-template>
@@ -180,7 +181,7 @@ import {
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(change)': 'save()' },
-  imports: [TuiTimeline, TuiAutoColorPipe, TuiButton],
+  imports: [TuiTimeline, TuiAutoColorPipe, TuiButton, i18nPipe],
 })
 export class ScheduleComponent {
   public readonly windows = model<ScheduleWindow[]>([])
@@ -190,6 +191,7 @@ export class ScheduleComponent {
   protected readonly labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
   protected readonly dialogs = inject(TuiResponsiveDialogService)
   protected readonly injector = inject(INJECTOR)
+  private readonly i18n = inject(i18nPipe)
   protected readonly source = computed(() =>
     this.windows().map(({ startTime, endTime, days }) => ({
       range: [from(startTime), from(endTime)] as const,
@@ -279,12 +281,13 @@ export class ScheduleComponent {
       .open<ScheduleWindow | null>(
         new PolymorpheusComponent(AddWindow, this.injector),
         {
-          label: 'Edit Blackout Window',
+          label: this.i18n.transform('Edit Blackout Window'),
           data: {
             startTime: to(this.view()[index].range[0]),
             endTime: to(this.view()[index].range[1]),
             days: this.view()[index].days,
             others: this.others(index),
+            edit: true,
           },
         },
       )
@@ -319,12 +322,13 @@ export class ScheduleComponent {
       .open<ScheduleWindow>(
         new PolymorpheusComponent(AddWindow, this.injector),
         {
-          label: 'Add Blackout Window',
+          label: this.i18n.transform('Add Blackout Window'),
           data: {
             startTime: to(start),
             endTime: to(start + 4),
             days,
             others: this.others(),
+            edit: false,
           },
         },
       )

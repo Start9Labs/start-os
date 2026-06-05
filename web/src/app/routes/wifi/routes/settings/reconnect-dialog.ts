@@ -9,6 +9,7 @@ import {
 import { TuiDialogContext, TuiLoader } from '@taiga-ui/core'
 import { injectContext } from '@taiga-ui/polymorpheus'
 import { ApiService } from 'src/app/services/api/api.service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 import {
   isNetworkError,
   NetworkRestartService,
@@ -19,20 +20,20 @@ import { IS_MOCK } from 'src/app/utils/workspace-config'
   template: `
     <div style="text-align: center; padding: 2rem;">
       @if (ssidConfirmed()) {
-        <h3>WiFi Restarted</h3>
+        <h3>{{ 'WiFi Restarted' | i18n }}</h3>
         <p>
-          Connect to
+          {{ 'Connect to' | i18n }}
           <strong>{{ ssid }}</strong>
-          to continue.
+          {{ 'to continue.' | i18n }}
         </p>
       } @else {
         <tui-loader size="l" />
-        <p>Restarting WiFi...</p>
+        <p>{{ 'Restarting WiFi...' | i18n }}</p>
       }
     </div>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiLoader],
+  imports: [TuiLoader, i18nPipe],
 })
 export class ReconnectDialog implements OnInit, OnDestroy {
   private readonly context =

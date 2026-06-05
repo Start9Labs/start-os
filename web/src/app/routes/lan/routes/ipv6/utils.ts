@@ -7,6 +7,7 @@ import {
   Validators,
 } from '@angular/forms'
 import { FormRawValue } from 'src/app/services/form.service'
+import { tpl } from 'src/app/i18n/validation-errors'
 
 export function getLanIpv6Form(builder: NonNullableFormBuilder) {
   return builder.group({
@@ -44,8 +45,10 @@ export function prefixValidator(wanPrefix: number): ValidatorFn {
 export const PREFIX_VALIDATION_ERRORS = {
   required: 'Required',
   pattern: 'Invalid prefix format',
-  minPrefix: ({ wanPrefix }: { wanPrefix: number }) =>
-    `Your WAN prefix is /${wanPrefix}. Enter a value greater than ${wanPrefix} and less than 128.`,
+  minPrefix: tpl<{ wanPrefix: number }>(
+    'Your WAN prefix is /{wanPrefix}. Enter a value greater than {wanPrefix} and less than 128.',
+    ({ wanPrefix }) => ({ wanPrefix }),
+  ),
   maxPrefix: 'Value must be less than 128.',
 }
 

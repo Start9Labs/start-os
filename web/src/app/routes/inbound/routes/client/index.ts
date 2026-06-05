@@ -21,6 +21,7 @@ import { filter } from 'rxjs'
 import { Placeholder } from 'src/app/components/placeholder'
 import { DevicesApiService } from 'src/app/routes/devices/service'
 import { InboundService, VpnServerPeer } from '../../service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 import { CLIENT_CONFIG } from './dialog-config'
 import { ADD_CLIENT, ClientDialogData } from './dialog-add'
@@ -41,7 +42,7 @@ import { RENAME_CLIENT } from './dialog-rename'
             [tuiSkeleton]="!server()"
           >
             {{ server()?.label }}
-            (client devices)
+            {{ '(client devices)' | i18n }}
           </a>
         </h2>
       </hgroup>
@@ -52,16 +53,18 @@ import { RENAME_CLIENT } from './dialog-rename'
           [disabled]="!deviceIps()"
           (click)="add()"
         >
-          Add
+          {{ 'Add' | i18n }}
         </button>
       </aside>
     </header>
     <table tuiTable class="g-table" [tuiSkeleton]="!server()">
       <thead>
         <tr>
-          <th tuiTh [sorter]="'name' | tuiSorter">Name</th>
-          <th tuiTh [sorter]="'ip' | tuiSorter">LAN IP Address</th>
-          <th tuiTh>Routing</th>
+          <th tuiTh [sorter]="'name' | tuiSorter">{{ 'Name' | i18n }}</th>
+          <th tuiTh [sorter]="'ip' | tuiSorter">
+            {{ 'LAN IP Address' | i18n }}
+          </th>
+          <th tuiTh>{{ 'Routing' | i18n }}</th>
           <th tuiTh></th>
         </tr>
       </thead>
@@ -72,7 +75,7 @@ import { RENAME_CLIENT } from './dialog-rename'
             <td tuiTd>{{ item.ip }}</td>
             <td tuiTd>
               <span tuiBadge [appearance]="item.route_all ? 'info' : 'neutral'">
-                {{ item.route_all ? 'All traffic' : 'LAN only' }}
+                {{ (item.route_all ? 'All traffic' : 'LAN only') | i18n }}
               </span>
             </td>
             <td tuiTd>
@@ -85,7 +88,7 @@ import { RENAME_CLIENT } from './dialog-rename'
                 tuiDropdownAuto
                 tuiDropdown
               >
-                Actions
+                {{ 'Actions' | i18n }}
                 <tui-data-list
                   *tuiDropdown="let close"
                   size="s"
@@ -96,7 +99,7 @@ import { RENAME_CLIENT } from './dialog-rename'
                     iconStart="@tui.pencil"
                     (click)="rename(item)"
                   >
-                    Rename
+                    {{ 'Rename' | i18n }}
                   </button>
                   <button
                     tuiOption
@@ -104,9 +107,10 @@ import { RENAME_CLIENT } from './dialog-rename'
                     (click)="changeRouting(item)"
                   >
                     {{
-                      item.route_all
+                      (item.route_all
                         ? 'Switch to LAN only'
                         : 'Switch to all traffic'
+                      ) | i18n
                     }}
                   </button>
                   <button
@@ -114,7 +118,7 @@ import { RENAME_CLIENT } from './dialog-rename'
                     iconStart="@tui.file-text"
                     (click)="viewConfig(item)"
                   >
-                    View Config
+                    {{ 'View Config' | i18n }}
                   </button>
                   <button
                     tuiOption
@@ -122,7 +126,7 @@ import { RENAME_CLIENT } from './dialog-rename'
                     iconStart="@tui.trash"
                     (click)="delete(item)"
                   >
-                    Delete
+                    {{ 'Delete' | i18n }}
                   </button>
                 </tui-data-list>
               </button>
@@ -132,7 +136,7 @@ import { RENAME_CLIENT } from './dialog-rename'
           <tr>
             <td tuiTd colspan="4">
               <app-placeholder icon="@tui.monitor-smartphone">
-                No clients configured
+                {{ 'No clients configured' | i18n }}
               </app-placeholder>
             </td>
           </tr>
@@ -169,12 +173,14 @@ import { RENAME_CLIENT } from './dialog-rename'
     TuiDropdown,
     TuiBadge,
     Placeholder,
+    i18nPipe,
   ],
 })
 export default class InboundClients {
   private readonly service = inject(InboundService)
   private readonly devices = inject(DevicesApiService)
   private readonly dialogs = inject(TuiResponsiveDialogService)
+  private readonly i18n = inject(i18nPipe)
   private readonly listenPort = Number(
     inject(ActivatedRoute).snapshot.queryParams['port'],
   )
@@ -205,7 +211,7 @@ export default class InboundClients {
 
     this.dialogs
       .open<VpnServerPeer>(ADD_CLIENT, {
-        label: 'Add client device',
+        label: this.i18n.transform('Add client device'),
         data: {
           serverAddress: server.server_address,
           usedIps,
@@ -232,7 +238,7 @@ export default class InboundClients {
 
     this.dialogs
       .open<string>(RENAME_CLIENT, {
-        label: 'Rename Device',
+        label: this.i18n.transform('Rename Device'),
         data: peer.name,
       })
       .subscribe(newName => {
@@ -278,11 +284,11 @@ export default class InboundClients {
 
     this.dialogs
       .open(TUI_CONFIRM, {
-        label: 'Change routing mode?',
+        label: this.i18n.transform('Change routing mode?'),
         data: {
-          content: `This will delete the existing peer and create a new one with ${newRouteAll ? 'all traffic' : 'LAN only'} routing. You will need to reconfigure your device with the new config.`,
-          yes: 'Continue',
-          no: 'Cancel',
+          content: `${this.i18n.transform('This will delete the existing peer and create a new one with')} ${newRouteAll ? this.i18n.transform('all traffic') : this.i18n.transform('LAN only')} ${this.i18n.transform('routing. You will need to reconfigure your device with the new config.')}`,
+          yes: this.i18n.transform('Continue'),
+          no: this.i18n.transform('Cancel'),
         },
       })
       .pipe(filter(Boolean))
@@ -307,7 +313,7 @@ export default class InboundClients {
 
         this.dialogs
           .open<VpnServerPeer>(ADD_CLIENT, {
-            label: 'Reconfigure client device',
+            label: this.i18n.transform('Reconfigure client device'),
             data: {
               serverAddress: server.server_address,
               usedIps,
@@ -336,7 +342,7 @@ export default class InboundClients {
 
   delete(peer: VpnServerPeer) {
     this.dialogs
-      .open(TUI_CONFIRM, { label: 'Are you sure?' })
+      .open(TUI_CONFIRM, { label: this.i18n.transform('Are you sure?') })
       .pipe(filter(Boolean))
       .subscribe(() => {
         const profile = this.server()?.profile

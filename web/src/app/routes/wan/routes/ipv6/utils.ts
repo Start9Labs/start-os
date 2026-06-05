@@ -1,6 +1,7 @@
 import { NonNullableFormBuilder, Validators } from '@angular/forms'
 import { CustomValidators } from 'src/app/utils/validators'
 import { FormRawValue } from 'src/app/services/form.service'
+import { tpl } from 'src/app/i18n/validation-errors'
 
 export const IPV6_MODES = [
   'slaac',
@@ -61,8 +62,10 @@ export const IPV6_VALIDATION_ERRORS = {
   required: 'Required',
   ipv4: 'Enter a valid IPv4 address',
   ipv6: 'Enter a valid IPv6 address',
-  prefix: ({ min, max }: { min: number; max: number }) =>
-    `Enter a value between ${min} and ${max}`,
+  prefix: tpl<{ min: number; max: number }>(
+    'Enter a value between {min} and {max}',
+    ({ min, max }) => ({ min, max }),
+  ),
 }
 
 export type Ipv6Mode = (typeof IPV6_MODES)[number]

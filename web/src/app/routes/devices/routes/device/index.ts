@@ -15,8 +15,8 @@ import {
   TuiInput,
   TuiLink,
   TuiTitle,
-  tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
+import { provideTranslatedValidationErrors } from 'src/app/i18n/validation-errors'
 import { TuiSkeleton, TuiSwitch } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { startWith } from 'rxjs'
@@ -30,6 +30,7 @@ import {
 } from 'src/app/routes/devices/utils'
 import { ApiService } from 'src/app/services/api/api.service'
 import { DeviceSummary } from './summary'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   template: `
@@ -45,13 +46,13 @@ import { DeviceSummary } from './summary'
             [style.font]="'inherit'"
             [style.text-decoration]="'none'"
           >
-            {{ data()?.name || 'Device' }}
+            {{ data()?.name || ('Device' | i18n) }}
           </a>
         </h2>
       </hgroup>
     </header>
     <header tuiHeader="h6">
-      <h2 tuiTitle>Summary</h2>
+      <h2 tuiTitle>{{ 'Summary' | i18n }}</h2>
       <aside tuiAccessories>
         @if (data() && data()?.status !== 'online') {
           <button
@@ -60,13 +61,15 @@ import { DeviceSummary } from './summary'
             appearance="secondary"
             (click)="onForget()"
           >
-            Forget
+            {{ 'Forget' | i18n }}
           </button>
         }
       </aside>
     </header>
     <article deviceSummary [formLoading]="!data()"></article>
-    <header tuiHeader="h6"><h2 tuiTitle>Settings</h2></header>
+    <header tuiHeader="h6">
+      <h2 tuiTitle>{{ 'Settings' | i18n }}</h2>
+    </header>
     <form
       [formGroup]="form"
       [formLoading]="!data()"
@@ -76,7 +79,7 @@ import { DeviceSummary } from './summary'
       <section>
         <div>
           <tui-textfield>
-            <label tuiLabel>Name</label>
+            <label tuiLabel>{{ 'Name' | i18n }}</label>
             <input
               tuiInput
               formControlName="name"
@@ -89,27 +92,27 @@ import { DeviceSummary } from './summary'
       <section formGroupName="ip">
         <div>
           <tui-textfield>
-            <label tuiLabel>IPv4 address</label>
+            <label tuiLabel>{{ 'IPv4 address' | i18n }}</label>
             <input tuiInput formControlName="ipv4" [readOnly]="!ipv4Static()" />
           </tui-textfield>
           <tui-error formControlName="ipv4" />
         </div>
         <label tuiLabel>
           <input tuiSwitch type="checkbox" formControlName="ipv4Static" />
-          Reserve
-          <i tuiHint="Required by a published port rule"></i>
+          {{ 'Reserve' | i18n }}
+          <i [tuiHint]="'Required by a published port rule' | i18n"></i>
         </label>
         <div>
           <tui-textfield>
-            <label tuiLabel>IPv6 address</label>
+            <label tuiLabel>{{ 'IPv6 address' | i18n }}</label>
             <input tuiInput formControlName="ipv6" [readOnly]="!ipv6Static()" />
           </tui-textfield>
           <tui-error formControlName="ipv6" />
         </div>
         <label tuiLabel>
           <input tuiSwitch type="checkbox" formControlName="ipv6Static" />
-          Reserve
-          <i tuiHint="Required by a published port rule"></i>
+          {{ 'Reserve' | i18n }}
+          <i [tuiHint]="'Required by a published port rule' | i18n"></i>
         </label>
       </section>
       @if (data()) {
@@ -125,7 +128,7 @@ import { DeviceSummary } from './summary'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'g-page' },
-  providers: [tuiValidationErrorsProvider(DEVICE_VALIDATION_ERRORS)],
+  providers: [provideTranslatedValidationErrors(DEVICE_VALIDATION_ERRORS)],
   imports: [
     RouterLink,
     ReactiveFormsModule,
@@ -141,6 +144,7 @@ import { DeviceSummary } from './summary'
     TuiError,
     TuiHintDirective,
     TuiSwitch,
+    i18nPipe,
   ],
 })
 export default class DeviceDetail {

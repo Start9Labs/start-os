@@ -6,6 +6,8 @@ import { TuiHeader } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
 import { provideFormService } from 'src/app/services/form.service'
 
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
+
 import { EthernetTable } from './table'
 import { CHANGE_WAN_DIALOG } from './dialog'
 import { EthernetPortView, EthernetService } from './service'
@@ -13,11 +15,13 @@ import { EthernetPortView, EthernetService } from './service'
 @Component({
   template: `
     <header tuiHeader>
-      <hgroup tuiTitle><h2>Ethernet</h2></hgroup>
+      <hgroup tuiTitle>
+        <h2>{{ 'Ethernet' | i18n }}</h2>
+      </hgroup>
       @if (service.data(); as data) {
         <aside tuiAccessories>
           <button tuiButton size="s" (click)="onChangeWan(data)">
-            Change WAN Port
+            {{ 'Change WAN Port' | i18n }}
           </button>
         </aside>
       }
@@ -35,7 +39,14 @@ import { EthernetPortView, EthernetService } from './service'
   host: { class: 'g-page' },
   providers: [provideFormService(EthernetService)],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiHeader, TuiTitle, TuiButton, TuiSkeleton, EthernetTable],
+  imports: [
+    TuiHeader,
+    TuiTitle,
+    TuiButton,
+    TuiSkeleton,
+    EthernetTable,
+    i18nPipe,
+  ],
 })
 export default class Ethernet {
   private readonly dialogs = inject(TuiResponsiveDialogService)

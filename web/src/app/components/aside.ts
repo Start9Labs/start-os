@@ -1,15 +1,22 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+} from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NavigationEnd, Router } from '@angular/router'
 import { TuiScrollbar } from '@taiga-ui/core'
 import { filter, map } from 'rxjs'
-import { HELP, HELP_OPEN } from 'src/app/help/help'
+import { NgDompurifyPipe } from '@taiga-ui/dompurify'
+import { HELP_OPEN, HelpService } from 'src/app/help/help'
+import { MarkdownPipe } from 'src/app/pipes/markdown.pipe'
 
 @Component({
   selector: '[appAside]',
   template: `
     <tui-scrollbar>
-      <div class="g-help" [innerHTML]="help()"></div>
+      <div class="g-help" [innerHTML]="help() | markdown | dompurify"></div>
     </tui-scrollbar>
   `,
   styles: `
@@ -51,18 +58,20 @@ import { HELP, HELP_OPEN } from 'src/app/help/help'
   `,
   host: { '[attr.inert]': '!open() || null' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiScrollbar],
+  imports: [TuiScrollbar, MarkdownPipe, NgDompurifyPipe],
 })
 export class Aside {
   protected readonly open = inject(HELP_OPEN)
-  protected readonly data = inject(HELP)
+  private readonly helpService = inject(HelpService)
   private readonly router = inject(Router)
-  protected readonly help = toSignal(
+  private readonly url = toSignal(
     this.router.events.pipe(
       filter(e => e instanceof NavigationEnd),
-      map(
-        ({ urlAfterRedirects }) => this.data[urlAfterRedirects.split('?')[0]],
-      ),
+      map(({ urlAfterRedirects }) => urlAfterRedirects.split('?')[0]),
     ),
+    { initialValue: this.router.url.split('?')[0] },
+  )
+  protected readonly help = computed(
+    () => this.helpService.content()[this.url()],
   )
 }

@@ -20,12 +20,17 @@ import { WanIpv4Ip } from './form/ip'
 import { WanIpv4Service } from './service'
 import { WanIpv4Summary } from './summary'
 import { getWanIpv4Form, updateIpv4Validators, WanIpv4Form } from './utils'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   template: `
-    <header tuiHeader="h6"><h2 tuiTitle>Summary</h2></header>
+    <header tuiHeader="h6">
+      <h2 tuiTitle>{{ 'Summary' | i18n }}</h2>
+    </header>
     <article wanIpv4Summary [formLoading]="!service.data()"></article>
-    <header tuiHeader="h6"><h2 tuiTitle>Settings</h2></header>
+    <header tuiHeader="h6">
+      <h2 tuiTitle>{{ 'Settings' | i18n }}</h2>
+    </header>
     <form
       [formGroup]="form"
       [formLoading]="!service.data()"
@@ -46,6 +51,7 @@ import { getWanIpv4Form, updateIpv4Validators, WanIpv4Form } from './utils'
     Form,
     WanIpv4Summary,
     WanIpv4Ip,
+    i18nPipe,
   ],
   host: { class: 'g-page' },
   providers: [provideFormService(WanIpv4Service)],

@@ -2,6 +2,7 @@ import { CdkCopyToClipboard, Clipboard } from '@angular/cdk/clipboard'
 import { Component, inject, input, linkedSignal, signal } from '@angular/core'
 import { tuiInjectElement } from '@taiga-ui/cdk'
 import { TUI_ICON_END, TuiButton, TuiNotificationService } from '@taiga-ui/core'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   selector: '[appMasked]',
@@ -14,7 +15,7 @@ import { TUI_ICON_END, TuiButton, TuiNotificationService } from '@taiga-ui/core'
       [iconStart]="masked() ? '@tui.eye' : '@tui.eye-off'"
       (click)="masked.set(!masked())"
     >
-      Toggle visibility
+      {{ 'Toggle visibility' | i18n }}
     </button>
     <button
       tuiIconButton
@@ -23,18 +24,21 @@ import { TUI_ICON_END, TuiButton, TuiNotificationService } from '@taiga-ui/core'
       iconStart="@tui.copy"
       [cdkCopyToClipboard]="appMasked()"
       (cdkCopyToClipboardCopied)="
-        alerts.open('Copied!', { appearance: 'positive' }).subscribe()
+        alerts
+          .open(i18n.transform('Copied!'), { appearance: 'positive' })
+          .subscribe()
       "
     >
-      Copy
+      {{ 'Copy' | i18n }}
     </button>
   `,
-  imports: [TuiButton, CdkCopyToClipboard],
+  imports: [TuiButton, CdkCopyToClipboard, i18nPipe],
 })
 export class Masked {
   public readonly appMasked = input('')
 
   protected readonly alerts = inject(TuiNotificationService)
+  protected readonly i18n = inject(i18nPipe)
   protected readonly masked = linkedSignal({
     source: this.appMasked,
     computation: () => true,

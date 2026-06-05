@@ -2,20 +2,21 @@ import { ChangeDetectionStrategy, Component, computed } from '@angular/core'
 import { Summary } from 'src/app/components/summary'
 import { injectFormService } from 'src/app/services/form.service'
 import { buildNetworkBlock, buildRouterIp, LanIpv4Form } from './utils'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   selector: '[lanIpv4Summary]',
   template: `
     <section>
       @if (networkBlock(); as block) {
-        <div [appSummary]="block">Network Block</div>
+        <div [appSummary]="block">{{ 'Network Block' | i18n }}</div>
       }
       @if (routerIp(); as ip) {
-        <div [appSummary]="ip">Router IP</div>
+        <div [appSummary]="ip">{{ 'Router IP' | i18n }}</div>
       }
     </section>
   `,
-  imports: [Summary],
+  imports: [Summary, i18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LanIpv4Summary {

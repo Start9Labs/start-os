@@ -34,11 +34,14 @@ import {
   VpnServerPeer,
 } from 'src/app/services/api/api.service'
 import { InboundService, VpnServer } from 'src/app/routes/inbound/service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   template: `
     <header tuiHeader>
-      <hgroup tuiTitle><h2>Inbound VPNs</h2></hgroup>
+      <hgroup tuiTitle>
+        <h2>{{ 'Inbound VPNs' | i18n }}</h2>
+      </hgroup>
       <aside tuiAccessories>
         <button
           tuiButton
@@ -46,12 +49,13 @@ import { InboundService, VpnServer } from 'src/app/routes/inbound/service'
           [disabled]="!availableProfiles().length"
           [tuiHint]="
             !availableProfiles().length
-              ? 'All security profiles already have inbound VPNs. Only one VPN can be created per profile.'
+              ? ('All security profiles already have inbound VPNs. Only one VPN can be created per profile.'
+                | i18n)
               : null
           "
           (click)="edit()"
         >
-          Add
+          {{ 'Add' | i18n }}
         </button>
       </aside>
     </header>
@@ -59,10 +63,16 @@ import { InboundService, VpnServer } from 'src/app/routes/inbound/service'
       <thead>
         <tr>
           <th tuiTh [sorter]="'enabled' | tuiSorter" [style.width.rem]="3"></th>
-          <th tuiTh [sorter]="'label' | tuiSorter">Label</th>
-          <th tuiTh [sorter]="'endpoint' | tuiSorter">Endpoint</th>
-          <th tuiTh [sorter]="'listen_port' | tuiSorter">Port</th>
-          <th tuiTh [sorter]="'profile' | tuiSorter">Security Profile</th>
+          <th tuiTh [sorter]="'label' | tuiSorter">{{ 'Label' | i18n }}</th>
+          <th tuiTh [sorter]="'endpoint' | tuiSorter">
+            {{ 'Endpoint' | i18n }}
+          </th>
+          <th tuiTh [sorter]="'listen_port' | tuiSorter">
+            {{ 'Port' | i18n }}
+          </th>
+          <th tuiTh [sorter]="'profile' | tuiSorter">
+            {{ 'Security Profile' | i18n }}
+          </th>
           <th tuiTh></th>
         </tr>
       </thead>
@@ -90,7 +100,7 @@ import { InboundService, VpnServer } from 'src/app/routes/inbound/service'
                 tuiDropdownAuto
                 tuiDropdown
               >
-                Actions
+                {{ 'Actions' | i18n }}
                 <tui-data-list
                   *tuiDropdown="let close"
                   size="s"
@@ -103,7 +113,7 @@ import { InboundService, VpnServer } from 'src/app/routes/inbound/service'
                     "
                     (click)="toggleEnabled(item)"
                   >
-                    {{ item.enabled ? 'Disable' : 'Enable' }}
+                    {{ (item.enabled ? 'Disable' : 'Enable') | i18n }}
                   </button>
                   <a
                     tuiOption
@@ -111,14 +121,14 @@ import { InboundService, VpnServer } from 'src/app/routes/inbound/service'
                     routerLink="client"
                     [queryParams]="{ port: item.listen_port.toString() }"
                   >
-                    Manage clients
+                    {{ 'Manage clients' | i18n }}
                   </a>
                   <button
                     tuiOption
                     iconStart="@tui.pencil"
                     (click)="edit(item)"
                   >
-                    Edit
+                    {{ 'Edit' | i18n }}
                   </button>
                   <button
                     tuiOption
@@ -126,7 +136,7 @@ import { InboundService, VpnServer } from 'src/app/routes/inbound/service'
                     iconStart="@tui.trash"
                     (click)="delete(item.profile)"
                   >
-                    Delete
+                    {{ 'Delete' | i18n }}
                   </button>
                 </tui-data-list>
               </button>
@@ -136,7 +146,7 @@ import { InboundService, VpnServer } from 'src/app/routes/inbound/service'
           <tr>
             <td tuiTd colspan="6">
               <app-placeholder icon="@tui.hard-drive-download">
-                No Inbound VPN Servers configured
+                {{ 'No Inbound VPN Servers configured' | i18n }}
               </app-placeholder>
             </td>
           </tr>
@@ -171,6 +181,7 @@ import { InboundService, VpnServer } from 'src/app/routes/inbound/service'
     TuiDataList,
     TuiDropdown,
     TuiHint,
+    i18nPipe,
   ],
 })
 export default class InboundTable {
@@ -179,6 +190,7 @@ export default class InboundTable {
   private readonly devices = inject(DevicesApiService)
   protected readonly dialogs = inject(TuiResponsiveDialogService)
   protected readonly service = inject(InboundService)
+  private readonly i18n = inject(i18nPipe)
 
   private readonly profiles = signal<ProfileId[]>([])
   protected profileNameMap: Record<string, string> = {}
@@ -225,7 +237,7 @@ export default class InboundTable {
 
   delete(profile: string) {
     this.dialogs
-      .open(TUI_CONFIRM, { label: 'Are you sure?' })
+      .open(TUI_CONFIRM, { label: this.i18n.transform('Are you sure?') })
       .pipe(filter(Boolean))
       .subscribe(() => {
         this.service.deleteServer(profile)
@@ -252,7 +264,7 @@ export default class InboundTable {
 
     this.dialogs
       .open<VpnServerPeer>(ADD_CLIENT, {
-        label: 'Add client device',
+        label: this.i18n.transform('Add client device'),
         data: {
           serverAddress: server.server_address,
           usedIps,
@@ -302,7 +314,9 @@ export default class InboundTable {
 
     this.dialogs
       .open<ServerDialogResult>(ADD_SERVER, {
-        label: isEdit ? 'Edit Inbound VPN' : 'Add Inbound VPN',
+        label: isEdit
+          ? this.i18n.transform('Edit Inbound VPN')
+          : this.i18n.transform('Add Inbound VPN'),
         data: {
           server: data,
           profiles,

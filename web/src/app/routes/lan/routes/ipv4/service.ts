@@ -5,6 +5,7 @@ import { ApiService } from 'src/app/services/api/api.service'
 import { isNetworkError } from 'src/app/services/network-restart.service'
 import { pauseFor } from 'src/app/utils/pauseFor'
 import { buildRouterIp, LanIpv4Form, parseIpToForm } from './utils'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 const RESTART_TIMEOUT_MS = 60_000
 
@@ -12,6 +13,7 @@ const RESTART_TIMEOUT_MS = 60_000
 export class LanIpv4Service extends FormService<LanIpv4Form> {
   private readonly api = inject(ApiService)
   private readonly notifications = inject(TuiNotificationMiddleService)
+  private readonly i18n = inject(i18nPipe)
 
   async load(): Promise<LanIpv4Form> {
     const res = await this.api.lanIpv4Get()
@@ -24,8 +26,8 @@ export class LanIpv4Service extends FormService<LanIpv4Form> {
 
   override async save(data: LanIpv4Form): Promise<boolean> {
     return this.actions.run(() => this.store(data), {
-      loading: 'Applying LAN settings...',
-      success: 'LAN settings applied',
+      loading: this.i18n.transform('Applying LAN settings...'),
+      success: this.i18n.transform('LAN settings applied'),
       restart: true,
     })
   }
@@ -38,7 +40,7 @@ export class LanIpv4Service extends FormService<LanIpv4Form> {
    */
   async saveForIpChange(data: LanIpv4Form, force?: boolean): Promise<void> {
     const loading = this.notifications
-      .open('Applying LAN settings...')
+      .open(this.i18n.transform('Applying LAN settings...'))
       .subscribe()
     this.networkRestart.suppress()
     try {

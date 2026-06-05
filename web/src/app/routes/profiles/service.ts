@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 import {
   ApiService,
   ProfileCreateInput,
@@ -18,6 +19,7 @@ const RESTART_TIMEOUT_MS = 60_000
 export class ProfilesService extends FormService<SecurityProfile[]> {
   private readonly api = inject(ApiService)
   private readonly notifications = inject(TuiNotificationMiddleService)
+  private readonly i18n = inject(i18nPipe)
 
   async load() {
     // Get a list of profile IDs
@@ -51,8 +53,10 @@ export class ProfilesService extends FormService<SecurityProfile[]> {
         this.refresh()
       },
       {
-        loading: 'Creating profile and restarting network...',
-        success: 'Profile created',
+        loading: this.i18n.transform(
+          'Creating profile and restarting network...',
+        ),
+        success: this.i18n.transform('Profile created'),
         restart: true,
       },
     )
@@ -79,7 +83,7 @@ export class ProfilesService extends FormService<SecurityProfile[]> {
       })
 
       const loading = this.notifications
-        .open('Applying profile settings...')
+        .open(this.i18n.transform('Applying profile settings...'))
         .subscribe()
       this.networkRestart.suppress()
       try {
@@ -109,8 +113,8 @@ export class ProfilesService extends FormService<SecurityProfile[]> {
         this.refresh()
       },
       {
-        loading: 'Applying profile settings...',
-        success: 'Profile updated',
+        loading: this.i18n.transform('Applying profile settings...'),
+        success: this.i18n.transform('Profile updated'),
         restart: true,
       },
     )
@@ -125,8 +129,10 @@ export class ProfilesService extends FormService<SecurityProfile[]> {
         this.refresh()
       },
       {
-        loading: 'Deleting profile and restarting network...',
-        success: 'Profile deleted',
+        loading: this.i18n.transform(
+          'Deleting profile and restarting network...',
+        ),
+        success: this.i18n.transform('Profile deleted'),
         restart: true,
       },
     )

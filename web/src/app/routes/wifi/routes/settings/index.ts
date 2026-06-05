@@ -24,6 +24,7 @@ import { filter, startWith } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/components/form'
 import { WifiConfig } from 'src/app/services/api/api.service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 import { WifiService } from '../../service'
 import { ReconnectDialog } from './reconnect-dialog'
 
@@ -37,7 +38,7 @@ import { ReconnectDialog } from './reconnect-dialog'
     >
       <label tuiLabel>
         <input type="checkbox" tuiSwitch formControlName="enabled" />
-        Enable Wi-Fi
+        {{ 'Enable Wi-Fi' | i18n }}
       </label>
       <tui-textfield>
         <label tuiLabel>SSID</label>
@@ -45,10 +46,10 @@ import { ReconnectDialog } from './reconnect-dialog'
       </tui-textfield>
       <label tuiLabel>
         <input type="checkbox" tuiSwitch formControlName="broadcast" />
-        Broadcast
+        {{ 'Broadcast' | i18n }}
       </label>
       <fieldset>
-        <legend>Frequency Band</legend>
+        <legend>{{ 'Frequency Band' | i18n }}</legend>
         @for (value of bands; track $index) {
           <label tuiLabel>
             <input
@@ -57,7 +58,7 @@ import { ReconnectDialog } from './reconnect-dialog'
               formControlName="band"
               [value]="value"
             />
-            {{ value }}
+            {{ value | i18n }}
           </label>
         }
       </fieldset>
@@ -69,28 +70,28 @@ import { ReconnectDialog } from './reconnect-dialog'
               tuiSwitch
               formControlName="broadcastSeparately"
             />
-            Broadcast Separately
+            {{ 'Broadcast Separately' | i18n }}
           </label>
         }
       </tui-elastic-container>
       <fieldset>
-        <legend>Frequency Range</legend>
+        <legend>{{ 'Frequency Range' | i18n }}</legend>
         <!-- @TODO: Implement channel optimization (requires backend channel scan endpoint) -->
-        <tui-textfield tuiChevron>
-          <label tuiLabel>2.4 GHz Channel</label>
+        <tui-textfield tuiChevron [stringify]="stringifyChannel">
+          <label tuiLabel>{{ '2.4 GHz Channel' | i18n }}</label>
           <input tuiSelect formControlName="channel24" />
           <tui-data-list *tuiDropdown>
             @for (ch of channels24; track ch) {
-              <button tuiOption [value]="ch">{{ ch }}</button>
+              <button tuiOption [value]="ch">{{ ch | i18n }}</button>
             }
           </tui-data-list>
         </tui-textfield>
-        <tui-textfield tuiChevron>
-          <label tuiLabel>5 GHz Channel</label>
+        <tui-textfield tuiChevron [stringify]="stringifyChannel">
+          <label tuiLabel>{{ '5 GHz Channel' | i18n }}</label>
           <input tuiSelect formControlName="channel5" />
           <tui-data-list *tuiDropdown>
             @for (ch of channels5; track ch) {
-              <button tuiOption [value]="ch">{{ ch }}</button>
+              <button tuiOption [value]="ch">{{ ch | i18n }}</button>
             }
           </tui-data-list>
         </tui-textfield>
@@ -127,11 +128,13 @@ import { ReconnectDialog } from './reconnect-dialog'
     Form,
     TuiElasticContainer,
     TuiAnimated,
+    i18nPipe,
   ],
 })
 export default class WifiSettings {
   protected readonly service = inject(WifiService)
   private readonly dialogs = inject(TuiResponsiveDialogService)
+  private readonly i18n = inject(i18nPipe)
   protected readonly form = inject(NonNullableFormBuilder).group({
     enabled: [true],
     ssid: ['StartOS'],
@@ -150,6 +153,11 @@ export default class WifiSettings {
   )
 
   protected readonly bands = ['2.4 GHz', '5 GHz', 'Both']
+
+  // Translates the 'Auto' option; numeric channels pass through unchanged.
+  protected readonly stringifyChannel = (c: string): string =>
+    this.i18n.transform(c)
+
   protected readonly channels24 = [
     'Auto',
     '1',
@@ -222,11 +230,11 @@ export default class WifiSettings {
     if (ssidChanged) {
       this.dialogs
         .open(TUI_CONFIRM, {
-          label: 'Change SSID?',
+          label: this.i18n.transform('Change SSID?'),
           data: {
-            content: `Changing the SSID will disconnect all WiFi clients. You will need to reconnect to "${config.ssid}".`,
-            yes: 'Change SSID',
-            no: 'Cancel',
+            content: `${this.i18n.transform('Changing the SSID will disconnect all WiFi clients. You will need to reconnect to')} "${config.ssid}".`,
+            yes: this.i18n.transform('Change SSID'),
+            no: this.i18n.transform('Cancel'),
           },
         })
         .pipe(filter(Boolean))

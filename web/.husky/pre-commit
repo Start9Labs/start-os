@@ -1,2 +1,2 @@
 cd web
-npx lint-staged --concurrent false && npm run check
+npx lint-staged --concurrent false && npm run check && npm run check:i18n

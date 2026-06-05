@@ -7,6 +7,7 @@ import {
   signal,
 } from '@angular/core'
 import { TuiButton, TuiIcon } from '@taiga-ui/core'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   selector: 'app-ca-wizard',
@@ -14,10 +15,12 @@ import { TuiButton, TuiIcon } from '@taiga-ui/core'
     @if (caTrusted()) {
       <div class="card">
         <tui-icon icon="@tui.circle-check" [style.font-size.rem]="4" />
-        <h1>Root CA Trusted!</h1>
+        <h1>{{ 'Root CA Trusted!' | i18n }}</h1>
         <p>
-          Your browser trusts your router's Root Certificate Authority. You can
-          now use a secure HTTPS connection.
+          {{
+            "Your browser trusts your router's Root Certificate Authority. You can now use a secure HTTPS connection."
+              | i18n
+          }}
         </p>
         <button
           tuiButton
@@ -25,28 +28,31 @@ import { TuiButton, TuiIcon } from '@taiga-ui/core'
           iconEnd="@tui.external-link"
           (click)="goToHttps()"
         >
-          Go to login
+          {{ 'Go to login' | i18n }}
         </button>
       </div>
     } @else {
       <div class="card">
         <tui-icon icon="@tui.lock" [style.font-size.rem]="4" />
-        <h1>Trust your Root CA</h1>
+        <h1>{{ 'Trust your Root CA' | i18n }}</h1>
         <p>
-          Download and trust your Root Certificate Authority to establish a
-          secure (HTTPS) connection. You will need to repeat this on every
-          device you use to connect to your router.
+          {{
+            'Download and trust your Root Certificate Authority to establish a secure (HTTPS) connection. You will need to repeat this on every device you use to connect to your router.'
+              | i18n
+          }}
         </p>
         <ol>
           <li>
-            <b>Bookmark this page</b>
-            &mdash; Save this page so you can access it later.
+            <b>{{ 'Bookmark this page' | i18n }}</b>
+            &mdash; {{ 'Save this page so you can access it later.' | i18n }}
           </li>
           <li>
-            <b>Download your Root CA</b>
-            &mdash; Your router uses its Root CA to generate SSL/TLS
-            certificates for itself. These certificates encrypt network traffic
-            between your browser and the router.
+            <b>{{ 'Download your Root CA' | i18n }}</b>
+            &mdash;
+            {{
+              'Your router uses its Root CA to generate SSL/TLS certificates for itself. These certificates encrypt network traffic between your browser and the router.'
+                | i18n
+            }}
             <br />
             <a
               tuiButton
@@ -55,19 +61,24 @@ import { TuiButton, TuiIcon } from '@taiga-ui/core'
               href="/static/root-ca.crt"
               download="startwrt-ca.crt"
             >
-              Download
+              {{ 'Download' | i18n }}
             </a>
           </li>
           <li>
-            <b>Trust your Root CA</b>
-            &mdash; Follow the instructions for your operating system to add the
-            downloaded certificate as a trusted root.
+            <b>{{ 'Trust your Root CA' | i18n }}</b>
+            &mdash;
+            {{
+              'Follow the instructions for your operating system to add the downloaded certificate as a trusted root.'
+                | i18n
+            }}
           </li>
           <li>
-            <b>Test</b>
-            &mdash; Refresh the page to verify your Root CA is trusted. If
-            refreshing does not work, you may need to quit and re-open your
-            browser, then revisit this page.
+            <b>{{ 'Test' | i18n }}</b>
+            &mdash;
+            {{
+              'Refresh the page to verify your Root CA is trusted. If refreshing does not work, you may need to quit and re-open your browser, then revisit this page.'
+                | i18n
+            }}
             <br />
             <button
               tuiButton
@@ -76,7 +87,7 @@ import { TuiButton, TuiIcon } from '@taiga-ui/core'
               iconEnd="@tui.refresh-cw"
               (click)="refresh()"
             >
-              Refresh
+              {{ 'Refresh' | i18n }}
             </button>
           </li>
         </ol>
@@ -86,9 +97,11 @@ import { TuiButton, TuiIcon } from '@taiga-ui/core'
           appearance="flat-grayscale"
           (click)="goToHttps()"
         >
-          Skip
+          {{ 'Skip' | i18n }}
         </button>
-        <div><small>(your connection will not be encrypted)</small></div>
+        <div>
+          <small>{{ '(your connection will not be encrypted)' | i18n }}</small>
+        </div>
       </div>
     }
   `,
@@ -123,7 +136,7 @@ import { TuiButton, TuiIcon } from '@taiga-ui/core'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButton, TuiIcon],
+  imports: [TuiButton, TuiIcon, i18nPipe],
 })
 export class CaWizard implements OnInit {
   private readonly document = inject(DOCUMENT)

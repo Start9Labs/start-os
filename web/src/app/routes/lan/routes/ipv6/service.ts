@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core'
 import { FormService } from 'src/app/services/form.service'
 import { ApiService } from 'src/app/services/api/api.service'
 import { LanIpv6Form, numberToPrefix, prefixToNumber } from './utils'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 export type LanIpv6Data = LanIpv6Form & {
   ip6addr?: string // For summary display
@@ -11,6 +12,7 @@ export type LanIpv6Data = LanIpv6Form & {
 @Injectable()
 export class LanIpv6Service extends FormService<LanIpv6Data> {
   private readonly api = inject(ApiService)
+  private readonly i18n = inject(i18nPipe)
 
   async load(): Promise<LanIpv6Data> {
     const res = await this.api.lanIpv6Get()
@@ -39,8 +41,8 @@ export class LanIpv6Service extends FormService<LanIpv6Data> {
 
   override async save(data: LanIpv6Data): Promise<boolean> {
     return this.actions.run(() => this.store(data), {
-      loading: 'Applying IPv6 settings...',
-      success: 'IPv6 settings applied',
+      loading: this.i18n.transform('Applying IPv6 settings...'),
+      success: this.i18n.transform('IPv6 settings applied'),
       restart: true,
     })
   }

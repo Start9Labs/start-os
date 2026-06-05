@@ -6,6 +6,7 @@ import {
 } from '@angular/forms'
 import { FormRawValue } from 'src/app/services/form.service'
 import { CustomValidators } from 'src/app/utils/validators'
+import { tpl } from 'src/app/i18n/validation-errors'
 
 export const IPV4_MODES = ['dhcp', 'pppoe', 'static'] as const
 
@@ -34,8 +35,10 @@ export const IPV4_LABELS: Record<
 export const IPV4_VALIDATION_ERRORS = {
   required: 'Required',
   ipv4: 'Enter a valid IPv4 address',
-  prefix: ({ min, max }: { min: number; max: number }) =>
-    `Enter a value between ${min} and ${max}`,
+  prefix: tpl<{ min: number; max: number }>(
+    'Enter a value between {min} and {max}',
+    ({ min, max }) => ({ min, max }),
+  ),
   gatewaySubnet: 'Gateway must be on the same subnet as the WAN IP',
   gatewaySameAsWan: 'Gateway must be different from the WAN IP',
 }

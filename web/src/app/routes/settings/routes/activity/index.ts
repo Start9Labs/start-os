@@ -16,14 +16,15 @@ import { TuiHeader } from '@taiga-ui/layout'
 import { Placeholder } from 'src/app/components/placeholder'
 import { ActivityEntry, ApiService } from 'src/app/services/api/api.service'
 import { ActionService } from 'src/app/services/action.service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   template: `
     <header tuiHeader="h6">
-      <h2 tuiTitle>Activity</h2>
+      <h2 tuiTitle>{{ 'Activity' | i18n }}</h2>
       @if (activity().length) {
         <button tuiButton size="s" appearance="flat" (click)="clearAll()">
-          Clear All
+          {{ 'Clear All' | i18n }}
         </button>
       }
     </header>
@@ -31,8 +32,8 @@ import { ActionService } from 'src/app/services/action.service'
       <thead>
         <tr>
           <th tuiTh></th>
-          <th tuiTh>Date</th>
-          <th tuiTh>Detail</th>
+          <th tuiTh>{{ 'Date' | i18n }}</th>
+          <th tuiTh>{{ 'Detail' | i18n }}</th>
           <th tuiTh></th>
         </tr>
       </thead>
@@ -62,7 +63,7 @@ import { ActionService } from 'src/app/services/action.service'
                 iconStart="@tui.trash"
                 (click)="remove(item)"
               >
-                Delete
+                {{ 'Delete' | i18n }}
               </button>
             </td>
           </tr>
@@ -70,7 +71,7 @@ import { ActionService } from 'src/app/services/action.service'
           <tr>
             <td tuiTd colspan="4">
               <app-placeholder icon="@tui.activity">
-                No activity
+                {{ 'No activity' | i18n }}
               </app-placeholder>
             </td>
           </tr>
@@ -130,12 +131,14 @@ import { ActionService } from 'src/app/services/action.service'
     TuiTitle,
     TuiHeader,
     Placeholder,
+    i18nPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class Activity {
   private readonly api = inject(ApiService)
   private readonly actions = inject(ActionService)
+  private readonly i18n = inject(i18nPipe)
 
   protected readonly page = signal(0)
   protected readonly size = signal(10)
@@ -170,7 +173,7 @@ export default class Activity {
         }
         await this.load()
       },
-      { success: 'Entry deleted' },
+      { success: this.i18n.transform('Entry deleted') },
     )
   }
 
@@ -182,7 +185,10 @@ export default class Activity {
         this.total.set(0)
         this.page.set(0)
       },
-      { loading: 'Clearing activity log...', success: 'Activity log cleared' },
+      {
+        loading: this.i18n.transform('Clearing activity log...'),
+        success: this.i18n.transform('Activity log cleared'),
+      },
     )
   }
 }

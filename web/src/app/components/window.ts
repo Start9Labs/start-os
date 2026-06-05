@@ -12,14 +12,25 @@ import {
   TuiError,
   TuiGroup,
   TuiLabel,
-  tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
 import { TuiBlock, TuiDataListWrapper, TuiInputTime } from '@taiga-ui/kit'
+import { provideTranslatedValidationErrors } from 'src/app/i18n/validation-errors'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { ModalHelp } from 'src/app/help/modal-help'
 import { ScheduleWindow } from 'src/app/services/api/api.service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 import { coversFullWeek, windowsOverlap } from 'src/app/utils/schedule'
+
+/**
+ * Dialog data for {@link AddWindow}. `edit` discriminates edit-vs-add mode
+ * explicitly so the dialog never parses the (translatable) label to decide.
+ * `others` are the sibling windows used for wrap-aware overlap validation.
+ */
+export type WindowData = ScheduleWindow & {
+  edit: boolean
+  others?: ScheduleWindow[]
+}
 
 @Component({
   template: `
@@ -30,9 +41,9 @@ import { coversFullWeek, windowsOverlap } from 'src/app/utils/schedule'
       (submit.prevent)="save()"
     >
       <fieldset>
-        <legend>Time Window</legend>
+        <legend>{{ 'Time Window' | i18n }}</legend>
         <tui-textfield>
-          <label tuiLabel>Start Time</label>
+          <label tuiLabel>{{ 'Start Time' | i18n }}</label>
           <input tuiInputTime mode="HH:MM AA" formControlName="startTime" />
           <tui-data-list-wrapper
             *tuiDropdown
@@ -41,7 +52,7 @@ import { coversFullWeek, windowsOverlap } from 'src/app/utils/schedule'
           />
         </tui-textfield>
         <tui-textfield>
-          <label tuiLabel>End Time</label>
+          <label tuiLabel>{{ 'End Time' | i18n }}</label>
           <input tuiInputTime mode="HH:MM AA" formControlName="endTime" />
           <tui-data-list-wrapper
             *tuiDropdown
@@ -55,18 +66,18 @@ import { coversFullWeek, windowsOverlap } from 'src/app/utils/schedule'
       </fieldset>
       <tui-error [formGroup]="form" />
       <fieldset formGroupName="days" [style.display]="'flex'">
-        <legend>Days</legend>
+        <legend>{{ 'Days' | i18n }}</legend>
         <div tuiGroup [collapsed]="true">
           @for (day of displayDays; track day.key) {
             <label tuiBlock="s" appearance="">
               <input type="checkbox" tuiBlock="s" [formControlName]="day.key" />
-              {{ day.label }}
+              {{ day.label | i18n }}
             </label>
           }
         </div>
       </fieldset>
       <footer>
-        @if (context.label.startsWith('Edit')) {
+        @if (context.data.edit) {
           <button
             tuiButton
             type="button"
@@ -74,7 +85,7 @@ import { coversFullWeek, windowsOverlap } from 'src/app/utils/schedule'
             [style.margin-inline-end]="'auto'"
             (click)="remove()"
           >
-            Remove
+            {{ 'Remove' | i18n }}
           </button>
         }
         <button
@@ -83,9 +94,9 @@ import { coversFullWeek, windowsOverlap } from 'src/app/utils/schedule'
           appearance="flat"
           (click)="context.$implicit.complete()"
         >
-          Cancel
+          {{ 'Cancel' | i18n }}
         </button>
-        <button tuiButton>Save</button>
+        <button tuiButton>{{ 'Save' | i18n }}</button>
       </footer>
     </form>
   `,
@@ -97,7 +108,7 @@ import { coversFullWeek, windowsOverlap } from 'src/app/utils/schedule'
   `,
   hostDirectives: [ModalHelp],
   providers: [
-    tuiValidationErrorsProvider({
+    provideTranslatedValidationErrors({
       overlap: 'This window overlaps another schedule',
       fullWeek:
         'Schedule covers the whole week — disable WiFi/WAN directly instead',
@@ -114,17 +125,13 @@ import { coversFullWeek, windowsOverlap } from 'src/app/utils/schedule'
     TuiDataListWrapper,
     TuiGroup,
     TuiBlock,
+    i18nPipe,
   ],
 })
 export class AddWindow {
   protected readonly builder = inject(NonNullableFormBuilder)
   protected readonly context =
-    injectContext<
-      TuiDialogContext<
-        ScheduleWindow | null,
-        ScheduleWindow & { others?: ScheduleWindow[] }
-      >
-    >()
+    injectContext<TuiDialogContext<ScheduleWindow | null, WindowData>>()
 
   // 15-minute increments across the day for the start-time picker dropdown.
   protected readonly quarterHours: readonly TuiTime[] = Array.from(

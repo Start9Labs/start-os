@@ -29,6 +29,7 @@ import { provideHelp } from 'src/app/help/help'
 import { ModalHelp } from 'src/app/help/modal-help'
 import { ApiService } from 'src/app/services/api/api.service'
 import type { ProfileId } from 'src/app/services/api/api.service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 export interface WifiPasswordEntry {
   label: string
@@ -53,17 +54,17 @@ export interface WifiPasswordDialogResult {
   template: `
     <form tuiForm="m" [formGroup]="form" (submit.prevent)="save()">
       <tui-textfield>
-        <label tuiLabel>Label</label>
+        <label tuiLabel>{{ 'Label' | i18n }}</label>
         <input
           tuiInput
-          placeholder="Name for this Wi-Fi network"
+          [placeholder]="'Name for this Wi-Fi network' | i18n"
           formControlName="label"
         />
       </tui-textfield>
       <tui-error formControlName="label" />
       @if (!editing) {
         <tui-textfield>
-          <label tuiLabel>Password</label>
+          <label tuiLabel>{{ 'Password' | i18n }}</label>
           <input tuiInput formControlName="password" type="password" />
           <tui-icon tuiPassword />
           <button
@@ -73,17 +74,17 @@ export interface WifiPasswordDialogResult {
             size="s"
             (click)="generatePassword()"
           >
-            Generate
+            {{ 'Generate' | i18n }}
           </button>
         </tui-textfield>
         <tui-error formControlName="password" />
       }
       <tui-textfield tuiChevron>
-        <label tuiLabel>Security Profile</label>
+        <label tuiLabel>{{ 'Security Profile' | i18n }}</label>
         <input tuiSelect formControlName="profile" />
         <tui-data-list *tuiDropdown>
           <tui-opt-group>
-            <button tuiOption value="Admin">Admin</button>
+            <button tuiOption value="Admin">{{ 'Admin' | i18n }}</button>
             @for (item of profiles; track item.vlan_tag) {
               <button tuiOption [value]="item.fullname">
                 {{ item.fullname }}
@@ -98,7 +99,7 @@ export interface WifiPasswordDialogResult {
               iconStart="@tui.user-lock"
               (click)="context.$implicit.complete()"
             >
-              Manage profiles
+              {{ 'Manage profiles' | i18n }}
             </a>
           </tui-opt-group>
         </tui-data-list>
@@ -111,9 +112,9 @@ export interface WifiPasswordDialogResult {
           appearance="flat"
           (click)="context.$implicit.complete()"
         >
-          Cancel
+          {{ 'Cancel' | i18n }}
         </button>
-        <button tuiButton>Save</button>
+        <button tuiButton>{{ 'Save' | i18n }}</button>
       </footer>
     </form>
   `,
@@ -137,6 +138,7 @@ export interface WifiPasswordDialogResult {
     TuiDataList,
     TuiAppearance,
     RouterLink,
+    i18nPipe,
   ],
 })
 class AddWifiPassword {

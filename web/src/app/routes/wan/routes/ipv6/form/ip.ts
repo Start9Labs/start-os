@@ -13,8 +13,8 @@ import {
   TuiInput,
   TuiTextfield,
   TuiTitle,
-  tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
+import { provideTranslatedValidationErrors } from 'src/app/i18n/validation-errors'
 import { TuiRadioList } from '@taiga-ui/kit'
 import {
   TuiCardLarge,
@@ -32,11 +32,14 @@ import {
   IPV6_MODES,
   IPV6_VALIDATION_ERRORS,
 } from '../utils'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   selector: 'wan-ipv6-ip',
   template: `
-    <header tuiHeader="body-l"><h2 tuiTitle>IP Address</h2></header>
+    <header tuiHeader="body-l">
+      <h2 tuiTitle>{{ 'IP Address' | i18n }}</h2>
+    </header>
     <tui-radio-list
       size="s"
       formControlName="mode"
@@ -45,8 +48,9 @@ import {
       [disabledItemHandler]="handler()"
     />
     <ng-template #template let-item>
-      {{ $any(labels)[item] }}{{ item === 'slaac' ? ' (Default)' : '' }}
-      <i tuiHint="Published ports are using IPv6"></i>
+      {{ $any(labels)[item] | i18n
+      }}{{ item === 'slaac' ? (' (Default)' | i18n) : '' }}
+      <i [tuiHint]="'Published ports are using IPv6' | i18n"></i>
     </ng-template>
     <tui-elastic-container>
       @if (parent.ipMode() !== 'disabled') {
@@ -60,7 +64,8 @@ import {
               <div>
                 <tui-textfield>
                   <label tuiLabel>
-                    {{ labels[name] }}{{ optional ? ' (optional)' : '' }}
+                    {{ labels[name] | i18n
+                    }}{{ optional ? (' (optional)' | i18n) : '' }}
                   </label>
                   <input
                     tuiInput
@@ -70,7 +75,7 @@ import {
                         ? mask
                         : null
                     "
-                    [placeholder]="optional ? 'Auto' : ''"
+                    [placeholder]="optional ? ('Auto' | i18n) : ''"
                   />
                 </tui-textfield>
                 <tui-error [formControlName]="name" />
@@ -89,7 +94,7 @@ import {
   `,
   viewProviders: [FORM],
   hostDirectives: [TuiForm, TuiCardLarge],
-  providers: [tuiValidationErrorsProvider(IPV6_VALIDATION_ERRORS)],
+  providers: [provideTranslatedValidationErrors(IPV6_VALIDATION_ERRORS)],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
@@ -103,6 +108,7 @@ import {
     MaskitoDirective,
     TuiAnimated,
     TuiElasticContainer,
+    i18nPipe,
   ],
 })
 export class WanIpv6Ip {

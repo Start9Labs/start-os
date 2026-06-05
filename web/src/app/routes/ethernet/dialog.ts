@@ -10,6 +10,7 @@ import { TuiHeader } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { provideHelp } from 'src/app/help/help'
 import { ModalHelp } from 'src/app/help/modal-help'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 import type { EthernetPortView } from './service'
 
@@ -17,10 +18,12 @@ import type { EthernetPortView } from './service'
   template: `
     <header tuiHeader>
       <hgroup tuiTitle>
-        <h2>Change WAN Port</h2>
+        <h2>{{ 'Change WAN Port' | i18n }}</h2>
         <p>
-          Select which port should become the WAN port. This will restart the
-          network and may briefly interrupt your connection.
+          {{
+            'Select which port should become the WAN port. This will restart the network and may briefly interrupt your connection.'
+              | i18n
+          }}
         </p>
       </hgroup>
     </header>
@@ -35,14 +38,14 @@ import type { EthernetPortView } from './service'
         appearance="flat"
         (click)="context.$implicit.complete()"
       >
-        Cancel
+        {{ 'Cancel' | i18n }}
       </button>
       <button
         tuiButton
         [disabled]="!current || current === this.selected"
         (click)="context.completeWith(selected)"
       >
-        Change and Restart
+        {{ 'Change and Restart' | i18n }}
       </button>
     </footer>
   `,
@@ -56,6 +59,7 @@ import type { EthernetPortView } from './service'
     TuiTitle,
     TuiStringifyPipe,
     TuiStringifyContentPipe,
+    i18nPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

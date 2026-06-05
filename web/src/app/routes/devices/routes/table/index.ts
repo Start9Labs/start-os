@@ -14,14 +14,21 @@ import { DevicesService } from 'src/app/routes/devices/service'
 import { DeviceTableItem } from 'src/app/routes/devices/utils'
 import { DevicesOffline } from './offline'
 import { DevicesOnline } from './online'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   template: `
     <header tuiHeader>
-      <hgroup tuiTitle><h2>Devices</h2></hgroup>
+      <hgroup tuiTitle>
+        <h2>{{ 'Devices' | i18n }}</h2>
+      </hgroup>
       <aside tuiAccessories>
         <tui-textfield tuiTextfieldSize="s" iconStart="@tui.search">
-          <input tuiInput placeholder="Search devices" [(ngModel)]="search" />
+          <input
+            tuiInput
+            [placeholder]="'Search devices' | i18n"
+            [(ngModel)]="search"
+          />
         </tui-textfield>
       </aside>
     </header>
@@ -73,6 +80,7 @@ import { DevicesOnline } from './online'
     TuiInput,
     DevicesOnline,
     DevicesOffline,
+    i18nPipe,
   ],
 })
 export default class DevicesTable {

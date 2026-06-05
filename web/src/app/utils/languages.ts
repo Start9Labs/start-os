@@ -6,70 +6,19 @@ export type Language = (typeof languages)[number]
  */
 export interface LanguageInfo {
   posix: Language
+  /** Endonym — the language's name in itself; shown as-is, never translated. */
   nativeName: string
+  /** English name; translated through the i18n dictionary (`{{ name | i18n }}`). */
+  name: string
 }
 
 /**
  * Available languages with their metadata
  */
 export const LANGUAGES: LanguageInfo[] = [
-  { posix: 'en_US', nativeName: 'English' },
-  { posix: 'es_ES', nativeName: 'Español' },
-  { posix: 'de_DE', nativeName: 'Deutsch' },
-  { posix: 'fr_FR', nativeName: 'Français' },
-  { posix: 'pl_PL', nativeName: 'Polski' },
+  { posix: 'en_US', nativeName: 'English', name: 'English' },
+  { posix: 'es_ES', nativeName: 'Español', name: 'Spanish' },
+  { posix: 'de_DE', nativeName: 'Deutsch', name: 'German' },
+  { posix: 'fr_FR', nativeName: 'Français', name: 'French' },
+  { posix: 'pl_PL', nativeName: 'Polski', name: 'Polish' },
 ]
-
-/**
- * Translations of language names in each language
- */
-export const LANGUAGE_TRANSLATIONS: Record<
-  Language,
-  Record<Language, string>
-> = {
-  en_US: {
-    en_US: 'English',
-    es_ES: 'Spanish',
-    de_DE: 'German',
-    fr_FR: 'French',
-    pl_PL: 'Polish',
-  },
-  es_ES: {
-    en_US: 'Inglés',
-    es_ES: 'Español',
-    de_DE: 'Alemán',
-    fr_FR: 'Francés',
-    pl_PL: 'Polaco',
-  },
-  de_DE: {
-    en_US: 'Englisch',
-    es_ES: 'Spanisch',
-    de_DE: 'Deutsch',
-    fr_FR: 'Französisch',
-    pl_PL: 'Polnisch',
-  },
-  fr_FR: {
-    en_US: 'Anglais',
-    es_ES: 'Espagnol',
-    de_DE: 'Allemand',
-    fr_FR: 'Français',
-    pl_PL: 'Polonais',
-  },
-  pl_PL: {
-    en_US: 'Angielski',
-    es_ES: 'Hiszpański',
-    de_DE: 'Niemiecki',
-    fr_FR: 'Francuski',
-    pl_PL: 'Polski',
-  },
-}
-
-/**
- * Get the translated name for a language in the current locale
- */
-export function getTranslatedName(
-  posix: Language,
-  currentLocale: Language,
-): string {
-  return LANGUAGE_TRANSLATIONS[currentLocale]?.[posix] || posix
-}

@@ -14,6 +14,7 @@ import { TuiButtonLoading } from '@taiga-ui/kit'
 import { ApiService } from 'src/app/services/api/api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import { CaWizard } from 'src/app/components/ca-wizard'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   template: `
@@ -26,7 +27,7 @@ import { CaWizard } from 'src/app/components/ca-wizard'
           <input
             tuiInput
             type="password"
-            placeholder="Enter password"
+            [placeholder]="'Enter password' | i18n"
             [disabled]="loading()"
             [ngModelOptions]="{ standalone: true }"
             [(ngModel)]="password"
@@ -38,10 +39,10 @@ import { CaWizard } from 'src/app/components/ca-wizard'
             [disabled]="!password().length"
             [loading]="loading()"
           >
-            Login
+            {{ 'Login' | i18n }}
           </button>
         </tui-textfield>
-        <tui-error [error]="error() ? 'Password is invalid' : null" />
+        <tui-error [error]="error() ? ('Password is invalid' | i18n) : null" />
       </form>
     }
   `,
@@ -79,6 +80,7 @@ import { CaWizard } from 'src/app/components/ca-wizard'
     TuiButtonLoading,
     TuiInput,
     CaWizard,
+    i18nPipe,
   ],
 })
 export default class Login {

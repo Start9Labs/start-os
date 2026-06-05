@@ -9,6 +9,7 @@ import { Summary } from 'src/app/components/summary'
 import { injectFormService } from 'src/app/services/form.service'
 import { WanIpv6Form, IPV6_LABELS } from './utils'
 import { WanIpv6Service } from './service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 const SUMMARY_FIELDS = [
   'wan',
@@ -26,30 +27,34 @@ const SUMMARY_FIELDS = [
     <section>
       @if (mode(); as m) {
         <div appSummary>
-          Status
+          {{ 'Status' | i18n }}
           <span tuiSubtitle [style.gap.rem]="0.375">
             @if (m === 'disabled') {
-              <span tuiBadge tuiStatus appearance="neutral">Disabled</span>
+              <span tuiBadge tuiStatus appearance="neutral">
+                {{ 'Disabled' | i18n }}
+              </span>
             } @else {
-              <span tuiBadge tuiStatus appearance="positive">Enabled</span>
               <span tuiBadge tuiStatus appearance="positive">
-                {{ IPV6_LABELS[m] }}
+                {{ 'Enabled' | i18n }}
+              </span>
+              <span tuiBadge tuiStatus appearance="positive">
+                {{ IPV6_LABELS[m] | i18n }}
               </span>
             }
           </span>
         </div>
       }
       @if (assignedIp(); as ip) {
-        <div [appSummary]="ip">Assigned IP</div>
+        <div [appSummary]="ip">{{ 'Assigned IP' | i18n }}</div>
       }
       @for (item of items(); track item.label) {
         @if (item.val; as val) {
-          <div [appSummary]="val">{{ item.label }}</div>
+          <div [appSummary]="val">{{ item.label | i18n }}</div>
         }
       }
     </section>
   `,
-  imports: [TuiBadge, TuiStatus, Summary],
+  imports: [TuiBadge, TuiStatus, Summary, i18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WanIpv6Summary {

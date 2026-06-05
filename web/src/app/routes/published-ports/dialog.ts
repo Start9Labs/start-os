@@ -27,8 +27,8 @@ import {
   TuiNotification,
   TuiTextfield,
   TuiTitle,
-  tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
+import { provideTranslatedValidationErrors } from 'src/app/i18n/validation-errors'
 import {
   TuiChevron,
   TuiDataListWrapper,
@@ -41,6 +41,7 @@ import { ModalHelp } from 'src/app/help/modal-help'
 import { provideHelp } from 'src/app/help/help'
 import { Device } from 'src/app/routes/devices/utils'
 import { Protocol, PublishedPort, PublishedPortDialogResult } from './types'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 function uuid4(): string {
   const b = crypto.getRandomValues(new Uint8Array(16))
@@ -68,22 +69,22 @@ const IP: Record<string, string> = {
   template: `
     <form tuiForm="m" [formGroup]="form" (submit.prevent)="save()">
       <tui-textfield>
-        <label tuiLabel>Label</label>
+        <label tuiLabel>{{ 'Label' | i18n }}</label>
         <input
           tuiInput
           formControlName="label"
-          placeholder="e.g. Home Assistant"
+          [placeholder]="'e.g. Home Assistant' | i18n"
         />
       </tui-textfield>
       <tui-error formControlName="label" />
 
       <div class="device-port-row">
         <tui-textfield tuiChevron [stringify]="stringifyDevice">
-          <label tuiLabel>Device</label>
+          <label tuiLabel>{{ 'Device' | i18n }}</label>
           <input
             tuiSelect
             formControlName="deviceMac"
-            placeholder="Select device"
+            [placeholder]="'Select device' | i18n"
           />
           <tui-data-list-wrapper
             *tuiDropdown
@@ -101,15 +102,19 @@ const IP: Record<string, string> = {
         </tui-textfield>
         <span class="g-secondary">:</span>
         <tui-textfield>
-          <label tuiLabel>Port</label>
-          <input tuiInput formControlName="ports" placeholder="e.g. 443" />
+          <label tuiLabel>{{ 'Port' | i18n }}</label>
+          <input
+            tuiInput
+            formControlName="ports"
+            [placeholder]="'e.g. 443' | i18n"
+          />
         </tui-textfield>
       </div>
       <tui-error formControlName="deviceMac" />
       <tui-error formControlName="ports" />
 
       <fieldset>
-        <legend>Protocol</legend>
+        <legend>{{ 'Protocol' | i18n }}</legend>
         <tui-radio-list
           size="s"
           formControlName="protocol"
@@ -119,7 +124,7 @@ const IP: Record<string, string> = {
       </fieldset>
 
       <fieldset>
-        <legend>Source</legend>
+        <legend>{{ 'Source' | i18n }}</legend>
         <tui-radio-list
           size="s"
           formControlName="sourceType"
@@ -130,18 +135,18 @@ const IP: Record<string, string> = {
       <tui-elastic-container>
         @if (form.value.sourceType === 'custom') {
           <tui-textfield tuiAnimated>
-            <label tuiLabel>Source IP / prefix</label>
+            <label tuiLabel>{{ 'Source IP / prefix' | i18n }}</label>
             <input
               tuiInput
               formControlName="sourceValue"
-              placeholder="e.g. 203.0.113.0/24"
+              [placeholder]="'e.g. 203.0.113.0/24' | i18n"
             />
           </tui-textfield>
           <tui-error formControlName="sourceValue" />
         }
       </tui-elastic-container>
       <fieldset>
-        <legend>IP Version</legend>
+        <legend>{{ 'IP Version' | i18n }}</legend>
         <tui-radio-list
           size="s"
           formControlName="ipVersion"
@@ -153,12 +158,16 @@ const IP: Record<string, string> = {
       <tui-error formControlName="ipVersion" />
       @if (!context.data.ipv6Available) {
         <small class="g-secondary">
-          IPv6 options require WAN IPv6 and LAN IPv6 to be enabled
+          {{
+            'IPv6 options require WAN IPv6 and LAN IPv6 to be enabled' | i18n
+          }}
         </small>
       } @else if (deviceHasOnlyUla()) {
         <div tuiNotification appearance="warning" size="s">
-          This device only has a local (ULA) IPv6 address. IPv6 port forwarding
-          requires a global address from ISP prefix delegation.
+          {{
+            'This device only has a local (ULA) IPv6 address. IPv6 port forwarding requires a global address from ISP prefix delegation.'
+              | i18n
+          }}
         </div>
       } @else if (ipVersionHint()) {
         <small class="g-secondary">{{ ipVersionHint() }}</small>
@@ -167,7 +176,9 @@ const IP: Record<string, string> = {
       <tui-elastic-container>
         @if (['ipv4', 'both'].includes(form.value.ipVersion || '')) {
           <fieldset>
-            <legend [style.padding-top.rem]="0.5">IPv4 External Port</legend>
+            <legend [style.padding-top.rem]="0.5">
+              {{ 'IPv4 External Port' | i18n }}
+            </legend>
             <tui-radio-list
               size="s"
               formControlName="ipv4PublicPortType"
@@ -186,7 +197,7 @@ const IP: Record<string, string> = {
             <input
               tuiInput
               formControlName="ipv4PublicPort"
-              placeholder="e.g. 8080"
+              [placeholder]="'e.g. 8080' | i18n"
             />
           </tui-textfield>
           <tui-error formControlName="ipv4PublicPort" />
@@ -196,11 +207,11 @@ const IP: Record<string, string> = {
       @if (reserveIpv4() || reserveIpv6()) {
         <div tuiNotification appearance="info">
           @if (reserveIpv4() && reserveIpv6()) {
-            Device IPv4 and IPv6 addresses will be reserved
+            {{ 'Device IPv4 and IPv6 addresses will be reserved' | i18n }}
           } @else if (reserveIpv4()) {
-            Device IPv4 address will be reserved
+            {{ 'Device IPv4 address will be reserved' | i18n }}
           } @else {
-            Device IPv6 address will be reserved
+            {{ 'Device IPv6 address will be reserved' | i18n }}
           }
         </div>
       }
@@ -212,9 +223,9 @@ const IP: Record<string, string> = {
           type="button"
           (click)="context.$implicit.complete()"
         >
-          Cancel
+          {{ 'Cancel' | i18n }}
         </button>
-        <button tuiButton>Save</button>
+        <button tuiButton>{{ 'Save' | i18n }}</button>
       </footer>
     </form>
   `,
@@ -239,7 +250,7 @@ const IP: Record<string, string> = {
   hostDirectives: [ModalHelp],
   providers: [
     provideHelp('/published-ports/dialog'),
-    tuiValidationErrorsProvider({
+    provideTranslatedValidationErrors({
       required: 'This field is required',
       pattern: 'Invalid format',
       missingDeviceAddress: ({ message }: { message: string }) => message,
@@ -261,10 +272,13 @@ const IP: Record<string, string> = {
     TuiTitle,
     TuiElasticContainer,
     TuiAnimated,
+    i18nPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PublishPortDialog implements OnInit {
+  private readonly i18n = inject(i18nPipe)
+
   protected readonly context =
     injectContext<
       TuiDialogContext<PublishedPortDialogResult, PublishPortDialogData>
@@ -325,10 +339,12 @@ export class PublishPortDialog implements OnInit {
   protected readonly ipVersionValues = ['ipv4', 'ipv6', 'both'] as const
   protected readonly publicPortTypeValues = ['same', 'other'] as const
 
-  protected readonly ip = (ctx: TuiContext<string>) => IP[ctx.$implicit]
-  protected readonly port = (ctx: TuiContext<string>) => PORT[ctx.$implicit]
+  protected readonly ip = (ctx: TuiContext<string>) =>
+    this.i18n.transform(IP[ctx.$implicit])
+  protected readonly port = (ctx: TuiContext<string>) =>
+    this.i18n.transform(PORT[ctx.$implicit])
   protected readonly protocol = (ctx: TuiContext<Protocol>) =>
-    PROTOCOL[ctx.$implicit]
+    this.i18n.transform(PROTOCOL[ctx.$implicit])
 
   protected readonly selectedDevice = computed(() =>
     this.deviceMap().get(this.selectedDeviceMac()),
@@ -347,7 +363,7 @@ export class PublishPortDialog implements OnInit {
     if (!device.ipv4) missing.push('IPv4')
     if (!device.ipv6) missing.push('IPv6')
     if (!missing.length) return ''
-    return `Device has no ${missing.join(' or ')} address`
+    return `${this.i18n.transform('Device has no')} ${missing.join(' or ')} ${this.i18n.transform('address')}`
   })
 
   protected readonly isIpVersionDisabled = (value: string): boolean => {

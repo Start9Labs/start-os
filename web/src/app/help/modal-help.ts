@@ -1,5 +1,6 @@
 import {
   Component,
+  computed,
   Directive,
   inject,
   Injector,
@@ -14,16 +15,19 @@ import {
   PolymorpheusComponent,
   provideContext,
 } from '@taiga-ui/polymorpheus'
-import { HELP, HELP_OPEN, HELP_URL } from 'src/app/help/help'
+import { NgDompurifyPipe } from '@taiga-ui/dompurify'
+import { HELP_OPEN, HELP_URL, HelpService } from 'src/app/help/help'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
+import { MarkdownPipe } from 'src/app/pipes/markdown.pipe'
 
 @Component({
   template: `
     <label tuiBlock="s" appearance="secondary-grayscale">
       <input type="checkbox" tuiSwitch size="s" [(ngModel)]="open" />
-      Help
+      {{ 'Help' | i18n }}
     </label>
     <tui-scrollbar *tuiPopup="open()" tuiAnimated class="modal-help">
-      <div class="g-help" [innerHTML]="content"></div>
+      <div class="g-help" [innerHTML]="content() | markdown | dompurify"></div>
     </tui-scrollbar>
   `,
   styles: `
@@ -68,11 +72,18 @@ import { HELP, HELP_OPEN, HELP_URL } from 'src/app/help/help'
     TuiPopup,
     TuiAnimated,
     TuiScrollbar,
+    i18nPipe,
+    MarkdownPipe,
+    NgDompurifyPipe,
   ],
 })
 class ModalToggle {
   protected readonly open = inject(HELP_OPEN)
-  protected readonly content = injectContext<string>()
+  private readonly help = inject(HelpService)
+  private readonly url = injectContext<string>()
+  // Resolve reactively so the panel re-translates if the language switches
+  // while it is open (and once a lazily-loaded language finishes loading).
+  protected readonly content = computed(() => this.help.content()[this.url])
 }
 
 @Directive({
@@ -83,7 +94,7 @@ export class ModalHelp implements OnDestroy {
     new PolymorpheusComponent(
       ModalToggle,
       Injector.create({
-        providers: [provideContext(inject(HELP)[inject(HELP_URL)])],
+        providers: [provideContext(inject(HELP_URL))],
       }),
     ),
   )

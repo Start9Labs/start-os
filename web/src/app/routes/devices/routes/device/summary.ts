@@ -9,33 +9,34 @@ import { Summary } from 'src/app/components/summary'
 
 import DeviceDetail from '.'
 import { DataUsageChart } from './data-usage-chart'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   selector: '[deviceSummary]',
   template: `
     <section>
       <div appSummary>
-        MAC Address
+        {{ 'MAC Address' | i18n }}
         <span tuiSubtitle>{{ parent.data()?.mac || '-' }}</span>
       </div>
       <div appSummary>
-        Status
+        {{ 'Status' | i18n }}
         <span tuiSubtitle>
           @switch (parent.data()?.status) {
             @case ('online') {
               <tui-icon icon="@tui.circle-check" class="g-positive" />
-              Online
+              {{ 'Online' | i18n }}
             }
             @case ('offline') {
               <tui-icon icon="@tui.circle-minus" />
-              Offline
+              {{ 'Offline' | i18n }}
             }
           }
         </span>
       </div>
       @if (parent.data()?.connection) {
         <div appSummary>
-          Connection
+          {{ 'Connection' | i18n }}
           <span tuiSubtitle>
             <tui-icon [icon]="connectionIcon()" />
             {{ parent.data()?.connection }}
@@ -44,7 +45,7 @@ import { DataUsageChart } from './data-usage-chart'
       }
       @if (parent.data()?.securityProfile) {
         <div appSummary>
-          Security Profile
+          {{ 'Security Profile' | i18n }}
           <span tuiSubtitle>
             <a tuiLink>
               <strong>{{ parent.data()?.securityProfile }}</strong>
@@ -54,7 +55,7 @@ import { DataUsageChart } from './data-usage-chart'
       }
       @if (parent.data()?.ipv4) {
         <div appSummary>
-          IPv4 Address
+          {{ 'IPv4 Address' | i18n }}
           <span tuiSubtitle>
             @if (parent.data()?.ipv4Static) {
               <tui-icon icon="@tui.lock" />
@@ -65,7 +66,7 @@ import { DataUsageChart } from './data-usage-chart'
       }
       @if (parent.data()?.ipv6) {
         <div appSummary>
-          IPv6 Address
+          {{ 'IPv6 Address' | i18n }}
           <span tuiSubtitle>
             @if (parent.data()?.ipv6Static) {
               <tui-icon icon="@tui.lock" />
@@ -75,7 +76,7 @@ import { DataUsageChart } from './data-usage-chart'
         </div>
       }
       <div appSummary>
-        Speed
+        {{ 'Speed' | i18n }}
         <span tuiSubtitle>
           <tui-icon icon="@tui.arrow-up" />
           {{ parent.data()?.speed?.up ?? 0 | tuiFormatNumber }}
@@ -103,7 +104,14 @@ import { DataUsageChart } from './data-usage-chart'
       gap: 0.25rem;
     }
   `,
-  imports: [TuiIcon, TuiLink, TuiFormatNumberPipe, Summary, DataUsageChart],
+  imports: [
+    TuiIcon,
+    TuiLink,
+    TuiFormatNumberPipe,
+    Summary,
+    DataUsageChart,
+    i18nPipe,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DeviceSummary {

@@ -19,6 +19,7 @@ import { Copy } from 'src/app/components/copy'
 import { Placeholder } from 'src/app/components/placeholder'
 import { PublishedPortDisplay } from './types'
 import { PublishedPortsService } from './service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 const PROTOCOL_LABELS = {
   tcp: 'TCP',
@@ -33,26 +34,28 @@ const PROTOCOL_LABELS = {
       <tr>
         <th tuiTh [sorter]="'status' | tuiSorter" [style.width.rem]="3"></th>
         <th tuiTh [sorter]="'label' | tuiSorter" [style.min-width.rem]="10.5">
-          Label
+          {{ 'Label' | i18n }}
         </th>
         <th
           tuiTh
           [sorter]="'deviceName' | tuiSorter"
           [style.min-width.rem]="10"
         >
-          Device
+          {{ 'Device' | i18n }}
         </th>
         <th tuiTh [sorter]="'ports' | tuiSorter" [style.min-width.rem]="6">
-          Port
+          {{ 'Port' | i18n }}
         </th>
         <th tuiTh [sorter]="'protocol' | tuiSorter" [style.min-width.rem]="8">
-          Protocol
+          {{ 'Protocol' | i18n }}
         </th>
-        <th tuiTh [sorter]="ipSorter" [style.min-width.rem]="9">IP Version</th>
+        <th tuiTh [sorter]="ipSorter" [style.min-width.rem]="9">
+          {{ 'IP Version' | i18n }}
+        </th>
         <th tuiTh [sorter]="'source' | tuiSorter" [style.min-width.rem]="6">
-          Source
+          {{ 'Source' | i18n }}
         </th>
-        <th tuiTh [style.min-width.rem]="16">Endpoints</th>
+        <th tuiTh [style.min-width.rem]="16">{{ 'Endpoints' | i18n }}</th>
         <th tuiTh [style.width.rem]="3"></th>
       </tr>
     </thead>
@@ -69,7 +72,7 @@ const PROTOCOL_LABELS = {
             </span>
             <ng-template #statusHint>
               <span class="flex">
-                <strong>{{ item.status }}</strong>
+                <strong>{{ item.status | i18n }}</strong>
                 @if (item.statusReason) {
                   <span>{{ item.statusReason }}</span>
                 }
@@ -90,9 +93,11 @@ const PROTOCOL_LABELS = {
             </a>
           </td>
           <td tuiTd>{{ item.ports }}</td>
-          <td tuiTd>{{ protocolLabel(item.protocol) }}</td>
-          <td tuiTd>{{ ipVersionLabel(item) }}</td>
-          <td tuiTd>{{ item.source === 'any' ? 'Any' : item.source }}</td>
+          <td tuiTd>{{ protocolLabel(item.protocol) | i18n }}</td>
+          <td tuiTd>{{ ipVersionLabel(item) | i18n }}</td>
+          <td tuiTd>
+            {{ item.source === 'any' ? ('Any' | i18n) : item.source }}
+          </td>
           <td tuiTd>
             <div class="flex">
               @if (getEndpointIpv4(item); as endpoint) {
@@ -116,7 +121,7 @@ const PROTOCOL_LABELS = {
               tuiDropdownAuto
               tuiDropdown
             >
-              Actions
+              {{ 'Actions' | i18n }}
               <tui-data-list
                 *tuiDropdown="let close"
                 size="s"
@@ -129,14 +134,14 @@ const PROTOCOL_LABELS = {
                   "
                   (click)="toggleEnabled(item)"
                 >
-                  {{ item.enabled ? 'Disable' : 'Enable' }}
+                  {{ item.enabled ? ('Disable' | i18n) : ('Enable' | i18n) }}
                 </button>
                 <button
                   tuiOption
                   iconStart="@tui.pencil"
                   (click)="edit.emit(item)"
                 >
-                  Edit
+                  {{ 'Edit' | i18n }}
                 </button>
                 <button
                   tuiOption
@@ -144,7 +149,7 @@ const PROTOCOL_LABELS = {
                   iconStart="@tui.trash"
                   (click)="delete(item.id)"
                 >
-                  Delete
+                  {{ 'Delete' | i18n }}
                 </button>
               </tui-data-list>
             </button>
@@ -154,7 +159,7 @@ const PROTOCOL_LABELS = {
         <tr>
           <td tuiTd colspan="9">
             <app-placeholder icon="@tui.globe">
-              No ports have been published
+              {{ 'No ports have been published' | i18n }}
             </app-placeholder>
           </td>
         </tr>
@@ -189,6 +194,7 @@ const PROTOCOL_LABELS = {
     TuiLink,
     Placeholder,
     Copy,
+    i18nPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

@@ -10,8 +10,8 @@ import {
   TuiRadio,
   TuiTextfield,
   TuiTitle,
-  tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
+import { provideTranslatedValidationErrors } from 'src/app/i18n/validation-errors'
 import {
   TuiCardLarge,
   TuiElasticContainer,
@@ -29,16 +29,19 @@ import {
   IPV4_VALIDATION_ERRORS,
   netmaskFromPrefix,
 } from '../utils'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   selector: 'wan-ipv4-ip',
   template: `
-    <header tuiHeader="body-l"><h2 tuiTitle>IP Address</h2></header>
+    <header tuiHeader="body-l">
+      <h2 tuiTitle>{{ 'IP Address' | i18n }}</h2>
+    </header>
     <section>
       @for (mode of modes; track $index) {
         <label tuiLabel>
           <input type="radio" tuiRadio formControlName="mode" [value]="mode" />
-          {{ labels[mode] }}{{ $index ? '' : ' (Default)' }}
+          {{ labels[mode] | i18n }}{{ $index ? '' : (' (Default)' | i18n) }}
         </label>
       }
     </section>
@@ -48,7 +51,7 @@ import {
           @for (control of staticControls; track control) {
             <div>
               <tui-textfield>
-                <label tuiLabel>{{ labels[control] }}</label>
+                <label tuiLabel>{{ labels[control] | i18n }}</label>
                 <input
                   tuiInput
                   [formControlName]="control"
@@ -59,7 +62,7 @@ import {
               @if (control === 'prefix' && netmask()) {
                 <tui-error
                   class="g-secondary"
-                  [error]="'Subnet: ' + netmask()"
+                  [error]="('Subnet: ' | i18n) + netmask()"
                 />
               }
             </div>
@@ -74,8 +77,8 @@ import {
             <div>
               <tui-textfield>
                 <label tuiLabel>
-                  {{ labels[control] }}
-                  {{ control === 'device' ? ' (optional)' : '' }}
+                  {{ labels[control] | i18n }}
+                  {{ control === 'device' ? (' (optional)' | i18n) : '' }}
                 </label>
                 <input
                   tuiInput
@@ -92,7 +95,7 @@ import {
   `,
   viewProviders: [FORM],
   hostDirectives: [TuiForm, TuiCardLarge],
-  providers: [tuiValidationErrorsProvider(IPV4_VALIDATION_ERRORS)],
+  providers: [provideTranslatedValidationErrors(IPV4_VALIDATION_ERRORS)],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
@@ -105,6 +108,7 @@ import {
     MaskitoDirective,
     TuiAnimated,
     TuiElasticContainer,
+    i18nPipe,
   ],
 })
 export class WanIpv4Ip {

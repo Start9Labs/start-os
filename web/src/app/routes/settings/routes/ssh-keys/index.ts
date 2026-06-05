@@ -14,18 +14,19 @@ import { Placeholder } from 'src/app/components/placeholder'
 import { ActionService } from 'src/app/services/action.service'
 import { ApiService, SshKeyFromApi } from 'src/app/services/api/api.service'
 import { ADD_SSH_KEY } from './dialog'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   template: `
     <table tuiTable class="g-table" [tuiSkeleton]="loading()">
       <thead>
         <tr>
-          <th tuiTh>Hostname</th>
-          <th tuiTh>Algorithm</th>
+          <th tuiTh>{{ 'Hostname' | i18n }}</th>
+          <th tuiTh>{{ 'Algorithm' | i18n }}</th>
           <th tuiTh colspan="2">
-            Fingerprint
+            {{ 'Fingerprint' | i18n }}
             <button tuiButton size="xs" iconStart="@tui.plus" (click)="add()">
-              Add SSH key
+              {{ 'Add SSH key' | i18n }}
             </button>
           </th>
         </tr>
@@ -45,7 +46,7 @@ import { ADD_SSH_KEY } from './dialog'
                 iconStart="@tui.trash"
                 (click)="remove(item)"
               >
-                Delete
+                {{ 'Delete' | i18n }}
               </button>
             </td>
           </tr>
@@ -53,7 +54,7 @@ import { ADD_SSH_KEY } from './dialog'
           <tr>
             <td tuiTd colspan="4">
               <app-placeholder icon="@tui.terminal">
-                No SSH keys
+                {{ 'No SSH keys' | i18n }}
               </app-placeholder>
             </td>
           </tr>
@@ -75,13 +76,14 @@ import { ADD_SSH_KEY } from './dialog'
     }
   `,
   host: { class: 'g-page' },
-  imports: [TuiButton, TuiTable, TuiSkeleton, Placeholder],
+  imports: [TuiButton, TuiTable, TuiSkeleton, Placeholder, i18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class SshKeys implements OnInit {
   private readonly api = inject(ApiService)
   private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly actions = inject(ActionService)
+  private readonly i18n = inject(i18nPipe)
 
   protected readonly keys = signal<SshKeyFromApi[] | null>(null)
   protected readonly loading = computed(() => !this.keys())
@@ -96,8 +98,8 @@ export default class SshKeys implements OnInit {
         () => this.api.sshKeysDelete({ fingerprint: key.fingerprint }),
         {
           loading: '',
-          success: 'SSH key removed',
-          fail: 'Failed to remove SSH key',
+          success: this.i18n.transform('SSH key removed'),
+          fail: this.i18n.transform('Failed to remove SSH key'),
         },
       )
     ) {
@@ -107,13 +109,13 @@ export default class SshKeys implements OnInit {
 
   protected add() {
     this.dialogs
-      .open<string>(ADD_SSH_KEY, { label: 'Add SSH Key' })
+      .open<string>(ADD_SSH_KEY, { label: this.i18n.transform('Add SSH Key') })
       .subscribe(async rawKey => {
         if (
           await this.actions.run(() => this.api.sshKeysAdd({ key: rawKey }), {
             loading: '',
-            success: 'SSH key added',
-            fail: 'Failed to add SSH key',
+            success: this.i18n.transform('SSH key added'),
+            fail: this.i18n.transform('Failed to add SSH key'),
           })
         ) {
           this.keys.set(await this.api.sshKeysList())

@@ -8,6 +8,7 @@
     "watch": "ng build --watch --configuration development",
     "build-config": "node build-config.js",
     "check": "tsc --project tsconfig.app.json --noEmit --skipLibCheck",
+    "check:i18n": "node scripts/check-i18n.mjs",
     "prepare": "cd .. && husky web/.husky",
     "analyze": "ng build --stats-json --named-chunks && npx -y @angular-experts/hawkeye dist/startwrt/stats.json"
   },
@@ -26,6 +27,7 @@
     "@taiga-ui/core": "5.6.0",
     "@taiga-ui/dompurify": "5.0.1",
     "@taiga-ui/event-plugins": "^5.0.0",
+    "@taiga-ui/i18n": "5.6.0",
     "@taiga-ui/icons": "5.6.0",
     "@taiga-ui/kit": "5.6.0",
     "@taiga-ui/layout": "5.6.0",

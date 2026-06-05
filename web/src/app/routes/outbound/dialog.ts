@@ -13,8 +13,8 @@ import {
   TuiInput,
   TuiTextfield,
   tuiTextfieldOptionsProvider,
-  tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
+import { provideTranslatedValidationErrors } from 'src/app/i18n/validation-errors'
 import {
   TuiChevron,
   TuiDataListWrapper,
@@ -26,6 +26,7 @@ import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { provideHelp } from 'src/app/help/help'
 import { ModalHelp } from 'src/app/help/modal-help'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 import {
   AddClientDialogData,
   getAddOutboundVpnForm,
@@ -41,10 +42,10 @@ import {
       (submit.prevent)="save()"
     >
       <tui-textfield>
-        <label tuiLabel>Label</label>
+        <label tuiLabel>{{ 'Label' | i18n }}</label>
         <input
           tuiInput
-          placeholder="e.g. Mullvad Sweden"
+          [placeholder]="'e.g. Mullvad Sweden' | i18n"
           formControlName="label"
         />
       </tui-textfield>
@@ -54,10 +55,10 @@ import {
           <input tuiInputFiles accept=".conf" formControlName="config" />
           <ng-template>
             <div>
-              Drop WireGuard
+              {{ 'Drop WireGuard' | i18n }}
               <b>.conf</b>
-              file here
-              <div>or click to browse</div>
+              {{ 'file here' | i18n }}
+              <div>{{ 'or click to browse' | i18n }}</div>
             </div>
           </ng-template>
         </label>
@@ -68,8 +69,8 @@ import {
         />
       }
       <tui-error formControlName="config" />
-      <tui-textfield tuiChevron>
-        <label tuiLabel>Target</label>
+      <tui-textfield tuiChevron [stringify]="stringifyTarget">
+        <label tuiLabel>{{ 'Target' | i18n }}</label>
         <input tuiSelect formControlName="target" />
         <tui-data-list-wrapper *tuiDropdown [items]="context.data.targets" />
       </tui-textfield>
@@ -80,9 +81,9 @@ import {
           appearance="flat"
           (click)="context.$implicit.complete()"
         >
-          Cancel
+          {{ 'Cancel' | i18n }}
         </button>
-        <button tuiButton>Add VPN</button>
+        <button tuiButton>{{ 'Add VPN' | i18n }}</button>
       </footer>
     </form>
   `,
@@ -90,7 +91,7 @@ import {
   providers: [
     provideHelp('/outbound/dialog'),
     tuiTextfieldOptionsProvider({ cleaner: signal(false) }),
-    tuiValidationErrorsProvider(OUTBOUND_VALIDATION_ERRORS),
+    provideTranslatedValidationErrors(OUTBOUND_VALIDATION_ERRORS),
   ],
   imports: [
     TuiForm,
@@ -104,16 +105,22 @@ import {
     TuiChevron,
     TuiButton,
     TuiInput,
+    i18nPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 class AddClient {
+  private readonly i18n = inject(i18nPipe)
   protected readonly context =
     injectContext<TuiDialogContext<any, AddClientDialogData>>()
   protected readonly form = getAddOutboundVpnForm(
     inject(NonNullableFormBuilder),
     this.context.data.existingLabels,
   )
+
+  // Translates the 'Internet' option; user VPN labels pass through unchanged.
+  protected readonly stringifyTarget = (v: string): string =>
+    this.i18n.transform(v)
 
   constructor() {
     this.form.controls.config.valueChanges.subscribe(() => {

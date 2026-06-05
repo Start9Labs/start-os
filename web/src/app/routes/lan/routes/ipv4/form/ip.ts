@@ -13,8 +13,8 @@ import {
   TuiGroup,
   TuiInput,
   TuiTextfield,
-  tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
+import { provideTranslatedValidationErrors } from 'src/app/i18n/validation-errors'
 import { TuiDataListWrapper, TuiInputNumber, TuiSelect } from '@taiga-ui/kit'
 import { TuiCardLarge, TuiForm } from '@taiga-ui/layout'
 import { FORM } from 'src/app/components/form'
@@ -28,12 +28,13 @@ import {
   resolveSecondOctet,
   secondOctetBlockValidator,
 } from '../utils'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   selector: 'lan-ipv4-ip',
   template: `
     <fieldset>
-      <legend>Network Block</legend>
+      <legend>{{ 'Network Block' | i18n }}</legend>
       <div tuiGroup>
         <tui-textfield tuiDropdownLimitWidth="min">
           <input tuiSelect formControlName="firstOctet" />
@@ -63,7 +64,7 @@ import {
     </fieldset>
     <tui-error [error]="secondOctetError()" />
     <fieldset>
-      <legend>Router IP</legend>
+      <legend>{{ 'Router IP' | i18n }}</legend>
       <div tuiGroup>
         <tui-textfield>
           <input tuiInput [value]="firstOctet()" disabled />
@@ -98,7 +99,7 @@ import {
   `,
   viewProviders: [FORM],
   hostDirectives: [TuiForm, TuiCardLarge],
-  providers: [tuiValidationErrorsProvider(LAN_IPV4_VALIDATION_ERRORS)],
+  providers: [provideTranslatedValidationErrors(LAN_IPV4_VALIDATION_ERRORS)],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
@@ -111,6 +112,7 @@ import {
     TuiGroup,
     TuiDropdown,
     TuiValidator,
+    i18nPipe,
   ],
 })
 export class LanIpv4Ip {

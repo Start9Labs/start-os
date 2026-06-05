@@ -11,16 +11,19 @@ import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
 import { ActionService } from 'src/app/services/action.service'
 import { ApiService } from 'src/app/services/api/api.service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   template: `
     <section class="g-form" tuiCardLarge>
       <header tuiHeader="body-l">
-        <h3 tuiTitle>Create Backup</h3>
+        <h3 tuiTitle>{{ 'Create Backup' | i18n }}</h3>
       </header>
       <p tuiDescription>
-        Download a backup of all router settings, including security profiles,
-        WiFi configuration, SSL certificates, and system preferences.
+        {{
+          'Download a backup of all router settings, including security profiles, WiFi configuration, SSL certificates, and system preferences.'
+            | i18n
+        }}
       </p>
       <footer>
         <button
@@ -29,21 +32,25 @@ import { ApiService } from 'src/app/services/api/api.service'
           iconStart="@tui.download"
           (click)="download()"
         >
-          Download Backup
+          {{ 'Download Backup' | i18n }}
         </button>
       </footer>
     </section>
     <section class="g-form" tuiCardLarge>
       <header tuiHeader="body-l">
-        <h3 tuiTitle>Restore Backup</h3>
+        <h3 tuiTitle>{{ 'Restore Backup' | i18n }}</h3>
       </header>
       <p tuiDescription>
-        Upload a previously created backup to restore all settings. The device
-        will reboot after restoring.
+        {{
+          'Upload a previously created backup to restore all settings. The device will reboot after restoring.'
+            | i18n
+        }}
       </p>
       <footer>
         <label tuiBlock="m" appearance="outline" iconStart="@tui.file">
-          <b>{{ selectedFile() ? selectedFile()!.name : 'Choose File' }}</b>
+          <b>
+            {{ selectedFile() ? selectedFile()!.name : ('Choose File' | i18n) }}
+          </b>
           <input
             tuiBlock
             appearance=""
@@ -59,7 +66,7 @@ import { ApiService } from 'src/app/services/api/api.service'
           [disabled]="!selectedFile() || uploading()"
           (click)="restore()"
         >
-          {{ uploading() ? 'Restoring...' : 'Restore' }}
+          {{ uploading() ? ('Restoring...' | i18n) : ('Restore' | i18n) }}
         </button>
       </footer>
     </section>
@@ -84,13 +91,14 @@ import { ApiService } from 'src/app/services/api/api.service'
     }
   `,
   host: { class: 'g-page' },
-  imports: [TuiCardLarge, TuiButton, TuiHeader, TuiTitle, TuiBlock],
+  imports: [TuiCardLarge, TuiButton, TuiHeader, TuiTitle, TuiBlock, i18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class Backup {
   private readonly api = inject(ApiService)
   private readonly actions = inject(ActionService)
   private readonly dialogs = inject(TuiResponsiveDialogService)
+  private readonly i18n = inject(i18nPipe)
 
   protected readonly uploading = signal(false)
   protected readonly selectedFile = signal<File | null>(null)
@@ -105,7 +113,10 @@ export default class Backup {
       async () => {
         const { guid, filename } = await this.api.backupCreate()
         const res = await fetch(`/rest/rpc/${guid}`)
-        if (!res.ok) throw new Error(`Download failed: ${res.statusText}`)
+        if (!res.ok)
+          throw new Error(
+            `${this.i18n.transform('Download failed:')} ${res.statusText}`,
+          )
         const blob = await res.blob()
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
@@ -114,19 +125,23 @@ export default class Backup {
         a.click()
         URL.revokeObjectURL(url)
       },
-      { loading: 'Creating backup...', success: 'Backup downloaded' },
+      {
+        loading: this.i18n.transform('Creating backup...'),
+        success: this.i18n.transform('Backup downloaded'),
+      },
     )
   }
 
   protected restore() {
     this.dialogs
       .open(TUI_CONFIRM, {
-        label: 'Restore Backup',
+        label: this.i18n.transform('Restore Backup'),
         data: {
-          content:
+          content: this.i18n.transform(
             'All current settings will be overwritten and the device will reboot. Are you sure you want to continue?',
-          yes: 'Restore & Reboot',
-          no: 'Cancel',
+          ),
+          yes: this.i18n.transform('Restore & Reboot'),
+          no: this.i18n.transform('Cancel'),
         },
       })
       .pipe(filter(Boolean))
@@ -156,8 +171,8 @@ export default class Backup {
         }
       },
       {
-        loading: 'Restoring backup...',
-        success: 'Backup restored',
+        loading: this.i18n.transform('Restoring backup...'),
+        success: this.i18n.transform('Backup restored'),
         restart: true,
       },
     )

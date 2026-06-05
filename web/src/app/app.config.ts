@@ -29,6 +29,9 @@ import {
 } from '@taiga-ui/layout'
 import { ICONS } from 'src/app/app.icons'
 
+import { I18N_PROVIDERS } from 'src/app/i18n/i18n.providers'
+import { i18nService } from 'src/app/i18n/i18n.service'
+
 import { routes } from './app.routes'
 import { ApiService } from './services/api/api.service'
 import { LiveApiService } from './services/api/live-api.service'
@@ -75,5 +78,12 @@ export const appConfig: ApplicationConfig = {
     },
     provideHttpClient(withInterceptorsFromDi(), withFetch()),
     provideAppInitializer(() => inject(AuthService).whenReady()),
+    ...I18N_PROVIDERS,
+    // Apply the language the Taiga switcher remembers at boot (pre-auth screens);
+    // the authenticated shell (app.ts) later applies the backend-stored value.
+    provideAppInitializer(() => {
+      const i18n = inject(i18nService)
+      i18n.setLangLocal(i18n.lang)
+    }),
   ],
 }

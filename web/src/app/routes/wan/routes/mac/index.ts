@@ -13,8 +13,8 @@ import {
   TuiLabel,
   TuiRadio,
   TuiTitle,
-  tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
+import { provideTranslatedValidationErrors } from 'src/app/i18n/validation-errors'
 import { TuiElasticContainer, TuiHeader } from '@taiga-ui/layout'
 import { startWith } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
@@ -33,12 +33,17 @@ import {
   MacForm,
   updateMacValidators,
 } from './utils'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   template: `
-    <header tuiHeader="h6"><h2 tuiTitle>Summary</h2></header>
+    <header tuiHeader="h6">
+      <h2 tuiTitle>{{ 'Summary' | i18n }}</h2>
+    </header>
     <article macSummary [formLoading]="!service.data()"></article>
-    <header tuiHeader="h6"><h2 tuiTitle>Settings</h2></header>
+    <header tuiHeader="h6">
+      <h2 tuiTitle>{{ 'Settings' | i18n }}</h2>
+    </header>
     <form
       [formGroup]="form"
       [formLoading]="!service.data()"
@@ -54,14 +59,15 @@ import {
               formControlName="strategy"
               [value]="strategy"
             />
-            {{ labels[strategy] }}{{ $first ? ' (Default)' : '' }}
+            {{ labels[strategy] | i18n
+            }}{{ $first ? (' (Default)' | i18n) : '' }}
           </label>
         }
       </section>
       <tui-elastic-container formGroupName="address">
         @if (strategy() === 'custom') {
           <tui-textfield [style.max-inline-size.rem]="13">
-            <label tuiLabel>{{ labels.mac }}</label>
+            <label tuiLabel>{{ labels.mac | i18n }}</label>
             <input tuiInput formControlName="mac" />
           </tui-textfield>
           <tui-error formControlName="mac" />
@@ -85,10 +91,11 @@ import {
     TuiInput,
     TuiError,
     TuiElasticContainer,
+    i18nPipe,
   ],
   providers: [
     provideFormService(MacService),
-    tuiValidationErrorsProvider(MAC_VALIDATION_ERRORS),
+    provideTranslatedValidationErrors(MAC_VALIDATION_ERRORS),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

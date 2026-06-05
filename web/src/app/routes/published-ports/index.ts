@@ -16,14 +16,19 @@ import { PublishPortDialog } from './dialog'
 import { PublishedPortsService } from './service'
 import { PublishedPortsTable } from './table'
 import { PublishedPortDialogResult, PublishedPortDisplay } from './types'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   template: `
     <header tuiHeader>
-      <hgroup tuiTitle><h2>Published Ports</h2></hgroup>
+      <hgroup tuiTitle>
+        <h2>{{ 'Published Ports' | i18n }}</h2>
+      </hgroup>
       <aside tuiAccessories>
         @if (!loading()) {
-          <button tuiButton iconStart="@tui.plus" (click)="edit()">Add</button>
+          <button tuiButton iconStart="@tui.plus" (click)="edit()">
+            {{ 'Add' | i18n }}
+          </button>
         }
       </aside>
     </header>
@@ -39,12 +44,20 @@ import { PublishedPortDialogResult, PublishedPortDisplay } from './types'
   `,
   providers: [provideFormService(PublishedPortsService)],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiHeader, TuiTitle, TuiButton, PublishedPortsTable, TuiSkeleton],
+  imports: [
+    TuiHeader,
+    TuiTitle,
+    TuiButton,
+    PublishedPortsTable,
+    TuiSkeleton,
+    i18nPipe,
+  ],
 })
 export default class PublishedPorts {
   protected readonly dialogs = inject(TuiResponsiveDialogService)
   protected readonly service = inject(PublishedPortsService)
   private readonly api = inject(ApiService)
+  private readonly i18n = inject(i18nPipe)
   protected readonly loading = computed(() => !this.service.data())
 
   protected readonly ipv6Available = signal(true)
@@ -81,7 +94,9 @@ export default class PublishedPorts {
       .open<PublishedPortDialogResult>(
         new PolymorpheusComponent(PublishPortDialog),
         {
-          label: existing ? 'Edit Published Port' : 'Publish Ports',
+          label: existing
+            ? this.i18n.transform('Edit Published Port')
+            : this.i18n.transform('Publish Ports'),
           data: {
             devices,
             existing,

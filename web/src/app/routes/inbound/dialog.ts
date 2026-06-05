@@ -31,6 +31,11 @@ import { provideHelp } from 'src/app/help/help'
 import { ModalHelp } from 'src/app/help/modal-help'
 import { ProfileId, VpnServerEndpoint } from 'src/app/services/api/api.service'
 import { VpnServer } from 'src/app/routes/inbound/service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
+import {
+  provideTranslatedValidationErrors,
+  tpl,
+} from 'src/app/i18n/validation-errors'
 
 export interface ServerDialogData {
   server?: VpnServer
@@ -51,17 +56,17 @@ export interface ServerDialogResult {
   template: `
     <form tuiForm="m" [formGroup]="form" (submit.prevent)="save()">
       <tui-textfield>
-        <label tuiLabel>Label</label>
+        <label tuiLabel>{{ 'Label' | i18n }}</label>
         <input
           tuiInput
           tuiAutoFocus
-          placeholder="What to call this VPN connection"
+          [placeholder]="'What to call this VPN connection' | i18n"
           formControlName="label"
         />
       </tui-textfield>
       <tui-error formControlName="label" />
       <tui-textfield tuiChevron>
-        <label tuiLabel>Endpoint</label>
+        <label tuiLabel>{{ 'Endpoint' | i18n }}</label>
         <input tuiSelect formControlName="endpoint" />
         <tui-data-list *tuiDropdown>
           @for (item of endpoints; track $index) {
@@ -74,7 +79,7 @@ export interface ServerDialogResult {
       </tui-textfield>
       <tui-error formControlName="endpoint" />
       <tui-textfield tuiChevron>
-        <label tuiLabel>Security Profile</label>
+        <label tuiLabel>{{ 'Security Profile' | i18n }}</label>
         <input tuiSelect formControlName="profile" />
         <tui-data-list *tuiDropdown>
           <tui-opt-group>
@@ -92,7 +97,7 @@ export interface ServerDialogResult {
               iconStart="@tui.user-lock"
               (click)="context.$implicit.complete()"
             >
-              Manage profiles
+              {{ 'Manage profiles' | i18n }}
             </a>
           </tui-opt-group>
         </tui-data-list>
@@ -101,7 +106,7 @@ export interface ServerDialogResult {
       <tui-textfield
         [tuiNumberFormat]="{ precision: 0, thousandSeparator: '' }"
       >
-        <label tuiLabel>Port</label>
+        <label tuiLabel>{{ 'Port' | i18n }}</label>
         <input tuiInputNumber formControlName="listen_port" />
       </tui-textfield>
       <tui-error formControlName="listen_port" />
@@ -112,10 +117,10 @@ export interface ServerDialogResult {
           appearance="flat"
           (click)="context.$implicit.complete()"
         >
-          Cancel
+          {{ 'Cancel' | i18n }}
         </button>
         <button tuiButton>
-          {{ context.data.server ? 'Save VPN' : 'Add VPN' }}
+          {{ (context.data.server ? 'Save VPN' : 'Add VPN') | i18n }}
         </button>
       </footer>
     </form>
@@ -125,6 +130,16 @@ export interface ServerDialogResult {
   providers: [
     provideHelp('/inbound/dialog'),
     tuiTextfieldOptionsProvider({ cleaner: signal(false) }),
+    provideTranslatedValidationErrors({
+      required: 'This field is required',
+      min: tpl<{ min: number }>('Minimum value is {min}', ({ min }) => ({
+        min,
+      })),
+      max: tpl<{ max: number }>('Maximum value is {max}', ({ max }) => ({
+        max,
+      })),
+      uniquePort: 'Port is already in use',
+    }),
   ],
   imports: [
     ReactiveFormsModule,
@@ -141,6 +156,7 @@ export interface ServerDialogResult {
     TuiInputNumber,
     TuiNumberFormat,
     TuiAutoFocus,
+    i18nPipe,
   ],
 })
 class AddServer {
@@ -185,7 +201,7 @@ class AddServer {
   ) => ValidationErrors | null {
     return (control: AbstractControl) => {
       return this.usedPorts.includes(control.value)
-        ? { uniquePort: 'Port is already in use' }
+        ? { uniquePort: true }
         : null
     }
   }

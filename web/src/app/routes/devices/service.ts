@@ -7,6 +7,7 @@ import {
   Device,
   DeviceUpdateData,
 } from './utils'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 /**
  * Root-provided service for device API calls.
@@ -67,6 +68,7 @@ export class DevicesApiService {
 @Injectable()
 export class DevicesService extends FormService<Device[]> {
   private readonly devicesApi = inject(DevicesApiService)
+  private readonly i18n = inject(i18nPipe)
 
   async load(): Promise<Device[]> {
     return this.devicesApi.get()
@@ -83,7 +85,10 @@ export class DevicesService extends FormService<Device[]> {
         await this.devicesApi.update(mac, data)
         await this.refreshAndWait()
       },
-      { loading: 'Updating device', success: 'Device updated' },
+      {
+        loading: this.i18n.transform('Updating device'),
+        success: this.i18n.transform('Device updated'),
+      },
     )
   }
 
@@ -94,7 +99,10 @@ export class DevicesService extends FormService<Device[]> {
         await this.devicesApi.forget(mac)
         await this.refreshAndWait()
       },
-      { loading: 'Forgetting device', success: 'Device forgotten' },
+      {
+        loading: this.i18n.transform('Forgetting device'),
+        success: this.i18n.transform('Device forgotten'),
+      },
     )
   }
 

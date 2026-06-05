@@ -3,6 +3,7 @@ import {
   Component,
   computed,
   effect,
+  inject,
   input,
   signal,
 } from '@angular/core'
@@ -26,12 +27,13 @@ import {
   DataUsagePoint,
 } from '../../utils'
 import { DevicesService } from '../../service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   selector: 'app-data-usage-chart',
   template: `
     <header>
-      <span [tuiSkeleton]="loading()">Data Usage</span>
+      <span [tuiSkeleton]="loading()">{{ 'Data Usage' | i18n }}</span>
       <button
         tuiButton
         tuiChevron
@@ -41,7 +43,7 @@ import { DevicesService } from '../../service'
         tuiDropdownAuto
         [tuiSkeleton]="loading()"
       >
-        {{ periodLabels[selectedPeriod()] }}
+        {{ periodLabels[selectedPeriod()] | i18n }}
         <tui-data-list *tuiDropdown="let close" size="s" (click)="close()">
           @for (period of periods; track period) {
             <button
@@ -50,7 +52,7 @@ import { DevicesService } from '../../service'
               [value]="period"
               (click)="selectedPeriod.set(period)"
             >
-              {{ periodLabels[period] }}
+              {{ periodLabels[period] | i18n }}
             </button>
           }
         </tui-data-list>
@@ -61,7 +63,7 @@ import { DevicesService } from '../../service'
       <tui-loader size="l" [style.height.rem]="10" />
     } @else if (error()) {
       <div tuiNotification size="l" appearance="negative">
-        Failed to load data usage.
+        {{ 'Failed to load data usage.' | i18n }}
         <button
           tuiButton
           type="button"
@@ -69,13 +71,13 @@ import { DevicesService } from '../../service'
           appearance="secondary-grayscale"
           (click)="retry()"
         >
-          Retry
+          {{ 'Retry' | i18n }}
         </button>
       </div>
     } @else {
       <div class="chart-legend">
-        <span tuiStatus="#3b82f6">Download</span>
-        <span tuiStatus="#10b981">Upload</span>
+        <span tuiStatus="#3b82f6">{{ 'Download' | i18n }}</span>
+        <span tuiStatus="#10b981">{{ 'Upload' | i18n }}</span>
       </div>
       <tui-axes
         [axisXLabels]="xLabels()"
@@ -84,7 +86,9 @@ import { DevicesService } from '../../service'
         [horizontalLinesHandler]="lines"
       >
         @if (isEmpty()) {
-          <div class="chart-empty">No data usage recorded for this period.</div>
+          <div class="chart-empty">
+            {{ 'No data usage recorded for this period.' | i18n }}
+          </div>
         } @else {
           @for (line of chartLines(); track $index) {
             <tui-line-chart
@@ -158,10 +162,13 @@ import { DevicesService } from '../../service'
     TuiNotification,
     TuiSkeleton,
     TuiStatus,
+    i18nPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DataUsageChart {
+  private readonly i18n = inject(i18nPipe)
+
   readonly mac = input.required<string>()
   readonly service = input.required<DevicesService>()
   readonly loading = input(false)
@@ -245,14 +252,22 @@ export class DataUsageChart {
     switch (period) {
       case 'week': {
         // 7 daily points ending today — rotate so the last label is today.
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        const days = [
+          this.i18n.transform('Sun'),
+          this.i18n.transform('Mon'),
+          this.i18n.transform('Tue'),
+          this.i18n.transform('Wed'),
+          this.i18n.transform('Thu'),
+          this.i18n.transform('Fri'),
+          this.i18n.transform('Sat'),
+        ]
         const today = new Date().getDay()
         return Array.from({ length: 7 }, (_, i) => days[(today + 1 + i) % 7])
       }
       case 'month':
-        return ['Week 1', 'Week 2', 'Week 3', 'Week 4']
+        return [1, 2, 3, 4].map(n => `${this.i18n.transform('Week')} ${n}`)
       case '3months':
-        return ['Month 1', 'Month 2', 'Month 3']
+        return [1, 2, 3].map(n => `${this.i18n.transform('Month')} ${n}`)
     }
   })
 

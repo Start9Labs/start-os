@@ -11,6 +11,7 @@ import {
   isNetworkError,
   NetworkRestartService,
 } from './network-restart.service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Injectable({
   providedIn: 'root',
@@ -20,6 +21,7 @@ export class SystemService {
   private readonly auth = inject(AuthService)
   private readonly alerts = inject(TuiNotificationService)
   private readonly networkRestart = inject(NetworkRestartService)
+  private readonly i18n = inject(i18nPipe)
   private ws: WebSocket | null = null
   private targetVersion = ''
 
@@ -126,7 +128,9 @@ export class SystemService {
     this.updating.set(false)
     this.networkRestart.recovered()
     this.alerts
-      .open('Update failed — check device logs', { appearance: 'negative' })
+      .open(this.i18n.transform('Update failed — check device logs'), {
+        appearance: 'negative',
+      })
       .subscribe()
   }
 

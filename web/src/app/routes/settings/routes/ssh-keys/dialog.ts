@@ -14,13 +14,14 @@ import {
   TuiInput,
   TuiTextfield,
   tuiTextfieldOptionsProvider,
-  tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
+import { provideTranslatedValidationErrors } from 'src/app/i18n/validation-errors'
 import { TuiTextarea } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { provideHelp } from 'src/app/help/help'
 import { ModalHelp } from 'src/app/help/modal-help'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 function publicKeyValidator(control: AbstractControl): ValidationErrors | null {
   const value = control.value?.trim()
@@ -43,7 +44,7 @@ function publicKeyValidator(control: AbstractControl): ValidationErrors | null {
   template: `
     <form tuiForm="m" [formGroup]="form" (submit.prevent)="save()">
       <tui-textfield>
-        <label tuiLabel>Public Key</label>
+        <label tuiLabel>{{ 'Public Key' | i18n }}</label>
         <textarea
           tuiTextarea
           placeholder="ssh-ed25519 AAAA... user@host"
@@ -59,9 +60,9 @@ function publicKeyValidator(control: AbstractControl): ValidationErrors | null {
           appearance="flat"
           (click)="context.$implicit.complete()"
         >
-          Cancel
+          {{ 'Cancel' | i18n }}
         </button>
-        <button tuiButton>Add Key</button>
+        <button tuiButton>{{ 'Add Key' | i18n }}</button>
       </footer>
     </form>
   `,
@@ -69,7 +70,7 @@ function publicKeyValidator(control: AbstractControl): ValidationErrors | null {
   providers: [
     provideHelp('/settings/ssh-keys/dialog'),
     tuiTextfieldOptionsProvider({ cleaner: signal(false) }),
-    tuiValidationErrorsProvider({
+    provideTranslatedValidationErrors({
       invalidKey: 'Invalid public key format',
     }),
   ],
@@ -81,6 +82,7 @@ function publicKeyValidator(control: AbstractControl): ValidationErrors | null {
     TuiInput,
     TuiButton,
     TuiTextarea,
+    i18nPipe,
   ],
 })
 export class AddSshKey {

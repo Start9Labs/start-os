@@ -12,6 +12,7 @@ import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { QrCodeComponent } from 'ng-qrcode'
 import { provideHelp } from 'src/app/help/help'
 import { ModalHelp } from 'src/app/help/modal-help'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   template: `
@@ -25,16 +26,16 @@ import { ModalHelp } from 'src/app/help/modal-help'
           [iconStart]="masked() ? '@tui.eye' : '@tui.eye-off'"
           (click)="masked.set(!masked())"
         >
-          Toggle visibility
+          {{ 'Toggle visibility' | i18n }}
         </button>
         <tui-segmented [(activeItemIndex)]="index">
           <button>
             <tui-icon icon="@tui.file" />
-            File
+            {{ 'File' | i18n }}
           </button>
           <button>
             <tui-icon icon="@tui.qr-code" />
-            QR
+            {{ 'QR' | i18n }}
           </button>
         </tui-segmented>
       </aside>
@@ -62,7 +63,7 @@ import { ModalHelp } from 'src/app/help/modal-help'
           size="s"
           [href]="href"
         >
-          Download
+          {{ 'Download' | i18n }}
         </a>
       </tui-textfield>
     }
@@ -87,6 +88,7 @@ import { ModalHelp } from 'src/app/help/modal-help'
     TuiTextfield,
     TuiTextarea,
     TuiCopy,
+    i18nPipe,
   ],
 })
 export class ClientConfigDialog {

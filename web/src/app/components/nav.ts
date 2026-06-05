@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router'
 import { TuiIcon } from '@taiga-ui/core'
 import { TuiNavigation } from '@taiga-ui/layout'
 import { SystemService } from 'src/app/services/system.service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 const MENU = {
   Internet: [
@@ -72,10 +73,10 @@ const MENU = {
   selector: '[appNav]',
   template: `
     @for (item of routes | keyvalue: asIs; track $index) {
-      <span>{{ item.key }}</span>
+      <span>{{ item.key | i18n }}</span>
       @for (route of item.value; track $index) {
         <a tuiAsideItem [iconStart]="route.icon" [routerLink]="route.link">
-          {{ route.name }}
+          {{ route.name | i18n }}
           @if (route.link === 'settings' && system.updateAvailable()) {
             <tui-icon class="g-positive" icon="@tui.rocket" />
           }
@@ -109,7 +110,7 @@ const MENU = {
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiIcon, RouterLink, KeyValuePipe, TuiNavigation],
+  imports: [TuiIcon, RouterLink, KeyValuePipe, TuiNavigation, i18nPipe],
 })
 export class Nav {
   protected readonly system = inject(SystemService)

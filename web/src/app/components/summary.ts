@@ -15,6 +15,7 @@ import {
   TuiTitle,
 } from '@taiga-ui/core'
 import { tuiBadgeOptionsProvider } from '@taiga-ui/kit'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   selector: '[appSummary]',
@@ -28,10 +29,12 @@ import { tuiBadgeOptionsProvider } from '@taiga-ui/kit'
           iconStart="@tui.copy"
           [cdkCopyToClipboard]="appSummary()"
           (cdkCopyToClipboardCopied)="
-            alerts.open('Copied', { appearance: 'positive' }).subscribe()
+            alerts
+              .open(i18n.transform('Copied'), { appearance: 'positive' })
+              .subscribe()
           "
         >
-          Copy
+          {{ 'Copy' | i18n }}
         </button>
       </span>
     } @else {
@@ -70,10 +73,11 @@ import { tuiBadgeOptionsProvider } from '@taiga-ui/kit'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
-  imports: [TuiButton, CdkCopyToClipboard],
+  imports: [TuiButton, CdkCopyToClipboard, i18nPipe],
 })
 export class Summary {
   protected readonly alerts = inject(TuiNotificationService)
+  protected readonly i18n = inject(i18nPipe)
 
   public readonly appSummary = input('', {
     transform: (value?: string) => value || '',

@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DestroyRef,
   effect,
   inject,
   signal,
@@ -45,7 +46,9 @@ import {
 } from 'src/app/services/api/api.service'
 import { SystemService } from 'src/app/services/system.service'
 import { UPDATE_PROGRESS_DIALOG } from './update-progress-dialog'
-import { getTranslatedName, Language, LANGUAGES } from 'src/app/utils/languages'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
+import { i18nService } from 'src/app/i18n/i18n.service'
+import { Language, LANGUAGES } from 'src/app/utils/languages'
 import { GIT_HASH } from 'src/app/utils/workspace-config'
 import {
   formatOffset,
@@ -67,7 +70,7 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
         <button tuiAccordion appearance="">
           <tui-icon icon="@tui.rocket" />
           <header tuiHeader="h6">
-            <h2 tuiTitle>v{{ latestVersion() }} released!</h2>
+            <h2 tuiTitle>v{{ latestVersion() }} {{ 'released!' | i18n }}</h2>
           </header>
         </button>
         <tui-expand>
@@ -85,7 +88,7 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
               [disabled]="system.updating()"
               (click)="onUpdate()"
             >
-              Update now
+              {{ 'Update now' | i18n }}
             </button>
           </div>
         </tui-expand>
@@ -98,10 +101,10 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
       (ngSubmit)="onSubmit()"
     >
       <fieldset>
-        <legend>Preferences</legend>
+        <legend>{{ 'Preferences' | i18n }}</legend>
         <section>
           <tui-textfield tuiChevron [stringify]="stringifyTheme">
-            <label tuiLabel>Theme</label>
+            <label tuiLabel>{{ 'Theme' | i18n }}</label>
             <input
               tuiSelect
               formControlName="theme"
@@ -110,21 +113,25 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
             <tui-data-list-wrapper *tuiDropdown [items]="themes" />
           </tui-textfield>
           <tui-textfield tuiChevron [stringify]="stringifyLanguage">
-            <label tuiLabel>Language</label>
-            <input tuiSelect formControlName="language" />
+            <label tuiLabel>{{ 'Language' | i18n }}</label>
+            <input
+              tuiSelect
+              formControlName="language"
+              (tuiValueChanges)="onLanguage($event)"
+            />
             <tui-data-list *tuiDropdown>
               @for (lang of languages; track lang.posix) {
                 <button tuiOption [value]="lang.posix">
                   <span tuiTitle>
                     {{ lang.nativeName }}
-                    <span tuiSubtitle>{{ getTranslatedName(lang.posix) }}</span>
+                    <span tuiSubtitle>{{ lang.name | i18n }}</span>
                   </span>
                 </button>
               }
             </tui-data-list>
           </tui-textfield>
           <tui-textfield tuiChevron [stringify]="stringifyTimezone">
-            <label tuiLabel>Timezone</label>
+            <label tuiLabel>{{ 'Timezone' | i18n }}</label>
             <input tuiSelect formControlName="timezone" />
             <tui-data-list *tuiDropdown>
               @for (tz of timezones; track tz.iana) {
@@ -140,7 +147,7 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
         </section>
       </fieldset>
       <fieldset>
-        <legend>Remote Access</legend>
+        <legend>{{ 'Remote Access' | i18n }}</legend>
         @for (value of ['default', 'never', 'always']; track $index) {
           <label tuiLabel>
             <input
@@ -149,16 +156,18 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
               formControlName="remote"
               [value]="value"
             />
-            {{ $index ? value : 'When behind NAT (Default)' }}
+            {{ $index ? (value | i18n) : ('When behind NAT (Default)' | i18n) }}
           </label>
         }
       </fieldset>
       <fieldset>
-        <legend>Security</legend>
+        <legend>{{ 'Security' | i18n }}</legend>
         <section class="ca-section">
           <p>
-            Download your Root CA to trust HTTPS connections from additional
-            devices.
+            {{
+              'Download your Root CA to trust HTTPS connections from additional devices.'
+                | i18n
+            }}
           </p>
           <a
             tuiButton
@@ -167,17 +176,17 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
             href="/static/root-ca.crt"
             download="startwrt-ca.crt"
           >
-            Download Root CA
+            {{ 'Download Root CA' | i18n }}
           </a>
         </section>
       </fieldset>
       <fieldset>
-        <legend>About</legend>
+        <legend>{{ 'About' | i18n }}</legend>
         <section class="about-section">
           <dl>
-            <dt>Version</dt>
+            <dt>{{ 'Version' | i18n }}</dt>
             <dd>{{ system.info()?.version || '—' }}</dd>
-            <dt>Build</dt>
+            <dt>{{ 'Build' | i18n }}</dt>
             <dd>
               <code [title]="gitHash || ''">{{ shortGitHash() }}</code>
             </dd>
@@ -187,8 +196,10 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
       <tui-elastic-container>
         @if (form.value.remote === 'always') {
           <div tuiAnimated tuiNotification appearance="warning">
-            This setting is not recommended as your router will be exposed to
-            the internet
+            {{
+              'This setting is not recommended as your router will be exposed to the internet'
+                | i18n
+            }}
           </div>
         }
       </tui-elastic-container>
@@ -311,6 +322,7 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
     NgDompurifyPipe,
     TuiElasticContainer,
     TuiAnimated,
+    i18nPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -319,6 +331,8 @@ export default class General {
   private readonly actions = inject(ActionService)
   private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly mode = inject(TUI_DARK_MODE)
+  private readonly i18nService = inject(i18nService)
+  private readonly i18n = inject(i18nPipe)
 
   protected readonly system = inject(SystemService)
   protected readonly gitHash = inject(GIT_HASH)
@@ -358,13 +372,25 @@ export default class General {
         })
       }
     })
+
+    // Theme and language are previewed live on selection (see onTheme/onLanguage).
+    // If the user leaves the page without saving, revert the preview to the saved
+    // settings — the source of truth. A saved change is pristine, so this is a no-op.
+    inject(DestroyRef).onDestroy(() => {
+      if (this.form.pristine) return
+      const info = this.system.info()
+      if (info) {
+        this.onTheme(info.theme)
+        this.i18nService.setLangLocal(info.language as Language)
+      }
+    })
   }
 
   protected readonly themes = THEMES
   protected readonly timezones = TIMEZONES
 
   protected readonly stringifyTheme = (t: Theme): string =>
-    t ? t[0].toUpperCase() + t.slice(1) : ''
+    t ? this.i18n.transform(t[0].toUpperCase() + t.slice(1)) : ''
 
   protected readonly stringifyLanguage = (posix: Language): string =>
     LANGUAGES.find(l => l.posix === posix)?.nativeName || posix
@@ -376,10 +402,13 @@ export default class General {
     return tz ? `(${formatOffset(tz.offsetMin)}) ${tz.label}` : iana
   }
 
-  protected getTranslatedName(posix: Language): string {
-    return getTranslatedName(posix, this.form.getRawValue().language)
+  // Live-preview the language on selection; the choice is persisted on submit
+  // (the setPreferences call already carries `language`) or reverted on leave.
+  protected onLanguage(language: Language): void {
+    this.i18nService.setLangLocal(language)
   }
 
+  // Live-preview the theme on selection; persisted on submit or reverted on leave.
   protected onTheme(theme: Theme): void {
     if (theme === 'system') {
       this.mode.reset()
@@ -399,6 +428,7 @@ export default class General {
           info.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       })
       this.onTheme(info.theme)
+      this.i18nService.setLangLocal(info.language as Language)
     }
   }
 
@@ -418,10 +448,11 @@ export default class General {
         }
 
         await this.system.refresh()
+        this.form.markAsPristine()
       },
       {
-        fail: 'Failed to save preferences',
-        success: 'Preferences saved',
+        fail: this.i18n.transform('Failed to save preferences'),
+        success: this.i18n.transform('Preferences saved'),
       },
     )
   }
@@ -432,11 +463,11 @@ export default class General {
 
     this.dialogs
       .open(TUI_CONFIRM, {
-        label: 'Start System Update?',
+        label: this.i18n.transform('Start System Update?'),
         data: {
-          content: `Updating to v${latest.version} will restart your router. This may take several minutes and your network will be temporarily unavailable.`,
-          yes: 'Update Now',
-          no: 'Cancel',
+          content: `${this.i18n.transform('Updating to')} v${latest.version} ${this.i18n.transform('will restart your router. This may take several minutes and your network will be temporarily unavailable.')}`,
+          yes: this.i18n.transform('Update Now'),
+          no: this.i18n.transform('Cancel'),
         },
       })
       .pipe(filter(Boolean))
@@ -446,7 +477,7 @@ export default class General {
   private doUpdate(version: string): void {
     this.dialogs
       .open(UPDATE_PROGRESS_DIALOG, {
-        label: 'System Update',
+        label: this.i18n.transform('System Update'),
         data: version,
         closable: false,
         dismissible: false,

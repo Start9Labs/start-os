@@ -3,6 +3,7 @@ import { TuiButton, TuiDialogContext } from '@taiga-ui/core'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { ScheduleComponent } from 'src/app/components/schedule'
 import { provideHelp } from 'src/app/help/help'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 import { ModalHelp } from 'src/app/help/modal-help'
 import type { ScheduleWindow } from 'src/app/services/api/api.service'
 
@@ -16,16 +17,18 @@ import type { ScheduleWindow } from 'src/app/services/api/api.service'
         appearance="flat"
         (click)="context.$implicit.complete()"
       >
-        Cancel
+        {{ 'Cancel' | i18n }}
       </button>
-      <button tuiButton (click)="context.completeWith(windows())">Save</button>
+      <button tuiButton (click)="context.completeWith(windows())">
+        {{ 'Save' | i18n }}
+      </button>
     </footer>
   `,
   hostDirectives: [ModalHelp],
   viewProviders: [provideHelp('/profiles/blackout')],
   providers: [provideHelp('/profiles/schedule')],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ScheduleComponent, TuiButton],
+  imports: [ScheduleComponent, TuiButton, i18nPipe],
 })
 class ProfilesScheduleComponent {
   protected readonly context =

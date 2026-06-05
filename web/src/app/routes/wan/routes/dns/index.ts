@@ -14,8 +14,8 @@ import {
   TuiRadio,
   TuiTextfield,
   TuiTitle,
-  tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
+import { provideTranslatedValidationErrors } from 'src/app/i18n/validation-errors'
 import { TuiSwitch } from '@taiga-ui/kit'
 import { TuiElasticContainer, TuiHeader } from '@taiga-ui/layout'
 import { startWith } from 'rxjs'
@@ -35,10 +35,13 @@ import {
   getDnsForm,
   updateDnsValidators,
 } from './utils'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   template: `
-    <header tuiHeader="h6"><h2 tuiTitle>Settings</h2></header>
+    <header tuiHeader="h6">
+      <h2 tuiTitle>{{ 'Settings' | i18n }}</h2>
+    </header>
     <form
       [formGroup]="form"
       [formLoading]="!service.data()"
@@ -54,7 +57,7 @@ import {
               formControlName="mode"
               [value]="mode"
             />
-            {{ labels[mode] }}{{ $first ? ' (Default)' : '' }}
+            {{ labels[mode] | i18n }}{{ $first ? (' (Default)' | i18n) : '' }}
           </label>
         }
       </section>
@@ -64,7 +67,7 @@ import {
             <section tuiAnimated>
               <tui-textfield>
                 <label tuiLabel>
-                  {{ label }}{{ $first ? '' : ' (optional)' }}
+                  {{ label | i18n }}{{ $first ? '' : (' (optional)' | i18n) }}
                 </label>
                 <input tuiInput [formControlName]="'custom' + ($index + 1)" />
               </tui-textfield>
@@ -74,7 +77,7 @@ import {
                   tuiSwitch
                   [formControlName]="'custom' + ($index + 1) + 'Tls'"
                 />
-                Secure (DoH)
+                {{ 'Secure (DoH)' | i18n }}
               </label>
             </section>
             <tui-error [formControlName]="'custom' + ($index + 1)" />
@@ -101,10 +104,11 @@ import {
     Footer,
     TuiElasticContainer,
     TuiAnimated,
+    i18nPipe,
   ],
   providers: [
     provideFormService(DnsService),
-    tuiValidationErrorsProvider(DNS_VALIDATION_ERRORS),
+    provideTranslatedValidationErrors(DNS_VALIDATION_ERRORS),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

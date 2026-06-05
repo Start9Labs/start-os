@@ -21,12 +21,13 @@ import {
   TuiLabel,
   TuiTextfield,
   TuiTitle,
-  tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
+import { provideTranslatedValidationErrors } from 'src/app/i18n/validation-errors'
 import { TuiButtonLoading, TuiPassword } from '@taiga-ui/kit'
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
 import { ApiService } from 'src/app/services/api/api.service'
 import { AuthService } from 'src/app/services/auth.service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 import {
   getBrowserTimezone,
   getPosixTz,
@@ -49,23 +50,23 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
     @if (complete()) {
       <header tuiHeader>
         <hgroup tuiTitle>
-          <h2>Setup complete</h2>
-          <p tuiSubtitle>You can close this window.</p>
+          <h2>{{ 'Setup complete' | i18n }}</h2>
+          <p tuiSubtitle>{{ 'You can close this window.' | i18n }}</p>
         </hgroup>
       </header>
     } @else {
       <header tuiHeader>
-        <h2 tuiTitle>Create admin password</h2>
+        <h2 tuiTitle>{{ 'Create admin password' | i18n }}</h2>
       </header>
       <form tuiForm="m" [formGroup]="form" (ngSubmit)="onSubmit()">
         <tui-textfield>
-          <label tuiLabel>Password</label>
+          <label tuiLabel>{{ 'Password' | i18n }}</label>
           <input tuiInput formControlName="password" type="password" />
           <tui-icon tuiPassword />
         </tui-textfield>
         <tui-error formControlName="password" />
         <tui-textfield>
-          <label tuiLabel>Confirm password</label>
+          <label tuiLabel>{{ 'Confirm password' | i18n }}</label>
           <input tuiInput formControlName="confirm" type="password" />
           <tui-icon tuiPassword />
         </tui-textfield>
@@ -73,7 +74,7 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
         <tui-error [error]="error()" />
         <footer>
           <button tuiButton appearance="primary" [loading]="loading()">
-            Set Password
+            {{ 'Set Password' | i18n }}
           </button>
         </footer>
       </form>
@@ -101,7 +102,7 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
   hostDirectives: [TuiCardLarge],
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
-    tuiValidationErrorsProvider({
+    provideTranslatedValidationErrors({
       required: 'This field is required',
       minlength: 'Password must be at least 12 characters',
       mismatch: 'Passwords do not match',
@@ -120,11 +121,13 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
     TuiHeader,
     TuiTitle,
     TuiForm,
+    i18nPipe,
   ],
 })
 export default class Setup {
   private readonly api = inject(ApiService)
   private readonly auth = inject(AuthService)
+  private readonly i18n = inject(i18nPipe)
 
   protected readonly loading = signal(false)
   protected readonly complete = signal(false)
@@ -159,7 +162,9 @@ export default class Setup {
       this.auth.initialized.set(true)
       this.complete.set(true)
     } catch (e: any) {
-      this.error.set(e?.message || 'Failed to set password')
+      this.error.set(
+        e?.message || this.i18n.transform('Failed to set password'),
+      )
     } finally {
       this.loading.set(false)
     }

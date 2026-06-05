@@ -14,12 +14,13 @@ import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { provideHelp } from 'src/app/help/help'
 import { ModalHelp } from 'src/app/help/modal-help'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   template: `
     <form tuiForm="m" [formGroup]="form" (submit.prevent)="save()">
       <tui-textfield>
-        <label tuiLabel>Name</label>
+        <label tuiLabel>{{ 'Name' | i18n }}</label>
         <input tuiInput formControlName="name" />
       </tui-textfield>
       <footer>
@@ -29,16 +30,23 @@ import { ModalHelp } from 'src/app/help/modal-help'
           appearance="flat"
           (click)="context.$implicit.complete()"
         >
-          Cancel
+          {{ 'Cancel' | i18n }}
         </button>
-        <button tuiButton>Save</button>
+        <button tuiButton>{{ 'Save' | i18n }}</button>
       </footer>
     </form>
   `,
   hostDirectives: [ModalHelp],
   providers: [provideHelp('/inbound/client/dialog-rename')],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, TuiForm, TuiTextfield, TuiInput, TuiButton],
+  imports: [
+    ReactiveFormsModule,
+    TuiForm,
+    TuiTextfield,
+    TuiInput,
+    TuiButton,
+    i18nPipe,
+  ],
 })
 class RenameClient {
   protected readonly context = injectContext<TuiDialogContext<string, string>>()

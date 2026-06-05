@@ -1,25 +1,22 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core'
 import { ReactiveFormsModule } from '@angular/forms'
-import {
-  TuiError,
-  TuiInput,
-  TuiTextfield,
-  tuiValidationErrorsProvider,
-} from '@taiga-ui/core'
+import { TuiError, TuiInput, TuiTextfield } from '@taiga-ui/core'
+import { provideTranslatedValidationErrors } from 'src/app/i18n/validation-errors'
 import { TuiCardLarge, TuiForm } from '@taiga-ui/layout'
 import { FORM } from 'src/app/components/form'
 import { DDNS_FIELD_LABELS, DDNS_VALIDATION_ERRORS } from '../utils'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   selector: 'ddns-fields',
   template: `
     <fieldset>
-      <legend>Credentials</legend>
+      <legend>{{ 'Credentials' | i18n }}</legend>
       <section>
         @for (field of fields(); track field) {
           <div>
             <tui-textfield>
-              <label tuiLabel>{{ fieldLabels[field] }}</label>
+              <label tuiLabel>{{ fieldLabels[field] | i18n }}</label>
               <input
                 tuiInput
                 [formControlName]="field"
@@ -36,9 +33,9 @@ import { DDNS_FIELD_LABELS, DDNS_VALIDATION_ERRORS } from '../utils'
   `,
   viewProviders: [FORM],
   hostDirectives: [TuiForm, TuiCardLarge],
-  providers: [tuiValidationErrorsProvider(DDNS_VALIDATION_ERRORS)],
+  providers: [provideTranslatedValidationErrors(DDNS_VALIDATION_ERRORS)],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ReactiveFormsModule, TuiTextfield, TuiError, TuiInput],
+  imports: [ReactiveFormsModule, TuiTextfield, TuiError, TuiInput, i18nPipe],
 })
 export class DdnsFields {
   protected readonly fieldLabels = DDNS_FIELD_LABELS

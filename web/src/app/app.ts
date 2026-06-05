@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  effect,
   ElementRef,
   inject,
   signal,
@@ -14,7 +15,10 @@ import { TuiNavigation } from '@taiga-ui/layout'
 import { Aside } from 'src/app/components/aside'
 import { Header } from 'src/app/components/header'
 import { Nav } from 'src/app/components/nav'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
+import { i18nService } from 'src/app/i18n/i18n.service'
 import { SystemService } from 'src/app/services/system.service'
+import { Language } from 'src/app/utils/languages'
 
 @Component({
   selector: 'app-outlet',
@@ -36,7 +40,7 @@ import { SystemService } from 'src/app/services/system.service'
           [iconStart]="open() ? '@tui.chevron-left' : '@tui.chevron-right'"
           (click)="open.set(!open())"
         >
-          {{ open() ? 'Collapse' : 'Expand' }}
+          {{ (open() ? 'Collapse' : 'Expand') | i18n }}
         </button>
       </footer>
     </aside>
@@ -109,7 +113,15 @@ import { SystemService } from 'src/app/services/system.service'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Header, Nav, Aside, RouterOutlet, TuiScrollbar, TuiNavigation],
+  imports: [
+    Header,
+    Nav,
+    Aside,
+    RouterOutlet,
+    TuiScrollbar,
+    TuiNavigation,
+    i18nPipe,
+  ],
 })
 export class App {
   protected readonly dark = inject(TUI_DARK_MODE)
@@ -122,6 +134,20 @@ export class App {
     })
 
   constructor() {
-    inject(SystemService).init()
+    const system = inject(SystemService)
+    const i18n = inject(i18nService)
+    system.init()
+    effect(() => {
+      const info = system.info()
+      if (!info) return
+      // Saved settings are the source of truth: apply theme and language
+      // globally whenever system info loads or changes (boot + after Save).
+      i18n.setLangLocal(info.language as Language)
+      if (info.theme === 'system') {
+        this.dark.reset()
+      } else {
+        this.dark.set(info.theme === 'dark')
+      }
+    })
   }
 }

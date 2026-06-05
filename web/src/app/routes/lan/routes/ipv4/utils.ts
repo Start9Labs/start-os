@@ -6,6 +6,7 @@ import {
   Validators,
 } from '@angular/forms'
 import { FormRawValue } from 'src/app/services/form.service'
+import { tpl } from 'src/app/i18n/validation-errors'
 
 export const FIRST_OCTETS = [192, 10, 172] as const
 
@@ -35,8 +36,8 @@ export const SECOND_OCTET_RANGE: Record<
 
 export const LAN_IPV4_VALIDATION_ERRORS = {
   required: 'Required',
-  min: ({ min }: { min: number }) => `Minimum value is ${min}`,
-  max: ({ max }: { max: number }) => `Maximum value is ${max}`,
+  min: tpl<{ min: number }>('Minimum value is {min}', ({ min }) => ({ min })),
+  max: tpl<{ max: number }>('Maximum value is {max}', ({ max }) => ({ max })),
 }
 
 export function getSecondOctet(first: FirstOctet): number {

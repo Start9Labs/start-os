@@ -27,6 +27,7 @@ import { CustomValidators } from 'src/app/utils/validators'
 import { provideHelp } from 'src/app/help/help'
 import { ModalHelp } from 'src/app/help/modal-help'
 import { VpnServerPeer } from 'src/app/routes/inbound/service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 export interface ClientDialogData {
   serverAddress: string
@@ -42,26 +43,26 @@ export interface ClientDialogData {
   template: `
     <form tuiForm="m" [formGroup]="form" (submit.prevent)="save()">
       <tui-textfield>
-        <label tuiLabel>Label</label>
+        <label tuiLabel>{{ 'Label' | i18n }}</label>
         <input
           tuiInput
-          placeholder="What to call the client device"
+          [placeholder]="'What to call the client device' | i18n"
           formControlName="name"
         />
       </tui-textfield>
       <tui-error formControlName="name" />
       <tui-textfield>
-        <label tuiLabel>LAN IP Address</label>
+        <label tuiLabel>{{ 'LAN IP Address' | i18n }}</label>
         <input tuiInput formControlName="ip" />
       </tui-textfield>
       <tui-error formControlName="ip" />
       <tui-textfield>
-        <label tuiLabel>Public Key (optional)</label>
+        <label tuiLabel>{{ 'Public Key (optional)' | i18n }}</label>
         <input tuiInput formControlName="public_key" />
       </tui-textfield>
       <label tuiLabel>
         <input type="checkbox" tuiSwitch formControlName="route_all" />
-        Route all traffic through tunnel
+        {{ 'Route all traffic through tunnel' | i18n }}
       </label>
       <footer>
         <button
@@ -70,9 +71,9 @@ export interface ClientDialogData {
           appearance="flat"
           (click)="context.$implicit.complete()"
         >
-          Cancel
+          {{ 'Cancel' | i18n }}
         </button>
-        <button tuiButton>Save</button>
+        <button tuiButton>{{ 'Save' | i18n }}</button>
       </footer>
     </form>
   `,
@@ -90,6 +91,7 @@ export interface ClientDialogData {
     TuiButton,
     TuiInput,
     TuiSwitch,
+    i18nPipe,
   ],
 })
 class AddClient {

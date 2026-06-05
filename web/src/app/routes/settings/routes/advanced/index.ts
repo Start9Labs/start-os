@@ -6,25 +6,31 @@ import { TuiCardLarge } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
 import { ActionService } from 'src/app/services/action.service'
 import { ApiService } from 'src/app/services/api/api.service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   template: `
     <section class="g-form" tuiCardLarge [style.align-items]="'start'">
-      <a tuiButton [href]="luciUrl" target="_blank">Launch LuCI Interface</a>
+      <a tuiButton [href]="luciUrl" target="_blank">
+        {{ 'Launch LuCI Interface' | i18n }}
+      </a>
       <button tuiButton (click)="downloadDiagnostics()">
-        Download Support Diagnostics
+        {{ 'Download Support Diagnostics' | i18n }}
       </button>
-      <button tuiButton (click)="factoryReset()">Factory Reset</button>
+      <button tuiButton (click)="factoryReset()">
+        {{ 'Factory Reset' | i18n }}
+      </button>
     </section>
   `,
   host: { class: 'g-page' },
-  imports: [TuiCardLarge, TuiButton],
+  imports: [TuiCardLarge, TuiButton, i18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class Advanced {
   private readonly api = inject(ApiService)
   private readonly actions = inject(ActionService)
   private readonly dialogs = inject(TuiResponsiveDialogService)
+  private readonly i18n = inject(i18nPipe)
   protected readonly luciUrl = '/cgi-bin/luci'
 
   protected downloadDiagnostics() {
@@ -32,7 +38,10 @@ export default class Advanced {
       async () => {
         const { guid, filename } = await this.api.diagnosticsCreate()
         const res = await fetch(`/rest/rpc/${guid}`)
-        if (!res.ok) throw new Error(`Download failed: ${res.statusText}`)
+        if (!res.ok)
+          throw new Error(
+            `${this.i18n.transform('Download failed:')} ${res.statusText}`,
+          )
         const blob = await res.blob()
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
@@ -42,8 +51,8 @@ export default class Advanced {
         URL.revokeObjectURL(url)
       },
       {
-        loading: 'Creating diagnostics bundle...',
-        success: 'Diagnostics downloaded',
+        loading: this.i18n.transform('Creating diagnostics bundle...'),
+        success: this.i18n.transform('Diagnostics downloaded'),
       },
     )
   }
@@ -51,12 +60,13 @@ export default class Advanced {
   protected factoryReset() {
     this.dialogs
       .open(TUI_CONFIRM, {
-        label: 'Factory Reset',
+        label: this.i18n.transform('Factory Reset'),
         data: {
-          content:
+          content: this.i18n.transform(
             'All settings will be erased and the device will reboot. Your WiFi password will be preserved.',
-          yes: 'Factory Reset',
-          no: 'Cancel',
+          ),
+          yes: this.i18n.transform('Factory Reset'),
+          no: this.i18n.transform('Cancel'),
         },
       })
       .pipe(filter(Boolean))
@@ -70,8 +80,8 @@ export default class Advanced {
             }
           },
           {
-            loading: 'Resetting device...',
-            success: 'Factory reset complete',
+            loading: this.i18n.transform('Resetting device...'),
+            success: this.i18n.transform('Factory reset complete'),
             restart: true,
           },
         )

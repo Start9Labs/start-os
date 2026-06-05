@@ -12,6 +12,7 @@ import { TuiSkeleton } from '@taiga-ui/kit'
 import { Masked } from 'src/app/components/masked'
 import { Placeholder } from 'src/app/components/placeholder'
 import { ApiService } from 'src/app/services/api/api.service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 import { WifiService } from '../../service'
 import {
   ADD_WIFI_PASSWORD,
@@ -24,12 +25,16 @@ import {
     <table tuiTable class="g-table" [tuiSkeleton]="!service.data()">
       <thead>
         <tr>
-          <th tuiTh [sorter]="'label' | tuiSorter">Label</th>
-          <th tuiTh [sorter]="'password' | tuiSorter">Password</th>
-          <th tuiTh [sorter]="'profile' | tuiSorter">Security Profile</th>
+          <th tuiTh [sorter]="'label' | tuiSorter">{{ 'Label' | i18n }}</th>
+          <th tuiTh [sorter]="'password' | tuiSorter">
+            {{ 'Password' | i18n }}
+          </th>
+          <th tuiTh [sorter]="'profile' | tuiSorter">
+            {{ 'Security Profile' | i18n }}
+          </th>
           <th tuiTh>
             <button tuiButton size="xs" iconStart="@tui.plus" (click)="add()">
-              Add
+              {{ 'Add' | i18n }}
             </button>
           </th>
         </tr>
@@ -54,7 +59,7 @@ import {
                 tuiDropdownAuto
                 tuiDropdown
               >
-                Actions
+                {{ 'Actions' | i18n }}
                 <tui-data-list
                   *tuiDropdown="let close"
                   size="s"
@@ -65,7 +70,7 @@ import {
                     iconStart="@tui.pencil"
                     (click)="edit(item, $index)"
                   >
-                    Edit
+                    {{ 'Edit' | i18n }}
                   </button>
                   <button
                     tuiOption
@@ -73,7 +78,7 @@ import {
                     iconStart="@tui.trash"
                     (click)="delete($index)"
                   >
-                    Delete
+                    {{ 'Delete' | i18n }}
                   </button>
                 </tui-data-list>
               </button>
@@ -83,7 +88,7 @@ import {
           <tr>
             <td tuiTd colspan="4">
               <app-placeholder icon="@tui.wifi">
-                No Wi-Fi passwords configured
+                {{ 'No Wi-Fi passwords configured' | i18n }}
               </app-placeholder>
             </td>
           </tr>
@@ -117,12 +122,14 @@ import {
     TuiSkeleton,
     Masked,
     Placeholder,
+    i18nPipe,
   ],
 })
 export default class WifiPasswords {
   private readonly dialogs = inject(TuiResponsiveDialogService)
   // @TODO matt review
   private readonly api = inject(ApiService)
+  private readonly i18n = inject(i18nPipe)
 
   protected readonly service = inject(WifiService)
   protected readonly passwords = computed(
@@ -140,7 +147,7 @@ export default class WifiPasswords {
     )
     this.dialogs
       .open<WifiPasswordDialogResult>(ADD_WIFI_PASSWORD, {
-        label: 'Add Wi-Fi Password',
+        label: this.i18n.transform('Add Wi-Fi Password'),
         data: { profiles },
       })
       .subscribe(result => {
@@ -159,7 +166,7 @@ export default class WifiPasswords {
     )
     this.dialogs
       .open<WifiPasswordDialogResult>(ADD_WIFI_PASSWORD, {
-        label: 'Edit Wi-Fi Password',
+        label: this.i18n.transform('Edit Wi-Fi Password'),
         data: { profiles, entry },
       })
       .subscribe(result => {

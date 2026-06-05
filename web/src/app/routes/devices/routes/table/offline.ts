@@ -11,19 +11,20 @@ import { TuiChip } from '@taiga-ui/kit'
 import { Placeholder } from 'src/app/components/placeholder'
 import { DevicesService } from 'src/app/routes/devices/service'
 import { DeviceTableItem } from 'src/app/routes/devices/utils'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   selector: 'table[devicesOffline]',
   template: `
     <caption [style.background]="'var(--tui-background-neutral-2)'">
-      Offline
+      {{ 'Offline' | i18n }}
     </caption>
     <thead>
       <tr>
-        <th tuiTh [sorter]="'name' | tuiSorter">Name</th>
-        <th tuiTh>MAC</th>
-        <th tuiTh>IP</th>
-        <th tuiTh>Data</th>
+        <th tuiTh [sorter]="'name' | tuiSorter">{{ 'Name' | i18n }}</th>
+        <th tuiTh>{{ 'MAC' | i18n }}</th>
+        <th tuiTh>{{ 'IP' | i18n }}</th>
+        <th tuiTh>{{ 'Data' | i18n }}</th>
         <th tuiTh></th>
       </tr>
     </thead>
@@ -75,7 +76,7 @@ import { DeviceTableItem } from 'src/app/routes/devices/utils'
                 tuiButton
                 (click)="onForget(item.mac)"
               >
-                Forget
+                {{ 'Forget' | i18n }}
               </button>
             }
           </td>
@@ -84,7 +85,7 @@ import { DeviceTableItem } from 'src/app/routes/devices/utils'
         <tr>
           <td colspan="5">
             <app-placeholder icon="@tui.screen-share-off">
-              No offline devices
+              {{ 'No offline devices' | i18n }}
             </app-placeholder>
           </td>
         </tr>
@@ -108,6 +109,7 @@ import { DeviceTableItem } from 'src/app/routes/devices/utils'
     TuiChip,
     TuiLink,
     Placeholder,
+    i18nPipe,
   ],
   host: { class: 'g-table' },
   changeDetection: ChangeDetectionStrategy.OnPush,

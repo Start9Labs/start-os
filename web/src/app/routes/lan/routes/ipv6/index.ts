@@ -32,13 +32,23 @@ import { PREFIX } from 'src/app/utils/masks'
 import { LanIpv6Service } from './service'
 import { LanIpv6Summary } from './summary'
 import { LanIpv6Data } from './service'
-import { getLanIpv6Form, updateLanIpv6Validators } from './utils'
+import {
+  getLanIpv6Form,
+  PREFIX_VALIDATION_ERRORS,
+  updateLanIpv6Validators,
+} from './utils'
+import { provideTranslatedValidationErrors } from 'src/app/i18n/validation-errors'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   template: `
-    <header tuiHeader="h6"><h2 tuiTitle>Summary</h2></header>
+    <header tuiHeader="h6">
+      <h2 tuiTitle>{{ 'Summary' | i18n }}</h2>
+    </header>
     <article lanIpv6Summary [formLoading]="!service.data()"></article>
-    <header tuiHeader="h6"><h2 tuiTitle>Settings</h2></header>
+    <header tuiHeader="h6">
+      <h2 tuiTitle>{{ 'Settings' | i18n }}</h2>
+    </header>
     <form
       [formGroup]="form"
       [formLoading]="!service.data()"
@@ -48,11 +58,12 @@ import { getLanIpv6Form, updateLanIpv6Validators } from './utils'
       <ng-container formGroupName="strategy">
         <label tuiLabel>
           <input type="checkbox" tuiSwitch formControlName="slaac" />
-          Enable
+          {{ 'Enable' | i18n }}
           <i
             [tuiHint]="
               slaacLocked()
-                ? 'Cannot disable: devices with static IPv6 reservations exist'
+                ? ('Cannot disable: devices with static IPv6 reservations exist'
+                  | i18n)
                 : ''
             "
           ></i>
@@ -61,7 +72,7 @@ import { getLanIpv6Form, updateLanIpv6Validators } from './utils'
       <tui-elastic-container formGroupName="subnet">
         @if (slaacEnabled()) {
           <tui-textfield tuiAnimated>
-            <label tuiLabel>Prefix Length</label>
+            <label tuiLabel>{{ 'Prefix Length' | i18n }}</label>
             <input tuiInput formControlName="prefix" [maskito]="mask" />
           </tui-textfield>
           <tui-error formControlName="prefix" />
@@ -93,10 +104,12 @@ import { getLanIpv6Form, updateLanIpv6Validators } from './utils'
     TuiElasticContainer,
     MaskitoDirective,
     TuiAnimated,
+    i18nPipe,
   ],
   providers: [
     provideFormService(LanIpv6Service),
     tuiNumberFormatProvider({ precision: 0 }),
+    provideTranslatedValidationErrors(PREFIX_VALIDATION_ERRORS),
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

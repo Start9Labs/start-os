@@ -10,6 +10,7 @@ import {
   isNetworkError,
   NetworkRestartService,
 } from './network-restart.service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 const RESTART_TIMEOUT_MS = 60_000
 const POLL_INTERVAL_MS = 2000
@@ -37,12 +38,15 @@ export class ActionService {
   private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly networkRestart = inject(NetworkRestartService)
   private readonly api = inject(ApiService)
+  private readonly i18n = inject(i18nPipe)
 
   async run(
     action: () => Promise<unknown>,
-    options: Partial<ActionOptions> = { loading: 'Saving' },
+    options: Partial<ActionOptions> = {},
   ): Promise<boolean> {
-    const loading = this.notifications.open(options.loading).subscribe()
+    const loading = this.notifications
+      .open(options.loading ?? this.i18n.transform('Saving'))
+      .subscribe()
 
     try {
       if (options.restart) {
@@ -63,7 +67,7 @@ export class ActionService {
       if (options.restart && reconnect) {
         await this.pollUntilSettled(
           loading,
-          options.loading || 'Reconnecting...',
+          options.loading || this.i18n.transform('Reconnecting...'),
         )
       } else if (options.restart) {
         this.networkRestart.recovered()
@@ -83,7 +87,9 @@ export class ActionService {
         const reconnect = options.reconnect ?? options.restart
         if (reconnect) {
           loading.unsubscribe()
-          await this.waitForReconnect(options.loading || 'Reconnecting...')
+          await this.waitForReconnect(
+            options.loading || this.i18n.transform('Reconnecting...'),
+          )
           this.networkRestart.recovered()
         }
 
@@ -136,7 +142,7 @@ export class ActionService {
     return firstValueFrom(
       this.dialogs
         .open(RECONNECTING_DIALOG, {
-          label: 'Reconnecting',
+          label: this.i18n.transform('Reconnecting'),
           closable: false,
           dismissible: false,
           data,

@@ -29,25 +29,30 @@ import {
   SecurityProfile,
 } from 'src/app/services/api/api.service'
 import { NetworkRestartService } from 'src/app/services/network-restart.service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 import { ADD_PROFILE, ProfileDialogResult } from './dialog'
 import { ProfilesService } from './service'
 
 @Component({
   template: `
     <header tuiHeader>
-      <hgroup tuiTitle><h2>Security Profiles</h2></hgroup>
+      <hgroup tuiTitle>
+        <h2>{{ 'Security Profiles' | i18n }}</h2>
+      </hgroup>
       <aside tuiAccessories>
-        <button tuiButton iconStart="@tui.plus" (click)="edit()">Add</button>
+        <button tuiButton iconStart="@tui.plus" (click)="edit()">
+          {{ 'Add' | i18n }}
+        </button>
       </aside>
     </header>
     <table tuiTable class="g-table" [tuiSkeleton]="!service.data()">
       <thead>
         <tr>
-          <th tuiTh [sorter]="'fullname' | tuiSorter">Name</th>
-          <th tuiTh>DNS</th>
-          <th tuiTh>Outbound</th>
-          <th tuiTh>LAN Access</th>
-          <th tuiTh>WAN Access</th>
+          <th tuiTh [sorter]="'fullname' | tuiSorter">{{ 'Name' | i18n }}</th>
+          <th tuiTh>{{ 'DNS' | i18n }}</th>
+          <th tuiTh>{{ 'Outbound' | i18n }}</th>
+          <th tuiTh>{{ 'LAN Access' | i18n }}</th>
+          <th tuiTh>{{ 'WAN Access' | i18n }}</th>
           <th tuiTh></th>
         </tr>
       </thead>
@@ -55,10 +60,10 @@ import { ProfilesService } from './service'
         @for (item of tableData() | tuiTableSort; track item.interface) {
           <tr>
             <td tuiTd>{{ item.fullname }}</td>
-            <td tuiTd>{{ item.dnsDisplay }}</td>
+            <td tuiTd>{{ item.dnsDisplay | i18n }}</td>
             <td tuiTd>
               @if (item.outbound === 'wan') {
-                {{ item.routingDisplay }}
+                {{ item.routingDisplay | i18n }}
               } @else {
                 <a
                   tuiLink
@@ -69,8 +74,8 @@ import { ProfilesService } from './service'
                 </a>
               }
             </td>
-            <td tuiTd>{{ item.lanAccessDisplay }}</td>
-            <td tuiTd>{{ item.wanAccessDisplay }}</td>
+            <td tuiTd>{{ item.lanAccessDisplay | i18n }}</td>
+            <td tuiTd>{{ item.wanAccessDisplay | i18n }}</td>
             <td tuiTd>
               <button
                 tuiIconButton
@@ -81,7 +86,7 @@ import { ProfilesService } from './service'
                 tuiDropdownAuto
                 tuiDropdown
               >
-                Actions
+                {{ 'Actions' | i18n }}
                 <tui-data-list
                   *tuiDropdown="let close"
                   size="s"
@@ -92,7 +97,7 @@ import { ProfilesService } from './service'
                     iconStart="@tui.pencil"
                     (click)="edit(item)"
                   >
-                    Edit
+                    {{ 'Edit' | i18n }}
                   </button>
                   <button
                     tuiOption
@@ -101,12 +106,12 @@ import { ProfilesService } from './service'
                     [disabled]="item.owns_lan"
                     [tuiHint]="
                       item.owns_lan
-                        ? 'Cannot delete the primary LAN profile'
+                        ? ('Cannot delete the primary LAN profile' | i18n)
                         : null
                     "
                     (click)="deleteProfile(item)"
                   >
-                    Delete
+                    {{ 'Delete' | i18n }}
                   </button>
                 </tui-data-list>
               </button>
@@ -116,7 +121,7 @@ import { ProfilesService } from './service'
           <tr>
             <td tuiTd colspan="6">
               <app-placeholder icon="@tui.user-lock">
-                No security profiles configured
+                {{ 'No security profiles configured' | i18n }}
               </app-placeholder>
             </td>
           </tr>
@@ -151,6 +156,7 @@ import { ProfilesService } from './service'
     TuiHint,
     TuiLink,
     RouterLink,
+    i18nPipe,
   ],
 })
 class Profiles {
@@ -161,6 +167,7 @@ class Profiles {
   private readonly alerts = inject(TuiNotificationService)
   private readonly networkRestart = inject(NetworkRestartService)
   private readonly window = inject(WA_WINDOW)
+  private readonly i18n = inject(i18nPipe)
 
   private readonly lanSubnet = computed(() => {
     const profiles = this.service.data()
@@ -277,7 +284,9 @@ class Profiles {
 
     this.dialogs
       .open<ProfileDialogResult>(ADD_PROFILE, {
-        label: profile ? 'Edit Security Profile' : 'Add Security Profile',
+        label: profile
+          ? this.i18n.transform('Edit Security Profile')
+          : this.i18n.transform('Add Security Profile'),
         data: {
           existing: profile,
           otherProfiles,
@@ -305,7 +314,7 @@ class Profiles {
           } catch (e: any) {
             if (!e?.message?.includes('VPN client')) {
               this.alerts
-                .open(e?.message || 'Failed to save', {
+                .open(e?.message || this.i18n.transform('Failed to save'), {
                   appearance: 'negative',
                 })
                 .subscribe()
@@ -314,12 +323,13 @@ class Profiles {
             // IP change blocked by VPN peers — offer to force-delete them
             const confirmed = await firstValueFrom(
               this.dialogs.open(TUI_CONFIRM, {
-                label: 'Inbound VPN Will Be Deleted',
+                label: this.i18n.transform('Inbound VPN Will Be Deleted'),
                 data: {
-                  content:
+                  content: this.i18n.transform(
                     "Changing this profile's subnet will invalidate all existing VPN client configurations. The inbound VPN server and its peers will be removed and must be re-created.",
-                  yes: 'Delete VPN & Continue',
-                  no: 'Cancel',
+                  ),
+                  yes: this.i18n.transform('Delete VPN & Continue'),
+                  no: this.i18n.transform('Cancel'),
                 },
               }),
             ).catch(() => false)
@@ -342,11 +352,13 @@ class Profiles {
             if (currentHost === profile.gateway_ip) {
               this.dialogs
                 .open(
-                  "Your router's IP address has changed. The UI is now available at the new address.",
+                  this.i18n.transform(
+                    "Your router's IP address has changed. The UI is now available at the new address.",
+                  ),
                   {
-                    label: 'IP Address Changed',
+                    label: this.i18n.transform('IP Address Changed'),
                     dismissible: false,
-                    data: 'Open',
+                    data: this.i18n.transform('Open'),
                   },
                 )
                 .subscribe({
@@ -358,16 +370,18 @@ class Profiles {
               await firstValueFrom(
                 this.dialogs
                   .open(RECONNECTING_DIALOG, {
-                    label: 'Reconnecting',
+                    label: this.i18n.transform('Reconnecting'),
                     closable: false,
                     dismissible: false,
-                    data: 'Applying profile settings...',
+                    data: this.i18n.transform('Applying profile settings...'),
                   })
                   .pipe(catchError(() => EMPTY)),
               )
               this.networkRestart.recovered()
               this.alerts
-                .open('Profile updated', { appearance: 'positive' })
+                .open(this.i18n.transform('Profile updated'), {
+                  appearance: 'positive',
+                })
                 .subscribe()
             }
           }
@@ -379,7 +393,7 @@ class Profiles {
 
   deleteProfile(profile: SecurityProfile) {
     this.dialogs
-      .open(TUI_CONFIRM, { label: 'Are you sure?' })
+      .open(TUI_CONFIRM, { label: this.i18n.transform('Are you sure?') })
       .pipe(filter(Boolean))
       .subscribe(() => {
         this.service.deleteProfile({

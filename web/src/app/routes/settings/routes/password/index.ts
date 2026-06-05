@@ -14,14 +14,15 @@ import {
   TuiLabel,
   TuiTextfield,
   TuiTitle,
-  tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
+import { provideTranslatedValidationErrors } from 'src/app/i18n/validation-errors'
 import { TuiPassword } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/components/form'
 import { ActionService } from 'src/app/services/action.service'
 import { ApiService } from 'src/app/services/api/api.service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 function passwordsMatch(control: AbstractControl): ValidationErrors | null {
   const password = control.get('password')?.value
@@ -36,21 +37,23 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
 @Component({
   template: `
     <form [formGroup]="form" [formLoading]="false" (ngSubmit)="onSubmit()">
-      <header tuiHeader="body-l"><h2 tuiTitle>Change Password</h2></header>
+      <header tuiHeader="body-l">
+        <h2 tuiTitle>{{ 'Change Password' | i18n }}</h2>
+      </header>
       <tui-textfield>
-        <label tuiLabel>Old password</label>
+        <label tuiLabel>{{ 'Old password' | i18n }}</label>
         <input tuiInput formControlName="old" type="password" />
         <tui-icon tuiPassword />
       </tui-textfield>
       <tui-error formControlName="old" />
       <tui-textfield>
-        <label tuiLabel>New password</label>
+        <label tuiLabel>{{ 'New password' | i18n }}</label>
         <input tuiInput formControlName="password" type="password" />
         <tui-icon tuiPassword />
       </tui-textfield>
       <tui-error formControlName="password" />
       <tui-textfield>
-        <label tuiLabel>Confirm password</label>
+        <label tuiLabel>{{ 'Confirm password' | i18n }}</label>
         <input tuiInput formControlName="confirm" type="password" />
         <tui-icon tuiPassword />
       </tui-textfield>
@@ -65,7 +68,7 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
   `,
   host: { class: 'g-page' },
   providers: [
-    tuiValidationErrorsProvider({
+    provideTranslatedValidationErrors({
       required: 'This field is required',
       mismatch: 'Passwords do not match',
     }),
@@ -82,12 +85,14 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
     TuiTextfield,
     Form,
     Footer,
+    i18nPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class Password {
   private readonly api = inject(ApiService)
   private readonly actions = inject(ActionService)
+  private readonly i18n = inject(i18nPipe)
 
   public readonly form = inject(NonNullableFormBuilder).group(
     {
@@ -108,7 +113,7 @@ export default class Password {
             oldPassword: this.form.value.old!,
             newPassword: this.form.value.password!,
           }),
-        { success: 'Password changed successfully' },
+        { success: this.i18n.transform('Password changed successfully') },
       )
     ) {
       this.form.reset()

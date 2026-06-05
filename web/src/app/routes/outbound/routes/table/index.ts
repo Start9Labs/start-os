@@ -11,24 +11,31 @@ import { Placeholder } from 'src/app/components/placeholder'
 import { ADD_CLIENT } from 'src/app/routes/outbound/dialog'
 import { OutboundService } from 'src/app/routes/outbound/service'
 import { OutboundVpn } from 'src/app/services/api/api.service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   template: `
     <header tuiHeader>
-      <hgroup tuiTitle><h2>Outbound VPNs</h2></hgroup>
+      <hgroup tuiTitle>
+        <h2>{{ 'Outbound VPNs' | i18n }}</h2>
+      </hgroup>
       <aside tuiAccessories>
         @if (service.data()) {
-          <button tuiButton iconStart="@tui.plus" (click)="add()">Add</button>
+          <button tuiButton iconStart="@tui.plus" (click)="add()">
+            {{ 'Add' | i18n }}
+          </button>
         }
       </aside>
     </header>
     <table tuiTable size="m" class="g-table" [tuiSkeleton]="!service.data()">
       <thead tuiThead>
         <tr>
-          <th tuiTh [sorter]="'label' | tuiSorter">Label</th>
-          <th tuiTh [sorter]="'target' | tuiSorter">Connects to</th>
-          <th tuiTh>Used by</th>
-          <th tuiTh [sorter]="'enabled' | tuiSorter">Enable</th>
+          <th tuiTh [sorter]="'label' | tuiSorter">{{ 'Label' | i18n }}</th>
+          <th tuiTh [sorter]="'target' | tuiSorter">
+            {{ 'Connects to' | i18n }}
+          </th>
+          <th tuiTh>{{ 'Used by' | i18n }}</th>
+          <th tuiTh [sorter]="'enabled' | tuiSorter">{{ 'Enable' | i18n }}</th>
         </tr>
       </thead>
       <tbody>
@@ -66,7 +73,7 @@ import { OutboundVpn } from 'src/app/services/api/api.service'
           <tr>
             <td tuiTd colspan="4">
               <app-placeholder icon="@tui.hat-glasses">
-                No Outbound VPN Clients configured
+                {{ 'No Outbound VPN Clients configured' | i18n }}
               </app-placeholder>
             </td>
           </tr>
@@ -97,10 +104,12 @@ import { OutboundVpn } from 'src/app/services/api/api.service'
     TuiSkeleton,
     TuiSwitch,
     Placeholder,
+    i18nPipe,
   ],
 })
 export default class OutboundTable {
   private readonly dialogs = inject(TuiResponsiveDialogService)
+  private readonly i18n = inject(i18nPipe)
   protected readonly service = inject(OutboundService)
 
   protected hasDependentVpns(item: OutboundVpn): boolean {
@@ -115,13 +124,21 @@ export default class OutboundTable {
       .map(v => v.label)
     if (!dependents.length) return null
     return (
-      'Cannot disable: ' +
+      this.i18n.transform('Cannot disable:') +
+      ' ' +
       dependents.join(', ') +
       ' ' +
-      (dependents.length === 1 ? 'uses' : 'use') +
-      ' this VPN as a target. Change ' +
-      (dependents.length === 1 ? 'its' : 'their') +
-      ' target first.'
+      (dependents.length === 1
+        ? this.i18n.transform('uses')
+        : this.i18n.transform('use')) +
+      ' ' +
+      this.i18n.transform('this VPN as a target. Change') +
+      ' ' +
+      (dependents.length === 1
+        ? this.i18n.transform('its')
+        : this.i18n.transform('their')) +
+      ' ' +
+      this.i18n.transform('target first.')
     )
   }
 
@@ -134,11 +151,11 @@ export default class OutboundTable {
     const profiles = item.used_by.join(', ')
     this.dialogs
       .open(TUI_CONFIRM, {
-        label: 'Disable VPN?',
+        label: this.i18n.transform('Disable VPN?'),
         data: {
-          content: `The following profiles currently route through this VPN and will be switched to WAN: ${profiles}.`,
-          yes: 'Disable',
-          no: 'Cancel',
+          content: `${this.i18n.transform('The following profiles currently route through this VPN and will be switched to WAN:')} ${profiles}.`,
+          yes: this.i18n.transform('Disable'),
+          no: this.i18n.transform('Cancel'),
         },
       })
       .pipe(filter(Boolean))
@@ -155,7 +172,10 @@ export default class OutboundTable {
     }
 
     this.dialogs
-      .open<any>(ADD_CLIENT, { label: 'Add Outbound VPN', data })
+      .open<any>(ADD_CLIENT, {
+        label: this.i18n.transform('Add Outbound VPN'),
+        data,
+      })
       .subscribe(async ({ label, target, config }) => {
         await this.service.create({ label, target, config })
       })

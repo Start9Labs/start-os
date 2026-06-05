@@ -16,6 +16,8 @@ import {
 import { TuiBadge, TuiButtonSelect, TuiChevron } from '@taiga-ui/kit'
 
 import { Placeholder } from 'src/app/components/placeholder'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
+
 import { EthernetPortView, EthernetService } from './service'
 
 @Component({
@@ -23,8 +25,10 @@ import { EthernetPortView, EthernetService } from './service'
   template: `
     <thead>
       <tr>
-        <th tuiTh [sorter]="'name' | tuiSorter">Port</th>
-        <th tuiTh [sorter]="'profileName' | tuiSorter">Security Profile</th>
+        <th tuiTh [sorter]="'name' | tuiSorter">{{ 'Port' | i18n }}</th>
+        <th tuiTh [sorter]="'profileName' | tuiSorter">
+          {{ 'Security Profile' | i18n }}
+        </th>
       </tr>
     </thead>
     <tbody>
@@ -62,7 +66,7 @@ import { EthernetPortView, EthernetService } from './service'
                     iconEnd="@tui.user-lock"
                     routerLink="/profiles"
                   >
-                    Manage Profiles
+                    {{ 'Manage Profiles' | i18n }}
                   </a>
                 </tui-data-list>
               </button>
@@ -73,7 +77,7 @@ import { EthernetPortView, EthernetService } from './service'
         <tr>
           <td tuiTd colspan="2">
             <app-placeholder icon="@tui.inbox">
-              No ports detected
+              {{ 'No ports detected' | i18n }}
             </app-placeholder>
           </td>
         </tr>
@@ -106,6 +110,7 @@ import { EthernetPortView, EthernetService } from './service'
     RouterLink,
     TuiAppearance,
     Placeholder,
+    i18nPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

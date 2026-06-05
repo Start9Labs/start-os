@@ -1,10 +1,12 @@
 import { inject, Injectable } from '@angular/core'
 import { ApiService, OutboundVpn } from 'src/app/services/api/api.service'
 import { FormService } from 'src/app/services/form.service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Injectable({ providedIn: 'root' })
 export class OutboundService extends FormService<OutboundVpn[]> {
   private readonly api = inject(ApiService)
+  private readonly i18n = inject(i18nPipe)
 
   async load(): Promise<OutboundVpn[]> {
     return this.api.vpnClientList()
@@ -21,8 +23,8 @@ export class OutboundService extends FormService<OutboundVpn[]> {
         this.refresh()
       },
       {
-        loading: 'Updating VPN client...',
-        success: 'VPN client updated',
+        loading: this.i18n.transform('Updating VPN client...'),
+        success: this.i18n.transform('VPN client updated'),
         restart: true,
       },
     )
@@ -40,8 +42,8 @@ export class OutboundService extends FormService<OutboundVpn[]> {
         this.refresh()
       },
       {
-        loading: 'Creating VPN client...',
-        success: 'VPN client created',
+        loading: this.i18n.transform('Creating VPN client...'),
+        success: this.i18n.transform('VPN client created'),
         restart: true,
       },
     )
@@ -54,8 +56,8 @@ export class OutboundService extends FormService<OutboundVpn[]> {
         this.refresh()
       },
       {
-        loading: 'Removing VPN client...',
-        success: 'VPN client removed',
+        loading: this.i18n.transform('Removing VPN client...'),
+        success: this.i18n.transform('VPN client removed'),
         restart: true,
       },
     )
@@ -68,8 +70,12 @@ export class OutboundService extends FormService<OutboundVpn[]> {
         this.refresh()
       },
       {
-        loading: enabled ? 'Enabling VPN client...' : 'Disabling VPN client...',
-        success: enabled ? 'VPN client enabled' : 'VPN client disabled',
+        loading: enabled
+          ? this.i18n.transform('Enabling VPN client...')
+          : this.i18n.transform('Disabling VPN client...'),
+        success: enabled
+          ? this.i18n.transform('VPN client enabled')
+          : this.i18n.transform('VPN client disabled'),
         restart: true,
       },
     )

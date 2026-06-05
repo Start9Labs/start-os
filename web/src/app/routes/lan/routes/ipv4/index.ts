@@ -36,12 +36,17 @@ import {
   LanIpv4Form,
   resolveSecondOctet,
 } from './utils'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   template: `
-    <header tuiHeader="h6"><h2 tuiTitle>Summary</h2></header>
+    <header tuiHeader="h6">
+      <h2 tuiTitle>{{ 'Summary' | i18n }}</h2>
+    </header>
     <article lanIpv4Summary [formLoading]="!service.data()"></article>
-    <header tuiHeader="h6"><h2 tuiTitle>Settings</h2></header>
+    <header tuiHeader="h6">
+      <h2 tuiTitle>{{ 'Settings' | i18n }}</h2>
+    </header>
     <form
       [formGroup]="form"
       [formLoading]="!service.data()"
@@ -63,6 +68,7 @@ import {
     Form,
     LanIpv4Summary,
     LanIpv4Ip,
+    i18nPipe,
   ],
   providers: [
     provideFormService(LanIpv4Service),
@@ -78,6 +84,7 @@ export default class LanIpv4 {
   private readonly alerts = inject(TuiNotificationService)
   private readonly networkRestart = inject(NetworkRestartService)
   private readonly window = inject(WA_WINDOW)
+  private readonly i18n = inject(i18nPipe)
 
   readonly form = getLanIpv4Form(this.builder)
   readonly hasStaticIps = signal(false)
@@ -128,7 +135,9 @@ export default class LanIpv4 {
       second !== data.ip.secondOctet ||
       current.ip?.routerOctet !== data.ip.routerOctet
     ) {
-      return 'Cannot change subnet while devices have static IP reservations'
+      return this.i18n.transform(
+        'Cannot change subnet while devices have static IP reservations',
+      )
     }
     return null
   })
@@ -163,18 +172,21 @@ export default class LanIpv4 {
       } catch (e: any) {
         if (!e?.message?.includes('VPN client')) {
           this.alerts
-            .open(e?.message || 'Failed to save', { appearance: 'negative' })
+            .open(e?.message || this.i18n.transform('Failed to save'), {
+              appearance: 'negative',
+            })
             .subscribe()
           return
         }
         const confirmed = await firstValueFrom(
           this.dialogs.open(TUI_CONFIRM, {
-            label: 'Inbound VPN Will Be Deleted',
+            label: this.i18n.transform('Inbound VPN Will Be Deleted'),
             data: {
-              content:
+              content: this.i18n.transform(
                 'Changing the router IP will invalidate all existing VPN client configurations. The inbound VPN server and its peers will be removed and must be re-created.',
-              yes: 'Delete VPN & Continue',
-              no: 'Cancel',
+              ),
+              yes: this.i18n.transform('Delete VPN & Continue'),
+              no: this.i18n.transform('Cancel'),
             },
           }),
         ).catch(() => false)
@@ -189,11 +201,13 @@ export default class LanIpv4 {
       if (currentHost === oldIp) {
         this.dialogs
           .open(
-            "Your router's IP address has changed. The UI is now available at the new address.",
+            this.i18n.transform(
+              "Your router's IP address has changed. The UI is now available at the new address.",
+            ),
             {
-              label: 'IP Address Changed',
+              label: this.i18n.transform('IP Address Changed'),
               dismissible: false,
-              data: 'Open',
+              data: this.i18n.transform('Open'),
             },
           )
           .subscribe({
@@ -205,16 +219,18 @@ export default class LanIpv4 {
         await firstValueFrom(
           this.dialogs
             .open(RECONNECTING_DIALOG, {
-              label: 'Reconnecting',
+              label: this.i18n.transform('Reconnecting'),
               closable: false,
               dismissible: false,
-              data: 'Applying LAN settings...',
+              data: this.i18n.transform('Applying LAN settings...'),
             })
             .pipe(catchError(() => EMPTY)),
         )
         this.networkRestart.recovered()
         this.alerts
-          .open('LAN settings applied', { appearance: 'positive' })
+          .open(this.i18n.transform('LAN settings applied'), {
+            appearance: 'positive',
+          })
           .subscribe()
       }
       return

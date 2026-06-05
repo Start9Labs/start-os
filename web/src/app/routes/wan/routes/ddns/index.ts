@@ -35,12 +35,17 @@ import {
   getProviderFields,
   updateDdnsValidators,
 } from './utils'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   template: `
-    <header tuiHeader="h6"><h2 tuiTitle>Summary</h2></header>
+    <header tuiHeader="h6">
+      <h2 tuiTitle>{{ 'Summary' | i18n }}</h2>
+    </header>
     <article ddnsSummary [formLoading]="!service.data()"></article>
-    <header tuiHeader="h6"><h2 tuiTitle>Settings</h2></header>
+    <header tuiHeader="h6">
+      <h2 tuiTitle>{{ 'Settings' | i18n }}</h2>
+    </header>
     <form
       [formGroup]="form"
       [formLoading]="!service.data()"
@@ -49,13 +54,13 @@ import {
     >
       <label tuiLabel>
         <input type="checkbox" tuiSwitch formControlName="enabled" />
-        Enable Dynamic DNS
+        {{ 'Enable Dynamic DNS' | i18n }}
       </label>
       <tui-elastic-container>
         @if (enabled()) {
           <section tuiAnimated>
             <tui-textfield tuiChevron>
-              <label tuiLabel>Provider</label>
+              <label tuiLabel>{{ 'Provider' | i18n }}</label>
               <input tuiSelect formControlName="provider" />
               <tui-data-list-wrapper
                 *tuiDropdown
@@ -99,6 +104,7 @@ import {
     DdnsFields,
     TuiElasticContainer,
     TuiAnimated,
+    i18nPipe,
   ],
   providers: [provideFormService(DdnsService)],
   changeDetection: ChangeDetectionStrategy.OnPush,

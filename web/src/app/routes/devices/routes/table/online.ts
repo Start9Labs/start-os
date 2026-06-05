@@ -5,22 +5,23 @@ import { TuiFormatNumberPipe, TuiLink } from '@taiga-ui/core'
 import { TuiChip } from '@taiga-ui/kit'
 import { Placeholder } from 'src/app/components/placeholder'
 import { DeviceTableItem } from 'src/app/routes/devices/utils'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   selector: 'table[devicesOnline]',
   template: `
     <caption [style.background]="'var(--tui-status-positive-pale)'">
-      Online
+      {{ 'Online' | i18n }}
     </caption>
     <thead>
       <tr>
-        <th tuiTh [sorter]="'name' | tuiSorter">Name</th>
-        <th tuiTh>Connection</th>
-        <th tuiTh>Security Profile</th>
-        <th tuiTh>MAC</th>
-        <th tuiTh>IP</th>
-        <th tuiTh>Data</th>
-        <th tuiTh [style.text-align]="'start'">Speed</th>
+        <th tuiTh [sorter]="'name' | tuiSorter">{{ 'Name' | i18n }}</th>
+        <th tuiTh>{{ 'Connection' | i18n }}</th>
+        <th tuiTh>{{ 'Security Profile' | i18n }}</th>
+        <th tuiTh>{{ 'MAC' | i18n }}</th>
+        <th tuiTh>{{ 'IP' | i18n }}</th>
+        <th tuiTh>{{ 'Data' | i18n }}</th>
+        <th tuiTh [style.text-align]="'start'">{{ 'Speed' | i18n }}</th>
         <th tuiTh></th>
       </tr>
     </thead>
@@ -50,7 +51,7 @@ import { DeviceTableItem } from 'src/app/routes/devices/utils'
           </td>
           <td tuiTd>
             <a tuiLink routerLink="/profiles">
-              {{ item.securityProfile || 'Default' }}
+              {{ item.securityProfile || ('Default' | i18n) }}
             </a>
           </td>
           <td tuiTd>{{ item.mac || '-' }}</td>
@@ -100,7 +101,7 @@ import { DeviceTableItem } from 'src/app/routes/devices/utils'
         <tr>
           <td colspan="8">
             <app-placeholder icon="@tui.monitor-smartphone">
-              No online devices
+              {{ 'No online devices' | i18n }}
             </app-placeholder>
           </td>
         </tr>
@@ -114,6 +115,7 @@ import { DeviceTableItem } from 'src/app/routes/devices/utils'
     TuiChip,
     TuiLink,
     Placeholder,
+    i18nPipe,
   ],
   host: { class: 'g-table' },
   changeDetection: ChangeDetectionStrategy.OnPush,

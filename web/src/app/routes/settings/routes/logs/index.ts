@@ -10,6 +10,7 @@ import {
 } from '@angular/core'
 import { TuiButton } from '@taiga-ui/core'
 import { ApiService, LogEntry } from 'src/app/services/api/api.service'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   template: `
@@ -21,7 +22,7 @@ import { ApiService, LogEntry } from 'src/app/services/api/api.service'
         iconStart="@tui.download"
         (click)="download()"
       >
-        Download
+        {{ 'Download' | i18n }}
       </button>
       <button
         tuiButton
@@ -29,7 +30,7 @@ import { ApiService, LogEntry } from 'src/app/services/api/api.service'
         iconStart="@tui.arrow-down"
         (click)="scrollToBottom()"
       >
-        Scroll to Bottom
+        {{ 'Scroll to Bottom' | i18n }}
       </button>
     </footer>
   `,
@@ -60,16 +61,17 @@ import { ApiService, LogEntry } from 'src/app/services/api/api.service'
     }
   `,
   host: { class: 'g-page' },
-  imports: [TuiButton],
+  imports: [TuiButton, i18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class Logs {
   private readonly api = inject(ApiService)
   private readonly destroyRef = inject(DestroyRef)
+  private readonly i18n = inject(i18nPipe)
   private readonly logPre = viewChild<ElementRef<HTMLPreElement>>('logPre')
 
   readonly entries = signal<LogEntry[]>([])
-  readonly status = signal('Loading...')
+  readonly status = signal(this.i18n.transform('Loading...'))
   readonly logText = computed(() =>
     this.entries()
       .map(e => `${e.timestamp} ${e.message}`)
@@ -101,7 +103,7 @@ export default class Logs {
       this.entries.set(res.entries)
       requestAnimationFrame(() => this.scrollToBottom())
     } catch {
-      this.status.set('Failed to load logs')
+      this.status.set(this.i18n.transform('Failed to load logs'))
     }
   }
 

@@ -22,8 +22,8 @@ import {
   TuiTextfield,
   tuiTextfieldOptionsProvider,
   TuiTitle,
-  tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
+import { provideTranslatedValidationErrors } from 'src/app/i18n/validation-errors'
 import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
 import {
   TUI_CONFIRM,
@@ -44,6 +44,7 @@ import {
 } from 'src/app/routes/outbound/utils'
 import { CustomValidators } from 'src/app/utils/validators'
 import { VPNSummary } from './summary'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   template: `
@@ -59,14 +60,18 @@ import { VPNSummary } from './summary'
             [style.font]="'inherit'"
             [style.text-decoration]="'none'"
           >
-            {{ data()?.label || 'Outbound VPN' }}
+            {{ data()?.label || ('Outbound VPN' | i18n) }}
           </a>
         </h2>
       </hgroup>
     </header>
-    <header tuiHeader="h6"><h2 tuiTitle>Summary</h2></header>
+    <header tuiHeader="h6">
+      <h2 tuiTitle>{{ 'Summary' | i18n }}</h2>
+    </header>
     <article vpnSummary [formLoading]="!data()"></article>
-    <header tuiHeader="h6"><h2 tuiTitle>Settings</h2></header>
+    <header tuiHeader="h6">
+      <h2 tuiTitle>{{ 'Settings' | i18n }}</h2>
+    </header>
     <form
       [formGroup]="form"
       [formLoading]="!data()"
@@ -76,7 +81,7 @@ import { VPNSummary } from './summary'
       <section>
         <div>
           <tui-textfield>
-            <label tuiLabel>Label</label>
+            <label tuiLabel>{{ 'Label' | i18n }}</label>
             <input tuiInput formControlName="label" />
           </tui-textfield>
           <tui-error formControlName="label" />
@@ -84,8 +89,8 @@ import { VPNSummary } from './summary'
       </section>
       <section>
         <div>
-          <tui-textfield tuiChevron>
-            <label tuiLabel>Connects to</label>
+          <tui-textfield tuiChevron [stringify]="stringifyTarget">
+            <label tuiLabel>{{ 'Connects to' | i18n }}</label>
             <input tuiSelect formControlName="target" />
             <tui-data-list-wrapper *tuiDropdown [items]="targetOptions()" />
           </tui-textfield>
@@ -101,18 +106,26 @@ import { VPNSummary } from './summary'
             [disabled]="dependentVpns().length"
             [tuiHint]="
               dependentVpns().length
-                ? 'Cannot delete: ' +
+                ? ('Cannot delete:' | i18n) +
+                  ' ' +
                   dependentVpns().join(', ') +
                   ' ' +
-                  (dependentVpns().length === 1 ? 'uses' : 'use') +
-                  ' this VPN as a target. Change ' +
-                  (dependentVpns().length === 1 ? 'its' : 'their') +
-                  ' target first.'
+                  (dependentVpns().length === 1
+                    ? ('uses' | i18n)
+                    : ('use' | i18n)) +
+                  ' ' +
+                  ('this VPN as a target. Change' | i18n) +
+                  ' ' +
+                  (dependentVpns().length === 1
+                    ? ('its' | i18n)
+                    : ('their' | i18n)) +
+                  ' ' +
+                  ('target first.' | i18n)
                 : null
             "
             (click)="onDelete()"
           >
-            Delete
+            {{ 'Delete' | i18n }}
           </button>
         </footer>
       }
@@ -122,7 +135,7 @@ import { VPNSummary } from './summary'
   host: { class: 'g-page' },
   providers: [
     tuiTextfieldOptionsProvider({ cleaner: signal(false) }),
-    tuiValidationErrorsProvider(OUTBOUND_VALIDATION_ERRORS),
+    provideTranslatedValidationErrors(OUTBOUND_VALIDATION_ERRORS),
   ],
   imports: [
     RouterLink,
@@ -142,12 +155,14 @@ import { VPNSummary } from './summary'
     Form,
     VPNSummary,
     TuiSkeleton,
+    i18nPipe,
   ],
 })
 export default class OutboundVPN {
   private readonly route = inject(ActivatedRoute)
   private readonly router = inject(Router)
   private readonly dialogs = inject(TuiResponsiveDialogService)
+  private readonly i18n = inject(i18nPipe)
 
   readonly service = inject(OutboundService)
   readonly vpnId = this.route.snapshot.queryParams['id']
@@ -172,6 +187,10 @@ export default class OutboundVPN {
     if (!currentLabel) return ['Internet']
     return getSafeTargets(currentLabel, this.service.data() ?? [])
   })
+
+  // Translates the 'Internet' option; user VPN labels pass through unchanged.
+  protected readonly stringifyTarget = (v: string): string =>
+    this.i18n.transform(v)
 
   constructor() {
     effect(() => {
@@ -213,12 +232,14 @@ export default class OutboundVPN {
 
   onDelete() {
     const usedBy = this.data()?.used_by ?? []
-    const label = usedBy.length ? 'Delete VPN?' : 'Are you sure?'
+    const label = usedBy.length
+      ? this.i18n.transform('Delete VPN?')
+      : this.i18n.transform('Are you sure?')
     const data = usedBy.length
       ? {
-          content: `The following profiles currently route through this VPN and will be switched to WAN: ${usedBy.join(', ')}.`,
-          yes: 'Delete',
-          no: 'Cancel',
+          content: `${this.i18n.transform('The following profiles currently route through this VPN and will be switched to WAN:')} ${usedBy.join(', ')}.`,
+          yes: this.i18n.transform('Delete'),
+          no: this.i18n.transform('Cancel'),
         }
       : undefined
 

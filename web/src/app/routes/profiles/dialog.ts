@@ -33,8 +33,8 @@ import {
   TuiLabel,
   TuiSelectLike,
   TuiTextfield,
-  tuiValidationErrorsProvider,
 } from '@taiga-ui/core'
+import { provideTranslatedValidationErrors } from 'src/app/i18n/validation-errors'
 import {
   TuiChevron,
   TuiDataListWrapper,
@@ -51,6 +51,7 @@ import { TuiElasticContainer, TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { ScheduleComponent } from 'src/app/components/schedule'
 import { provideHelp } from 'src/app/help/help'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 import { ModalHelp } from 'src/app/help/modal-help'
 import { PROFILE_SCHEDULE } from 'src/app/routes/profiles/schedule'
 import type {
@@ -110,21 +111,25 @@ function nonEmptyList(control: AbstractControl): ValidationErrors | null {
       (submit.prevent)="save()"
     >
       <tui-textfield>
-        <label tuiLabel>Name</label>
-        <input tuiInput formControlName="fullname" placeholder="e.g. Guest" />
+        <label tuiLabel>{{ 'Name' | i18n }}</label>
+        <input
+          tuiInput
+          formControlName="fullname"
+          [placeholder]="'e.g. Guest' | i18n"
+        />
       </tui-textfield>
       <tui-error formControlName="fullname" />
 
       <tui-segmented [(activeItemIndex)]="tab">
-        <button type="button">LAN</button>
-        <button type="button">WAN / Internet</button>
-        <button type="button">DNS</button>
+        <button type="button">{{ 'LAN' | i18n }}</button>
+        <button type="button">{{ 'WAN / Internet' | i18n }}</button>
+        <button type="button">{{ 'DNS' | i18n }}</button>
       </tui-segmented>
 
       @switch (tab()) {
         @case (0) {
           <fieldset>
-            <legend>Subnet</legend>
+            <legend>{{ 'Subnet' | i18n }}</legend>
             <div tuiGroup>
               <tui-textfield>
                 <input tuiInput [value]="subnetBase().firstOctet" disabled />
@@ -147,7 +152,7 @@ function nonEmptyList(control: AbstractControl): ValidationErrors | null {
           </fieldset>
           <tui-error formControlName="subnet" />
           <fieldset>
-            <legend>Access</legend>
+            <legend>{{ 'Access' | i18n }}</legend>
             <tui-radio-list
               size="s"
               formControlName="lanAccessType"
@@ -165,7 +170,7 @@ function nonEmptyList(control: AbstractControl): ValidationErrors | null {
                 [stringify]="'fullname' | tuiStringify"
               >
                 @if (!context.data.otherProfiles.length) {
-                  <label tuiLabel>No other profiles</label>
+                  <label tuiLabel>{{ 'No other profiles' | i18n }}</label>
                 }
                 <input
                   tuiInputChip
@@ -175,7 +180,9 @@ function nonEmptyList(control: AbstractControl): ValidationErrors | null {
                     form.controls.lanAccessProfiles.touched &&
                     form.controls.lanAccessProfiles.invalid
                   "
-                  [placeholder]="multi().length ? '' : 'Allowed profiles'"
+                  [placeholder]="
+                    multi().length ? '' : ('Allowed profiles' | i18n)
+                  "
                   [ngModelOptions]="{ standalone: true }"
                   [(ngModel)]="multi"
                   (ngModelChange)="onWhitelist($event)"
@@ -195,14 +202,14 @@ function nonEmptyList(control: AbstractControl): ValidationErrors | null {
                   tuiCheckbox
                   formControlName="accessToNewProfiles"
                 />
-                Auto whitelist new profiles
+                {{ 'Auto whitelist new profiles' | i18n }}
               </label>
             }
           </tui-elastic-container>
         }
         @case (1) {
           <fieldset class="section">
-            <legend>Outbound Routing</legend>
+            <legend>{{ 'Outbound Routing' | i18n }}</legend>
             <tui-radio-list
               size="s"
               formControlName="outboundType"
@@ -215,7 +222,7 @@ function nonEmptyList(control: AbstractControl): ValidationErrors | null {
           <tui-elastic-container>
             @if (outboundType() === 'vpn') {
               <tui-textfield tuiAnimated tuiChevron [stringify]="stringifyVpn">
-                <label tuiLabel>VPN client</label>
+                <label tuiLabel>{{ 'VPN client' | i18n }}</label>
                 <input tuiSelect formControlName="outboundVpn" />
                 <tui-data-list *tuiDropdown>
                   @for (vpn of outboundVpns; track vpn.interface) {
@@ -229,7 +236,7 @@ function nonEmptyList(control: AbstractControl): ValidationErrors | null {
           </tui-elastic-container>
           <fieldset>
             <legend>
-              Access
+              {{ 'Access' | i18n }}
               <button
                 tuiButton
                 size="xs"
@@ -237,7 +244,7 @@ function nonEmptyList(control: AbstractControl): ValidationErrors | null {
                 [disabled]="wanAccessType() === 'none'"
                 (click)="onBlackout()"
               >
-                Blackout Schedule
+                {{ 'Blackout Schedule' | i18n }}
               </button>
             </legend>
             <tui-radio-list
@@ -252,14 +259,14 @@ function nonEmptyList(control: AbstractControl): ValidationErrors | null {
             @if (['whitelist', 'blacklist'].includes(wanAccessType())) {
               <tui-textfield tuiAnimated>
                 @if (wanAccessType() === 'whitelist') {
-                  <label tuiLabel>Allowed IPs</label>
+                  <label tuiLabel>{{ 'Allowed IPs' | i18n }}</label>
                 } @else {
-                  <label tuiLabel>Blocked IPs</label>
+                  <label tuiLabel>{{ 'Blocked IPs' | i18n }}</label>
                 }
                 <input
                   tuiInput
                   formControlName="wanAccessList"
-                  placeholder="e.g. 1.1.1.1, 8.8.8.8/24"
+                  [placeholder]="'e.g. 1.1.1.1, 8.8.8.8/24' | i18n"
                 />
               </tui-textfield>
               <tui-error formControlName="wanAccessList" />
@@ -283,7 +290,8 @@ function nonEmptyList(control: AbstractControl): ValidationErrors | null {
                 <section tuiAnimated>
                   <tui-textfield>
                     <label tuiLabel>
-                      {{ label }}{{ $first ? '' : ' (optional)' }}
+                      {{ label | i18n
+                      }}{{ $first ? '' : ' ' + ('(optional)' | i18n) }}
                     </label>
                     <input tuiInput [formControlName]="'dns' + ($index + 1)" />
                   </tui-textfield>
@@ -293,7 +301,7 @@ function nonEmptyList(control: AbstractControl): ValidationErrors | null {
                       tuiSwitch
                       [formControlName]="'dns' + ($index + 1) + 'Tls'"
                     />
-                    Secure (DoH)
+                    {{ 'Secure (DoH)' | i18n }}
                   </label>
                 </section>
                 <tui-error [formControlName]="'dns' + ($index + 1)" />
@@ -304,7 +312,7 @@ function nonEmptyList(control: AbstractControl): ValidationErrors | null {
       }
 
       <div class="blackout" [class._disabled]="wanAccessType() === 'none'">
-        <label tuiLabel>Blackout times</label>
+        <label tuiLabel>{{ 'Blackout times' | i18n }}</label>
         <app-schedule [style.height.rem]="22" [(windows)]="scheduleWindows" />
       </div>
 
@@ -315,9 +323,9 @@ function nonEmptyList(control: AbstractControl): ValidationErrors | null {
           appearance="flat"
           (click)="context.$implicit.complete()"
         >
-          Cancel
+          {{ 'Cancel' | i18n }}
         </button>
-        <button tuiButton>Save</button>
+        <button tuiButton>{{ 'Save' | i18n }}</button>
       </footer>
     </form>
   `,
@@ -349,7 +357,7 @@ function nonEmptyList(control: AbstractControl): ValidationErrors | null {
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
     provideHelp('/profiles/dialog'),
-    tuiValidationErrorsProvider({
+    provideTranslatedValidationErrors({
       required: 'Required',
       min: 'Must be at least 0',
       max: 'Must be at most 254',
@@ -388,12 +396,14 @@ function nonEmptyList(control: AbstractControl): ValidationErrors | null {
     TuiAnimated,
     ScheduleComponent,
     TuiSegmented,
+    i18nPipe,
   ],
 })
 class AddProfile {
   protected readonly context =
     injectContext<TuiDialogContext<ProfileDialogResult, ProfileDialogData>>()
 
+  private readonly i18n = inject(i18nPipe)
   private readonly builder = inject(NonNullableFormBuilder)
   private readonly existing = this.context.data.existing
   private readonly usedSubnets = this.context.data.usedSubnets
@@ -532,24 +542,30 @@ class AddProfile {
 
   protected readonly getOutboundTypeLabel: TuiStringHandler<
     TuiContext<string>
-  > = ({ $implicit }) => ($implicit === 'vpn' ? 'VPN' : 'Direct')
+  > = ({ $implicit }) =>
+    $implicit === 'vpn'
+      ? this.i18n.transform('VPN')
+      : this.i18n.transform('Direct')
 
   protected readonly isOutboundTypeDisabled = (value: string): boolean =>
     value === 'vpn' && !this.outboundVpns.length
 
   protected readonly getDnsModeLabel: TuiStringHandler<TuiContext<string>> = ({
     $implicit,
-  }) => ($implicit === 'custom' ? 'Custom' : 'Inherit from system')
+  }) =>
+    $implicit === 'custom'
+      ? this.i18n.transform('Custom')
+      : this.i18n.transform('Inherit from system')
 
   protected readonly getLanAccessLabel: TuiStringHandler<TuiContext<string>> =
     ({ $implicit }) => {
       switch ($implicit) {
         case 'all':
-          return 'All'
+          return this.i18n.transform('All')
         case 'none':
-          return 'Same profile'
+          return this.i18n.transform('Same profile')
         case 'whitelist':
-          return 'Whitelist'
+          return this.i18n.transform('Whitelist')
         default:
           return $implicit
       }
@@ -557,7 +573,9 @@ class AddProfile {
 
   protected readonly getWanAccessLabel: TuiStringHandler<TuiContext<string>> =
     ({ $implicit }) =>
-      $implicit.charAt(0).toUpperCase() + $implicit.slice(1).toLowerCase()
+      this.i18n.transform(
+        $implicit.charAt(0).toUpperCase() + $implicit.slice(1).toLowerCase(),
+      )
 
   protected onWhitelist(list: readonly SecurityProfile[]) {
     Object.entries(this.form.controls.lanAccessProfiles.controls).forEach(
@@ -680,7 +698,7 @@ class AddProfile {
   protected onBlackout(): void {
     this.dialogs
       .open<ScheduleWindow[]>(PROFILE_SCHEDULE, {
-        label: 'Blackout Schedule',
+        label: this.i18n.transform('Blackout Schedule'),
         size: 'l',
         data: this.scheduleWindows(),
       })
