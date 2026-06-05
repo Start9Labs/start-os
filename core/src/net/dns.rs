@@ -38,7 +38,7 @@ use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::file_string_stream;
 use crate::util::serde::{HandlerExtSerde, display_serializable};
 use crate::util::sync::{SyncRwLock, Watch};
-use crate::{GatewayId, OptionExt, PackageId};
+use crate::{GatewayId, HOST_IP, OptionExt, PackageId};
 
 pub fn dns_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -225,14 +225,25 @@ lazy_static::lazy_static! {
     static ref EMBASSY: Name = Name::from_ascii("embassy").unwrap();
 }
 
+/// What private domains a resolver (one per bound socket) may answer.
+#[derive(Clone)]
+enum PrivateScope {
+    /// Wildcard catch-all — never answers private domains.
+    None,
+    /// A gateway interface — answers a private domain only when its gateway set
+    /// contains this gateway, returning that gateway's own address.
+    Gateway(GatewayId),
+    /// Loopback / container bridge — answers every private domain, returning
+    /// these fixed local addresses so the host and service containers can always
+    /// reach a private domain locally.
+    Local(Vec<IpAddr>),
+}
+
 struct Resolver {
     catalog: Arc<RwLock<Catalog>>,
     resolve: Arc<SyncRwLock<ResolveMap>>,
     net_iface: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
-    /// The gateway whose socket this resolver serves; `None` for the wildcard
-    /// catch-all. Private domains are only answered when their gateway set
-    /// contains this gateway, so they never leak across interfaces.
-    my_gateway: Option<GatewayId>,
+    scope: PrivateScope,
 }
 
 /// Keep the forwarder authority in `catalog` in sync with resolv.conf and the
@@ -386,24 +397,37 @@ impl Resolver {
             }
             a => a,
         };
+        let domain = name.to_lowercase().to_utf8();
+        let domain = domain.trim_end_matches('.');
         self.resolve.peek(|r| {
-            if let Some(my_gateway) = self.my_gateway.as_ref().filter(|_| !src.is_loopback()) {
-                let serves_here = r
-                    .private_domains
-                    .get(&*name.to_lowercase().to_utf8().trim_end_matches('.'))
-                    .filter(|(_, rc)| rc.strong_count() > 0)
-                    .map_or(false, |(gateways, _)| gateways.contains(my_gateway));
-                if serves_here {
-                    if let Some(res) = self.net_iface.peek(|i| {
-                        i.get(my_gateway)
-                            .and_then(|info| info.ip_info.as_ref())
-                            .map(|ip_info| {
-                                let mut res = ip_info.subnets.iter().collect::<Vec<_>>();
-                                res.sort_by_cached_key(|a| !a.contains(&src));
-                                res.into_iter().map(|s| s.addr()).collect()
-                            })
-                    }) {
-                        return Some(res);
+            match &self.scope {
+                PrivateScope::None => {}
+                PrivateScope::Gateway(my_gateway) => {
+                    let serves_here = r
+                        .private_domains
+                        .get(domain)
+                        .filter(|(_, rc)| rc.strong_count() > 0)
+                        .map_or(false, |(gateways, _)| gateways.contains(my_gateway));
+                    if serves_here {
+                        if let Some(res) = self.net_iface.peek(|i| {
+                            i.get(my_gateway)
+                                .and_then(|info| info.ip_info.as_ref())
+                                .map(|ip_info| {
+                                    let mut res = ip_info.subnets.iter().collect::<Vec<_>>();
+                                    res.sort_by_cached_key(|a| !a.contains(&src));
+                                    res.into_iter().map(|s| s.addr()).collect()
+                                })
+                        }) {
+                            return Some(res);
+                        }
+                    }
+                }
+                PrivateScope::Local(addrs) => {
+                    if r.private_domains
+                        .get(domain)
+                        .map_or(false, |(_, rc)| rc.strong_count() > 0)
+                    {
+                        return Some(addrs.clone());
                     }
                 }
             }
@@ -625,11 +649,12 @@ fn dns_server_on(resolver: Resolver, addr: SocketAddr) -> Result<ServerFuture<Re
 }
 
 /// Serve DNS on a wildcard catch-all socket plus a socket bound to each gateway
-/// interface address. The wildcard handles loopback, the container bridge, and
-/// `*.startos`/forwarding; the per-gateway sockets additionally answer private
-/// domains, and because each binds a specific address the kernel routes a query
-/// to the socket for the interface it ingressed on — so a private domain is only
-/// served on the gateways it's configured for, regardless of source IP.
+/// interface address, loopback, and the container bridge. Because each specific
+/// socket only receives datagrams sent to its address, the kernel routes a query
+/// to the socket for the interface it ingressed on. A gateway socket answers a
+/// private domain only when the domain is configured for that gateway (so it
+/// never leaks across interfaces), while loopback and the container bridge answer
+/// every private domain locally; the wildcard answers none.
 async fn run_dns_servers(
     db: TypedPatchDb<Database>,
     catalog: Arc<RwLock<Catalog>>,
@@ -638,44 +663,60 @@ async fn run_dns_servers(
 ) -> Result<(), Error> {
     let _forwarder = spawn_forwarder(db, catalog.clone());
     let resolver_iface = net_iface.clone();
-    let resolver = |my_gateway: Option<GatewayId>| Resolver {
+    let resolver = |scope: PrivateScope| Resolver {
         catalog: catalog.clone(),
         resolve: resolve.clone(),
         net_iface: resolver_iface.clone(),
-        my_gateway,
+        scope,
     };
 
-    let _wildcard = dns_server_on(
-        resolver(None),
-        SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 53),
-    )?;
+    let loopback = vec![IpAddr::V4(Ipv4Addr::LOCALHOST), IpAddr::V6(Ipv6Addr::LOCALHOST)];
+    let host_ip = IpAddr::V4(Ipv4Addr::from(HOST_IP));
 
-    let mut per_gateway: BTreeMap<SocketAddr, ServerFuture<Resolver>> = BTreeMap::new();
+    let mut servers: BTreeMap<SocketAddr, ServerFuture<Resolver>> = BTreeMap::new();
     loop {
-        let desired: BTreeMap<SocketAddr, GatewayId> = net_iface.peek(|ifaces| {
-            ifaces
-                .iter()
-                .filter_map(|(gw, info)| info.ip_info.as_ref().map(|ip_info| (gw, ip_info)))
-                .flat_map(|(gw, ip_info)| {
-                    ip_info.subnets.iter().map(move |subnet| {
-                        let addr = match subnet.addr() {
-                            IpAddr::V6(v6) if ipv6_is_link_local(v6) => {
-                                SocketAddr::V6(SocketAddrV6::new(v6, 53, 0, ip_info.scope_id))
-                            }
-                            ip => SocketAddr::new(ip, 53),
-                        };
-                        (addr, gw.clone())
-                    })
-                })
-                .collect()
+        let mut desired: BTreeMap<SocketAddr, PrivateScope> = BTreeMap::new();
+        net_iface.peek(|ifaces| {
+            for (gw, info) in ifaces {
+                let Some(ip_info) = info.ip_info.as_ref() else {
+                    continue;
+                };
+                for subnet in &ip_info.subnets {
+                    let addr = match subnet.addr() {
+                        IpAddr::V6(v6) if ipv6_is_link_local(v6) => {
+                            SocketAddr::V6(SocketAddrV6::new(v6, 53, 0, ip_info.scope_id))
+                        }
+                        ip => SocketAddr::new(ip, 53),
+                    };
+                    desired.insert(addr, PrivateScope::Gateway(gw.clone()));
+                }
+            }
         });
+        // wildcard catch-all + the always-on loopback / container-bridge scopes,
+        // inserted last so they win over any gateway that reports the same address.
+        desired.insert(
+            SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 53),
+            PrivateScope::None,
+        );
+        desired.insert(
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 53),
+            PrivateScope::Local(loopback.clone()),
+        );
+        desired.insert(
+            SocketAddr::new(IpAddr::V6(Ipv6Addr::LOCALHOST), 53),
+            PrivateScope::Local(loopback.clone()),
+        );
+        desired.insert(
+            SocketAddr::new(host_ip, 53),
+            PrivateScope::Local(vec![host_ip]),
+        );
 
-        per_gateway.retain(|addr, _| desired.contains_key(addr));
-        for (addr, gw) in desired {
-            if !per_gateway.contains_key(&addr) {
-                match dns_server_on(resolver(Some(gw)), addr) {
+        servers.retain(|addr, _| desired.contains_key(addr));
+        for (addr, scope) in desired {
+            if !servers.contains_key(&addr) {
+                match dns_server_on(resolver(scope), addr) {
                     Ok(server) => {
-                        per_gateway.insert(addr, server);
+                        servers.insert(addr, server);
                     }
                     Err(e) => {
                         tracing::error!("failed to bind DNS on {addr}: {e}");
