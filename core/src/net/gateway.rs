@@ -31,7 +31,7 @@ use zbus::{Connection, proxy};
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::Database;
 use crate::db::model::public::{IpInfo, NetworkInterfaceInfo, NetworkInterfaceType};
-use crate::net::forward::{START9_BRIDGE_IFACE, nft_rule};
+use crate::net::forward::{START9_BRIDGE_IFACE, nft_ensure_base};
 use crate::net::gateway::device::DeviceProxy;
 use crate::net::host::all_hosts;
 use crate::net::utils::{bind_mio_listener, find_wifi_iface};
@@ -752,6 +752,7 @@ async fn watcher(
                             t!("net.gateway.no-devices-returned")
                         );
                         let mut ifaces = BTreeSet::new();
+                        let mut policy_ifaces: BTreeMap<GatewayId, u32> = BTreeMap::new();
                         let mut jobs = Vec::new();
                         for device in devices {
                             use futures::future::Either;
@@ -763,6 +764,18 @@ async fn watcher(
                                 continue;
                             }
                             let iface: GatewayId = iface.into();
+                            // Only policy-route managed, connected gateways —
+                            // mirrors the gating in `watch_ip` and excludes
+                            // unmanaged plumbing like container veth pairs.
+                            if device_proxy.managed().await?
+                                && &*device_proxy.active_connection().await? != "/"
+                                && let Some(table_id) = policy_table_for(
+                                    device_type_of(device_proxy.device_type().await?),
+                                    &iface,
+                                )
+                            {
+                                policy_ifaces.insert(iface.clone(), table_id);
+                            }
                             if watch_activation.peek(|a| a.contains_key(&iface)) {
                                 jobs.push(Either::Left(watch_activated(
                                     &connection,
@@ -793,6 +806,7 @@ async fn watcher(
                             changed
                         });
                         gc_policy_routing(&ifaces).await;
+                        reconcile_mangle_rules(&policy_ifaces).await.log_err();
                         for result in futures::future::join_all(jobs).await {
                             result.log_err();
                         }
@@ -842,8 +856,9 @@ struct PolicyRoutingGuard {
     table_id: u32,
 }
 
-/// Remove stale per-interface policy-routing state (fwmark rules, routing
-/// tables, iptables CONNMARK rules) for interfaces that no longer exist.
+/// Remove stale per-interface policy-routing state (fwmark ip rules and their
+/// routing tables) for interfaces that no longer exist. The nft mark rules are
+/// owned declaratively by [`reconcile_mangle_rules`], so they need no GC here.
 async fn gc_policy_routing(active_ifaces: &BTreeSet<GatewayId>) {
     let active_tables: BTreeSet<u32> = active_ifaces
         .iter()
@@ -897,38 +912,64 @@ async fn gc_policy_routing(active_ifaces: &BTreeSet<GatewayId>) {
                 .ok();
         }
     }
+}
 
-    // GC per-interface set-mark rules (tagged `mark-<iface>` in the nft
-    // mangle_prerouting chain) for defunct interfaces.
-    if let Ok(out) = Command::new("nft")
-        .arg("-a")
-        .arg("list")
-        .arg("chain")
-        .arg("ip")
-        .arg("startos")
-        .arg("mangle_prerouting")
-        .invoke(ErrorKind::Network)
-        .await
-    {
-        let text = String::from_utf8_lossy(&out);
-        for line in text.lines() {
-            let Some((_, rest)) = line.split_once("comment \"mark-") else {
-                continue;
-            };
-            let Some(iface) = rest.split('"').next() else {
-                continue;
-            };
-            if iface.is_empty()
-                || active_ifaces.contains(&GatewayId::from(InternedString::intern(iface)))
-            {
-                continue;
-            }
-            tracing::debug!("gc_policy_routing: removing stale nft mark rule for {iface}");
-            nft_rule("mangle_prerouting", &format!("mark-{iface}"), true, false, "")
-                .await
-                .log_err();
-        }
+/// Map a NetworkManager device-type id to our [`NetworkInterfaceType`].
+fn device_type_of(raw: u32) -> Option<NetworkInterfaceType> {
+    match raw {
+        1 => Some(NetworkInterfaceType::Ethernet),
+        2 => Some(NetworkInterfaceType::Wireless),
+        13 => Some(NetworkInterfaceType::Bridge),
+        29 => Some(NetworkInterfaceType::Wireguard),
+        32 => Some(NetworkInterfaceType::Loopback),
+        _ => None,
     }
+}
+
+/// The policy-routing table id (`1000 + ifindex`) for an interface, or `None`
+/// for interface types we don't policy-route (bridges, loopback). Single source
+/// of truth shared by the coordinator (which renders the nft mark rules) and
+/// `watch_ip` (which installs the matching routes and ip rule).
+fn policy_table_for(device_type: Option<NetworkInterfaceType>, iface: &GatewayId) -> Option<u32> {
+    if matches!(
+        device_type,
+        Some(NetworkInterfaceType::Bridge | NetworkInterfaceType::Loopback)
+    ) {
+        return None;
+    }
+    if_nametoindex(iface.as_str()).map(|idx| 1000 + idx).log_err()
+}
+
+/// Declaratively reconcile the StartOS-owned mangle policy-routing rules.
+///
+/// Single-writer (only the gateway coordinator calls this) and applied as one
+/// atomic nft transaction: both mangle chains are flushed and rebuilt from the
+/// active interface set, so there is no multi-writer race and defunct
+/// `mark-<iface>` rules are removed for free by the flush. `restore-mark` is
+/// emitted first so it runs before the per-interface set-mark rules (a new
+/// packet then leaves with mark 0 and routes via the main table).
+async fn reconcile_mangle_rules(policy_ifaces: &BTreeMap<GatewayId, u32>) -> Result<(), Error> {
+    nft_ensure_base().await?;
+    let mut script = String::new();
+    script.push_str("flush chain ip startos mangle_prerouting\n");
+    script.push_str("flush chain ip startos mangle_output\n");
+    script.push_str(
+        "add rule ip startos mangle_prerouting meta mark 0x00000000 meta mark set ct mark comment \"restore-mark\"\n",
+    );
+    script.push_str(
+        "add rule ip startos mangle_output meta mark 0x00000000 meta mark set ct mark comment \"restore-mark\"\n",
+    );
+    for (iface, table_id) in policy_ifaces {
+        script.push_str(&format!(
+            "add rule ip startos mangle_prerouting iifname \"{iface}\" ct state new ct mark set {table_id} comment \"mark-{iface}\"\n",
+            iface = iface.as_str(),
+        ));
+    }
+    Command::new("nft")
+        .arg(&script)
+        .invoke(ErrorKind::Network)
+        .await?;
+    Ok(())
 }
 
 #[instrument(skip(connection, device_proxy, write_to, db))]
@@ -1008,14 +1049,7 @@ async fn watch_ip(
                 loop {
                     until
                         .run(async {
-                            let device_type = match device_proxy.device_type().await? {
-                                1 => Some(NetworkInterfaceType::Ethernet),
-                                2 => Some(NetworkInterfaceType::Wireless),
-                                13 => Some(NetworkInterfaceType::Bridge),
-                                29 => Some(NetworkInterfaceType::Wireguard),
-                                32 => Some(NetworkInterfaceType::Loopback),
-                                _ => None,
-                            };
+                            let device_type = device_type_of(device_proxy.device_type().await?);
 
                             let name = InternedString::from(active_connection_proxy.id().await?);
 
@@ -1049,18 +1083,9 @@ async fn watch_ip(
                             };
 
                             // Policy routing: track per-interface table for cleanup on scope exit
-                            let policy_table_id = if !matches!(
-                                device_type,
-                                Some(NetworkInterfaceType::Bridge | NetworkInterfaceType::Loopback)
-                            ) {
-                                if_nametoindex(iface.as_str())
-                                    .map(|idx| 1000 + idx)
-                                    .log_err()
-                            } else {
-                                None
-                            };
                             let policy_guard: Option<PolicyRoutingGuard> =
-                                policy_table_id.map(|t| PolicyRoutingGuard { table_id: t });
+                                policy_table_for(device_type, &iface)
+                                    .map(|table_id| PolicyRoutingGuard { table_id });
 
                             loop {
                                 until
@@ -1205,48 +1230,9 @@ async fn apply_policy_routing(
         }
     }
 
-    // Ensure global CONNMARK restore rules in mangle PREROUTING (forwarded
-    // packets) and OUTPUT (locally-generated replies). Both are needed:
-    // PREROUTING handles DNAT-forwarded traffic, OUTPUT handles replies from
-    // locally-bound listeners (e.g. vhost). The `-m mark --mark 0` condition
-    // ensures we only restore when the packet has no existing fwmark,
-    // preserving marks set by WireGuard on encapsulation packets.
-    // Prepend so restore-mark runs before the per-interface set-mark rules
-    // below: the first NEW packet then leaves with mark 0 (routed via main),
-    // matching the prior iptables `-I <chain> 1` insertion.
-    nft_rule(
-        "mangle_prerouting",
-        "restore-mark",
-        false,
-        true,
-        "meta mark 0x00000000 meta mark set ct mark",
-    )
-    .await
-    .log_err();
-    nft_rule(
-        "mangle_output",
-        "restore-mark",
-        false,
-        true,
-        "meta mark 0x00000000 meta mark set ct mark",
-    )
-    .await
-    .log_err();
-
-    // Mark NEW connections arriving on this interface with its routing
-    // table ID via conntrack mark
-    nft_rule(
-        "mangle_prerouting",
-        &format!("mark-{}", iface.as_str()),
-        false,
-        false,
-        &format!(
-            "iifname \"{}\" ct state new ct mark set {table_str}",
-            iface.as_str()
-        ),
-    )
-    .await
-    .log_err();
+    // The mangle CONNMARK rules — the global `restore-mark` (mangle PREROUTING +
+    // OUTPUT) and this interface's `mark-<iface>` — are reconciled centrally and
+    // atomically by `reconcile_mangle_rules`, so they are not touched here.
 
     // Ensure fwmark-based ip rule for this interface's table
     let rules_output = String::from_utf8(
