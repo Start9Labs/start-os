@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt::Write;
 use std::net::{IpAddr, SocketAddrV4};
 use std::sync::{Arc, Weak};
 use std::time::Duration;
@@ -272,7 +273,9 @@ pub async fn nft_ensure_base() -> Result<(), Error> {
     Ok(())
 }
 
-async fn nft_handles(chain: &str, comment: &str) -> Vec<u32> {
+/// Rules in `chain` tagged with `comment`, as `(handle, body)` where `body` is
+/// the rule text preceding the `comment "..."` token.
+async fn nft_rules_with_comment(chain: &str, comment: &str) -> Vec<(u32, String)> {
     let out = Command::new("nft")
         .arg("-a")
         .arg("list")
@@ -286,16 +289,28 @@ async fn nft_handles(chain: &str, comment: &str) -> Vec<u32> {
     let needle = format!("comment \"{comment}\"");
     String::from_utf8_lossy(&out)
         .lines()
-        .filter(|line| line.contains(&needle))
-        .filter_map(|line| line.rsplit_once("# handle ")?.1.trim().parse::<u32>().ok())
+        .filter_map(|line| {
+            let handle = line.rsplit_once("# handle ")?.1.trim().parse::<u32>().ok()?;
+            let body = line.split_once(&needle)?.0.trim().to_owned();
+            Some((handle, body))
+        })
         .collect()
 }
 
 /// Idempotently install (or, with `undo`, remove) the rule tagged `comment` in
-/// `chain` of `table ip startos`. Any prior rule(s) with the same comment in
-/// that chain are removed first, so this reconciles rather than blindly
-/// appends. `prepend` inserts at the top of the chain (needed for the
-/// mark-restore rule, which must run before the per-interface set-mark rules).
+/// `chain` of `table ip startos`. The reconcile is applied as a single atomic
+/// nft transaction — every prior rule with this comment is deleted and the new
+/// rule added in one invocation — and is a no-op when the chain already holds
+/// exactly the desired rule. `prepend` inserts at the top of the chain (needed
+/// for the mark-restore rule, which must run before the per-interface set-mark
+/// rules).
+///
+/// Lock-free under concurrency: the only way the transaction can fail is a
+/// stale handle — another reconcile of the *same* comment deleted/replaced the
+/// rule between our list and our delete. That race is benign (nft commits
+/// atomically, so the other writer's rule is already in place) and only arises
+/// for callers without a single-writer guarantee (e.g. the tunnel masq rules);
+/// we warn, re-read, and retry, converging via the no-op check above.
 pub async fn nft_rule(
     chain: &str,
     comment: &str,
@@ -304,22 +319,61 @@ pub async fn nft_rule(
     rule: &str,
 ) -> Result<(), Error> {
     nft_ensure_base().await?;
-    for handle in nft_handles(chain, comment).await {
-        Command::new("nft")
-            .arg(format!("delete rule ip startos {chain} handle {handle}"))
-            .invoke(ErrorKind::Network)
-            .await?;
-    }
-    if !undo {
-        let verb = if prepend { "insert" } else { "add" };
-        Command::new("nft")
-            .arg(format!(
+
+    const MAX_ATTEMPTS: usize = 5;
+    let mut last_err = None;
+    for attempt in 1..=MAX_ATTEMPTS {
+        let existing = nft_rules_with_comment(chain, comment).await;
+
+        // Already converged: nothing to undo, or exactly the desired rule present.
+        if undo {
+            if existing.is_empty() {
+                return Ok(());
+            }
+        } else if let [(_, body)] = existing.as_slice() {
+            if body == rule {
+                return Ok(());
+            }
+        }
+
+        // Single atomic transaction: drop every prior copy, then add the
+        // desired rule. Convergent from any starting state (0, 1, or N stale
+        // copies), with no window where the rule is missing or duplicated.
+        let mut script = String::new();
+        for (handle, _) in &existing {
+            writeln!(script, "delete rule ip startos {chain} handle {handle}").unwrap();
+        }
+        if !undo {
+            let verb = if prepend { "insert" } else { "add" };
+            writeln!(
+                script,
                 "{verb} rule ip startos {chain} {rule} comment \"{comment}\""
-            ))
+            )
+            .unwrap();
+        }
+        if script.is_empty() {
+            return Ok(());
+        }
+
+        match Command::new("nft")
+            .arg(&script)
             .invoke(ErrorKind::Network)
-            .await?;
+            .await
+        {
+            Ok(_) => return Ok(()),
+            // Stale handle: a concurrent reconcile of this comment won the race.
+            // Re-read and retry; the no-op check above usually returns on the
+            // next pass. Any other error is real and surfaces immediately.
+            Err(e) if e.source.to_string().contains("No such file or directory") => {
+                tracing::warn!(
+                    "nft_rule {chain}/{comment}: stale handle on attempt {attempt}/{MAX_ATTEMPTS}"
+                );
+                last_err = Some(e);
+            }
+            Err(e) => return Err(e),
+        }
     }
-    Ok(())
+    Err(last_err.expect("loop only exits here via the stale-handle path, which sets last_err"))
 }
 
 impl PortForwardController {
