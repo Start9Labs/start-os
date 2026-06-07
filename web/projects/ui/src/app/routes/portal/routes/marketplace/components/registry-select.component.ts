@@ -18,11 +18,7 @@ import {
   TuiIcon,
   TuiTitle,
 } from '@taiga-ui/core'
-import {
-  TuiAvatar,
-  TuiChevron,
-  TuiNotificationMiddleService,
-} from '@taiga-ui/kit'
+import { TuiAvatar, TuiFade, TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, filter, firstValueFrom, map, Subscription } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
@@ -38,22 +34,22 @@ import { MarketplaceAlertsService } from '../services/alerts.service'
   selector: 'marketplace-registry-select',
   template: `
     <button
-      class="trigger"
       tuiButton
-      tuiChevron
       tuiDropdown
-      size="m"
+      tuiDropdownSided
+      iconEnd="@tui.chevron-right"
+      size="s"
       appearance="flat-grayscale"
       [(tuiDropdownOpen)]="open"
     >
-      <span tuiAvatar appearance="action-grayscale" size="s">
+      <span tuiAvatar appearance="action-grayscale" size="xs">
         <img [storeIcon]="data()?.current?.url" />
       </span>
-      <b>{{ data()?.current?.name || 'Loading...' }}</b>
+      <b tuiFade>{{ data()?.current?.name || 'Loading...' }}</b>
       @if (data(); as d) {
-        <tui-data-list *tuiDropdown>
-          <div class="title">
-            {{ 'Saved Registries' | i18n }}
+        <tui-data-list *tuiDropdown size="m">
+          <div class="g-title">
+            <small>{{ 'Saved Registries' | i18n }}</small>
             <button
               tuiButton
               size="xs"
@@ -65,34 +61,36 @@ import { MarketplaceAlertsService } from '../services/alerts.service'
             </button>
           </div>
           @for (registry of d.standard; track registry.url) {
-            <button
-              tuiOption
-              [class._active]="registry.selected"
-              (click)="connect(registry.url)"
-            >
+            <button tuiOption (click)="connect(registry.url)">
               <span tuiAvatar><img [storeIcon]="registry.url" /></span>
               <span tuiTitle>
                 {{ registry.name }}
                 <span tuiSubtitle>{{ registry.url }}</span>
               </span>
+              @if (registry.selected) {
+                <tui-icon icon="@tui.check" />
+              }
             </button>
           }
           @for (registry of d.custom; track registry.url) {
+            @if ($first) {
+              <hr />
+            }
             <button
               tuiOption
-              [class._active]="registry.selected"
               (click)="connect(registry.url)"
+              (keydown.backspace)="delete(registry.url)"
+              (keydown.delete)="delete(registry.url)"
             >
               <span tuiAvatar><img [storeIcon]="registry.url" /></span>
               <span tuiTitle>
                 {{ registry.name }}
                 <span tuiSubtitle>{{ registry.url }}</span>
               </span>
-              <tui-icon
-                class="trail"
-                icon="@tui.trash-2"
-                (click)="$event.stopPropagation(); delete(registry.url)"
-              />
+              <tui-icon icon="@tui.trash" (click.stop)="delete(registry.url)" />
+              @if (registry.selected) {
+                <tui-icon icon="@tui.check" />
+              }
             </button>
           }
         </tui-data-list>
@@ -101,80 +99,41 @@ import { MarketplaceAlertsService } from '../services/alerts.service'
   `,
   styles: `
     :host {
-      display: block;
-    }
-
-    .trigger {
-      inline-size: 100%;
-      justify-content: flex-start;
+      display: grid;
+      margin-block-end: 0.75rem;
 
       [tuiAvatar] {
         margin-inline-start: -0.375rem;
       }
 
-      // Name fills the space and truncates if it exceeds the sidebar's max
-      b {
-        flex: 1;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        text-align: start;
-      }
+      [tuiButton] {
+        justify-content: flex-start;
 
-      &::after {
-        margin-inline-start: auto;
+        &::after {
+          margin-inline-start: auto;
+        }
       }
     }
 
-    // Collapsed sidebar: icon-only, centered, so it fits the narrow rail
-    :host-context(aside[tuiNavigationAside]:not(._expanded)) .trigger {
-      justify-content: center;
-      padding-inline: 0;
-
-      b,
-      &::after {
-        display: none;
-      }
-
-      [tuiAvatar] {
-        margin-inline-start: 0;
-        --t-size: var(--tui-height-xs);
-      }
+    tui-icon {
+      font-size: 1rem;
     }
 
-    .title {
-      display: flex;
-      align-items: center;
+    .g-title {
       justify-content: space-between;
-      gap: 0.5rem;
-      padding: 0.5rem 0.5rem 0.25rem;
-      font: var(--tui-typography-body-s);
-      font-weight: bold;
-      text-transform: uppercase;
-      color: var(--tui-text-secondary);
-    }
-
-    [tuiOption] {
-      &._active {
-        background: var(--tui-background-neutral-1);
-      }
-
-      .trail {
-        margin-inline-start: auto;
-      }
+      margin: 0.5rem 0.5rem 0.25rem;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     StoreIconDirective,
     TuiButton,
-    TuiChevron,
     TuiDropdown,
     TuiDataList,
     TuiIcon,
     TuiTitle,
     TuiAvatar,
+    TuiFade,
     i18nPipe,
   ],
 })
