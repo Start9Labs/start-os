@@ -26,19 +26,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
   styles: `
     article {
       max-width: 48rem;
-      line-height: 1.55;
-
-      ::ng-deep :is(h1, h2, h3, h4) {
-        margin: 1.5em 0 0.5em;
-
-        &:first-child {
-          margin-top: 0;
-        }
-      }
-
-      ::ng-deep :is(ul, ol) {
-        padding-inline-start: 1rem;
-      }
+      font: var(--tui-typography-body-l);
 
       ::ng-deep pre {
         padding: 0.75rem 1rem;
@@ -48,12 +36,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
       }
 
       ::ng-deep table {
-        inline-size: 100%;
         border-collapse: collapse;
-      }
-
-      ::ng-deep thead {
-        background: var(--tui-background-neutral-1);
       }
 
       ::ng-deep :is(td, th) {

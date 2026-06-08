@@ -1,7 +1,7 @@
-import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { Router } from '@angular/router'
-import { MarketplaceRegistryComponent } from '@start9labs/marketplace'
+import { StoreIconDirective } from '@start9labs/marketplace'
 import {
   DialogService,
   ErrorService,
@@ -13,13 +13,12 @@ import {
 import { IST, utils } from '@start9labs/start-sdk'
 import {
   TuiButton,
-  TuiCell,
-  TuiDialogContext,
+  TuiDataList,
+  TuiDropdown,
   TuiIcon,
   TuiTitle,
 } from '@taiga-ui/core'
-import { TuiNotificationMiddleService } from '@taiga-ui/kit'
-import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { TuiAvatar, TuiFade, TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, filter, firstValueFrom, map, Subscription } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
@@ -28,99 +27,184 @@ import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { StorageService } from 'src/app/services/storage.service'
+
 import { MarketplaceAlertsService } from '../services/alerts.service'
 
 @Component({
+  selector: 'marketplace-registry-select',
   template: `
-    @if (registries$ | async; as registries) {
-      <h3 class="g-title">{{ 'Default Registries' | i18n }}</h3>
-      @for (registry of registries.standard; track $index) {
-        <button
-          tuiCell
-          class="g-stretch"
-          [disabled]="registry.selected"
-          [registry]="registry"
-          (click)="connect(registry.url)"
-        ></button>
+    <button
+      tuiButton
+      tuiDropdown
+      tuiDropdownSided
+      iconEnd="@tui.chevron-right"
+      size="s"
+      appearance="flat-grayscale"
+      [(tuiDropdownOpen)]="open"
+    >
+      <span tuiAvatar appearance="action-grayscale" size="xs">
+        <img [storeIcon]="data()?.current?.url" />
+      </span>
+      <b tuiFade>{{ data()?.current?.name || 'Loading...' }}</b>
+      @if (data(); as d) {
+        <tui-data-list *tuiDropdown size="m">
+          <div class="g-title">
+            <small>{{ 'Saved Registries' | i18n }}</small>
+            <button
+              tuiButton
+              size="xs"
+              appearance="primary"
+              iconStart="@tui.plus"
+              (click)="add()"
+            >
+              {{ 'Add' | i18n }}
+            </button>
+          </div>
+          @for (registry of d.standard; track registry.url) {
+            <button tuiOption (click)="connect(registry.url)">
+              <span tuiAvatar><img [storeIcon]="registry.url" /></span>
+              <span tuiTitle>
+                {{ registry.name }}
+                <span tuiSubtitle>{{ registry.url }}</span>
+              </span>
+              @if (registry.selected) {
+                <tui-icon icon="@tui.check" />
+              }
+            </button>
+          }
+          @for (registry of d.custom; track registry.url) {
+            @if ($first) {
+              <hr />
+            }
+            <button
+              tuiOption
+              (click)="connect(registry.url)"
+              (keydown.backspace)="delete(registry.url)"
+              (keydown.delete)="delete(registry.url)"
+            >
+              <span tuiAvatar><img [storeIcon]="registry.url" /></span>
+              <span tuiTitle>
+                {{ registry.name }}
+                <span tuiSubtitle>{{ registry.url }}</span>
+              </span>
+              <tui-icon icon="@tui.trash" (click.stop)="delete(registry.url)" />
+              @if (registry.selected) {
+                <tui-icon icon="@tui.check" />
+              }
+            </button>
+          }
+        </tui-data-list>
       }
-      <h3 class="g-title">{{ 'Custom Registries' | i18n }}</h3>
-      <button tuiCell class="g-stretch" (click)="add()">
-        <tui-icon icon="@tui.plus" [style.margin-inline.rem]="'0.5'" />
-        <div tuiTitle>{{ 'Add custom registry' | i18n }}</div>
-      </button>
-      @for (registry of registries.alt; track $index) {
-        <div class="connect-container">
-          <button
-            tuiCell
-            class="g-stretch"
-            [registry]="registry"
-            (click)="connect(registry.url)"
-          ></button>
-          <button
-            tuiIconButton
-            appearance="icon"
-            iconStart="@tui.trash-2"
-            (click)="delete(registry.url)"
-          >
-            {{ 'Delete' | i18n }}
-          </button>
-        </div>
-      }
-    }
+    </button>
   `,
   styles: `
-    .connect-container {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
+    :host {
+      display: grid;
+      margin-block-end: 0.75rem;
+
+      [tuiAvatar] {
+        margin-inline-start: -0.375rem;
+      }
+
+      [tuiButton] {
+        justify-content: flex-start;
+
+        &::after {
+          margin-inline-start: auto;
+        }
+      }
+    }
+
+    tui-icon {
+      font-size: 1rem;
+    }
+
+    .g-title {
+      justify-content: space-between;
+      margin: 0.5rem 0.5rem 0.25rem;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
-    TuiCell,
+    StoreIconDirective,
+    TuiButton,
+    TuiDropdown,
+    TuiDataList,
     TuiIcon,
     TuiTitle,
-    TuiButton,
-    MarketplaceRegistryComponent,
+    TuiAvatar,
+    TuiFade,
     i18nPipe,
   ],
 })
-export class MarketplaceRegistryModal {
+export class MarketplaceRegistrySelectComponent {
   private readonly api = inject(ApiService)
   private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly formDialog = inject(FormDialogService)
   private readonly dialog = inject(DialogService)
-  private readonly marketplaceService = inject(MarketplaceService)
-  private readonly context = injectContext<TuiDialogContext>()
+  private readonly marketplace = inject(MarketplaceService)
   private readonly router = inject(Router)
+  private readonly storage = inject(StorageService)
+  private readonly alerts = inject(MarketplaceAlertsService)
+  private readonly i18n = inject(i18nPipe)
   private readonly rawRegistries$ = inject<PatchDB<DataModel>>(PatchDB).watch$(
     'ui',
     'registries',
   )
-  private readonly i18n = inject(i18nPipe)
-  private readonly storage = inject(StorageService)
-  private readonly alerts = inject(MarketplaceAlertsService)
 
-  readonly registries$ = combineLatest([
-    this.marketplaceService.registries$,
-    this.marketplaceService.currentRegistryUrl$,
-  ]).pipe(
-    map(([registries, currentUrl]) =>
-      registries.map(s => ({
-        ...s,
-        selected: sameUrl(s.url, currentUrl),
-      })),
+  protected open = false
+
+  // 0 and 1 are prod and community, 2 and beyond are custom
+  protected readonly data = toSignal(
+    combineLatest([
+      this.marketplace.registries$,
+      this.marketplace.currentRegistryUrl$,
+    ]).pipe(
+      map(([registries, currentUrl]) => {
+        const withSelected = registries.map(s => ({
+          ...s,
+          selected: sameUrl(s.url, currentUrl),
+        }))
+
+        return {
+          current: withSelected.find(s => s.selected),
+          standard: withSelected.slice(0, 2),
+          custom: withSelected.slice(2),
+        }
+      }),
     ),
-    // 0 and 1 are prod and community, 2 and beyond are alts
-    map(registries => ({
-      standard: registries.slice(0, 2),
-      alt: registries.slice(2),
-    })),
   )
 
+  async connect(
+    url: string,
+    loader: Subscription = new Subscription(),
+  ): Promise<void> {
+    this.open = false
+
+    // Already on this registry: just close the dropdown
+    if (sameUrl(url, this.data()?.current?.url)) return
+
+    loader.unsubscribe()
+    loader.closed = false
+    loader.add(this.loader.open('Changing registry').subscribe())
+    try {
+      this.marketplace.currentRegistryUrl$.next(url)
+      this.router.navigate([], {
+        queryParams: { registry: url },
+        queryParamsHandling: 'merge',
+      })
+      this.storage.set('selectedRegistry', url)
+      this.alerts.alertRegistryChange(url)
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+    }
+  }
+
   add() {
+    this.open = false
     const { name, spec } = this.getMarketplaceValueSpec()
 
     this.formDialog.open(FormComponent, {
@@ -177,29 +261,6 @@ export class MarketplaceRegistryModal {
           loader.unsubscribe()
         }
       })
-  }
-
-  async connect(
-    url: string,
-    loader: Subscription = new Subscription(),
-  ): Promise<void> {
-    loader.unsubscribe()
-    loader.closed = false
-    loader.add(this.loader.open('Changing registry').subscribe())
-    try {
-      this.marketplaceService.currentRegistryUrl$.next(url)
-      this.router.navigate([], {
-        queryParams: { registry: url },
-        queryParamsHandling: 'merge',
-      })
-      this.storage.set('selectedRegistry', url)
-      this.context.$implicit.complete()
-      this.alerts.alertRegistryChange(url)
-    } catch (e: any) {
-      this.errorService.handleError(e)
-    } finally {
-      loader.unsubscribe()
-    }
   }
 
   private getMarketplaceValueSpec(): IST.ValueSpecObject {
@@ -264,9 +325,7 @@ export class MarketplaceRegistryModal {
     loader.closed = false
     loader.add(this.loader.open('Validating registry').subscribe())
 
-    const { name } = await firstValueFrom(
-      this.marketplaceService.fetchInfo$(url),
-    )
+    const { name } = await firstValueFrom(this.marketplace.fetchInfo$(url))
 
     // Save
     loader.unsubscribe()
@@ -276,7 +335,3 @@ export class MarketplaceRegistryModal {
     await this.api.setDbValue(['registries', url], name)
   }
 }
-
-export const MARKETPLACE_REGISTRY = new PolymorpheusComponent(
-  MarketplaceRegistryModal,
-)

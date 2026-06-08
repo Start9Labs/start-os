@@ -6,68 +6,32 @@ import {
   signal,
 } from '@angular/core'
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop'
+import { FormsModule } from '@angular/forms'
 import { ActivatedRoute, Router } from '@angular/router'
-import {
-  FilterPackagesPipe,
-  MarketplaceAsideComponent,
-  StoreIconDirective,
-} from '@start9labs/marketplace'
-import { DialogService, i18nPipe } from '@start9labs/shared'
-import { TuiButton, TuiCell, TuiScrollbar, TuiTitle } from '@taiga-ui/core'
-import { TuiAvatar, TuiFade, TuiSkeleton } from '@taiga-ui/kit'
-import { TuiCardLarge } from '@taiga-ui/layout'
+import { MarketplaceComponent } from '@start9labs/marketplace'
+import { i18nPipe } from '@start9labs/shared'
 import { tap } from 'rxjs'
 import { ConfigService } from 'src/app/services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { StorageService } from 'src/app/services/storage.service'
 import { TitleDirective } from 'src/app/services/title.service'
 
+import { MarketplaceRegistrySelectComponent } from './components/registry-select.component'
 import { MarketplaceTileComponent } from './components/tile.component'
-import { MARKETPLACE_REGISTRY } from './modals/registry.component'
 
 @Component({
   template: `
     <ng-container *title>{{ 'Marketplace' | i18n }}</ng-container>
-    <marketplace-aside
+    <marketplace
       [registry]="registry()"
-      [(sort)]="sort"
       [(category)]="category"
       [(query)]="query"
     >
-      <button tuiButton iconEnd="@tui.repeat" (click)="changeRegistry()">
-        <span tuiAvatar appearance="action-grayscale" size="xs">
-          <img [storeIcon]="registry()?.url" />
-        </span>
-        <span tuiFade [tuiSkeleton]="!registry()?.info?.name">
-          {{ registry()?.info?.name || 'Loading...' }}
-        </span>
-      </button>
-    </marketplace-aside>
-    <tui-scrollbar [style.flex]="1">
-      <section>
-        @if (registry(); as reg) {
-          @for (
-            pkg of reg.packages | filterPackages: query() : category() : sort();
-            track $index
-          ) {
-            <button type="button" [marketplaceTile]="pkg"></button>
-          }
-        } @else {
-          @for (_ of '-'.repeat(15); track $index) {
-            <div tuiCardLarge="compact" [tuiSkeleton]="true">
-              <span tuiCell>
-                <span tuiAvatar></span>
-                <span tuiTitle>
-                  Loading
-                  <span tuiSubtitle>Loading</span>
-                </span>
-              </span>
-              <span tuiDescription>Loading</span>
-            </div>
-          }
-        }
-      </section>
-    </tui-scrollbar>
+      <marketplace-registry-select />
+      <ng-template let-pkg>
+        <button type="button" [marketplaceTile]="pkg"></button>
+      </ng-template>
+    </marketplace>
   `,
   host: { class: 'g-page' },
   styles: `
@@ -77,49 +41,19 @@ import { MARKETPLACE_REGISTRY } from './modals/registry.component'
       padding: 1px;
       background: #1c1d26;
     }
-
-    [tuiButton] {
-      inline-size: 100%;
-      justify-content: flex-start;
-
-      [tuiAvatar] {
-        margin-inline-start: -0.375rem;
-      }
-
-      &::after {
-        margin-inline-start: auto;
-        color: var(--tui-text-tertiary);
-      }
-    }
-
-    section {
-      padding: 1rem;
-      display: grid;
-      gap: 1rem;
-      grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
-    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
-    MarketplaceTileComponent,
-    TuiScrollbar,
-    FilterPackagesPipe,
+    FormsModule,
     TitleDirective,
     i18nPipe,
-    MarketplaceAsideComponent,
-    TuiButton,
-    StoreIconDirective,
-    TuiAvatar,
-    TuiFade,
-    TuiSkeleton,
-    TuiCardLarge,
-    TuiCell,
-    TuiTitle,
+    MarketplaceComponent,
+    MarketplaceRegistrySelectComponent,
+    MarketplaceTileComponent,
   ],
 })
-export default class MarketplaceComponent {
-  private readonly dialog = inject(DialogService)
+export default class Marketplace {
   private readonly marketplaceService = inject(MarketplaceService)
   private readonly configService = inject(ConfigService)
   private readonly router = inject(Router)
@@ -154,14 +88,9 @@ export default class MarketplaceComponent {
     )
     .subscribe()
 
-  readonly sort = signal('a')
-  readonly category = signal('all')
-  readonly query = signal('')
+  protected readonly category = signal('all')
+  protected readonly query = signal('')
   protected readonly registry = toSignal(
     this.marketplaceService.currentRegistry$,
   )
-
-  changeRegistry() {
-    this.dialog.openComponent(MARKETPLACE_REGISTRY).subscribe()
-  }
 }

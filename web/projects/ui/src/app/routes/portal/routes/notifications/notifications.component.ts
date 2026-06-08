@@ -24,27 +24,27 @@ import { NotificationsTableComponent } from './table.component'
 @Component({
   template: `
     <ng-container *title>{{ 'Notifications' | i18n }}</ng-container>
-    <section class="g-card">
-      <header>
-        {{ 'Notifications' | i18n }}
-        <button
-          tuiButton
-          size="xs"
-          iconStart="@tui.trash"
-          appearance="primary-destructive"
-          [style.margin]="'0 0.5rem 0 auto'"
-          [disabled]="!table()?.selected()?.length"
-          (click)="remove(notifications() || [])"
-        >
-          {{ 'Delete selected' | i18n }}
-        </button>
-      </header>
-      <div [notifications]="notifications()"></div>
-    </section>
+    <header>
+      <button
+        tuiButton
+        size="xs"
+        iconStart="@tui.trash"
+        appearance="primary-destructive"
+        [disabled]="!table()?.selected()?.length"
+        (click)="remove(notifications() || [])"
+      >
+        {{ 'Delete selected' | i18n }}
+      </button>
+    </header>
+    <div [notifications]="notifications()"></div>
   `,
   styles: `
     :host {
       padding: 1rem;
+    }
+
+    header {
+      margin-bottom: 1rem;
     }
   `,
   host: { class: 'g-page' },
