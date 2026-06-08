@@ -1,5 +1,7 @@
 #!/bin/bash
 
+log() { echo "init_resize: $*"; }
+
 get_variables () {
   ROOT_PART_DEV=$(findmnt /media/startos/root -o source -n)
   ROOT_PART_NAME=$(echo "$ROOT_PART_DEV" | cut -d "/" -f 3)
@@ -61,33 +63,39 @@ check_variables () {
 }
 
 main () {
+  log "reading partition layout"
   get_variables
+  log "root=$ROOT_PART_DEV dev=$ROOT_DEV part=$ROOT_PART_NUM last=$LAST_PART_NUM end=$ROOT_PART_END target=$TARGET_END"
 
   if ! check_variables; then
     return 1
   fi
 
+  log "resizing partition $ROOT_PART_NUM to $TARGET_END"
   if ! parted -ms --align=optimal "$ROOT_DEV" u s resizepart "$ROOT_PART_NUM" "$TARGET_END" ; then
     FAIL_REASON="Root partition resize failed"
     return 1
   fi
 
   if [ -n "$DATA_PART_START" ]; then
+    log "creating data partition $DATA_PART_START-$DATA_PART_END"
     if ! parted -ms --align=optimal "$ROOT_DEV" u s mkpart data "$DATA_PART_START" "$DATA_PART_END"; then
       FAIL_REASON="Data partition creation failed"
       return 1
     fi
   fi
 
+  log "remounting root rw and growing btrfs"
   mount / -o remount,rw
-
   btrfs filesystem resize max /media/startos/root
 
+  log "generating machine-id"
   if ! systemd-machine-id-setup --root=/media/startos/config/overlay/; then
     FAIL_REASON="systemd-machine-id-setup failed"
     return 1
   fi
 
+  log "generating ssh host keys"
   if ! (mkdir -p /media/startos/config/overlay/etc/ssh && ssh-keygen -A -f /media/startos/config/overlay/); then
     FAIL_REASON="ssh host key generation failed"
     return 1
@@ -100,18 +108,26 @@ main () {
 
 mkdir -p /run/systemd
 mount /boot
+
+# Drop our own init= hook up front, before any resize work. A failed *or* hung
+# resize must never loop the device forever — worst case it boots through
+# unresized, which is recoverable; an infinite reboot loop is not.
+sed -i 's| init=/usr/lib/startos/scripts/init_resize\.sh||' /boot/grub/grub.cfg
+sync
+
+log "starting (kernel $(uname -r))"
 mount / -o remount,ro
 
 beep
 
 if main; then
-  sed -i 's| init=/usr/lib/startos/scripts/init_resize\.sh||' /boot/grub/grub.cfg
-  echo "Resized root filesystem. Rebooting in 5 seconds..."
-  sleep 5
+  log "SUCCESS — resized root filesystem"
 else
-  echo -e "Could not expand filesystem.\n${FAIL_REASON}"
-  sleep 5
+  log "FAILED — ${FAIL_REASON:-unknown}"
 fi
+
+log "rebooting in 5 seconds"
+sleep 5
 
 sync
 
