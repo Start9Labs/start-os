@@ -139,7 +139,7 @@ impl Public {
                     .digest(MessageDigest::sha256())
                     .unwrap()
                     .iter()
-                    .map(|x| format!("{x:X}"))
+                    .map(|x| format!("{x:02X}"))
                     .join(":"),
                 ntp_synced: false,
                 zram: true,

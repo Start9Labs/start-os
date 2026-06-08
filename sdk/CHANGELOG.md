@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.0.0 — StartOS 0.4.0-beta.9 (2026-05-20)
+## 2.0.0 — StartOS 0.4.0-beta.10 (2026-06-07)
 
 ### Added
 
