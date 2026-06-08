@@ -73,8 +73,9 @@ mod v0_4_0_beta_6;
 mod v0_4_0_beta_7;
 mod v0_4_0_beta_8;
 mod v0_4_0_beta_9;
+mod v0_4_0_beta_10;
 
-pub type Current = v0_4_0_beta_9::Version; // VERSION_BUMP
+pub type Current = v0_4_0_beta_10::Version; // VERSION_BUMP
 
 impl Current {
     #[instrument(skip(self, db))]
@@ -215,7 +216,8 @@ enum Version {
     V0_4_0_beta_6(Wrapper<v0_4_0_beta_6::Version>),
     V0_4_0_beta_7(Wrapper<v0_4_0_beta_7::Version>),
     V0_4_0_beta_8(Wrapper<v0_4_0_beta_8::Version>),
-    V0_4_0_beta_9(Wrapper<v0_4_0_beta_9::Version>), // VERSION_BUMP
+    V0_4_0_beta_9(Wrapper<v0_4_0_beta_9::Version>),
+    V0_4_0_beta_10(Wrapper<v0_4_0_beta_10::Version>), // VERSION_BUMP
     Other(exver::Version),
 }
 
@@ -291,7 +293,8 @@ impl Version {
             Self::V0_4_0_beta_6(v) => DynVersion(Box::new(v.0)),
             Self::V0_4_0_beta_7(v) => DynVersion(Box::new(v.0)),
             Self::V0_4_0_beta_8(v) => DynVersion(Box::new(v.0)),
-            Self::V0_4_0_beta_9(v) => DynVersion(Box::new(v.0)), // VERSION_BUMP
+            Self::V0_4_0_beta_9(v) => DynVersion(Box::new(v.0)),
+            Self::V0_4_0_beta_10(v) => DynVersion(Box::new(v.0)), // VERSION_BUMP
             Self::Other(v) => {
                 return Err(Error::new(
                     eyre!("unknown version {v}"),
@@ -359,7 +362,8 @@ impl Version {
             Version::V0_4_0_beta_6(Wrapper(x)) => x.semver(),
             Version::V0_4_0_beta_7(Wrapper(x)) => x.semver(),
             Version::V0_4_0_beta_8(Wrapper(x)) => x.semver(),
-            Version::V0_4_0_beta_9(Wrapper(x)) => x.semver(), // VERSION_BUMP
+            Version::V0_4_0_beta_9(Wrapper(x)) => x.semver(),
+            Version::V0_4_0_beta_10(Wrapper(x)) => x.semver(), // VERSION_BUMP
             Version::Other(x) => x.clone(),
         }
     }
