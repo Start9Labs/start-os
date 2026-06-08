@@ -100,7 +100,7 @@ futures = "0.3.28"
 gpt = "4.1.0"
 hashing-serializer = "0.1.1"
 hex = "0.4.3"
-hickory-server = { version = "0.25.2", features = ["resolver"] }
+hickory-server = { version = "0.26.1", features = ["resolver"] }
 hmac = "0.12.1"
 http = "1.0.0"
 http-body-util = "0.1"
