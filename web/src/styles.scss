@@ -1,3 +1,21 @@
+// Only normal (400) and bold (700) are shipped: all Start9 designs use just
+// these two weights, so limiting the bundled faces keeps the UI on-spec —
+// intermediate weights snap to the nearest shipped face instead of loading a
+// distinct glyph.
+@font-face {
+  font-family: 'Proxima Nova';
+  font-style: normal;
+  font-weight: 400; // normal
+  src: url('/assets/fonts/Proxima_Nova/Proxima-Nova-Regular.woff');
+}
+
+@font-face {
+  font-family: 'Proxima Nova';
+  font-style: normal;
+  font-weight: 700; // bold
+  src: url('/assets/fonts/Proxima_Nova/Proxima-Nova-Bold.woff');
+}
+
 [tuiTheme='dark'] {
   // Backgrounds
   --tui-background-base: #07080c;
