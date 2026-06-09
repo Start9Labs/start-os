@@ -1,11 +1,18 @@
 #!/bin/bash
 
+log() { echo "init_resize: $*"; }
+
 get_variables () {
   ROOT_PART_DEV=$(findmnt /media/startos/root -o source -n)
   ROOT_PART_NAME=$(echo "$ROOT_PART_DEV" | cut -d "/" -f 3)
   ROOT_DEV_NAME=$(echo /sys/block/*/"${ROOT_PART_NAME}" | cut -d "/" -f 4)
   ROOT_DEV="/dev/${ROOT_DEV_NAME}"
   ROOT_PART_NUM=$(cat "/sys/block/${ROOT_DEV_NAME}/${ROOT_PART_NAME}/partition")
+
+  # Relocate the GPT backup header to the disk end before any parted call; on a
+  # freshly-flashed (larger) card it sits mid-disk and parted otherwise blocks
+  # on an interactive Fix/Ignore prompt, freezing the headless boot.
+  sgdisk -e "$ROOT_DEV" 2>/dev/null || true
 
   BOOT_PART_DEV=$(findmnt /boot -o source -n)
   BOOT_PART_NAME=$(echo "$BOOT_PART_DEV" | cut -d "/" -f 3)
@@ -24,7 +31,7 @@ get_variables () {
       DATA_PART_END=$USABLE_END
   fi
 
-  PARTITION_TABLE=$(parted -m "$ROOT_DEV" unit s print | tr -d 's')
+  PARTITION_TABLE=$(parted -ms "$ROOT_DEV" unit s print | tr -d 's')
 
   LAST_PART_NUM=$(echo "$PARTITION_TABLE" | tail -n 1 | cut -d ":" -f 1)
 
@@ -56,38 +63,39 @@ check_variables () {
 }
 
 main () {
+  log "reading partition layout"
   get_variables
-
-  # Fix GPT backup header first — the image was built with a tight root
-  # partition, so the backup GPT is not at the end of the SD card. parted
-  # will prompt interactively if this isn't fixed before we use it.
-  sgdisk -e "$ROOT_DEV" 2>/dev/null || true
+  log "root=$ROOT_PART_DEV dev=$ROOT_DEV part=$ROOT_PART_NUM last=$LAST_PART_NUM end=$ROOT_PART_END target=$TARGET_END"
 
   if ! check_variables; then
     return 1
   fi
 
-  if ! echo Yes | parted -m --align=optimal "$ROOT_DEV" ---pretend-input-tty u s resizepart "$ROOT_PART_NUM" "$TARGET_END" ; then
+  log "resizing partition $ROOT_PART_NUM to $TARGET_END"
+  if ! parted -ms --align=optimal "$ROOT_DEV" u s resizepart "$ROOT_PART_NUM" "$TARGET_END" ; then
     FAIL_REASON="Root partition resize failed"
     return 1
   fi
 
   if [ -n "$DATA_PART_START" ]; then
+    log "creating data partition $DATA_PART_START-$DATA_PART_END"
     if ! parted -ms --align=optimal "$ROOT_DEV" u s mkpart data "$DATA_PART_START" "$DATA_PART_END"; then
       FAIL_REASON="Data partition creation failed"
       return 1
     fi
   fi
 
+  log "remounting root rw and growing btrfs"
   mount / -o remount,rw
-
   btrfs filesystem resize max /media/startos/root
 
+  log "generating machine-id"
   if ! systemd-machine-id-setup --root=/media/startos/config/overlay/; then
     FAIL_REASON="systemd-machine-id-setup failed"
     return 1
   fi
 
+  log "generating ssh host keys"
   if ! (mkdir -p /media/startos/config/overlay/etc/ssh && ssh-keygen -A -f /media/startos/config/overlay/); then
     FAIL_REASON="ssh host key generation failed"
     return 1
@@ -100,18 +108,26 @@ main () {
 
 mkdir -p /run/systemd
 mount /boot
+
+# Drop our own init= hook up front, before any resize work. A failed *or* hung
+# resize must never loop the device forever — worst case it boots through
+# unresized, which is recoverable; an infinite reboot loop is not.
+sed -i 's| init=/usr/lib/startos/scripts/init_resize\.sh||' /boot/grub/grub.cfg
+sync
+
+log "starting (kernel $(uname -r))"
 mount / -o remount,ro
 
 beep
 
 if main; then
-  sed -i 's| init=/usr/lib/startos/scripts/init_resize\.sh||' /boot/grub/grub.cfg
-  echo "Resized root filesystem. Rebooting in 5 seconds..."
-  sleep 5
+  log "SUCCESS — resized root filesystem"
 else
-  echo -e "Could not expand filesystem.\n${FAIL_REASON}"
-  sleep 5
+  log "FAILED — ${FAIL_REASON:-unknown}"
 fi
+
+log "rebooting in 5 seconds"
+sleep 5
 
 sync
 
