@@ -135,6 +135,7 @@ EOF
 $SYSTEMCTL enable startd.service
 $SYSTEMCTL enable systemd-resolved.service
 $SYSTEMCTL enable ssh.service
+$SYSTEMCTL enable systemd-oomd.service
 $SYSTEMCTL disable wpa_supplicant.service
 $SYSTEMCTL mask systemd-networkd-wait-online.service # currently use `NetworkManager-wait-online.service`
 
@@ -171,6 +172,45 @@ echo 'port=0' > /etc/dnsmasq.conf
 sed -i 's/\[Service\]/[Service]\nEnvironment=SYSTEMD_LOG_LEVEL=debug/' /lib/systemd/system/systemd-timesyncd.service
 sed -i "s/\.debian\./\./g;s/#FallbackNTP=/FallbackNTP=/"  /etc/systemd/timesyncd.conf
 sed -i '/\(^\|#\)RootDistanceMaxSec=/c\RootDistanceMaxSec=10' /etc/systemd/timesyncd.conf
+
+# Reserve memory for the host management plane so a burst of resource-hungry
+# service containers can never starve startd / sshd / journald and wedge the
+# box (the lxc service containers live under the `startos.payload` cgroup, which
+# startd caps separately at init — see core system::limit_container_memory).
+# MemoryMin is a hard protection: under memory pressure the kernel reclaims and,
+# if needed, OOM-kills inside the container cgroups before ever touching this
+# reserved memory, so sshd stays reachable and startd keeps running.
+#
+# Sizing (constant, not a fraction of RAM — the host plane's needs don't grow
+# with box size): measured idle footprint is ~178 MiB system.slice + ~33 MiB
+# init.scope + ~58 MiB per SSH session. 768 MiB for system.slice leaves ~4x
+# headroom for startd's install-time working set + journald; 256 MiB for
+# user.slice guarantees an admin can always log in to recover.
+mkdir -p /etc/systemd/system/system.slice.d
+cat > /etc/systemd/system/system.slice.d/10-startos-memory-reserve.conf << 'EOF'
+[Slice]
+MemoryAccounting=yes
+MemoryMin=768M
+EOF
+mkdir -p /etc/systemd/system/user.slice.d
+cat > /etc/systemd/system/user.slice.d/10-startos-memory-reserve.conf << 'EOF'
+[Slice]
+MemoryAccounting=yes
+MemoryMin=256M
+EOF
+
+# systemd-oomd: how long memory PSI pressure must stay above a slice's
+# ManagedOOMMemoryPressureLimit before oomd kills its heaviest child. The
+# service-container slice (startos.slice) opts in via ManagedOOMMemoryPressure=
+# kill; 20s avoids reacting to brief install/backup spikes while still catching
+# a real runaway in seconds instead of the ~30-min swap-death it replaces. The
+# host plane is spared: startd sets ManagedOOMPreference=avoid and system.slice/
+# user.slice carry the MemoryMin reservations above.
+mkdir -p /etc/systemd/oomd.conf.d
+cat > /etc/systemd/oomd.conf.d/10-startos.conf << 'EOF'
+[OOM]
+DefaultMemoryPressureDurationSec=20s
+EOF
 
 mkdir -p /etc/nginx/ssl
 

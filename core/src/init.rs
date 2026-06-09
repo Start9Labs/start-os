@@ -372,6 +372,16 @@ pub async fn init(
     }
     enable_zram.complete();
 
+    // Cap the aggregate memory of the service-container slice (services.slice)
+    // so the host management plane (startd, sshd) always keeps its reservation
+    // and a burst of concurrent installs can't swap-thrash the box into a wedge;
+    // systemd-oomd reclaims/kills within the slice under sustained pressure.
+    // Best-effort: a failure here must never block boot.
+    if let Err(e) = crate::system::limit_container_memory().await {
+        tracing::warn!("could not cap service-container memory: {e}");
+        tracing::debug!("{e:?}");
+    }
+
     update_server_info.start();
     sync_kiosk(server_info.as_kiosk().de()?.unwrap_or(false)).await?;
     let ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
