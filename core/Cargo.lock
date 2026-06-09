@@ -239,9 +239,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "astral-tokio-tar"
+version = "0.6.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cb50a7aae84a03bf55b067832bc376f4961b790c97e64d3eacee97d389b90277"
+dependencies = [
+ "filetime",
+ "futures-core",
+ "libc",
+ "portable-atomic",
+ "rustc-hash",
+ "tokio",
+ "tokio-stream",
+ "xattr",
+]
+
+[[package]]
 name = "async-acme"
 version = "0.6.0"
-source = "git+https://github.com/Start9Labs/async-acme.git?rev=6d887d0ba58e5eb49cefc11fb5ab8f6887351f79#6d887d0ba58e5eb49cefc11fb5ab8f6887351f79"
+source = "git+https://github.com/Start9Labs/async-acme.git?rev=6da895b89227ac14e39ff8470c415b054ee62e9c#6da895b89227ac14e39ff8470c415b054ee62e9c"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -252,7 +268,7 @@ dependencies = [
  "pem",
  "rcgen",
  "ring",
- "rustls 0.23.39",
+ "rustls",
  "rustls-pemfile",
  "serde",
  "serde_json",
@@ -2219,12 +2235,12 @@ dependencies = [
 
 [[package]]
 name = "futures-rustls"
-version = "0.25.1"
+version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8d8a2499f0fecc0492eb3e47eab4e92da7875e1028ad2528f214ac3346ca04e"
+checksum = "a8f2f12607f92c69b12ed746fabf9ca4f5c482cba46679c1a75b874ed7c26adb"
 dependencies = [
  "futures-io",
- "rustls 0.22.4",
+ "rustls",
  "rustls-pki-types",
 ]
 
@@ -2279,20 +2295,16 @@ dependencies = [
 
 [[package]]
 name = "generic-async-http-client"
-version = "0.5.1"
+version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75cec8bb4d3d32542cfcb9517f78366b52c17931e30d7ee1682c13686c19cee7"
+checksum = "5a453aa4984a2c67877ae6b13d433b46ce79bf6b6fa23c2da29b93b9f00ac744"
 dependencies = [
  "futures",
  "futures-rustls",
  "hyper",
  "log",
  "serde",
- "serde_json",
- "serde_qs",
- "serde_urlencoded",
- "tokio",
- "tokio-rustls 0.25.0",
+ "tokio-rustls",
  "webpki-roots 0.26.11",
 ]
 
@@ -2782,9 +2794,9 @@ dependencies = [
  "http",
  "hyper",
  "hyper-util",
- "rustls 0.23.39",
+ "rustls",
  "tokio",
- "tokio-rustls 0.26.4",
+ "tokio-rustls",
  "tower-service",
  "webpki-roots 1.0.7",
 ]
@@ -3609,11 +3621,11 @@ dependencies = [
  "nom 8.0.0",
  "percent-encoding",
  "quoted_printable",
- "rustls 0.23.39",
+ "rustls",
  "rustls-platform-verifier",
  "socket2",
  "tokio",
- "tokio-rustls 0.26.4",
+ "tokio-rustls",
  "url",
 ]
 
@@ -5028,7 +5040,7 @@ dependencies = [
  "quinn-proto",
  "quinn-udp",
  "rustc-hash",
- "rustls 0.23.39",
+ "rustls",
  "socket2",
  "thiserror 2.0.18",
  "tokio",
@@ -5048,7 +5060,7 @@ dependencies = [
  "rand 0.9.4",
  "ring",
  "rustc-hash",
- "rustls 0.23.39",
+ "rustls",
  "rustls-pki-types",
  "slab",
  "thiserror 2.0.18",
@@ -5417,7 +5429,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "quinn",
- "rustls 0.23.39",
+ "rustls",
  "rustls-pki-types",
  "serde",
  "serde_json",
@@ -5425,7 +5437,7 @@ dependencies = [
  "sync_wrapper",
  "tokio",
  "tokio-native-tls",
- "tokio-rustls 0.26.4",
+ "tokio-rustls",
  "tokio-util",
  "tower",
  "tower-http",
@@ -5695,20 +5707,6 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.22.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf4ef73721ac7bcd79b2b315da7779d8fc09718c6b3d2d1b2d94850eb8c18432"
-dependencies = [
- "log",
- "ring",
- "rustls-pki-types",
- "rustls-webpki 0.102.8",
- "subtle",
- "zeroize",
-]
-
-[[package]]
-name = "rustls"
 version = "0.23.39"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c2c118cb077cca2822033836dfb1b975355dfb784b5e8da48f7b6c5db74e60e"
@@ -5718,7 +5716,7 @@ dependencies = [
  "once_cell",
  "ring",
  "rustls-pki-types",
- "rustls-webpki 0.103.13",
+ "rustls-webpki",
  "subtle",
  "zeroize",
 ]
@@ -5765,10 +5763,10 @@ dependencies = [
  "jni 0.21.1",
  "log",
  "once_cell",
- "rustls 0.23.39",
+ "rustls",
  "rustls-native-certs",
  "rustls-platform-verifier-android",
- "rustls-webpki 0.103.13",
+ "rustls-webpki",
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
@@ -5780,17 +5778,6 @@ name = "rustls-platform-verifier-android"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f87165f0995f63a9fbeea62b64d10b4d9d8e78ec6d7d51fb2125fda7bb36788f"
-
-[[package]]
-name = "rustls-webpki"
-version = "0.102.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64ca1bc8749bd4cf37b5ce386cc146580777b4e8572c7b97baf22c83f444bee9"
-dependencies = [
- "ring",
- "rustls-pki-types",
- "untrusted",
-]
 
 [[package]]
 name = "rustls-webpki"
@@ -5986,17 +5973,6 @@ dependencies = [
  "itoa",
  "serde",
  "serde_core",
-]
-
-[[package]]
-name = "serde_qs"
-version = "0.12.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0431a35568651e363364210c91983c1da5eb29404d9f0928b67d4ebcfa7d330c"
-dependencies = [
- "percent-encoding",
- "serde",
- "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -6396,7 +6372,7 @@ dependencies = [
  "memchr",
  "once_cell",
  "percent-encoding",
- "rustls 0.23.39",
+ "rustls",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -6562,6 +6538,7 @@ name = "start-os"
 version = "0.4.0-beta.10"
 dependencies = [
  "aes",
+ "astral-tokio-tar",
  "async-acme",
  "async-compression",
  "async-stream",
@@ -6678,9 +6655,8 @@ dependencies = [
  "textwrap",
  "thiserror 2.0.18",
  "tokio",
- "tokio-rustls 0.26.4",
+ "tokio-rustls",
  "tokio-stream",
- "tokio-tar",
  "tokio-tungstenite 0.26.2",
  "tokio-util",
  "toml 0.9.12+spec-1.1.0",
@@ -6907,7 +6883,7 @@ checksum = "3f6221d9a6003c78398e3b239969f352578258df48c8eb051caadae0015bc840"
 dependencies = [
  "filetime",
  "libc",
- "xattr 1.6.1",
+ "xattr",
 ]
 
 [[package]]
@@ -7129,22 +7105,11 @@ dependencies = [
 
 [[package]]
 name = "tokio-rustls"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "775e0c0f0adb3a2f22a00c4745d728b479985fc15ee7ca6a2608388c5569860f"
-dependencies = [
- "rustls 0.22.4",
- "rustls-pki-types",
- "tokio",
-]
-
-[[package]]
-name = "tokio-rustls"
 version = "0.26.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1729aa945f29d91ba541258c8df89027d5792d85a8841fb65e8bf0f4ede4ef61"
 dependencies = [
- "rustls 0.23.39",
+ "rustls",
  "tokio",
 ]
 
@@ -7158,20 +7123,6 @@ dependencies = [
  "pin-project-lite",
  "tokio",
  "tokio-util",
-]
-
-[[package]]
-name = "tokio-tar"
-version = "0.3.0"
-source = "git+https://github.com/dr-bonez/tokio-tar.git#071db00962a66f8552d418d60be7bdf1c8ed8216"
-dependencies = [
- "filetime",
- "futures-core",
- "libc",
- "redox_syscall 0.2.16",
- "tokio",
- "tokio-stream",
- "xattr 0.2.3",
 ]
 
 [[package]]
@@ -8739,15 +8690,6 @@ dependencies = [
  "rusticata-macros",
  "thiserror 1.0.69",
  "time",
-]
-
-[[package]]
-name = "xattr"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d1526bbe5aaeb5eb06885f4d987bcdfa5e23187055de9b83fe00156a821fabc"
-dependencies = [
- "libc",
 ]
 
 [[package]]
