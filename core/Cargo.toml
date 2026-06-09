@@ -226,7 +226,7 @@ tracing = "0.1.39"
 tracing-appender = "0.2.3"
 tracing-error = "0.2.0"
 tracing-journald = "0.3.0"
-tracing-subscriber = { version = "=0.3.23", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 ts-rs = "9.0.1"
 typed-builder = "0.23.2"
 url = { version = "2.4.1", features = ["serde"] }
