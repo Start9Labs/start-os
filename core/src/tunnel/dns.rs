@@ -3,17 +3,18 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::sync::Arc;
 use std::time::Duration;
 
-use hickory_server::authority::{AuthorityObject, Catalog};
 use hickory_server::proto::rr::Name;
-use hickory_server::proto::xfer::Protocol;
-use hickory_server::resolver::config::{
-    NameServerConfig, NameServerConfigGroup, ResolverConfig, ResolverOpts,
-};
-use hickory_server::store::forwarder::{ForwardAuthority, ForwardConfig};
-use hickory_server::{ServerFuture, resolver as hickory_resolver};
+use hickory_server::resolver as hickory_resolver;
+use hickory_server::resolver::config::{NameServerConfig, ResolverConfig, ResolverOpts};
+use hickory_server::server::Server;
+use hickory_server::store::forwarder::{ForwardConfig, ForwardZoneHandler};
+use hickory_server::zone_handler::{Catalog, ZoneHandler};
 use ipnet::Ipv4Net;
 use tokio::net::{TcpListener, UdpSocket};
 
+use crate::net::dns::{
+    DNS_RESPONSE_BUFFER_SIZE, forward_name_server, name_server_socket_addr, parse_resolv_conf,
+};
 use crate::prelude::*;
 use crate::tunnel::wg::{DnsConfig, WgServer};
 use crate::util::future::NonDetachingJoinHandle;
@@ -108,7 +109,7 @@ async fn systemd_resolved_upstreams() -> Vec<SocketAddr> {
     let Ok(contents) = read_file_to_string("/run/systemd/resolve/resolv.conf").await else {
         return Vec::new();
     };
-    match hickory_resolver::system_conf::parse_resolv_conf(contents) {
+    match parse_resolv_conf(contents) {
         Ok((config, _)) => resolv_conf_upstreams(&config),
         Err(_) => Vec::new(),
     }
@@ -120,7 +121,7 @@ fn resolv_conf_upstreams(config: &ResolverConfig) -> Vec<SocketAddr> {
     config
         .name_servers()
         .iter()
-        .map(|ns| ns.socket_addr)
+        .map(name_server_socket_addr)
         .filter(|addr| !addr.ip().is_loopback())
         .filter(|addr| seen.insert(*addr))
         .collect()
@@ -138,9 +139,9 @@ async fn bind_proxy(
         .await
         .with_kind(ErrorKind::Network)?;
 
-    let mut server = ServerFuture::new(forwarding_catalog(upstreams)?);
+    let mut server = Server::new(forwarding_catalog(upstreams)?);
     server.register_socket(udp);
-    server.register_listener(tcp, FORWARD_TIMEOUT);
+    server.register_listener(tcp, FORWARD_TIMEOUT, DNS_RESPONSE_BUFFER_SIZE);
 
     Ok(tokio::spawn(async move {
         server
@@ -156,26 +157,19 @@ async fn bind_proxy(
 /// `upstreams` (UDP + TCP per server). `Catalog` itself implements
 /// `RequestHandler`, so no custom handler is needed for a pure forwarder.
 fn forwarding_catalog(upstreams: Vec<SocketAddr>) -> Result<Catalog, Error> {
-    let name_servers: Vec<NameServerConfig> = upstreams
-        .into_iter()
-        .flat_map(|addr| {
-            [
-                NameServerConfig::new(addr, Protocol::Udp),
-                NameServerConfig::new(addr, Protocol::Tcp),
-            ]
-        })
-        .collect();
+    let name_servers: Vec<NameServerConfig> =
+        upstreams.into_iter().map(forward_name_server).collect();
     let mut opts = ResolverOpts::default();
     opts.timeout = FORWARD_TIMEOUT;
-    let authority = ForwardAuthority::builder_tokio(ForwardConfig {
-        name_servers: NameServerConfigGroup::from(name_servers),
+    let authority = ForwardZoneHandler::builder_tokio(ForwardConfig {
+        name_servers,
         options: Some(opts),
     })
     .build()
     .map_err(|e| Error::new(eyre!("{e}"), ErrorKind::Network))?;
 
     let mut catalog = Catalog::new();
-    let auth: Vec<Arc<dyn AuthorityObject>> = vec![Arc::new(authority)];
+    let auth: Vec<Arc<dyn ZoneHandler>> = vec![Arc::new(authority)];
     catalog.upsert(Name::root().into(), auth);
     Ok(catalog)
 }

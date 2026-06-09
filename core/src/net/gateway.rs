@@ -338,10 +338,12 @@ pub async fn check_dns(
     ctx: RpcContext,
     CheckDnsParams { gateway }: CheckDnsParams,
 ) -> Result<bool, Error> {
-    use hickory_server::proto::xfer::Protocol;
+    use hickory_server::net::runtime::TokioRuntimeProvider;
+    use hickory_server::proto::rr::RData;
     use hickory_server::resolver::Resolver;
-    use hickory_server::resolver::config::{NameServerConfig, ResolverConfig, ResolverOpts};
-    use hickory_server::resolver::name_server::TokioConnectionProvider;
+    use hickory_server::resolver::config::{ResolverConfig, ResolverOpts};
+
+    use crate::net::dns::forward_name_server;
 
     let ip_info = ctx.net_controller.net_iface.watcher.ip_info();
     let gw_info = ip_info
@@ -372,29 +374,24 @@ pub async fn check_dns(
                 .dns
                 .add_challenge(challenge_domain.clone(), challenge_value.clone())?;
 
-            let mut config = ResolverConfig::new();
-            config.add_name_server(NameServerConfig::new(
-                SocketAddr::new(*dns_ip, 53),
-                Protocol::Udp,
-            ));
-            config.add_name_server(NameServerConfig::new(
-                SocketAddr::new(*dns_ip, 53),
-                Protocol::Tcp,
-            ));
+            let mut config = ResolverConfig::from_parts(None, Vec::new(), Vec::new());
+            config.add_name_server(forward_name_server(SocketAddr::new(*dns_ip, 53)));
             let mut opts = ResolverOpts::default();
             opts.timeout = Duration::from_secs(5);
             opts.attempts = 1;
 
-            let resolver =
-                Resolver::builder_with_config(config, TokioConnectionProvider::default())
-                    .with_options(opts)
-                    .build();
+            let resolver = Resolver::builder_with_config(config, TokioRuntimeProvider::default())
+                .with_options(opts)
+                .build()
+                .map_err(|e| Error::new(eyre!("{e}"), ErrorKind::Network))?;
             let txt_lookup = resolver.txt_lookup(&*challenge_domain).await;
 
             return Ok(match txt_lookup {
-                Ok(lookup) => lookup.iter().any(|txt| {
-                    txt.iter()
-                        .any(|data| data.as_ref() == challenge_value.as_bytes())
+                Ok(lookup) => lookup.answers().iter().any(|record| {
+                    matches!(&record.data, RData::TXT(txt) if txt
+                        .txt_data
+                        .iter()
+                        .any(|data| data.as_ref() == challenge_value.as_bytes()))
                 }),
                 Err(_) => false,
             });

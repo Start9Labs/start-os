@@ -8,14 +8,16 @@ use std::time::Duration;
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::{FutureExt, StreamExt, TryStreamExt};
-use hickory_server::authority::{AuthorityObject, Catalog, MessageResponseBuilder};
-use hickory_server::proto::op::{Header, ResponseCode};
+use hickory_server::net::NetError;
+use hickory_server::net::runtime::Time;
+use hickory_server::proto::op::{Header, HeaderCounts, Metadata, ResponseCode};
 use hickory_server::proto::rr::{Name, Record, RecordType};
-use hickory_server::proto::xfer::Protocol;
-use hickory_server::resolver::config::{NameServerConfig, ResolverConfig, ResolverOpts};
-use hickory_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
-use hickory_server::store::forwarder::{ForwardAuthority, ForwardConfig};
-use hickory_server::{ServerFuture, resolver as hickory_resolver};
+use hickory_server::resolver::config::{
+    ConnectionConfig, NameServerConfig, ResolverConfig, ResolverOpts,
+};
+use hickory_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo, Server};
+use hickory_server::store::forwarder::{ForwardConfig, ForwardZoneHandler};
+use hickory_server::zone_handler::{Catalog, MessageResponseBuilder, ZoneHandler};
 use imbl::OrdMap;
 use imbl_value::InternedString;
 use itertools::Itertools;
@@ -225,6 +227,43 @@ lazy_static::lazy_static! {
     static ref EMBASSY: Name = Name::from_ascii("embassy").unwrap();
 }
 
+/// Per-connection outgoing-response buffer size for TCP DNS listeners.
+pub(crate) const DNS_RESPONSE_BUFFER_SIZE: usize = 32;
+
+/// A forwarding upstream for `addr`, reachable over both UDP and TCP on its port.
+pub(crate) fn forward_name_server(addr: SocketAddr) -> NameServerConfig {
+    let mut udp = ConnectionConfig::udp();
+    udp.port = addr.port();
+    let mut tcp = ConnectionConfig::tcp();
+    tcp.port = addr.port();
+    NameServerConfig::new(addr.ip(), true, vec![udp, tcp])
+}
+
+/// The socket address a parsed upstream `NameServerConfig` points at.
+pub(crate) fn name_server_socket_addr(ns: &NameServerConfig) -> SocketAddr {
+    SocketAddr::new(ns.ip, ns.connections.first().map_or(53, |c| c.port))
+}
+
+/// Parse systemd-resolved's resolv.conf. hickory 0.26 only exposes
+/// `system_conf::parse_resolv_conf` on non-apple unix; this path only runs on
+/// the (Linux) server, so non-Linux targets just need a stub to compile.
+#[cfg(target_os = "linux")]
+pub(crate) fn parse_resolv_conf(
+    data: impl AsRef<[u8]>,
+) -> Result<(ResolverConfig, ResolverOpts), Error> {
+    hickory_server::resolver::system_conf::parse_resolv_conf(data).with_kind(ErrorKind::ParseSysInfo)
+}
+
+#[cfg(not(target_os = "linux"))]
+pub(crate) fn parse_resolv_conf(
+    _data: impl AsRef<[u8]>,
+) -> Result<(ResolverConfig, ResolverOpts), Error> {
+    Err(Error::new(
+        eyre!("resolv.conf parsing is only supported on Linux"),
+        ErrorKind::ParseSysInfo,
+    ))
+}
+
 /// What private domains a resolver (one per bound socket) may answer.
 #[derive(Clone)]
 enum PrivateScope {
@@ -254,7 +293,7 @@ fn spawn_forwarder(
 ) -> NonDetachingJoinHandle<()> {
     tokio::spawn(async move {
                 let mut prev = crate::util::serde::hash_serializable::<sha2::Sha256, _>(&(
-                    ResolverConfig::new(),
+                    ResolverConfig::from_parts(None, Vec::new(), Vec::new()),
                     ResolverOpts::default(),
                     Option::<std::collections::VecDeque<SocketAddr>>::None,
                 ))
@@ -281,9 +320,7 @@ fn spawn_forwarder(
                                             eyre!("resolv.conf stream ended"),
                                             ErrorKind::Network,
                                         ))?;
-                                    let (config, mut opts) =
-                                        hickory_resolver::system_conf::parse_resolv_conf(conf)
-                                            .with_kind(ErrorKind::ParseSysInfo)?;
+                                    let (config, mut opts) = parse_resolv_conf(conf)?;
                                     opts.timeout = Duration::from_secs(30);
                                     last_config = Some((config, opts));
                                     true
@@ -319,8 +356,8 @@ fn spawn_forwarder(
                                         .ser(
                                             &config
                                                 .name_servers()
-                                                .into_iter()
-                                                .map(|n| n.socket_addr)
+                                                .iter()
+                                                .map(name_server_socket_addr)
                                                 .dedup()
                                                 .skip(2)
                                                 .collect(),
@@ -329,28 +366,15 @@ fn spawn_forwarder(
                                 .await
                                 .result?;
                             }
-                            let forward_servers = if let Some(servers) = &static_servers {
-                                servers
-                                    .iter()
-                                    .flat_map(|addr| {
-                                        [
-                                            NameServerConfig::new(*addr, Protocol::Udp),
-                                            NameServerConfig::new(*addr, Protocol::Tcp),
-                                        ]
-                                    })
-                                    .map(|n| to_value(&n))
-                                    .collect::<Result<_, Error>>()?
-                            } else {
-                                config
-                                    .name_servers()
-                                    .into_iter()
-                                    .skip(4)
-                                    .map(to_value)
-                                    .collect::<Result<_, Error>>()?
-                            };
-                            let auth: Vec<Arc<dyn AuthorityObject>> = vec![Arc::new(
-                                ForwardAuthority::builder_tokio(ForwardConfig {
-                                    name_servers: from_value(Value::Array(forward_servers))?,
+                            let forward_servers: Vec<NameServerConfig> =
+                                if let Some(servers) = &static_servers {
+                                    servers.iter().map(|addr| forward_name_server(*addr)).collect()
+                                } else {
+                                    config.name_servers().iter().skip(2).cloned().collect()
+                                };
+                            let auth: Vec<Arc<dyn ZoneHandler>> = vec![Arc::new(
+                                ForwardZoneHandler::builder_tokio(ForwardConfig {
+                                    name_servers: forward_servers,
                                     options: Some(opts.clone()),
                                 })
                                 .build()
@@ -463,13 +487,15 @@ impl Resolver {
 
 #[async_trait::async_trait]
 impl RequestHandler for Resolver {
-    async fn handle_request<R: ResponseHandler>(
+    async fn handle_request<R: ResponseHandler, T: Time>(
         &self,
         request: &Request,
         mut response_handle: R,
     ) -> ResponseInfo {
         match async {
-            let req = request.request_info()?;
+            let req = request
+                .request_info()
+                .map_err(|e| NetError::from(e.to_string()))?;
             let query = req.query;
             let name = query.name();
 
@@ -480,8 +506,8 @@ impl RequestHandler for Resolver {
                     r.challenges.retain(|_, (_, weak)| weak.strong_count() > 0);
                     r.challenges.remove(&name_str).map(|(val, _)| val)
                 }) {
-                    let mut header = Header::response_from_request(request.header());
-                    header.set_recursion_available(true);
+                    let mut header = Metadata::response_from_request(&request.metadata);
+                    header.recursion_available = true;
                     return response_handle
                         .send_response(
                             MessageResponseBuilder::from_message_request(&*request).build(
@@ -508,8 +534,8 @@ impl RequestHandler for Resolver {
             if let Some(ip) = self.resolve(name, req.src.ip()) {
                 match query.query_type() {
                     RecordType::A => {
-                        let mut header = Header::response_from_request(request.header());
-                        header.set_recursion_available(true);
+                        let mut header = Metadata::response_from_request(&request.metadata);
+                        header.recursion_available = true;
                         response_handle
                             .send_response(
                                 MessageResponseBuilder::from_message_request(&*request).build(
@@ -535,8 +561,8 @@ impl RequestHandler for Resolver {
                             .map(Some)
                     }
                     RecordType::AAAA => {
-                        let mut header = Header::response_from_request(request.header());
-                        header.set_recursion_available(true);
+                        let mut header = Metadata::response_from_request(&request.metadata);
+                        header.recursion_available = true;
                         response_handle
                             .send_response(
                                 MessageResponseBuilder::from_message_request(&*request).build(
@@ -562,12 +588,12 @@ impl RequestHandler for Resolver {
                             .map(Some)
                     }
                     _ => {
-                        let mut header = Header::response_from_request(request.header());
-                        header.set_recursion_available(true);
+                        let mut header = Metadata::response_from_request(&request.metadata);
+                        header.recursion_available = true;
                         response_handle
                             .send_response(
                                 MessageResponseBuilder::from_message_request(&*request).build(
-                                    header.into(),
+                                    header,
                                     [],
                                     [],
                                     [],
@@ -592,13 +618,13 @@ impl RequestHandler for Resolver {
                     t!("net.dns.error-resolving-internal", error = e.to_string())
                 );
                 tracing::debug!("{e:?}");
-                let mut header = Header::response_from_request(request.header());
-                header.set_recursion_available(true);
-                header.set_response_code(ResponseCode::ServFail);
+                let mut header = Metadata::response_from_request(&request.metadata);
+                header.recursion_available = true;
+                header.response_code = ResponseCode::ServFail;
                 return response_handle
                     .send_response(
                         MessageResponseBuilder::from_message_request(&*request).build(
-                            header.into(),
+                            header,
                             [],
                             [],
                             [],
@@ -606,13 +632,19 @@ impl RequestHandler for Resolver {
                         ),
                     )
                     .await
-                    .unwrap_or_else(|_| header.into());
+                    .unwrap_or_else(|_| {
+                        Header {
+                            metadata: header,
+                            counts: HeaderCounts::default(),
+                        }
+                        .into()
+                    });
             }
         }
         self.catalog
             .read()
             .await
-            .handle_request(request, response_handle)
+            .handle_request::<R, T>(request, response_handle)
             .await
     }
 }
@@ -637,12 +669,13 @@ fn bind_reuse_udp(addr: SocketAddr, dual_stack: bool) -> Result<UdpSocket, Error
     UdpSocket::from_std(socket.into()).with_kind(ErrorKind::Network)
 }
 
-fn dns_server_on(resolver: Resolver, addr: SocketAddr) -> Result<ServerFuture<Resolver>, Error> {
+fn dns_server_on(resolver: Resolver, addr: SocketAddr) -> Result<Server<Resolver>, Error> {
     let dual_stack = matches!(addr, SocketAddr::V6(v6) if v6.ip().is_unspecified());
-    let mut server = ServerFuture::new(resolver);
+    let mut server = Server::new(resolver);
     server.register_listener(
         bind_tokio_listener(addr).with_kind(ErrorKind::Network)?,
         Duration::from_secs(30),
+        DNS_RESPONSE_BUFFER_SIZE,
     );
     server.register_socket(bind_reuse_udp(addr, dual_stack)?);
     Ok(server)
@@ -673,7 +706,7 @@ async fn run_dns_servers(
     let loopback = vec![IpAddr::V4(Ipv4Addr::LOCALHOST), IpAddr::V6(Ipv6Addr::LOCALHOST)];
     let host_ip = IpAddr::V4(Ipv4Addr::from(HOST_IP));
 
-    let mut servers: BTreeMap<SocketAddr, ServerFuture<Resolver>> = BTreeMap::new();
+    let mut servers: BTreeMap<SocketAddr, Server<Resolver>> = BTreeMap::new();
     loop {
         let mut desired: BTreeMap<SocketAddr, PrivateScope> = BTreeMap::new();
         net_iface.peek(|ifaces| {
