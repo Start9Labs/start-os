@@ -12,7 +12,6 @@ use hickory_server::net::NetError;
 use hickory_server::net::runtime::Time;
 use hickory_server::proto::op::{Header, HeaderCounts, Metadata, ResponseCode};
 use hickory_server::proto::rr::{Name, Record, RecordType};
-use hickory_server::resolver as hickory_resolver;
 use hickory_server::resolver::config::{
     ConnectionConfig, NameServerConfig, ResolverConfig, ResolverOpts,
 };
@@ -245,6 +244,26 @@ pub(crate) fn name_server_socket_addr(ns: &NameServerConfig) -> SocketAddr {
     SocketAddr::new(ns.ip, ns.connections.first().map_or(53, |c| c.port))
 }
 
+/// Parse systemd-resolved's resolv.conf. hickory 0.26 only exposes
+/// `system_conf::parse_resolv_conf` on non-apple unix; this path only runs on
+/// the (Linux) server, so non-Linux targets just need a stub to compile.
+#[cfg(target_os = "linux")]
+pub(crate) fn parse_resolv_conf(
+    data: impl AsRef<[u8]>,
+) -> Result<(ResolverConfig, ResolverOpts), Error> {
+    hickory_server::resolver::system_conf::parse_resolv_conf(data).with_kind(ErrorKind::ParseSysInfo)
+}
+
+#[cfg(not(target_os = "linux"))]
+pub(crate) fn parse_resolv_conf(
+    _data: impl AsRef<[u8]>,
+) -> Result<(ResolverConfig, ResolverOpts), Error> {
+    Err(Error::new(
+        eyre!("resolv.conf parsing is only supported on Linux"),
+        ErrorKind::ParseSysInfo,
+    ))
+}
+
 /// What private domains a resolver (one per bound socket) may answer.
 #[derive(Clone)]
 enum PrivateScope {
@@ -301,9 +320,7 @@ fn spawn_forwarder(
                                             eyre!("resolv.conf stream ended"),
                                             ErrorKind::Network,
                                         ))?;
-                                    let (config, mut opts) =
-                                        hickory_resolver::system_conf::parse_resolv_conf(conf)
-                                            .with_kind(ErrorKind::ParseSysInfo)?;
+                                    let (config, mut opts) = parse_resolv_conf(conf)?;
                                     opts.timeout = Duration::from_secs(30);
                                     last_config = Some((config, opts));
                                     true

@@ -12,7 +12,9 @@ use hickory_server::zone_handler::{Catalog, ZoneHandler};
 use ipnet::Ipv4Net;
 use tokio::net::{TcpListener, UdpSocket};
 
-use crate::net::dns::{DNS_RESPONSE_BUFFER_SIZE, forward_name_server, name_server_socket_addr};
+use crate::net::dns::{
+    DNS_RESPONSE_BUFFER_SIZE, forward_name_server, name_server_socket_addr, parse_resolv_conf,
+};
 use crate::prelude::*;
 use crate::tunnel::wg::{DnsConfig, WgServer};
 use crate::util::future::NonDetachingJoinHandle;
@@ -107,7 +109,7 @@ async fn systemd_resolved_upstreams() -> Vec<SocketAddr> {
     let Ok(contents) = read_file_to_string("/run/systemd/resolve/resolv.conf").await else {
         return Vec::new();
     };
-    match hickory_resolver::system_conf::parse_resolv_conf(contents) {
+    match parse_resolv_conf(contents) {
         Ok((config, _)) => resolv_conf_upstreams(&config),
         Err(_) => Vec::new(),
     }
