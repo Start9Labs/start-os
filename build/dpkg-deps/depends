@@ -61,6 +61,7 @@ squashfs-tools-ng
 ssl-cert
 sudo
 systemd
+systemd-oomd
 systemd-resolved
 systemd-sysv
 systemd-timesyncd

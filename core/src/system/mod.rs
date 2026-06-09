@@ -79,6 +79,55 @@ pub async fn enable_zram() -> Result<(), Error> {
     Ok(())
 }
 
+/// The systemd slice that holds every service container's cgroup — lxc places
+/// containers under it (see `core/src/lxc/config.template`) and the unit
+/// (`core/services.slice`) opts it into `systemd-oomd` PSI monitoring. Capping
+/// it bounds the *aggregate* memory of all service containers.
+const CONTAINER_SLICE: &str = "services.slice";
+
+/// Bound the memory all service containers may collectively use, reserving a
+/// fixed amount for the host management plane (startd, sshd, journald). The cap
+/// is applied with `systemctl set-property` so systemd owns it (survives a
+/// daemon-reload) and so it composes with the slice's `ManagedOOMMemoryPressure`
+/// — under sustained pressure `systemd-oomd` kills the heaviest **container**
+/// cgroup in this slice, never the host plane (which `MemoryMin` protects).
+///
+/// `HOST_RESERVE_MIB` is a constant, not a fraction of RAM: the host plane's
+/// footprint (~210 MiB idle + install/admin headroom) doesn't scale with box
+/// size. It is kept in lock-step with the `MemoryMin` drop-ins shipped by
+/// `debian/startos/postinst` (`system.slice` 768M + `user.slice` 256M = 1 GiB).
+pub async fn limit_container_memory() -> Result<(), Error> {
+    const HOST_RESERVE_MIB: u64 = 1024;
+    let total_mib = get_mem_info().await?.total.0 as u64;
+    let container_max_mib = total_mib.saturating_sub(HOST_RESERVE_MIB).max(512);
+    // begin proactive reclaim a little before the hard cap so the limit
+    // degrades gracefully (throttle) instead of going straight to OOM.
+    let container_high_mib = container_max_mib - container_max_mib / 10;
+
+    Command::new("systemctl")
+        .arg("set-property")
+        .arg("--runtime")
+        .arg(CONTAINER_SLICE)
+        .arg(format!("MemoryHigh={container_high_mib}M"))
+        .arg(format!("MemoryMax={container_max_mib}M"))
+        .invoke(ErrorKind::Systemd)
+        .await?;
+    // Materialize the slice now so its cgroup exists with the cap + ManagedOOM
+    // settings applied before any container is placed in it.
+    Command::new("systemctl")
+        .arg("start")
+        .arg(CONTAINER_SLICE)
+        .invoke(ErrorKind::Systemd)
+        .await?;
+
+    tracing::info!(
+        "service containers ({CONTAINER_SLICE}) capped at {container_max_mib} MiB \
+         (high {container_high_mib} MiB); {HOST_RESERVE_MIB} MiB reserved for the \
+         host plane of {total_mib} MiB total"
+    );
+    Ok(())
+}
+
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[group(skip)]
 #[serde(rename_all = "camelCase")]

@@ -17,7 +17,7 @@ COMPRESSED_WEB_UIS := web/dist/static/ui/index.html web/dist/static/setup-wizard
 FIRMWARE_ROMS := build/lib/firmware/$(PLATFORM) $(shell jq --raw-output '.[] | select(.platform[] | contains("$(PLATFORM)")) | "./build/lib/firmware/$(PLATFORM)/" + .id + ".rom.gz"' build/lib/firmware.json)
 BUILD_SRC := $(call ls-files, build/lib) build/lib/depends build/lib/conflicts $(FIRMWARE_ROMS) build/lib/migration-images/.done
 IMAGE_RECIPE_SRC := $(call ls-files, build/image-recipe/)
-STARTD_SRC := core/startd.service $(BUILD_SRC)
+STARTD_SRC := core/startd.service core/services.slice $(BUILD_SRC)
 CORE_SRC := $(call ls-files, core) $(shell git ls-files --recurse-submodules patch-db) $(GIT_HASH_FILE)
 WEB_SHARED_SRC := $(call ls-files, web/projects/shared) $(call ls-files, web/projects/marketplace) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules/.package-lock.json web/config.json patch-db/client/dist/index.js sdk/baseDist/package.json web/patchdb-ui-seed.json sdk/dist/package.json
 WEB_UI_SRC := $(call ls-files, web/projects/ui)
@@ -200,6 +200,7 @@ install: $(STARTOS_TARGETS)
 	
 	$(call mkdir,$(DESTDIR)/lib/systemd/system)
 	$(call cp,core/startd.service,$(DESTDIR)/lib/systemd/system/startd.service)
+	$(call cp,core/services.slice,$(DESTDIR)/lib/systemd/system/services.slice)
 	if /bin/bash -c '[[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]'; then \
 		sed -i '/^Environment=/a Environment=RUST_BACKTRACE=full' $(DESTDIR)/lib/systemd/system/startd.service; \
 	fi
