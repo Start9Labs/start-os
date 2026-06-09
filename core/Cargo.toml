@@ -51,7 +51,7 @@ unstable = ["backtrace-on-stack-overflow"]
 
 [dependencies]
 aes = { version = "0.7.5", features = ["ctr"] }
-async-acme = { version = "0.6.0", git = "https://github.com/Start9Labs/async-acme.git", rev = "6d887d0ba58e5eb49cefc11fb5ab8f6887351f79", features = [
+async-acme = { version = "0.6.0", git = "https://github.com/Start9Labs/async-acme.git", rev = "6da895b89227ac14e39ff8470c415b054ee62e9c", features = [
   "use_rustls",
   "use_tokio",
 ] }
@@ -218,7 +218,7 @@ thiserror = "2.0.12"
 tokio = { version = "1.38.1", features = ["full"] }
 tokio-rustls = "0.26.4"
 tokio-stream = { version = "0.1.14", features = ["io-util", "net", "sync"] }
-tokio-tar = { git = "https://github.com/dr-bonez/tokio-tar.git" }
+tokio-tar = { package = "astral-tokio-tar", version = "0.6" }
 tokio-tungstenite = { version = "0.26.2", features = ["native-tls", "url"] }
 tokio-util = { version = "0.7.9", features = ["io", "rt"] }
 tower-service = "0.3.3"
