@@ -10,7 +10,7 @@ use ts_rs::TS;
 use super::FileSystem;
 use crate::disk::mount::filesystem::MountType;
 use crate::prelude::*;
-use crate::util::io::create_file;
+use crate::util::io::{canonicalize, create_file};
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -89,15 +89,10 @@ impl<Src: AsRef<Path> + Send + Sync> FileSystem for Bind<Src> {
     ) -> Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error> {
         let mut sha = Sha256::new();
         sha.update("Bind");
+        // tolerant of a not-yet-created source dir; pre_mount creates the leaf
         sha.update(
-            tokio::fs::canonicalize(self.src.as_ref())
-                .await
-                .with_ctx(|_| {
-                    (
-                        crate::ErrorKind::Filesystem,
-                        self.src.as_ref().display().to_string(),
-                    )
-                })?
+            canonicalize(self.src.as_ref(), false)
+                .await?
                 .as_os_str()
                 .as_bytes(),
         );

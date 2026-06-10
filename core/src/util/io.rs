@@ -1711,40 +1711,35 @@ pub async fn canonicalize(
     path: impl AsRef<Path> + Send + Sync,
     create_parent: bool,
 ) -> Result<PathBuf, Error> {
-    fn create_canonical_folder<'a>(
-        path: impl AsRef<Path> + Send + Sync + 'a,
-    ) -> BoxFuture<'a, Result<PathBuf, Error>> {
-        async move {
-            let path = canonicalize(path, true).await?;
-            tokio::fs::create_dir(&path)
-                .await
-                .with_ctx(|_| (ErrorKind::Filesystem, format!("mkdir {path:?}")))?;
-            Ok(path)
-        }
-        .boxed()
-    }
-    let path = path.as_ref();
-    if tokio::fs::metadata(path).await.is_err() {
-        let parent = path.parent().unwrap_or(Path::new("."));
-        if let Some(file_name) = path.file_name() {
-            if create_parent && tokio::fs::metadata(parent).await.is_err() {
-                return Ok(create_canonical_folder(parent).await?.join(file_name));
-            } else {
-                return Ok(tokio::fs::canonicalize(parent)
-                    .await
-                    .with_ctx(|_| {
-                        (
-                            ErrorKind::Filesystem,
-                            lazy_format!("canonicalize {parent:?}"),
-                        )
-                    })?
-                    .join(file_name));
+    canonicalize_rec(path.as_ref(), create_parent).await
+}
+
+fn canonicalize_rec(path: &Path, create_parent: bool) -> BoxFuture<'_, Result<PathBuf, Error>> {
+    async move {
+        match tokio::fs::canonicalize(path).await {
+            Ok(canonical) => Ok(canonical),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                let Some(file_name) = path.file_name() else {
+                    return Err(e).with_ctx(|_| {
+                        (ErrorKind::Filesystem, lazy_format!("canonicalize {path:?}"))
+                    });
+                };
+                let parent = path.parent().unwrap_or(Path::new("."));
+                if create_parent {
+                    // short-circuit: create the whole missing chain at once
+                    tokio::fs::create_dir_all(parent).await.with_ctx(|_| {
+                        (ErrorKind::Filesystem, lazy_format!("mkdir -p {parent:?}"))
+                    })?;
+                }
+                // resolve the first existing ancestor, then re-append the tail
+                Ok(canonicalize_rec(parent, create_parent).await?.join(file_name))
+            }
+            Err(e) => {
+                Err(e).with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("canonicalize {path:?}")))
             }
         }
     }
-    tokio::fs::canonicalize(&path)
-        .await
-        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("canonicalize {path:?}")))
+    .boxed()
 }
 
 pub struct AtomicFile {

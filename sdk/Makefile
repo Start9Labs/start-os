@@ -36,7 +36,7 @@ baseDist: $(PACKAGE_TS_FILES) $(BASE_TS_FILES) base/package.json base/node_modul
 	cp LICENSE baseDist/LICENSE
 	touch baseDist
 
-dist: $(PACKAGE_TS_FILES) $(BASE_TS_FILES) package/package.json package/.npmignore package/node_modules README.md LICENSE CHANGELOG.md s9pk.mk tsconfig.base.json
+dist: $(PACKAGE_TS_FILES) $(BASE_TS_FILES) package/package.json package/.npmignore package/node_modules README.md LICENSE CHANGELOG.md s9pk.mk tsconfig.base.json package/eslint.config.base.mjs package/lint.mjs
 	(cd package && npm run tsc)
 	rsync -ac --include='*.js' --include='*.d.ts' --include='*/' --exclude='*' base/lib/ dist/base/lib/
 	rsync -ac package/node_modules dist/
@@ -47,6 +47,8 @@ dist: $(PACKAGE_TS_FILES) $(BASE_TS_FILES) package/package.json package/.npmigno
 	cp CHANGELOG.md dist/CHANGELOG.md
 	cp s9pk.mk dist/s9pk.mk
 	cp tsconfig.base.json dist/tsconfig.base.json
+	cp package/eslint.config.base.mjs dist/eslint.config.base.mjs
+	cp package/lint.mjs dist/lint.mjs
 	touch dist
 
 full-bundle: bundle
