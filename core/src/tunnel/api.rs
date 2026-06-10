@@ -414,7 +414,7 @@ pub async fn set_subnet_dns(
     // The DNS line in client configs always points at the subnet's `.1`, so the
     // WireGuard config is unchanged by a mode switch — only the proxy's upstreams
     // change. No `server.sync()` / wg-quick bounce needed.
-    ctx.dns_proxy.sync(&server).await
+    ctx.dns_proxy.sync(&server, ctx.dns_injector.clone()).await
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]

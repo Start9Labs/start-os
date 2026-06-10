@@ -47,6 +47,8 @@ pub struct TunnelDatabase {
     pub gateways: OrdMap<GatewayId, NetworkInterfaceInfo>,
     pub wg: WgServer,
     pub port_forwards: PortForwards,
+    #[serde(default)]
+    pub dns_records: DnsRecords,
 }
 
 impl TunnelDatabase {
@@ -124,6 +126,25 @@ pub struct PortForwardEntry {
 fn default_true() -> bool {
     true
 }
+
+/// A DNS record served by the tunnel — either injected by a device via RFC 2136
+/// or added manually. `value` is the rdata rendered as text (an IP for A/AAAA,
+/// a name for CNAME, the string for TXT).
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct DnsRecordEntry {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub rtype: String,
+    pub value: String,
+    pub ttl: u32,
+    /// The device IP that injected this, or `null` for a manual record.
+    #[serde(default)]
+    pub source: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
+pub struct DnsRecords(pub Vec<DnsRecordEntry>);
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
 pub struct PortForwards(pub BTreeMap<SocketAddrV4, PortForwardEntry>);
