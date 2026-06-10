@@ -822,6 +822,12 @@ async fn watcher(
     }
 }
 
+/// Sentinel key used to rate-limit the per-interface UPnP WAN-IP probe inside
+/// the echoip rate-limit map (it is not a real echoip URL and is never fetched).
+fn upnp_probe_key() -> Url {
+    Url::parse("upnp://get-external-ip-address").unwrap()
+}
+
 async fn get_wan_ipv4(
     iface: &str,
     base_url: &Url,
@@ -1369,23 +1375,45 @@ async fn poll_ip_info(
     };
     let mut wan_ip = None;
     let mut err = None;
+    let local_ipv4 = subnets.iter().find_map(|s| match s.addr() {
+        IpAddr::V4(v4) => Some(v4),
+        _ => None,
+    });
+    let forwardable = !subnets.is_empty()
+        && !matches!(
+            device_type,
+            Some(NetworkInterfaceType::Bridge | NetworkInterfaceType::Loopback)
+        );
+
+    // Ask the gateway's own UPnP IGD first. This works for a home router and
+    // for a StartTunnel gateway, which answers GetExternalIPAddress over the
+    // WireGuard link (see crate::tunnel::igd). Rate-limited like echoip below,
+    // keyed by a sentinel URL in the shared rate-limit map.
+    if let Some(local_ipv4) = local_ipv4.filter(|_| forwardable) {
+        let upnp_probe_key = upnp_probe_key();
+        if echoip_ratelimit_state
+            .get(&upnp_probe_key)
+            .map_or(true, |i| i.elapsed() > Duration::from_secs(300))
+        {
+            echoip_ratelimit_state.insert(upnp_probe_key, Instant::now());
+            match crate::net::upnp::get_external_ipv4(local_ipv4).await {
+                Ok(Some(ip)) => wan_ip = Some(ip),
+                Ok(None) => (),
+                Err(e) => tracing::debug!("UPnP WAN IP probe on {iface} failed: {e}"),
+            }
+        }
+    }
+
     for echoip_url in echoip_urls {
+        if wan_ip.is_some() {
+            break;
+        }
         if echoip_ratelimit_state
             .get(&echoip_url)
             .map_or(true, |i| i.elapsed() > Duration::from_secs(300))
-            && !subnets.is_empty()
-            && !matches!(
-                device_type,
-                Some(NetworkInterfaceType::Bridge | NetworkInterfaceType::Loopback)
-            )
+            && forwardable
         {
-            let local_ipv4 = subnets
-                .iter()
-                .find_map(|s| match s.addr() {
-                    IpAddr::V4(v4) => Some(v4),
-                    _ => None,
-                })
-                .unwrap_or(Ipv4Addr::UNSPECIFIED);
+            let local_ipv4 = local_ipv4.unwrap_or(Ipv4Addr::UNSPECIFIED);
             match get_wan_ipv4(iface.as_str(), &echoip_url, local_ipv4).await {
                 Ok(a) => {
                     wan_ip = a;

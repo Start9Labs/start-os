@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
-use std::net::{IpAddr, SocketAddrV4};
+use std::net::{IpAddr, Ipv4Addr, SocketAddrV4};
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
@@ -16,6 +16,7 @@ use tokio::sync::mpsc;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::NetworkInterfaceInfo;
+use crate::net::port_map::{PortMapController, candidate_gateways};
 use crate::prelude::*;
 use crate::util::Invoke;
 use crate::util::future::NonDetachingJoinHandle;
@@ -31,6 +32,12 @@ const RESTRICTED_PORTS: &[u16] = &[5353, 5355, 5432, 6010, 9050, 9051];
 fn is_restricted(port: u16) -> bool {
     port <= 1024 || RESTRICTED_PORTS.contains(&port)
 }
+
+/// Largest port range we'll try to open automatically on the upstream gateway.
+/// PCP/NAT-PMP/UPnP all map one port per request, so a per-port sweep of a huge
+/// range would hammer the gateway (and routers cap their mapping tables); above
+/// this the local forward still applies and the operator forwards manually.
+const MAX_AUTO_MAP_PORTS: u16 = 128;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ForwardRequirements {
@@ -572,6 +579,11 @@ struct InterfaceForwardEntry {
     targets: BTreeMap<ForwardRequirements, (SocketAddrV4, u8, Weak<()>)>,
     // Maps source SocketAddr -> strong reference for the forward created in PortForwardController
     forwards: BTreeMap<SocketAddrV4, Arc<()>>,
+    // (local interface IP, external port) pairs for which we've asked the
+    // upstream gateway (via PCP/NAT-PMP/UPnP) to forward to this host. Tracked
+    // so the mapping is withdrawn when the forward is no longer required. A
+    // range contributes one entry per port (capped, see MAX_AUTO_MAP_PORTS).
+    mapped: BTreeSet<(Ipv4Addr, u16)>,
 }
 
 impl IdOrdItem for InterfaceForwardEntry {
@@ -590,6 +602,7 @@ impl InterfaceForwardEntry {
             count,
             targets: BTreeMap::new(),
             forwards: BTreeMap::new(),
+            mapped: BTreeSet::new(),
         }
     }
 
@@ -597,8 +610,18 @@ impl InterfaceForwardEntry {
         &mut self,
         ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
         port_forward: &PortForwardController,
+        pmap: &PortMapController,
     ) -> Result<(), Error> {
         let mut keep = BTreeSet::<SocketAddrV4>::new();
+        // (local IP, external port) -> candidate upstream gateways whose
+        // port-control protocol (PCP/NAT-PMP/UPnP) should forward that port to
+        // us. Only public-gateway forwards (the WAN-facing ones) need a port
+        // opened upstream; private-subnet forwards are already directly
+        // reachable. A range expands to one entry per port, up to a cap — none
+        // of these protocols maps ranges natively, and per-port mapping of a
+        // huge range would hammer the gateway, so very large ranges are left
+        // for the operator to forward manually.
+        let mut want = BTreeMap::<(Ipv4Addr, u16), Vec<Ipv4Addr>>::new();
 
         for (gw_id, info) in ip_info.iter() {
             if let Some(ip_info) = &info.ip_info {
@@ -617,7 +640,8 @@ impl InterfaceForwardEntry {
                                 continue;
                             }
 
-                            let src_filter = if reqs.public_gateways.contains(gw_id) {
+                            let public = reqs.public_gateways.contains(gw_id);
+                            let src_filter = if public {
                                 None
                             } else if reqs.private_ips.contains(&IpAddr::V4(ip)) {
                                 Some(subnet.trunc())
@@ -626,6 +650,14 @@ impl InterfaceForwardEntry {
                             };
 
                             keep.insert(addr);
+                            if public && self.count <= MAX_AUTO_MAP_PORTS {
+                                for off in 0..self.count {
+                                    if let Some(port) = self.external.checked_add(off) {
+                                        want.entry((ip, port))
+                                            .or_insert_with(|| candidate_gateways(info));
+                                    }
+                                }
+                            }
                             let fwd_rc = port_forward
                                 .add_forward_range(
                                     addr,
@@ -646,6 +678,15 @@ impl InterfaceForwardEntry {
         // Remove forwards that should no longer exist (drops the strong references)
         self.forwards.retain(|addr, _| keep.contains(addr));
 
+        // Reconcile the best-effort upstream port mappings against the desired set.
+        for (ip, port) in self.mapped.iter().filter(|key| !want.contains_key(key)) {
+            pmap.remove(*ip, *port);
+        }
+        for ((ip, port), gateways) in &want {
+            pmap.ensure(*ip, *port, *port, gateways.clone());
+        }
+        self.mapped = want.into_keys().collect();
+
         Ok(())
     }
 
@@ -661,6 +702,7 @@ impl InterfaceForwardEntry {
         }: InterfaceForwardRequest,
         ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
         port_forward: &PortForwardController,
+        pmap: &PortMapController,
     ) -> Result<Arc<()>, Error> {
         if external != self.external {
             return Err(Error::new(
@@ -697,7 +739,7 @@ impl InterfaceForwardEntry {
             entry.2 = Arc::downgrade(&rc);
         }
 
-        self.update(ip_info, port_forward).await?;
+        self.update(ip_info, port_forward, pmap).await?;
 
         Ok(rc)
     }
@@ -706,22 +748,25 @@ impl InterfaceForwardEntry {
         &mut self,
         ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
         port_forward: &PortForwardController,
+        pmap: &PortMapController,
     ) -> Result<(), Error> {
         self.targets.retain(|_, (_, _, rc)| rc.strong_count() > 0);
 
-        self.update(ip_info, port_forward).await
+        self.update(ip_info, port_forward, pmap).await
     }
 }
 
 struct InterfaceForwardState {
     port_forward: PortForwardController,
+    pmap: PortMapController,
     state: IdOrdMap<InterfaceForwardEntry>,
 }
 
 impl InterfaceForwardState {
-    fn new(port_forward: PortForwardController) -> Self {
+    fn new(port_forward: PortForwardController, pmap: PortMapController) -> Self {
         Self {
             port_forward,
+            pmap,
             state: IdOrdMap::new(),
         }
     }
@@ -737,7 +782,7 @@ impl InterfaceForwardState {
         self.state
             .entry(request.external)
             .or_insert_with(|| InterfaceForwardEntry::new(request.external, count))
-            .update_request(request, ip_info, &self.port_forward)
+            .update_request(request, ip_info, &self.port_forward, &self.pmap)
             .await
     }
 
@@ -746,7 +791,7 @@ impl InterfaceForwardState {
         ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
     ) -> Result<(), Error> {
         for mut entry in self.state.iter_mut() {
-            entry.gc(ip_info, &self.port_forward).await?;
+            entry.gc(ip_info, &self.port_forward, &self.pmap).await?;
         }
 
         self.port_forward.gc().await
@@ -814,10 +859,11 @@ pub struct InterfacePortForwardController {
 impl InterfacePortForwardController {
     pub fn new(mut ip_info: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>) -> Self {
         let port_forward = PortForwardController::new();
+        let pmap = PortMapController::new();
 
         let (req_send, mut req_recv) = mpsc::unbounded_channel::<InterfaceForwardCommand>();
         let thread = NonDetachingJoinHandle::from(tokio::spawn(async move {
-            let mut state = InterfaceForwardState::new(port_forward);
+            let mut state = InterfaceForwardState::new(port_forward, pmap);
             let mut interfaces = ip_info.read_and_mark_seen();
             loop {
                 tokio::select! {
