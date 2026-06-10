@@ -74,6 +74,19 @@ import { MappedDevice } from './utils'
                   </button>
                   <button
                     tuiOption
+                    [iconStart]="
+                      device.allowDnsInjection ? '@tui.shield-off' : '@tui.shield'
+                    "
+                    (click)="onSetDnsInjection(device)"
+                  >
+                    {{
+                      device.allowDnsInjection
+                        ? 'Disallow DNS injection'
+                        : 'Allow DNS injection'
+                    }}
+                  </button>
+                  <button
+                    tuiOption
                     iconStart="@tui.trash"
                     (click)="onDelete(device)"
                   >
@@ -130,16 +143,45 @@ export default class Devices {
 
   protected readonly devices = computed(() =>
     this.subnets()?.flatMap(subnet =>
-      Object.entries(subnet.clients).map(([ip, { name }]) => ({
+      Object.entries(subnet.clients).map(([ip, { name, allowDnsInjection }]) => ({
         subnet: {
           name: subnet.name,
           range: subnet.range,
         },
         ip,
         name,
+        allowDnsInjection,
       })),
     ),
   )
+
+  protected onSetDnsInjection({
+    subnet,
+    ip,
+    allowDnsInjection,
+  }: MappedDevice): void {
+    this.dialogs
+      .open(TUI_CONFIRM, {
+        label: allowDnsInjection
+          ? 'Stop allowing this device to add DNS records?'
+          : 'Allow this device to add DNS records? Only do this for devices you trust.',
+      })
+      .pipe(filter(Boolean))
+      .subscribe(async () => {
+        const loader = this.loading.open('').subscribe()
+        try {
+          await this.api.setDnsInjection({
+            subnet: subnet.range,
+            ip,
+            enabled: !allowDnsInjection,
+          })
+        } catch (e: any) {
+          this.errorService.handleError(e)
+        } finally {
+          loader.unsubscribe()
+        }
+      })
+  }
 
   protected onAdd() {
     this.dialogs
