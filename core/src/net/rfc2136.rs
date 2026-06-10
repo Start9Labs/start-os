@@ -14,12 +14,15 @@
 //! [`DnsInjector::delete`] bypasses the authorizer (it's an admin action).
 
 use std::collections::BTreeMap;
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
 
 use hickory_server::net::runtime::Time;
 use hickory_server::proto::op::{Header, HeaderCounts, Metadata, OpCode, ResponseCode};
+use hickory_server::proto::rr::rdata::{CNAME, TXT};
 use hickory_server::proto::rr::{DNSClass, LowerName, Name, RData, Record, RecordType};
+
+use crate::prelude::*;
 use hickory_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
 use hickory_server::zone_handler::{Catalog, MessageResponseBuilder};
 
@@ -35,6 +38,71 @@ pub struct InjectedRecord {
     pub ttl: u32,
     /// The device IP that injected this (empty/unspecified for manual entries).
     pub source: IpAddr,
+}
+
+impl InjectedRecord {
+    /// Render to the (name, type, value, ttl, source) text form gateways
+    /// persist and show. `source` is `None` for a manual record.
+    pub fn to_parts(&self) -> (String, String, String, u32, Option<IpAddr>) {
+        let source = if self.source.is_unspecified() {
+            None
+        } else {
+            Some(self.source)
+        };
+        (
+            self.name.to_utf8().trim_end_matches('.').to_string(),
+            self.rtype.to_string(),
+            self.rdata.to_string(),
+            self.ttl,
+            source,
+        )
+    }
+
+    /// Parse the text form back into a record. `source` is the injecting
+    /// device (use `Ipv4Addr::UNSPECIFIED` for a manual record).
+    pub fn from_parts(
+        name: &str,
+        rtype: &str,
+        value: &str,
+        ttl: u32,
+        source: IpAddr,
+    ) -> Result<Self, Error> {
+        let mut n = Name::from_utf8(name).with_kind(ErrorKind::ParseUrl)?;
+        n.set_fqdn(true);
+        let (rtype, rdata) = parse_rdata(rtype, value)?;
+        Ok(Self {
+            name: n,
+            rtype,
+            rdata,
+            ttl,
+            source,
+        })
+    }
+}
+
+fn parse_rdata(rtype: &str, value: &str) -> Result<(RecordType, RData), Error> {
+    let invalid = |what: &str| Error::new(eyre!("invalid {what}: {value}"), ErrorKind::InvalidRequest);
+    Ok(match rtype.to_ascii_uppercase().as_str() {
+        "A" => (
+            RecordType::A,
+            RData::A(value.parse::<Ipv4Addr>().map_err(|_| invalid("A record"))?.into()),
+        ),
+        "AAAA" => (
+            RecordType::AAAA,
+            RData::AAAA(value.parse::<Ipv6Addr>().map_err(|_| invalid("AAAA record"))?.into()),
+        ),
+        "CNAME" => (
+            RecordType::CNAME,
+            RData::CNAME(CNAME(Name::from_utf8(value).with_kind(ErrorKind::ParseUrl)?)),
+        ),
+        "TXT" => (RecordType::TXT, RData::TXT(TXT::new(vec![value.to_string()]))),
+        other => {
+            return Err(Error::new(
+                eyre!("unsupported DNS record type: {other}"),
+                ErrorKind::InvalidRequest,
+            ));
+        }
+    })
 }
 
 type Authorizer = Box<dyn Fn(IpAddr) -> bool + Send + Sync>;
