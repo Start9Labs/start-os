@@ -109,6 +109,10 @@ fn export_bindings_tunnel_db() {
     RemovePortForwardParams::export_all_to("bindings/tunnel").unwrap();
     UpdatePortForwardLabelParams::export_all_to("bindings/tunnel").unwrap();
     SetPortForwardEnabledParams::export_all_to("bindings/tunnel").unwrap();
+    SetDnsInjectionParams::export_all_to("bindings/tunnel").unwrap();
+    AddDnsRecordParams::export_all_to("bindings/tunnel").unwrap();
+    RemoveDnsRecordParams::export_all_to("bindings/tunnel").unwrap();
+    DnsRecordEntry::export_all_to("bindings/tunnel").unwrap();
     AddKeyParams::export_all_to("bindings/tunnel").unwrap();
     RemoveKeyParams::export_all_to("bindings/tunnel").unwrap();
     SetPasswordParams::export_all_to("bindings/tunnel").unwrap();
