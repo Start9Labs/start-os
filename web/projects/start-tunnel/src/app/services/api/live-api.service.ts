@@ -94,6 +94,20 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'device.show-config', params })
   }
 
+  async setDnsInjection(params: T.Tunnel.SetDnsInjectionParams): Promise<null> {
+    return this.rpcRequest({ method: 'device.set-dns-injection', params })
+  }
+
+  // dns
+
+  async addDnsRecord(params: T.Tunnel.AddDnsRecordParams): Promise<null> {
+    return this.rpcRequest({ method: 'dns.add', params })
+  }
+
+  async removeDnsRecord(params: T.Tunnel.RemoveDnsRecordParams): Promise<null> {
+    return this.rpcRequest({ method: 'dns.remove', params })
+  }
+
   // forwards
 
   async addForward(params: T.Tunnel.AddPortForwardParams): Promise<null> {
