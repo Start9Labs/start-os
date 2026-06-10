@@ -132,6 +132,7 @@ export const mockPatchData: DataModel = {
             },
           },
         },
+        bindingRanges: {},
         publicDomains: {},
         privateDomains: {
           'my-server.home': ['eth0'],
@@ -141,6 +142,7 @@ export const mockPatchData: DataModel = {
             src: '203.0.113.45:443',
             dst: '10.0.0.1:443',
             gateway: 'eth0',
+            count: 1,
           },
         ],
       },
@@ -664,6 +666,18 @@ export const mockPatchData: DataModel = {
               },
             },
           },
+          bindingRanges: {
+            49152: {
+              enabled: true,
+              externalStartPort: 49152,
+              numberOfPorts: 100,
+              // Absent gateways default to 'lan' (LAN only). Seed eth0 as
+              // 'lan-wan' and wlan0 as 'disabled' so all three states are
+              // visible on load (wireguard1 stays at the 'lan' default;
+              // wireguard2/Mullvad is outbound-only and excluded from the UI).
+              gatewayAccess: { eth0: 'lan-wan', wlan0: 'disabled' },
+            },
+          },
           publicDomains: {
             'bitcoin.example.com': {
               gateway: 'eth0',
@@ -678,11 +692,19 @@ export const mockPatchData: DataModel = {
               src: '203.0.113.45:443',
               dst: '10.0.0.1:443',
               gateway: 'eth0',
+              count: 1,
             },
             {
               src: '203.0.113.45:42443',
               dst: '10.0.0.1:42443',
               gateway: 'eth0',
+              count: 1,
+            },
+            {
+              src: '203.0.113.45:49152',
+              dst: '10.0.0.2:49152',
+              gateway: 'eth0',
+              count: 100,
             },
           ],
         },
@@ -738,6 +760,7 @@ export const mockPatchData: DataModel = {
               },
             },
           },
+          bindingRanges: {},
           publicDomains: {},
           privateDomains: {},
           portForwards: [],
@@ -762,6 +785,7 @@ export const mockPatchData: DataModel = {
               },
             },
           },
+          bindingRanges: {},
           publicDomains: {},
           privateDomains: {},
           portForwards: [],

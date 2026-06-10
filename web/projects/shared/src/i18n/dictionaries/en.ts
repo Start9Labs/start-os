@@ -764,4 +764,12 @@ export const ENGLISH: Record<string, number> = {
   'the address of this server on the tunnel': 848,
   'In StartTunnel, set the DNS for this subnet to this server.': 849,
   'Duration': 850,
+  'port ranges': 854,
+  'No port ranges': 855,
+  'No gateways': 856,
+  'No WAN IP': 857,
+  'Range': 858,
+  'LAN': 859,
+  'LAN+WAN': 860,
+  'forward the following port range to this server, for both TCP and UDP, if you have not already': 861,
 }

@@ -22,6 +22,7 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, soft: bool) -> Result<(),
                     .transpose()?
                 {
                     d.as_private_mut().as_available_ports_mut().mutate(|p| {
+                        // Free single-port binding allocations...
                         p.free(
                             pde.hosts
                                 .0
@@ -34,6 +35,17 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, soft: bool) -> Result<(),
                                         .chain(b.net.assigned_ssl_port)
                                 }),
                         );
+                        // ...and the contiguous port-range allocations, which
+                        // are tracked separately in `binding_ranges` and would
+                        // otherwise leak (up to MAX_BIND_PORT_RANGE_SIZE ports
+                        // per range) on every uninstall. Subtract before adding
+                        // so a range ending at 65535 doesn't overflow u16.
+                        p.free(pde.hosts.0.values().flat_map(|h| {
+                            h.binding_ranges.values().flat_map(|r| {
+                                r.external_start_port
+                                    ..=r.external_start_port + (r.number_of_ports - 1)
+                            })
+                        }));
                         Ok(())
                     })?;
                     d.as_private_mut().as_package_stores_mut().remove(&id)?;

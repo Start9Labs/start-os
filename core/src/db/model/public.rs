@@ -92,6 +92,7 @@ impl Public {
                             .into_iter()
                             .collect(),
                         ),
+                        binding_ranges: Default::default(),
                         public_domains: BTreeMap::new(),
                         private_domains: BTreeMap::new(),
                         port_forwards: BTreeSet::new(),

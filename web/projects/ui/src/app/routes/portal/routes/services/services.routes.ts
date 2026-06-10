@@ -19,6 +19,10 @@ export const ROUTES: Routes = [
         loadComponent: () => import('./routes/interfaces.component'),
       },
       {
+        path: 'port-ranges',
+        loadComponent: () => import('./routes/port-ranges.component'),
+      },
+      {
         path: 'actions',
         loadComponent: () => import('./routes/actions.component'),
       },

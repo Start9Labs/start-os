@@ -41,6 +41,15 @@ export type PkgBindingSetAddressEnabledReq = Omit<
   host: T.HostId // string
 }
 
+export type PkgBindingSetRangeAccessReq = {
+  // package.host.binding.set-range-gateway-access
+  internalStartPort: number
+  gateway: T.GatewayId // string
+  access: T.RangeGatewayAccess // 'disabled' | 'lan' | 'lan-wan'
+  package: T.PackageId // string
+  host: T.HostId // string
+}
+
 // package domains
 
 export type PkgAddPublicDomainReq = T.AddPublicDomainParams & {

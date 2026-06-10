@@ -139,6 +139,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       | 'exportServiceInterface'
       | 'clearServiceInterfaces'
       | 'bind'
+      | 'bindRange'
       | 'getHostInfo'
     type MainUsedEffects = 'setMainStatus'
     type CallbackEffects =

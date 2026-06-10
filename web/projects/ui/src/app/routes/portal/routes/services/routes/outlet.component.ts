@@ -21,6 +21,8 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
 import { getManifest } from 'src/app/utils/get-package-data'
 
+type NavItem = { title: i18nKey; icon: string; link: string }
+
 @Component({
   template: `
     @if (service()) {
@@ -54,7 +56,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
           </span>
         </header>
         <nav>
-          @for (item of nav; track $index) {
+          @for (item of nav(); track $index) {
             <a
               tuiCell
               tuiAppearance="action-grayscale"
@@ -195,18 +197,40 @@ export class ServiceOutletComponent {
   private readonly router = inject(Router)
   private readonly params = inject(ActivatedRoute).paramMap
 
-  protected readonly nav: { title: i18nKey; icon: string; link: string }[] = [
-    { title: 'dashboard', icon: '@tui.layout-dashboard', link: './' },
-    { title: 'interfaces', icon: '@tui.monitor', link: 'interfaces' },
-    { title: 'actions & config', icon: '@tui.cog', link: 'actions' },
-    {
-      title: 'instructions',
-      icon: '@tui.book-open-text',
-      link: 'instructions',
-    },
-    { title: 'logs', icon: '@tui.scroll-text', link: 'logs' },
-    { title: 'about', icon: '@tui.info', link: 'about' },
-  ]
+  // Port Ranges only appears when the service has a contiguous port-range
+  // binding on one of its hosts.
+  protected readonly nav = computed<NavItem[]>(() => {
+    const pkg = this.service()
+    const hasRanges = Object.values(pkg?.hosts ?? {}).some(
+      host => Object.keys(host.bindingRanges ?? {}).length > 0,
+    )
+
+    const items: NavItem[] = [
+      { title: 'dashboard', icon: '@tui.layout-dashboard', link: './' },
+      { title: 'interfaces', icon: '@tui.monitor', link: 'interfaces' },
+    ]
+
+    if (hasRanges) {
+      items.push({
+        title: 'port ranges',
+        icon: '@tui.chevrons-left-right-ellipsis',
+        link: 'port-ranges',
+      })
+    }
+
+    items.push(
+      { title: 'actions & config', icon: '@tui.cog', link: 'actions' },
+      {
+        title: 'instructions',
+        icon: '@tui.book-open-text',
+        link: 'instructions',
+      },
+      { title: 'logs', icon: '@tui.scroll-text', link: 'logs' },
+      { title: 'about', icon: '@tui.info', link: 'about' },
+    )
+
+    return items
+  })
 
   protected readonly service = toSignal(
     this.router.events.pipe(

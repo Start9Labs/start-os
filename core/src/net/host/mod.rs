@@ -13,11 +13,13 @@ use ts_rs::TS;
 
 use crate::context::RpcContext;
 use crate::db::model::DatabaseModel;
-use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
+use crate::db::model::public::{GatewayType, NetworkInterfaceInfo, NetworkInterfaceType};
 use crate::hostname::ServerHostname;
 use crate::net::forward::AvailablePorts;
 use crate::net::host::address::{HostAddress, PublicDomainConfig, address_api};
-use crate::net::host::binding::{BindInfo, BindOptions, Bindings, binding};
+use crate::net::host::binding::{
+    BindInfo, BindOptions, BindingRanges, Bindings, RangeBindInfo, RangeGatewayAccess, binding,
+};
 use crate::net::service_interface::{HostnameInfo, HostnameMetadata};
 use crate::prelude::*;
 use crate::{GatewayId, HostId, PackageId};
@@ -31,11 +33,17 @@ pub mod binding;
 #[ts(export)]
 pub struct Host {
     pub bindings: Bindings,
+    #[serde(default)]
+    pub binding_ranges: BindingRanges,
     pub public_domains: BTreeMap<InternedString, PublicDomainConfig>,
     pub private_domains: BTreeMap<InternedString, BTreeSet<GatewayId>>,
     /// COMPUTED: port forwarding rules needed on gateways for public addresses to work.
     #[serde(default)]
     pub port_forwards: BTreeSet<PortForward>,
+}
+
+fn default_port_forward_count() -> u16 {
+    1
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
@@ -47,6 +55,13 @@ pub struct PortForward {
     #[ts(type = "string")]
     pub dst: SocketAddrV4,
     pub gateway: GatewayId,
+    /// Number of contiguous ports covered by this forward (always >= 1).
+    /// Set to >1 by [`crate::net::host::binding::RangeBindInfo`] entries to
+    /// represent a single iptables port-range rule rather than N per-port
+    /// rules. Defaults to 1 to keep the on-disk shape compatible with
+    /// existing single-port `PortForward`s.
+    #[serde(default = "default_port_forward_count")]
+    pub count: u16,
 }
 
 impl AsRef<Host> for Host {
@@ -359,10 +374,50 @@ impl Model<Host> {
                         src: SocketAddrV4::new(wan_ip, port),
                         dst: SocketAddrV4::new(addr, port),
                         gateway: gw_id.clone(),
+                        count: 1,
                     });
                 }
             }
         }
+
+        // Port-range bindings: `port_forwards` records only the rules an
+        // operator must add on their router (WAN exposure), mirroring the
+        // single-port loop above which emits public addresses only. So a range
+        // contributes a PortForward only for gateways set to `Public` that have
+        // a WAN IP; `Private` (LAN-only) and `Disabled` need no router config,
+        // and outbound-only gateways never receive inbound forwards.
+        let binding_ranges: BindingRanges = this.binding_ranges.de()?;
+        for (&internal_start, range) in binding_ranges.iter() {
+            if !range.enabled {
+                continue;
+            }
+            for (gw_id, gw_info) in gateways {
+                if matches!(gw_info.gateway_type, Some(GatewayType::OutboundOnly)) {
+                    continue;
+                }
+                if range.access_for(gw_id) != RangeGatewayAccess::LanWan {
+                    continue;
+                }
+                let Some(ip_info) = &gw_info.ip_info else {
+                    continue;
+                };
+                let Some(wan_ip) = ip_info.wan_ip else {
+                    continue;
+                };
+                for subnet in &ip_info.subnets {
+                    let IpAddr::V4(lan_ip) = subnet.addr() else {
+                        continue;
+                    };
+                    port_forwards.insert(PortForward {
+                        src: SocketAddrV4::new(wan_ip, range.external_start_port),
+                        dst: SocketAddrV4::new(lan_ip, internal_start),
+                        gateway: gw_id.clone(),
+                        count: range.number_of_ports,
+                    });
+                }
+            }
+        }
+
         this.port_forwards.ser(&port_forwards)?;
 
         Ok(())
@@ -441,6 +496,66 @@ impl Model<Host> {
                 BindInfo::new(available_ports, options)?
             };
             b.insert(internal_port, info);
+            Ok(())
+        })
+    }
+
+    /// Add or re-affirm a contiguous port-range binding. The external ports
+    /// (`external_start_port..`) are all allocated up-front — partial
+    /// collisions are a hard error. `internal_start_port` may differ from
+    /// `external_start_port`; the forward-port script maps the two ranges by
+    /// offset via an nft verdict map.
+    pub fn add_binding_range(
+        &mut self,
+        available_ports: &mut AvailablePorts,
+        internal_start_port: u16,
+        external_start_port: u16,
+        number_of_ports: u16,
+    ) -> Result<(), Error> {
+        if number_of_ports < 2 {
+            return Err(Error::new(
+                eyre!("numberOfPorts must be at least 2; use bind for a single port"),
+                ErrorKind::InvalidRequest,
+            ));
+        }
+        self.as_binding_ranges_mut().mutate(|ranges| {
+            let existing = ranges.get(&internal_start_port);
+            // Idempotent re-bind: a package may call bindPortRange on every
+            // setupMain pass. An unchanged range keeps its allocation; the
+            // insert below just re-affirms (re-enables) it.
+            let unchanged = matches!(
+                existing,
+                Some(e)
+                    if e.external_start_port == external_start_port
+                        && e.number_of_ports == number_of_ports
+            );
+            // Preserve the operator's per-gateway access choices across rebinds
+            // — bindPortRange is service-driven, so it must not clobber a UI
+            // choice made between restarts.
+            let gateway_access = existing
+                .map(|e| e.gateway_access.clone())
+                .unwrap_or_default();
+            if !unchanged {
+                // New, resized, or moved range: free any prior allocation, then
+                // claim the new one. `number_of_ports >= 2`, so subtract before
+                // adding — `start + count` would overflow u16 for a range ending
+                // at 65535.
+                if let Some(e) = existing {
+                    available_ports.free(
+                        e.external_start_port..=e.external_start_port + (e.number_of_ports - 1),
+                    );
+                }
+                available_ports.try_alloc_range(external_start_port, number_of_ports)?;
+            }
+            ranges.insert(
+                internal_start_port,
+                RangeBindInfo {
+                    enabled: true,
+                    external_start_port,
+                    number_of_ports,
+                    gateway_access,
+                },
+            );
             Ok(())
         })
     }

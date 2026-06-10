@@ -78,6 +78,43 @@ impl AvailablePorts {
         Some(port)
     }
 
+    /// Try to allocate `count` contiguous non-ssl ports starting at `start`.
+    /// All ports in `[start, start + count)` must be free and non-restricted;
+    /// otherwise nothing is allocated and `Err` is returned describing the
+    /// first offending port.
+    pub fn try_alloc_range(&mut self, start: u16, count: u16) -> Result<(), Error> {
+        if count == 0 {
+            return Err(Error::new(
+                eyre!("port range must contain at least one port"),
+                ErrorKind::InvalidRequest,
+            ));
+        }
+        let end = start.checked_add(count - 1).ok_or_else(|| {
+            Error::new(
+                eyre!("port range {start}+{count} overflows u16"),
+                ErrorKind::InvalidRequest,
+            )
+        })?;
+        for port in start..=end {
+            if is_restricted(port) {
+                return Err(Error::new(
+                    eyre!("port {port} in range {start}-{end} is restricted"),
+                    ErrorKind::InvalidRequest,
+                ));
+            }
+            if self.0.contains_key(&port) {
+                return Err(Error::new(
+                    eyre!("port {port} in range {start}-{end} is already allocated"),
+                    ErrorKind::InvalidRequest,
+                ));
+            }
+        }
+        for port in start..=end {
+            self.0.insert(port, false);
+        }
+        Ok(())
+    }
+
     pub fn set_ssl(&mut self, port: u16, ssl: bool) {
         self.0.insert(port, ssl);
     }
@@ -126,6 +163,11 @@ pub fn forward_api<C: Context>() -> ParentHandler<C> {
 struct ForwardMapping {
     source: SocketAddrV4,
     target: SocketAddrV4,
+    /// Number of contiguous ports forwarded starting at `source.port()` /
+    /// `target.port()`. `1` is a single-port forward; values > 1 produce a
+    /// single nft rule covering the whole range (port-preserving when the two
+    /// bases are equal, otherwise an offset verdict map).
+    count: u16,
     target_prefix: u8,
     src_filter: Option<IpNet>,
     rc: Weak<()>,
@@ -141,11 +183,15 @@ impl PortForwardState {
         &mut self,
         source: SocketAddrV4,
         target: SocketAddrV4,
+        count: u16,
         target_prefix: u8,
         src_filter: Option<IpNet>,
     ) -> Result<Arc<()>, Error> {
         if let Some(existing) = self.mappings.get_mut(&source) {
-            if existing.target == target && existing.src_filter == src_filter {
+            if existing.target == target
+                && existing.count == count
+                && existing.src_filter == src_filter
+            {
                 if let Some(existing_rc) = existing.rc.upgrade() {
                     return Ok(existing_rc);
                 } else {
@@ -154,11 +200,12 @@ impl PortForwardState {
                     return Ok(rc);
                 }
             } else {
-                // Different target or src_filter, need to remove old and add new
+                // Different target, count, or src_filter, need to remove old and add new
                 if let Some(mapping) = self.mappings.remove(&source) {
                     unforward(
                         mapping.source,
                         mapping.target,
+                        mapping.count,
                         mapping.target_prefix,
                         mapping.src_filter.as_ref(),
                     )
@@ -168,12 +215,13 @@ impl PortForwardState {
         }
 
         let rc = Arc::new(());
-        forward(source, target, target_prefix, src_filter.as_ref()).await?;
+        forward(source, target, count, target_prefix, src_filter.as_ref()).await?;
         self.mappings.insert(
             source,
             ForwardMapping {
                 source,
                 target,
+                count,
                 target_prefix,
                 src_filter,
                 rc: Arc::downgrade(&rc),
@@ -196,6 +244,7 @@ impl PortForwardState {
                 unforward(
                     mapping.source,
                     mapping.target,
+                    mapping.count,
                     mapping.target_prefix,
                     mapping.src_filter.as_ref(),
                 )
@@ -223,6 +272,7 @@ impl Drop for PortForwardState {
                     unforward(
                         mapping.source,
                         mapping.target,
+                        mapping.count,
                         mapping.target_prefix,
                         mapping.src_filter.as_ref(),
                     )
@@ -238,6 +288,7 @@ enum PortForwardCommand {
     AddForward {
         source: SocketAddrV4,
         target: SocketAddrV4,
+        count: u16,
         target_prefix: u8,
         src_filter: Option<IpNet>,
         respond: oneshot::Sender<Result<Arc<()>, Error>>,
@@ -415,12 +466,13 @@ impl PortForwardController {
                     PortForwardCommand::AddForward {
                         source,
                         target,
+                        count,
                         target_prefix,
                         src_filter,
                         respond,
                     } => {
                         let result = state
-                            .add_forward(source, target, target_prefix, src_filter)
+                            .add_forward(source, target, count, target_prefix, src_filter)
                             .await;
                         respond.send(result).ok();
                     }
@@ -448,11 +500,28 @@ impl PortForwardController {
         target_prefix: u8,
         src_filter: Option<IpNet>,
     ) -> Result<Arc<()>, Error> {
+        self.add_forward_range(source, target, 1, target_prefix, src_filter)
+            .await
+    }
+
+    /// Like [`add_forward`] but covers `count` contiguous ports per protocol
+    /// (TCP + UDP) starting at `source.port()` / `target.port()`. The two
+    /// bases may differ; the forward maps the source range onto the target
+    /// range by offset.
+    pub async fn add_forward_range(
+        &self,
+        source: SocketAddrV4,
+        target: SocketAddrV4,
+        count: u16,
+        target_prefix: u8,
+        src_filter: Option<IpNet>,
+    ) -> Result<Arc<()>, Error> {
         let (send, recv) = oneshot::channel();
         self.req
             .send(PortForwardCommand::AddForward {
                 source,
                 target,
+                count,
                 target_prefix,
                 src_filter,
                 respond: send,
@@ -484,6 +553,10 @@ impl PortForwardController {
 struct InterfaceForwardRequest {
     external: u16,
     target: SocketAddrV4,
+    /// Number of contiguous ports starting at `external` / `target.port()`.
+    /// `1` is a single-port forward; values > 1 cover a contiguous range
+    /// (port-preserving when the bases are equal, else an offset map).
+    count: u16,
     target_prefix: u8,
     reqs: ForwardRequirements,
     rc: Arc<()>,
@@ -492,6 +565,10 @@ struct InterfaceForwardRequest {
 #[derive(Clone)]
 struct InterfaceForwardEntry {
     external: u16,
+    /// `count` is shared across all targets keyed off the same `external`
+    /// start port — `AvailablePorts` prevents overlapping allocations, so a
+    /// range and a single-port forward can never coexist at the same start.
+    count: u16,
     targets: BTreeMap<ForwardRequirements, (SocketAddrV4, u8, Weak<()>)>,
     // Maps source SocketAddr -> strong reference for the forward created in PortForwardController
     forwards: BTreeMap<SocketAddrV4, Arc<()>>,
@@ -507,9 +584,10 @@ impl IdOrdItem for InterfaceForwardEntry {
 }
 
 impl InterfaceForwardEntry {
-    fn new(external: u16) -> Self {
+    fn new(external: u16, count: u16) -> Self {
         Self {
             external,
+            count,
             targets: BTreeMap::new(),
             forwards: BTreeMap::new(),
         }
@@ -549,7 +627,13 @@ impl InterfaceForwardEntry {
 
                             keep.insert(addr);
                             let fwd_rc = port_forward
-                                .add_forward(addr, *target, *target_prefix, src_filter)
+                                .add_forward_range(
+                                    addr,
+                                    *target,
+                                    self.count,
+                                    *target_prefix,
+                                    src_filter,
+                                )
                                 .await?;
                             self.forwards.insert(addr, fwd_rc);
                             break;
@@ -570,6 +654,7 @@ impl InterfaceForwardEntry {
         InterfaceForwardRequest {
             external,
             target,
+            count,
             target_prefix,
             reqs,
             mut rc,
@@ -582,6 +667,19 @@ impl InterfaceForwardEntry {
                 eyre!("{}", t!("net.forward.mismatched-external-port")),
                 ErrorKind::InvalidRequest,
             ));
+        }
+        if count != self.count {
+            // The count changed because the range was resized, or a single-port
+            // forward and a range swapped at this external start (AvailablePorts
+            // freed the old allocation and handed the same start port back).
+            // The old count no longer applies: adopt the new one and rebuild
+            // this entry's forwards from scratch so the underlying iptables
+            // rules (whose chain name encodes the count) are reconciled cleanly.
+            // `state` entries are never evicted, so without this a count change
+            // at a reused external port would be a hard error until restart.
+            self.count = count;
+            self.targets.clear();
+            self.forwards.clear();
         }
 
         let entry = self
@@ -635,9 +733,10 @@ impl InterfaceForwardState {
         request: InterfaceForwardRequest,
         ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
     ) -> Result<Arc<()>, Error> {
+        let count = request.count;
         self.state
             .entry(request.external)
-            .or_insert_with(|| InterfaceForwardEntry::new(request.external))
+            .or_insert_with(|| InterfaceForwardEntry::new(request.external, count))
             .update_request(request, ip_info, &self.port_forward)
             .await
     }
@@ -760,6 +859,21 @@ impl InterfacePortForwardController {
         target: SocketAddrV4,
         target_prefix: u8,
     ) -> Result<Arc<()>, Error> {
+        self.add_range(external, 1, reqs, target, target_prefix)
+            .await
+    }
+
+    /// Add a `count`-port contiguous forward starting at `external` /
+    /// `target.port()`. `count == 1` is equivalent to [`add`]. For `count >
+    /// 1` the external and target bases may differ (offset-mapped).
+    pub async fn add_range(
+        &self,
+        external: u16,
+        count: u16,
+        reqs: ForwardRequirements,
+        target: SocketAddrV4,
+        target_prefix: u8,
+    ) -> Result<Arc<()>, Error> {
         let rc = Arc::new(());
         let (send, recv) = oneshot::channel();
         self.req
@@ -767,6 +881,7 @@ impl InterfacePortForwardController {
                 InterfaceForwardRequest {
                     external,
                     target,
+                    count,
                     target_prefix,
                     reqs,
                     rc,
@@ -799,6 +914,7 @@ impl InterfacePortForwardController {
 async fn forward(
     source: SocketAddrV4,
     target: SocketAddrV4,
+    count: u16,
     target_prefix: u8,
     src_filter: Option<&IpNet>,
 ) -> Result<(), Error> {
@@ -808,6 +924,7 @@ async fn forward(
         .env("dprefix", target_prefix.to_string())
         .env("sport", source.port().to_string())
         .env("dport", target.port().to_string())
+        .env("count", count.to_string())
         .env(
             "bridge_subnet",
             Ipv4Net::new(HOST_IP.into(), 24)
@@ -825,6 +942,7 @@ async fn forward(
 async fn unforward(
     source: SocketAddrV4,
     target: SocketAddrV4,
+    count: u16,
     target_prefix: u8,
     src_filter: Option<&IpNet>,
 ) -> Result<(), Error> {
@@ -834,10 +952,66 @@ async fn unforward(
         .env("dip", target.ip().to_string())
         .env("dprefix", target_prefix.to_string())
         .env("sport", source.port().to_string())
-        .env("dport", target.port().to_string());
+        .env("dport", target.port().to_string())
+        .env("count", count.to_string());
     if let Some(subnet) = src_filter {
         cmd.env("src_subnet", subnet.to_string());
     }
     cmd.invoke(ErrorKind::Network).await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn try_alloc_range_basic() {
+        let mut ports = AvailablePorts::new();
+        assert!(ports.try_alloc_range(40000, 100).is_ok());
+        // All 100 ports should now be allocated
+        for p in 40000..40100 {
+            assert!(ports.try_alloc(p, false).is_none(), "port {p} should be taken");
+        }
+        assert!(ports.try_alloc(40100, false).is_some());
+    }
+
+    #[test]
+    fn try_alloc_range_zero_count_is_error() {
+        let mut ports = AvailablePorts::new();
+        assert!(ports.try_alloc_range(40000, 0).is_err());
+    }
+
+    #[test]
+    fn try_alloc_range_overflow_is_error() {
+        let mut ports = AvailablePorts::new();
+        assert!(ports.try_alloc_range(65500, 100).is_err());
+    }
+
+    #[test]
+    fn try_alloc_range_restricted_port_is_error_and_atomic() {
+        let mut ports = AvailablePorts::new();
+        // Range straddling a restricted port (1024 and below) hard-fails…
+        assert!(ports.try_alloc_range(1020, 10).is_err());
+        // …and nothing was allocated.
+        assert!(ports.try_alloc(2000, false).is_some());
+        ports.free([2000]);
+        assert!(ports.try_alloc_range(1020, 10).is_err());
+        for p in 1020..1030 {
+            // None of them are reserved either
+            if !is_restricted(p) {
+                assert!(ports.try_alloc(p, false).is_some(), "port {p} unexpectedly taken");
+            }
+        }
+    }
+
+    #[test]
+    fn try_alloc_range_collision_is_error_and_atomic() {
+        let mut ports = AvailablePorts::new();
+        ports.try_alloc(40050, false).unwrap();
+        assert!(ports.try_alloc_range(40000, 100).is_err());
+        // Other ports in the requested range were NOT allocated as a side effect.
+        assert!(ports.try_alloc(40000, false).is_some());
+        assert!(ports.try_alloc(40099, false).is_some());
+    }
 }
