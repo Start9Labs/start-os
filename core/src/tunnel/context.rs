@@ -202,7 +202,7 @@ impl TunnelContext {
             active_forwards.insert(from, forward.add_forward(from, to, prefix, None).await?);
         }
 
-        Ok(Self(Arc::new(TunnelContextSeed {
+        let ctx = Self(Arc::new(TunnelContextSeed {
             listen,
             db,
             datadir,
@@ -214,7 +214,15 @@ impl TunnelContext {
             dns_proxy,
             active_forwards: SyncMutex::new(active_forwards),
             shutdown,
-        })))
+        }));
+
+        // Serve PCP (preferred) and a UPnP IGD (fallback) to connected peers
+        // over the WireGuard interface so StartOS clients can open their public
+        // ports automatically.
+        tokio::spawn(crate::tunnel::pcp::run(ctx.clone()));
+        tokio::spawn(crate::tunnel::igd::run(ctx.clone()));
+
+        Ok(ctx)
     }
 
     pub async fn gc_forwards(&self, keep: &BTreeSet<SocketAddrV4>) -> Result<(), Error> {

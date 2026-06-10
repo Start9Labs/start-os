@@ -1,0 +1,137 @@
+//! UPnP IGD client helpers — the fallback port-mapping protocol behind PCP /
+//! NAT-PMP (see [`crate::net::port_map`]). Discovery is bound to the local
+//! address on the gateway interface, so the SSDP M-SEARCH leaves via that
+//! gateway; this covers a home router (a real IGD) and a StartTunnel gateway
+//! (which implements an IGD over WireGuard, see [`crate::tunnel::igd`]).
+
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::time::Duration;
+
+use igd_next::aio::Gateway;
+use igd_next::aio::tokio::{Tokio, search_gateway};
+use igd_next::{PortMappingProtocol, SearchOptions};
+
+use crate::prelude::*;
+
+const DISCOVERY_TIMEOUT: Duration = Duration::from_secs(4);
+/// `0` requests an indefinite lease; the controller re-asserts periodically.
+const LEASE_DURATION: u32 = 0;
+const DESCRIPTION: &str = "StartOS";
+
+fn search_options(local_ip: Ipv4Addr) -> SearchOptions {
+    SearchOptions {
+        bind_addr: SocketAddr::new(IpAddr::V4(local_ip), 0),
+        timeout: Some(DISCOVERY_TIMEOUT),
+        single_search_timeout: Some(DISCOVERY_TIMEOUT),
+        ..Default::default()
+    }
+}
+
+/// Discover the IGD reachable from `local_ip` (SSDP M-SEARCH out that interface).
+pub async fn discover(local_ip: Ipv4Addr) -> Result<Gateway<Tokio>, Error> {
+    search_gateway(search_options(local_ip))
+        .await
+        .map_err(|e| Error::new(eyre!("UPnP gateway discovery failed: {e}"), ErrorKind::Network))
+}
+
+/// Map `external_port` -> `local_ip:internal_port` (TCP) on `gateway`.
+pub async fn add_port(
+    gateway: &Gateway<Tokio>,
+    external_port: u16,
+    local_ip: Ipv4Addr,
+    internal_port: u16,
+) -> Result<(), Error> {
+    gateway
+        .add_port(
+            PortMappingProtocol::TCP,
+            external_port,
+            SocketAddr::new(IpAddr::V4(local_ip), internal_port),
+            LEASE_DURATION,
+            DESCRIPTION,
+        )
+        .await
+        .map_err(|e| Error::new(eyre!("UPnP AddPortMapping failed: {e}"), ErrorKind::Network))
+}
+
+/// Remove the TCP mapping for `external_port`; a missing mapping is not an error.
+pub async fn remove_port(gateway: &Gateway<Tokio>, external_port: u16) -> Result<(), Error> {
+    match gateway
+        .remove_port(PortMappingProtocol::TCP, external_port)
+        .await
+    {
+        Ok(()) | Err(igd_next::RemovePortError::NoSuchPortMapping) => Ok(()),
+        Err(e) => Err(Error::new(
+            eyre!("UPnP DeletePortMapping failed: {e}"),
+            ErrorKind::Network,
+        )),
+    }
+}
+
+/// A WAN address worth reporting: a real, routable public IPv4. A gateway
+/// behind CGNAT (or double NAT) reports a private external IP, which is useless
+/// for clearnet, so reject it and let the caller fall back to an echoip probe.
+fn is_wan_candidate(ip: Ipv4Addr) -> bool {
+    !(ip.is_unspecified()
+        || ip.is_loopback()
+        || ip.is_private()
+        || ip.is_link_local()
+        || ip.is_broadcast()
+        || ip.is_documentation()
+        || ip.octets()[0] == 0)
+}
+
+/// Ask the IGD reachable from `local_ip` for its external IPv4 (UPnP
+/// `GetExternalIPAddress`). `Ok(None)` means the gateway answered but with no
+/// usable public address — in particular, a private/CGNAT external IP is
+/// discarded so the caller falls back to an echoip query (which sees the real
+/// public IP from outside the NAT).
+pub async fn get_external_ipv4(local_ip: Ipv4Addr) -> Result<Option<Ipv4Addr>, Error> {
+    let gateway = discover(local_ip).await?;
+    match gateway.get_external_ip().await {
+        Ok(IpAddr::V4(ip)) if is_wan_candidate(ip) => Ok(Some(ip)),
+        // A non-public (private/CGNAT) external IP is discarded so the caller
+        // falls back to an echoip query.
+        Ok(_) => Ok(None),
+        Err(e) => Err(Error::new(
+            eyre!("UPnP GetExternalIPAddress failed: {e}"),
+            ErrorKind::Network,
+        )),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn private_external_ips_trigger_echoip_fallback() {
+        // Anything not routable on the public Internet must be rejected so the
+        // caller falls back to an echoip query.
+        for ip in [
+            "10.0.0.1",
+            "10.255.1.2",
+            "172.16.0.1",
+            "172.31.255.254",
+            "192.168.1.1",
+            "169.254.1.1", // link-local
+            "127.0.0.1",   // loopback
+            "0.0.0.0",     // unspecified
+            "255.255.255.255",
+        ] {
+            assert!(
+                !is_wan_candidate(ip.parse().unwrap()),
+                "{ip} should be rejected as non-public"
+            );
+        }
+    }
+
+    #[test]
+    fn public_external_ips_are_accepted() {
+        for ip in ["1.2.3.4", "8.8.8.8", "1.1.1.1", "93.184.216.34"] {
+            assert!(
+                is_wan_candidate(ip.parse().unwrap()),
+                "{ip} should be accepted as public"
+            );
+        }
+    }
+}
