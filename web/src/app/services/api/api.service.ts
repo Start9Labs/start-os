@@ -44,10 +44,8 @@ export abstract class ApiService {
     interface: string
     windows: ScheduleWindow[]
   }): Promise<null>
-  abstract setTimezone(params: {
-    timezone: string
-    posixTz: string
-  }): Promise<null>
+  abstract setTimezone(params: { timezone: string }): Promise<null>
+  abstract getTimezones(): Promise<string[]>
   abstract checkInitialized(): Promise<CheckInitializedRes>
   abstract setInitialPassword(params: SetInitialPasswordReq): Promise<null>
   abstract setupStatus(): Promise<SetupStatusRes>

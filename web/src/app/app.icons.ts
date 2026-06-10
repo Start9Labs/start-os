@@ -8,9 +8,10 @@ import cable from '@taiga-ui/icons/src/cable.svg'
 import check from '@taiga-ui/icons/src/check.svg'
 import chevronDown from '@taiga-ui/icons/src/chevron-down.svg'
 import chevronLeft from '@taiga-ui/icons/src/chevron-left.svg'
-import chevronUp from '@taiga-ui/icons/src/chevron-up.svg'
 import chevronRight from '@taiga-ui/icons/src/chevron-right.svg'
+import chevronUp from '@taiga-ui/icons/src/chevron-up.svg'
 import chevronsUpDown from '@taiga-ui/icons/src/chevrons-up-down.svg'
+import circleAlert from '@taiga-ui/icons/src/circle-alert.svg'
 import circleCheck from '@taiga-ui/icons/src/circle-check.svg'
 import circleMinus from '@taiga-ui/icons/src/circle-minus.svg'
 import circlePause from '@taiga-ui/icons/src/circle-pause.svg'
@@ -75,6 +76,7 @@ export const ICONS = {
   '@tui.chevron-right': chevronRight,
   '@tui.chevron-up': chevronUp,
   '@tui.chevrons-up-down': chevronsUpDown,
+  '@tui.circle-alert': circleAlert,
   '@tui.circle-check': circleCheck,
   '@tui.circle-minus': circleMinus,
   '@tui.circle-pause': circlePause,

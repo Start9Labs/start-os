@@ -17,6 +17,7 @@ import {
   TuiAppearance,
   TuiButton,
   TuiDataList,
+  TuiFilterByInputPipe,
   TuiIcon,
   TuiLabel,
   TuiNotification,
@@ -29,6 +30,7 @@ import { NgDompurifyPipe } from '@taiga-ui/dompurify'
 import {
   TuiAccordion,
   TuiChevron,
+  TuiComboBox,
   TUI_CONFIRM,
   TuiDataListWrapper,
   TuiSelect,
@@ -50,23 +52,14 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 import { i18nService } from 'src/app/i18n/i18n.service'
 import { Language, LANGUAGES } from 'src/app/utils/languages'
 import { GIT_HASH } from 'src/app/utils/workspace-config'
-import {
-  formatOffset,
-  getPosixTz,
-  resolveTimezone,
-  TIMEZONES,
-} from 'src/app/utils/timezones'
+import { getTimezoneLabel } from 'src/app/utils/timezones'
 
 const THEMES: Theme[] = ['system', 'dark', 'light']
 
 @Component({
   template: `
     @if (system.updateAvailable()) {
-      <tui-accordion
-        tuiAppearance="positive"
-        class="update-banner"
-        [style.border-radius.rem]="1"
-      >
+      <tui-accordion tuiAppearance="positive" [style.border-radius.rem]="1">
         <button tuiAccordion appearance="">
           <tui-icon icon="@tui.rocket" />
           <header tuiHeader="h6">
@@ -74,12 +67,10 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
           </header>
         </button>
         <tui-expand>
-          <div class="release-notes">
-            @for (v of system.newerVersions(); track v.version) {
-              <h2>v{{ v.version }}</h2>
-              <div [innerHTML]="v.releaseNotes | markdown | dompurify"></div>
-            }
-          </div>
+          @for (v of system.newerVersions(); track v.version) {
+            <h2>v{{ v.version }}</h2>
+            <div [innerHTML]="v.releaseNotes | markdown | dompurify"></div>
+          }
           <div [style.margin-top.rem]="1">
             <button
               tuiButton
@@ -130,22 +121,16 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
               }
             </tui-data-list>
           </tui-textfield>
-          <tui-textfield tuiChevron [stringify]="stringifyTimezone">
-            <label tuiLabel>{{ 'Timezone' | i18n }}</label>
-            <input tuiSelect formControlName="timezone" />
-            <tui-data-list *tuiDropdown>
-              @for (tz of timezones; track tz.iana) {
-                <button tuiOption [value]="tz.iana">
-                  <span tuiTitle>
-                    ({{ formatOffset(tz.offsetMin) }}) {{ tz.label }}
-                    <span tuiSubtitle>{{ tz.iana }}</span>
-                  </span>
-                </button>
-              }
-            </tui-data-list>
-          </tui-textfield>
         </section>
       </fieldset>
+      <tui-textfield tuiChevron [stringify]="stringifyTimezone">
+        <label tuiLabel>{{ 'Timezone' | i18n }}</label>
+        <input tuiComboBox formControlName="timezone" />
+        <tui-data-list-wrapper
+          *tuiDropdown
+          [items]="timezones() | tuiFilterByInput"
+        />
+      </tui-textfield>
       <fieldset>
         <legend>{{ 'Remote Access' | i18n }}</legend>
         @for (value of ['default', 'never', 'always']; track $index) {
@@ -160,39 +145,6 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
           </label>
         }
       </fieldset>
-      <fieldset>
-        <legend>{{ 'Security' | i18n }}</legend>
-        <section class="ca-section">
-          <p>
-            {{
-              'Download your Root CA to trust HTTPS connections from additional devices.'
-                | i18n
-            }}
-          </p>
-          <a
-            tuiButton
-            size="s"
-            iconEnd="@tui.download"
-            href="/static/root-ca.crt"
-            download="startwrt-ca.crt"
-          >
-            {{ 'Download Root CA' | i18n }}
-          </a>
-        </section>
-      </fieldset>
-      <fieldset>
-        <legend>{{ 'About' | i18n }}</legend>
-        <section class="about-section">
-          <dl>
-            <dt>{{ 'Version' | i18n }}</dt>
-            <dd>{{ system.info()?.version || '—' }}</dd>
-            <dt>{{ 'Build' | i18n }}</dt>
-            <dd>
-              <code [title]="gitHash || ''">{{ shortGitHash() }}</code>
-            </dd>
-          </dl>
-        </section>
-      </fieldset>
       <tui-elastic-container>
         @if (form.value.remote === 'always') {
           <div tuiAnimated tuiNotification appearance="warning">
@@ -203,55 +155,78 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
           </div>
         }
       </tui-elastic-container>
+      <fieldset>
+        <legend>{{ 'Security' | i18n }}</legend>
+        <section class="g-secondary">
+          {{
+            'Download your Root CA to trust HTTPS connections from additional devices.'
+              | i18n
+          }}
+        </section>
+      </fieldset>
+      <a
+        tuiButton
+        size="s"
+        iconEnd="@tui.download"
+        href="/static/root-ca.crt"
+        download="startwrt-ca.crt"
+      >
+        {{ 'Download Root CA' | i18n }}
+      </a>
+      <fieldset>
+        <legend>{{ 'About' | i18n }}</legend>
+        <dl>
+          <dt class="g-secondary">{{ 'Version' | i18n }}</dt>
+          <dd>{{ system.info()?.version || '—' }}</dd>
+          <dt class="g-secondary">{{ 'Build' | i18n }}</dt>
+          <dd>
+            <code [title]="gitHash || ''">{{ shortGitHash() }}</code>
+          </dd>
+        </dl>
+      </fieldset>
       <footer appFooter></footer>
     </form>
   `,
   styles: `
-    :host {
-      max-width: 50rem;
-    }
+    tui-expand {
+      font: var(--tui-typography-body-s);
 
-    .update-banner {
-      .release-notes {
-        color: var(--tui-text-secondary);
-        font: var(--tui-typography-body-s);
+      ::ng-deep {
+        h1,
+        h2,
+        h3,
+        h4 {
+          margin: 0.75rem 0 0.25rem;
+          font: var(--tui-typography-body-s);
+          font-weight: bold;
 
-        ::ng-deep {
-          h1,
-          h2,
-          h3,
-          h4 {
-            margin: 0.75rem 0 0.25rem;
-            font: var(--tui-typography-body-s);
-            font-weight: bold;
-            color: var(--tui-text-primary);
-
-            &:first-child {
-              margin-top: 0;
-            }
+          &:first-child {
+            margin-top: 0;
           }
+        }
 
-          ul {
-            margin: 0;
-            padding-left: 1.25rem;
-          }
+        ul {
+          margin: 0;
+          padding-left: 1.25rem;
+        }
 
-          li {
-            margin-bottom: 0.25rem;
-          }
+        li {
+          margin-bottom: 0.25rem;
+        }
 
-          p {
-            margin: 0.5rem 0;
+        p {
+          margin: 0.5rem 0;
 
-            &:first-child {
-              margin-top: 0;
-            }
+          &:first-child {
+            margin-top: 0;
           }
         }
       }
     }
 
     :host {
+      max-width: 50rem;
+
       fieldset {
         display: flex;
       }
@@ -260,40 +235,15 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
         text-transform: capitalize;
       }
 
-      .ca-section {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 0.5rem;
-
-        p {
-          margin: 0;
-          color: var(--tui-text-secondary);
-          font: var(--tui-typography-body-s);
-        }
+      tui-textfield {
+        max-width: 25rem;
       }
 
-      .about-section {
-        dl {
-          display: grid;
-          grid-template-columns: max-content 1fr;
-          gap: 0.25rem 1rem;
-          margin: 0;
-        }
-
-        dt {
-          color: var(--tui-text-secondary);
-          font: var(--tui-typography-body-s);
-        }
-
-        dd {
-          margin: 0;
-          font: var(--tui-typography-body-s);
-        }
-
-        code {
-          font-family: var(--tui-font-text-mono, monospace);
-        }
+      dl {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: 0.25rem 1rem;
+        margin: 0;
       }
     }
   `,
@@ -315,6 +265,8 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
     TuiChevron,
     TuiRadio,
     TuiSelect,
+    TuiComboBox,
+    TuiFilterByInputPipe,
     TuiDataListWrapper,
     TuiValueChanges,
     TuiAccordion,
@@ -355,10 +307,13 @@ export default class General {
         : 'light') as Theme,
     language: 'en_US' as Language,
     remote: 'default',
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    timezone: 'UTC',
   })
 
   constructor() {
+    // Populate the dropdown from the device's authoritative zone list.
+    this.api.getTimezones().then(zones => this.timezones.set(zones))
+
     effect(() => {
       const info = this.system.info()
       if (info && this.form.pristine) {
@@ -366,9 +321,9 @@ export default class General {
           theme: info.theme,
           language: info.language as Language,
           remote: info.remoteAccess ?? 'default',
-          timezone: resolveTimezone(
-            info.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-          ),
+          // Show the actual device zone; default to UTC when unset (mirrors
+          // LuCI). No browser fallback — that masked an unset device as set.
+          timezone: (info.timezone || 'UTC').replaceAll(' ', '_'),
         })
       }
     })
@@ -387,7 +342,7 @@ export default class General {
   }
 
   protected readonly themes = THEMES
-  protected readonly timezones = TIMEZONES
+  protected readonly timezones = signal<string[]>(['UTC'])
 
   protected readonly stringifyTheme = (t: Theme): string =>
     t ? this.i18n.transform(t[0].toUpperCase() + t.slice(1)) : ''
@@ -395,12 +350,7 @@ export default class General {
   protected readonly stringifyLanguage = (posix: Language): string =>
     LANGUAGES.find(l => l.posix === posix)?.nativeName || posix
 
-  protected readonly formatOffset = formatOffset
-
-  protected readonly stringifyTimezone = (iana: string): string => {
-    const tz = TIMEZONES.find(t => t.iana === iana)
-    return tz ? `(${formatOffset(tz.offsetMin)}) ${tz.label}` : iana
-  }
+  protected readonly stringifyTimezone = getTimezoneLabel
 
   // Live-preview the language on selection; the choice is persisted on submit
   // (the setPreferences call already carries `language`) or reverted on leave.
@@ -424,8 +374,7 @@ export default class General {
         theme: info.theme,
         language: info.language as Language,
         remote: info.remoteAccess ?? 'default',
-        timezone:
-          info.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        timezone: (info.timezone || 'UTC').replaceAll(' ', '_'),
       })
       this.onTheme(info.theme)
       this.i18nService.setLangLocal(info.language as Language)
@@ -441,11 +390,7 @@ export default class General {
           remoteAccess: this.form.value.remote as RemoteAccess,
         })
 
-        const timezone = this.form.value.timezone!
-        const posixTz = getPosixTz(timezone)
-        if (posixTz) {
-          await this.api.setTimezone({ timezone, posixTz })
-        }
+        await this.api.setTimezone({ timezone: this.form.value.timezone! })
 
         await this.system.refresh()
         this.form.markAsPristine()

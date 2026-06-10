@@ -100,12 +100,21 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async setTimezone(params: {
-    timezone: string
-    posixTz: string
-  }): Promise<null> {
+  async setTimezone(params: { timezone: string }): Promise<null> {
     this.mockSystemInfo.timezone = params.timezone
     return null
+  }
+
+  async getTimezones(): Promise<string[]> {
+    return [
+      'UTC',
+      'America/Chicago',
+      'America/Denver',
+      'America/Los_Angeles',
+      'America/New_York',
+      'Europe/London',
+      'Europe/Paris',
+    ]
   }
 
   async exec(params: ExecReq): Promise<ExecRes> {

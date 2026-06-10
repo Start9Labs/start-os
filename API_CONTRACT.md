@@ -195,12 +195,26 @@ No auth required — called during initial setup before login.
 #[derive(Deserialize)]
 struct SetTimezoneRequest {
     timezone: String,   // IANA timezone name (e.g. "America/New_York")
-    posix_tz: String,   // POSIX TZ string (e.g. "EST5EDT,M3.2.0,M11.1.0")
 }
 // Response: null
-// Backend: sets UCI system.@system[0].zonename and system.@system[0].timezone,
-//          then reloads system service which writes posix_tz to /etc/TZ.
-//          After this, `date`, `cron`, and all libc time functions use local time.
+// Backend: resolves the POSIX TZ string from the device's authoritative LuCI
+//          zoneinfo table (`ubus call luci getTimezones`); errors if the name is
+//          unknown. Sets UCI system.@system[0].zonename (IANA, verbatim) and
+//          system.@system[0].timezone (POSIX), reloads system service (writes
+//          /etc/TZ), then restarts crond so wall-clock schedules re-base on the
+//          new local time. After this, `date`, `cron`, and all libc time
+//          functions use local time. "UTC" is accepted as a special case.
+```
+
+### `system.get-timezones`
+
+No auth required — backs the settings timezone dropdown.
+
+```rust
+// Request: {}
+// Response: Vec<String>   // IANA names the device can resolve, "UTC" first then
+//                         // the sorted LuCI zoneinfo table keys. No data is
+//                         // maintained in our tree; sourced from ubus luci.getTimezones.
 ```
 
 ### `system.logs`

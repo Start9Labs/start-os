@@ -1,7 +1,7 @@
 // prettier-ignore
 /**
- * Source of truth: English string -> numeric id. Every `'X' | i18n` /
- * `i18n.transform('X')` key used in the app must appear here. Numeric ids are
+ * Source of truth: English string -> numeric id. Every `'English' | i18n` /
+ * `i18n.transform('English')` key used in the app must appear here. Numeric ids are
  * assigned by hand and are the stable join key into the other dictionaries.
  * Add new strings with the next free id; never reuse or renumber an id.
  */

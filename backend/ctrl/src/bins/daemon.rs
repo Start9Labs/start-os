@@ -42,6 +42,11 @@ struct AppState {
 struct FlashParams {
     mode: FlashMode,
     password: String,
+    /// Browser IANA timezone (e.g. "America/New_York") captured by the wizard.
+    /// Carried into the fresh eMMC config since the wizard's live set-timezone
+    /// only reaches the throwaway microSD overlay. Optional for older clients.
+    #[serde(default)]
+    timezone: Option<String>,
 }
 
 fn ndjson_error(message: &str) -> Response<Body> {
@@ -101,7 +106,7 @@ async fn setup_flash_handler(
             .build()
             .expect("failed to create setup-flash runtime");
         rt.block_on(async move {
-            setup::run_setup_flash(params.mode, &params.password, &tx).await;
+            setup::run_setup_flash(params.mode, &params.password, params.timezone.as_deref(), &tx).await;
             flash_flag.store(false, Ordering::SeqCst);
         });
     });

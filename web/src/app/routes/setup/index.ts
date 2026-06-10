@@ -28,11 +28,7 @@ import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
 import { ApiService } from 'src/app/services/api/api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import { i18nPipe } from 'src/app/i18n/i18n.pipe'
-import {
-  getBrowserTimezone,
-  getPosixTz,
-  resolveTimezone,
-} from 'src/app/utils/timezones'
+import { getBrowserTimezone } from 'src/app/utils/timezones'
 
 function passwordsMatch(control: AbstractControl): ValidationErrors | null {
   const password = control.get('password')?.value
@@ -154,11 +150,12 @@ export default class Setup {
       await this.api.setInitialPassword({
         password: this.form.value.password!,
       })
-      const timezone = resolveTimezone(getBrowserTimezone())
-      const posixTz = getPosixTz(timezone)
-      if (posixTz) {
-        this.api.setTimezone({ timezone, posixTz }).catch(() => {})
-      }
+      // Best-effort: persist the browser's zone as the default. The backend
+      // resolves the POSIX string from its authoritative table; if the zone is
+      // unknown it errors, which we swallow here (correctable later in Settings).
+      await this.api
+        .setTimezone({ timezone: getBrowserTimezone() })
+        .catch(() => {})
       this.auth.initialized.set(true)
       this.complete.set(true)
     } catch (e: any) {

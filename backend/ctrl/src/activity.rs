@@ -13,24 +13,24 @@ const ACTIVITY_DIR: &str = "/etc/startwrt";
 const ACTIVITY_DB: &str = "/etc/startwrt/activity.db";
 const MAX_ENTRIES: usize = 500;
 
+const ACTIVITY_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS activity (
+    id INTEGER PRIMARY KEY,
+    timestamp TEXT NOT NULL,
+    category TEXT NOT NULL,
+    action TEXT NOT NULL,
+    success INTEGER NOT NULL,
+    summary TEXT NOT NULL,
+    error TEXT
+);";
+
 static DB: LazyLock<Mutex<Connection>> = LazyLock::new(|| {
     let _ = std::fs::create_dir_all(ACTIVITY_DIR);
     #[cfg(test)]
     let conn = Connection::open_in_memory().expect("failed to open in-memory activity database");
     #[cfg(not(test))]
     let conn = Connection::open(ACTIVITY_DB).expect("failed to open activity database");
-    conn.execute_batch(
-        "CREATE TABLE IF NOT EXISTS activity (
-            id INTEGER PRIMARY KEY,
-            timestamp TEXT NOT NULL,
-            category TEXT NOT NULL,
-            action TEXT NOT NULL,
-            success INTEGER NOT NULL,
-            summary TEXT NOT NULL,
-            error TEXT
-        );",
-    )
-    .expect("failed to initialize activity table");
+    conn.execute_batch(ACTIVITY_SCHEMA)
+        .expect("failed to initialize activity table");
     Mutex::new(conn)
 });
 
@@ -92,8 +92,22 @@ fn log_inner(
     tracing::info!(target: "activity", "startwrt-activity [{category}.{action}] {status} {summary}{err_suffix}");
 
     // Insert into SQLite
-    let timestamp = chrono::Utc::now().to_rfc3339();
     let conn = DB.lock().map_err(|e| format!("lock poisoned: {e}"))?;
+    insert_entry(&conn, category, action, success, summary, error)?;
+    Ok(())
+}
+
+/// Insert one entry into an open connection and enforce the entry cap. Shared
+/// by the global logger and `log_to` (which targets an arbitrary DB file).
+fn insert_entry(
+    conn: &Connection,
+    category: &str,
+    action: &str,
+    success: bool,
+    summary: &str,
+    error: Option<&str>,
+) -> rusqlite::Result<()> {
+    let timestamp = chrono::Utc::now().to_rfc3339();
     conn.execute(
         "INSERT INTO activity (timestamp, category, action, success, summary, error)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
@@ -108,6 +122,43 @@ fn log_inner(
         [MAX_ENTRIES],
     )?;
 
+    Ok(())
+}
+
+/// Log an activity entry into a database at an arbitrary path, creating the
+/// file and schema if needed. The setup flasher uses this to record an entry
+/// straight into the freshly-flashed eMMC DB (`<merged>/etc/startwrt/activity.db`),
+/// because the flash runs from the microSD whose own activity DB is discarded.
+/// Best-effort — never panics or propagates.
+pub fn log_to(
+    db_path: &str,
+    category: &str,
+    action: &str,
+    success: bool,
+    summary: &str,
+    error: Option<&str>,
+) {
+    let _ = log_to_inner(db_path, category, action, success, summary, error);
+}
+
+fn log_to_inner(
+    db_path: &str,
+    category: &str,
+    action: &str,
+    success: bool,
+    summary: &str,
+    error: Option<&str>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let status = if success { "OK" } else { "FAIL" };
+    let err_suffix = error.map(|e| format!(": {e}")).unwrap_or_default();
+    tracing::info!(target: "activity", "startwrt-activity(eMMC) [{category}.{action}] {status} {summary}{err_suffix}");
+
+    if let Some(parent) = std::path::Path::new(db_path).parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let conn = Connection::open(db_path)?;
+    conn.execute_batch(ACTIVITY_SCHEMA)?;
+    insert_entry(&conn, category, action, success, summary, error)?;
     Ok(())
 }
 

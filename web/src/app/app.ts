@@ -82,10 +82,10 @@ import { Language } from 'src/app/utils/languages'
 
     tui-scrollbar {
       height: 100%;
+      min-width: calc(100vw - 3rem);
 
       ::ng-deep > .t-content {
         height: 100%;
-        width: auto;
       }
     }
 

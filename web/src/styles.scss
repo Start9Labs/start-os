@@ -158,7 +158,7 @@ li {
     gap: inherit;
     flex-wrap: wrap;
 
-    > *:has([tuiInput], [tuiSelect]) {
+    > *:has([tuiInput]) {
       display: flex;
       flex: 1;
       min-width: 12rem;

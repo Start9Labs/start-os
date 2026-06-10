@@ -31,6 +31,7 @@ import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
 import { SetupFlashEvent } from 'src/app/services/api/api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import { i18nPipe } from 'src/app/i18n/i18n.pipe'
+import { getBrowserTimezone } from 'src/app/utils/timezones'
 
 type Step = 'welcome' | 'password' | 'confirm' | 'flashing' | 'complete'
 type FlashMode = 'update' | 'fresh-start'
@@ -312,6 +313,9 @@ export default class SetupWizard {
         body: JSON.stringify({
           mode: this.mode(),
           password: this.form.value.password,
+          // Carried into the fresh eMMC config; the backend resolves the POSIX
+          // string and leaves UTC if the zone is unknown (FreshStart only).
+          timezone: getBrowserTimezone(),
         }),
       })
 

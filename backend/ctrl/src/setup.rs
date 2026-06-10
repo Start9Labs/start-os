@@ -484,6 +484,77 @@ async fn write_admin_password(rootfs_mount: &str, password: &str) -> Result<(), 
     Ok(())
 }
 
+/// Write the chosen timezone into the eMMC `/etc/config/system` on the mounted
+/// merged overlay (`merged_mount`, e.g. `/mnt/emmc_merged`). Resolves the POSIX
+/// TZ string from the running (microSD) system's LuCI zoneinfo table — the same
+/// authoritative source `system.set-timezone` uses — and stores both the IANA
+/// `zonename` (verbatim) and the POSIX `timezone`, matching LuCI's writer. An
+/// unknown zone is left at the shipped UTC default rather than treated as an
+/// error. Records the outcome directly in the eMMC's activity DB so the
+/// success / UTC-fallback shows up once the device boots from eMMC.
+async fn write_timezone(merged_mount: &str, iana: &str) -> Result<(), Error> {
+    let config_dir = format!("{merged_mount}/etc/config");
+    let activity_db = format!("{merged_mount}/etc/startwrt/activity.db");
+
+    let posix = match crate::system::resolve_posix_tz(iana).await? {
+        Some(p) => p,
+        None => {
+            tracing::warn!("setup timezone '{iana}' not in zoneinfo table; leaving UTC default");
+            crate::activity::log_to(
+                &activity_db,
+                "system",
+                "timezone-updated",
+                false,
+                &format!("Timezone '{iana}' not recognized; kept UTC"),
+                Some("not found in zoneinfo table"),
+            );
+            return Ok(());
+        }
+    };
+
+    // `uci -c <dir>` operates on the alternate config tree; commit writes the
+    // package file back into the merged overlay (upper = eMMC rootfs_data).
+    let result = async {
+        flash::run_cmd(
+            "uci",
+            &["-c", &config_dir, "set", &format!("system.@system[0].zonename={iana}")],
+        )
+        .await?;
+        flash::run_cmd(
+            "uci",
+            &["-c", &config_dir, "set", &format!("system.@system[0].timezone={posix}")],
+        )
+        .await?;
+        flash::run_cmd("uci", &["-c", &config_dir, "commit", "system"]).await
+    }
+    .await;
+
+    match result {
+        Ok(()) => {
+            crate::activity::log_to(
+                &activity_db,
+                "system",
+                "timezone-updated",
+                true,
+                &format!("Set timezone to {iana}"),
+                None,
+            );
+            Ok(())
+        }
+        Err(e) => {
+            crate::activity::log_to(
+                &activity_db,
+                "system",
+                "timezone-updated",
+                false,
+                "Failed to apply setup timezone",
+                Some(&e.to_string()),
+            );
+            Err(e)
+        }
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Flash orchestration
 // ---------------------------------------------------------------------------
@@ -527,9 +598,10 @@ pub enum SetupEvent {
 pub async fn run_setup_flash(
     mode: FlashMode,
     admin_password: &str,
+    timezone: Option<&str>,
     tx: &mpsc::Sender<SetupEvent>,
 ) {
-    if let Err(e) = run_setup_flash_inner(mode, admin_password, tx).await {
+    if let Err(e) = run_setup_flash_inner(mode, admin_password, timezone, tx).await {
         let _ = tx
             .send(SetupEvent::Error {
                 message: e.to_string(),
@@ -541,6 +613,7 @@ pub async fn run_setup_flash(
 async fn run_setup_flash_inner(
     mode: FlashMode,
     admin_password: &str,
+    timezone: Option<&str>,
     tx: &mpsc::Sender<SetupEvent>,
 ) -> Result<(), Error> {
     let total_steps: u32 = 3;
@@ -657,6 +730,28 @@ async fn run_setup_flash_inner(
         })
         .await;
     write_admin_password(EMMC_MERGED_MOUNT, admin_password).await?;
+
+    // Carry the setup timezone into the fresh eMMC config. FreshStart only:
+    // Update restores the device's existing /etc/config/system via conffiles,
+    // so its timezone is already preserved. The live `system.set-timezone`
+    // call made during the wizard writes to the throwaway microSD overlay, so
+    // this is the only place a fresh install's timezone reaches eMMC.
+    if mode == FlashMode::FreshStart {
+        if let Some(tz) = timezone {
+            let _ = tx
+                .send(SetupEvent::Status {
+                    message: "Applying timezone...".into(),
+                    step: 3,
+                    total_steps,
+                })
+                .await;
+            if let Err(e) = write_timezone(EMMC_MERGED_MOUNT, tz).await {
+                // Non-fatal: the device boots on the shipped UTC default and
+                // the user can correct it later in Settings.
+                tracing::warn!("failed to carry setup timezone '{tz}' to eMMC: {e}");
+            }
+        }
+    }
 
     // WiFi config is intentionally not written here. The post-reboot daemon
     // resolves the WiFi password from EEPROM (tag 0x2F) via
@@ -1117,7 +1212,7 @@ Conffiles:
     #[tokio::test]
     async fn flash_rejects_short_password() {
         let (tx, mut rx) = mpsc::channel(16);
-        run_setup_flash(FlashMode::FreshStart, "short", &tx).await;
+        run_setup_flash(FlashMode::FreshStart, "short", None, &tx).await;
         drop(tx);
 
         let mut events = Vec::new();

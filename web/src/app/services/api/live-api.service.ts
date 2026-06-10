@@ -83,11 +83,12 @@ export class LiveApiService extends ApiService {
     return this.rpc.request({ method: 'auth.login', params })
   }
 
-  async setTimezone(params: {
-    timezone: string
-    posixTz: string
-  }): Promise<null> {
+  async setTimezone(params: { timezone: string }): Promise<null> {
     return this.rpc.request({ method: 'system.set-timezone', params })
+  }
+
+  async getTimezones(): Promise<string[]> {
+    return this.rpc.request({ method: 'system.get-timezones', params: {} })
   }
 
   async logout(): Promise<null> {
