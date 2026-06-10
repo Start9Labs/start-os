@@ -143,7 +143,12 @@ export class MockApiService extends ApiService {
       {
         op: PatchOp.ADD,
         path: `/wg/subnets/${replaceSlashes(params.subnet)}/clients/${params.ip}`,
-        value: { name: params.name, key: '', psk: '' },
+        value: {
+          name: params.name,
+          key: '',
+          psk: '',
+          allowDnsInjection: false,
+        },
       },
     ]
     this.mockRevision(patch)
