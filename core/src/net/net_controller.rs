@@ -16,6 +16,7 @@ use crate::db::model::Database;
 use crate::db::model::public::GatewayType;
 use crate::hostname::ServerHostname;
 use crate::net::dns::DnsController;
+use crate::net::dns_update::DnsUpdateController;
 use crate::net::forward::{
     ForwardRequirements, InterfacePortForwardController, START9_BRIDGE_IFACE, nft_rule,
 };
@@ -38,6 +39,7 @@ pub struct NetController {
     pub(super) tls_client_config: Arc<TlsClientConfig>,
     pub(crate) net_iface: Arc<NetworkInterfaceController>,
     pub(super) dns: DnsController,
+    pub(super) dns_update: DnsUpdateController,
     pub(super) forward: InterfacePortForwardController,
     pub(super) socks: SocksController,
     pub(crate) callbacks: Arc<ServiceCallbacks>,
@@ -94,6 +96,7 @@ impl NetController {
             ),
             tls_client_config,
             dns: DnsController::init(db, &net_iface.watcher).await?,
+            dns_update: DnsUpdateController::new(net_iface.watcher.subscribe()),
             forward: InterfacePortForwardController::new(net_iface.watcher.subscribe()),
             net_iface,
             socks,
@@ -540,11 +543,15 @@ impl NetServiceData {
             }
         });
         for (fqdn, gateways) in private_dns {
+            // Best-effort: also publish the record to the gateway's own DNS via
+            // RFC 2136 so LAN devices not using StartOS's resolver can resolve it.
+            ctrl.dns_update.add(fqdn.clone(), gateways.clone());
             binds
                 .private_dns
                 .insert(fqdn.clone(), ctrl.dns.add_private_domain(fqdn, gateways)?);
         }
         ctrl.dns.gc_private_domains(&rm)?;
+        ctrl.dns_update.gc(rm);
 
         Ok(())
     }
