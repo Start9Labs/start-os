@@ -128,6 +128,7 @@ check-init:
 
 javascript/index.js: $(shell find startos -type f) tsconfig.json node_modules
 	npm run check
+	@if [ -f node_modules/@start9labs/start-sdk/lint.mjs ]; then node node_modules/@start9labs/start-sdk/lint.mjs; else echo "   ⚠ SDK lint runner not found; skipping (update @start9labs/start-sdk)"; fi
 	npm run build
 
 node_modules: package-lock.json package.json

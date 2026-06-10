@@ -52,6 +52,7 @@
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
+    "eslint": "^9.39.4",
     "jest": "^30.0.0",
     "peggy": "^3.0.2",
     "prettier": "3.8.3",
@@ -59,6 +60,7 @@
     "ts-node": "^10.9.1",
     "ts-pegjs": "^4.2.1",
     "tsx": "^4.21.0",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.61.0"
   }
 }
