@@ -6288,3 +6288,38 @@ about.view-edit-gateway-configs:
   es_ES: "Ver y editar configuraciones de gateway"
   fr_FR: "Voir et modifier les configurations de passerelle"
   pl_PL: "Wyświetl i edytuj konfiguracje bramy"
+
+about.add-or-replace-a-dns-record:
+  en_US: "Add or replace a DNS record"
+  de_DE: "Einen DNS-Eintrag hinzufügen oder ersetzen"
+  es_ES: "Agregar o reemplazar un registro DNS"
+  fr_FR: "Ajouter ou remplacer un enregistrement DNS"
+  pl_PL: "Dodaj lub zastąp rekord DNS"
+
+about.allow-or-deny-device-dns-injection:
+  en_US: "Allow or deny a device to inject DNS records"
+  de_DE: "Einem Gerät das Einfügen von DNS-Einträgen erlauben oder verweigern"
+  es_ES: "Permitir o denegar que un dispositivo inyecte registros DNS"
+  fr_FR: "Autoriser ou refuser à un appareil d'injecter des enregistrements DNS"
+  pl_PL: "Zezwól lub odmów urządzeniu wstrzykiwania rekordów DNS"
+
+about.list-injected-dns-records:
+  en_US: "List injected DNS records"
+  de_DE: "Eingefügte DNS-Einträge auflisten"
+  es_ES: "Listar registros DNS inyectados"
+  fr_FR: "Lister les enregistrements DNS injectés"
+  pl_PL: "Wyświetl wstrzyknięte rekordy DNS"
+
+about.remove-a-dns-record:
+  en_US: "Remove a DNS record"
+  de_DE: "Einen DNS-Eintrag entfernen"
+  es_ES: "Eliminar un registro DNS"
+  fr_FR: "Supprimer un enregistrement DNS"
+  pl_PL: "Usuń rekord DNS"
+
+about.view-or-edit-injected-dns-records:
+  en_US: "View or edit injected DNS records"
+  de_DE: "Eingefügte DNS-Einträge anzeigen oder bearbeiten"
+  es_ES: "Ver o editar registros DNS inyectados"
+  fr_FR: "Voir ou modifier les enregistrements DNS injectés"
+  pl_PL: "Wyświetl lub edytuj wstrzyknięte rekordy DNS"
