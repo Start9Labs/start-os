@@ -65,15 +65,15 @@ describe('host', () => {
       })
     })
 
-    test('rejects numberOfPorts below 1', async () => {
+    test('rejects a single-port range (use bindPort instead)', async () => {
       const host = sdk.MultiHost.of(fakeEffects(), 'turn')
       await expect(
         host.bindPortRange({
           internalStartPort: 49152,
           externalStartPort: 49152,
-          numberOfPorts: 0,
+          numberOfPorts: 1,
         }),
-      ).rejects.toThrow(/positive integer/)
+      ).rejects.toThrow(/>= 2/)
     })
 
     test('rejects numberOfPorts past the SDK cap', async () => {

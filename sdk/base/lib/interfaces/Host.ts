@@ -97,7 +97,10 @@ export type BindPortRangeOptions = {
    * port-preserving case.
    */
   externalStartPort: number
-  /** Number of contiguous ports in the range. Must be in `[1, 500]`. */
+  /**
+   * Number of contiguous ports in the range. Must be in `[2, 500]`. For a
+   * single port use {@link MultiHost.bindPort}.
+   */
   numberOfPorts: number
 }
 
@@ -147,7 +150,8 @@ export class MultiHost {
    * maps the external range onto the internal range by offset.
    *
    * Constraints:
-   * - `numberOfPorts` must be in `[1, {@link MAX_BIND_PORT_RANGE_SIZE}]`.
+   * - `numberOfPorts` must be in `[2, {@link MAX_BIND_PORT_RANGE_SIZE}]`. For
+   *   a single port use {@link MultiHost.bindPort}.
    * - All `numberOfPorts` external ports starting at `externalStartPort`
    *   must be free and non-restricted.
    *
@@ -165,8 +169,10 @@ export class MultiHost {
    */
   async bindPortRange(options: BindPortRangeOptions): Promise<void> {
     const { internalStartPort, externalStartPort, numberOfPorts } = options
-    if (!Number.isInteger(numberOfPorts) || numberOfPorts < 1) {
-      throw new Error(`numberOfPorts must be a positive integer`)
+    if (!Number.isInteger(numberOfPorts) || numberOfPorts < 2) {
+      throw new Error(
+        `numberOfPorts must be an integer >= 2; use bindPort for a single port`,
+      )
     }
     if (numberOfPorts > MAX_BIND_PORT_RANGE_SIZE) {
       throw new Error(

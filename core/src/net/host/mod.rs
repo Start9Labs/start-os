@@ -512,9 +512,9 @@ impl Model<Host> {
         external_start_port: u16,
         number_of_ports: u16,
     ) -> Result<(), Error> {
-        if number_of_ports == 0 {
+        if number_of_ports < 2 {
             return Err(Error::new(
-                eyre!("numberOfPorts must be at least 1"),
+                eyre!("numberOfPorts must be at least 2; use bind for a single port"),
                 ErrorKind::InvalidRequest,
             ));
         }
@@ -537,7 +537,7 @@ impl Model<Host> {
                 .unwrap_or_default();
             if !unchanged {
                 // New, resized, or moved range: free any prior allocation, then
-                // claim the new one. `number_of_ports >= 1`, so subtract before
+                // claim the new one. `number_of_ports >= 2`, so subtract before
                 // adding — `start + count` would overflow u16 for a range ending
                 // at 65535.
                 if let Some(e) = existing {

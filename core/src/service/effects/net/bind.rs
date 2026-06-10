@@ -51,9 +51,9 @@ pub async fn bind_range(
         number_of_ports,
     }: BindRangeParams,
 ) -> Result<(), Error> {
-    if number_of_ports == 0 {
+    if number_of_ports < 2 {
         return Err(Error::new(
-            eyre!("numberOfPorts must be at least 1"),
+            eyre!("numberOfPorts must be at least 2; use bind for a single port"),
             ErrorKind::InvalidRequest,
         ));
     }
