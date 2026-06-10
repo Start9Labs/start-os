@@ -434,7 +434,7 @@ pub async fn get<C: CtrlContext>(ctx: C, query: ProfileIdOpt) -> Result<Profile,
     get_config(ctx, &cfgs, query)
 }
 
-fn get_config(
+pub(crate) fn get_config(
     ctx: impl CtrlContext,
     cfgs: &Configs,
     query: ProfileIdOpt,
@@ -768,6 +768,7 @@ fn delete_config(
     // Rebuild cross-subnet routes (the deleted profile's subnet is removed,
     // and remaining VPN profiles no longer need a route to it)
     sync_cross_subnet_routes(cfgs)?;
+    crate::vpn_server::sync_vpn_peer_cross_routes(cfgs)?;
 
     // Clean up orphaned VPN interfaces from WAN zone
     cleanup_orphaned_vpn_zones(cfgs);
@@ -1302,6 +1303,7 @@ fn set_config<C: CtrlContext>(
     rewrite_dns_forwarding(cfgs, &profile)?;
     rewrite_routing(&ctx, cfgs, &profile)?;
     sync_cross_subnet_routes(cfgs)?;
+    crate::vpn_server::sync_vpn_peer_cross_routes(cfgs)?;
     cleanup_orphaned_vpn_zones(cfgs);
     Ok((profile.id, old_state))
 }
@@ -1604,6 +1606,7 @@ fn create_config(
     rewrite_dns_forwarding(cfgs, &profile)?;
     rewrite_routing(&ctx, cfgs, &profile)?;
     sync_cross_subnet_routes(cfgs)?;
+    crate::vpn_server::sync_vpn_peer_cross_routes(cfgs)?;
     cleanup_orphaned_vpn_zones(cfgs);
     Ok(profile.id)
 }
@@ -2217,11 +2220,11 @@ const DNAT_RETURN_MARK: &str = "0x80/0x80";
 const DNAT_RETURN_PRIORITY: u32 = 100;
 /// Explicit priority for source-based VPN ip rules, ensuring they don't
 /// collide with DNAT_RETURN_PRIORITY through netifd auto-assignment.
-const VPN_ROUTING_PRIORITY: u32 = 200;
+pub(crate) const VPN_ROUTING_PRIORITY: u32 = 200;
 /// IPv6 cross-VLAN escape rule: must fire before VPN_ROUTING_PRIORITY so
 /// specific (sibling-LAN /64) destinations escape to the main table before
 /// the per-VLAN default route captures them.
-const VPN_ROUTING_V6_LOCAL_PRIORITY: u32 = 150;
+pub(crate) const VPN_ROUTING_V6_LOCAL_PRIORITY: u32 = 150;
 /// Metric for the per-VLAN `dev <wg>` default route. Lower than
 /// VPN_KILLSWITCH_METRIC so the tunnel route is preferred whenever the WG
 /// interface is up.

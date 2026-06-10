@@ -2,13 +2,13 @@ use crate::prelude::*;
 use crate::profiles::{self, reload_system};
 use crate::utils::{DeserializeStdin, HandlerExtSerde};
 use crate::wg::{Base64, WgKey, generate_psk};
-use crate::{CliContext, Error, ErrorKind, ServerContext};
+use crate::{CliContext, CtrlContext, Error, ErrorKind, ServerContext};
 use clap::Parser;
 use rpc_toolkit::{from_fn_async_local, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::Ipv4Addr;
-use uciedit::openwrt::{DhcpHost, NetworkInterface, NetworkRoute};
+use std::net::{Ipv4Addr, Ipv6Addr};
+use uciedit::openwrt::{DhcpHost, NetworkGlobals, NetworkInterface, NetworkRoute, NetworkRule6};
 use uciedit::{dump_all, parse_all, Arena, Configs, Line, LineComment, Section, Token, TypedSection};
 
 // === IP Allocation Constants ===
@@ -267,6 +267,93 @@ fn derive_server_address(gateway_ip: Ipv4Addr) -> Ipv4Addr {
     Ipv4Addr::new(octets[0], octets[1], octets[2], VPN_SERVER_HOST_OCTET)
 }
 
+/// The dedicated stable WireGuard ULA /64 for an inbound VPN server on
+/// `profile_interface`, as its 4 leading 16-bit groups, or `None` when the
+/// profile does not currently serve IPv6 to clients or no concrete device ULA
+/// prefix is configured (pre-first-boot `ula_prefix 'auto'`).
+///
+/// Peers can't sit in the profile's own /64 (DHCPv6-PD assigns it at runtime,
+/// non-deterministically) and WireGuard client configs are issued once and
+/// static — so peers need a STABLE address. We carve a dedicated /64 from the
+/// device ULA /48 (`network.globals.ula_prefix`, concrete and stable
+/// post-first-boot) using a high subnet-id band (`0xf000 | vlan_tag`) that stays
+/// clear of odhcpd's low sequential per-profile assignments. The peer is reached
+/// purely via the /128 that `route_allowed_ips` installs in the main table plus
+/// the v6 escape rules — so no proxy_ndp and no per-table peer routes are needed.
+fn wg_server_v6_groups(cfgs: &Configs, profile_interface: &str) -> Option<[u16; 4]> {
+    use crate::profiles::UciProfile;
+
+    let profile = cfgs["startwrt"]
+        .sections
+        .iter()
+        .filter_map(|s| s.get::<UciProfile>().ok())
+        .find(|p| p.interface == profile_interface)?;
+
+    // Only hand out a v6 address when the profile actually serves v6 to clients.
+    if !crate::profiles::is_ipv6_enabled(cfgs) {
+        return None;
+    }
+    let outbound = profile.outbound.clone().unwrap_or_else(|| "wan".to_string());
+    if !crate::profiles::outbound_supports_ipv6(cfgs, &outbound) {
+        return None;
+    }
+
+    let prefix = cfgs["network"]
+        .sections
+        .iter()
+        .find_map(|s| s.get::<NetworkGlobals>().ok().and_then(|g| g.ula_prefix))?;
+    let base: Ipv6Addr = prefix.split('/').next()?.parse().ok()?;
+    let g = base.segments();
+    // Must be a ULA (fc00::/7); rejects the literal 'auto', GUAs, and garbage.
+    if g[0] & 0xfe00 != 0xfc00 {
+        return None;
+    }
+    Some([g[0], g[1], g[2], 0xf000 | profile.vlan_tag])
+}
+
+/// Server address in the WG /64: `<wg64>::1`.
+fn wg_server_v6_addr(groups: [u16; 4]) -> Ipv6Addr {
+    Ipv6Addr::new(groups[0], groups[1], groups[2], groups[3], 0, 0, 0, 1)
+}
+
+/// Peer address in the WG /64, reusing the peer's v4 host octet as the host id:
+/// `<wg64>::<octet>`.
+fn wg_peer_v6_addr(groups: [u16; 4], host_octet: u8) -> Ipv6Addr {
+    Ipv6Addr::new(groups[0], groups[1], groups[2], groups[3], 0, 0, 0, host_octet as u16)
+}
+
+/// Reconcile the inbound server interface's IPv6 address: add its dedicated
+/// WG-/64 ULA /128 when the profile serves IPv6, drop any v6 entry otherwise.
+/// `set_wireguard_interface` already does this when the server is (re)saved;
+/// this lets paths that only add/remove peers (peer_add) keep the interface
+/// consistent if IPv6 was toggled on after the server was created.
+fn ensure_server_v6_address(cfgs: &mut Configs, wg_interface_name: &str) -> Result<(), Error> {
+    let profile_interface = wg_interface_name.strip_prefix("wg_").unwrap_or(wg_interface_name);
+    let want_v6 = wg_server_v6_groups(cfgs, profile_interface)
+        .map(|g| format!("{}/128", wg_server_v6_addr(g)));
+    for section in &mut cfgs["network"].sections {
+        if section.name().as_deref() != Some(wg_interface_name) {
+            continue;
+        }
+        let Ok(mut wg) = section.get::<WgInterface>() else {
+            continue;
+        };
+        if !wg.is_wireguard() {
+            continue;
+        }
+        let before = wg.addresses.clone();
+        wg.addresses.retain(|a| !a.contains(':'));
+        if let Some(v6) = &want_v6 {
+            wg.addresses.push(v6.clone());
+        }
+        if wg.addresses != before {
+            section.set(&wg)?;
+        }
+        break;
+    }
+    Ok(())
+}
+
 /// Extract gateway IP for a profile from already-parsed configs.
 /// Avoids redundant re-parsing that `profiles::get()` would do.
 fn get_gateway_ip(cfgs: &Configs, interface_name: &str) -> Result<Ipv4Addr, Error> {
@@ -329,13 +416,15 @@ pub(crate) fn sync_peer_policy_routes(
 
     let wg_interface_name = format!("wg_{}", profile_interface);
     let route_prefix = format!("vpr_{}_", profile_interface);
+    let vsl6_name = format!("vsl6_{}", profile_interface);
+    let vsr6_name = format!("vsr6_{}", profile_interface);
 
-    // 1. Remove all existing VPN peer routes for this profile
-    cfgs["network"].sections.retain(|s| {
-        s.name()
-            .as_deref()
-            .map(|n| !n.starts_with(&route_prefix))
-            .unwrap_or(true)
+    // 1. Remove all existing VPN peer routes and v6 steering rules for this
+    //    profile (idempotent recompute; also cleans them up if the profile
+    //    became wan-routed or lost its inbound server in the gates below).
+    cfgs["network"].sections.retain(|s| match s.name().as_deref() {
+        Some(n) => !n.starts_with(&route_prefix) && n != vsl6_name && n != vsr6_name,
+        None => true,
     });
 
     // 2. Find the profile's outbound and vlan_tag
@@ -381,7 +470,204 @@ pub(crate) fn sync_peer_policy_routes(
         )?;
     }
 
+    // 5. IPv6 egress steering for the inbound server interface. Peer v6 ingresses
+    //    on wg_<X>, which the profile's prl6_/prr6_ rules (keyed on `in: br-lan.N`)
+    //    do NOT match — so without these it would fall to the main table and leak
+    //    out wan6 on a vpn-routed profile. Mirror prl6_/prr6_ for `in: wg_<X>`:
+    //      * vsl6_: lookup main, suppress_prefixlength=0 — local/cross-VLAN escape
+    //        so peer→sibling and peer→own-LAN v6 stay local (matching the connected
+    //        /64 routes in main and the peer /128s route_allowed_ips installs
+    //        there). Suppressing the default route keeps it from sending public v6
+    //        to wan6.
+    //      * vsr6_: lookup <vlan_tag> — captures the rest to the per-VLAN tunnel
+    //        default (prt6_) or the unreachable kill-switch (prt6b_). This closes
+    //        the leak and gives the peer public v6 via the tunnel's NAT66.
+    //    Installed whenever an inbound server exists on a vpn-routed profile,
+    //    independent of v6 capability, so peer v6 can never leak (a v4-only tunnel
+    //    drops it on the kill-switch). v6 reachability needs no per-table peer
+    //    routes (unlike v4's vpr_): the escape rule + the /128-in-main beat any
+    //    /64, and no proxy_ndp is needed because the peer lives on a dedicated /64.
+    cfgs["network"].append(
+        &NetworkRule6 {
+            in_iface: Some(wg_interface_name.clone()),
+            lookup: 254, // main
+            suppress_prefixlength: Some(0),
+            priority: Some(crate::profiles::VPN_ROUTING_V6_LOCAL_PRIORITY),
+            ..Default::default()
+        },
+        Some(&vsl6_name),
+    )?;
+    cfgs["network"].append(
+        &NetworkRule6 {
+            in_iface: Some(wg_interface_name.clone()),
+            lookup: vlan_tag as u32,
+            priority: Some(crate::profiles::VPN_ROUTING_PRIORITY),
+            ..Default::default()
+        },
+        Some(&vsr6_name),
+    )?;
+
     Ok(())
+}
+
+/// Install /32 host routes for every inbound-VPN server's peers into the policy
+/// routing tables of OTHER vpn-routed profiles.
+///
+/// `sync_peer_policy_routes` only adds a peer's /32 to its OWN profile's table,
+/// while `sync_cross_subnet_routes` adds a sibling's whole /24 via the LAN
+/// bridge. Together those leave a gap: in a vpn-routed sibling's table a peer IP
+/// matches the /24-via-bridge route, so the router sends cross-profile replies
+/// onto the LAN bridge instead of into the WireGuard tunnel and the connection
+/// breaks. This adds a more-specific /32 via the peer's `wg_<P>` interface to
+/// override that /24.
+///
+/// wan-routed siblings already work: their reply path uses the main table, where
+/// the peer's `route_allowed_ips '1'` already installs the /32 via `wg_<P>`.
+///
+/// Access between profiles stays governed solely by the firewall forwarding
+/// rules (driven by `lan_access`) — these routes only correct the L3 path and
+/// grant no reachability the firewall does not already permit.
+pub(crate) fn sync_vpn_peer_cross_routes(cfgs: &mut Configs) -> Result<(), Error> {
+    use crate::profiles::UciProfile;
+
+    // 1. Drop stale routes for an idempotent recompute.
+    cfgs["network"]
+        .sections
+        .retain(|s| !s.name().as_deref().map_or(false, |n| n.starts_with("vxr_")));
+
+    // 2. vpn-routed profiles are the destination tables that need the /32s.
+    let vpn_profiles: Vec<(String, u16)> = cfgs["startwrt"]
+        .sections
+        .iter()
+        .filter_map(|s| {
+            let p = s.get::<UciProfile>().ok()?;
+            if p.outbound.as_deref().unwrap_or("wan") != "wan" {
+                Some((p.interface, p.vlan_tag))
+            } else {
+                None
+            }
+        })
+        .collect();
+    if vpn_profiles.is_empty() {
+        return Ok(());
+    }
+
+    // 3. Each inbound VPN server: (profile_interface, wg_interface).
+    let servers: Vec<(String, String)> = cfgs["startwrt"]
+        .sections
+        .iter()
+        .filter_map(|s| s.get::<UciVpnServer>().ok())
+        .map(|meta| (meta.profile_interface, meta.interface))
+        .collect();
+
+    // 4. Add each server's peer /32s into every OTHER vpn-routed profile's table.
+    for (server_iface, wg_iface) in &servers {
+        let peer_ips = get_vpn_peer_ips(cfgs, wg_iface);
+        if peer_ips.is_empty() {
+            continue;
+        }
+        for (table_iface, vlan_tag) in &vpn_profiles {
+            if table_iface == server_iface {
+                continue; // own table is handled by sync_peer_policy_routes
+            }
+            for ip in &peer_ips {
+                let route_name =
+                    format!("vxr_{}_{}_{}", server_iface, table_iface, ip.octets()[3]);
+                cfgs["network"].append(
+                    &NetworkRoute {
+                        interface: wg_iface.clone(),
+                        target: format!("{}/32", ip),
+                        table: Some(*vlan_tag as u32),
+                        ..Default::default()
+                    },
+                    Some(&route_name),
+                )?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// The /24 CIDR string (`x.y.z.0/24`) covering a profile gateway address.
+fn subnet_cidr_of_ip(ip: Ipv4Addr) -> String {
+    let o = ip.octets();
+    format!("{}.{}.{}.0/24", o[0], o[1], o[2])
+}
+
+/// Resolve a profile interface to its /24 from the static network config.
+fn profile_subnet_cidr(cfgs: &Configs, interface: &str) -> Option<String> {
+    cfgs["network"].sections.iter().find_map(|s| {
+        if s.name().as_deref() != Some(interface) {
+            return None;
+        }
+        let ni = s.get::<NetworkInterface>().ok()?;
+        ni.ipaddr.map(subnet_cidr_of_ip)
+    })
+}
+
+/// Build the split-tunnel `AllowedIPs` LAN list for a "LAN only" peer: the
+/// profile's own /24 plus the /24 of every profile its `lan_access` permits it
+/// to reach. Returns a comma-separated list with no default route ("All traffic"
+/// peers use `0.0.0.0/0` instead).
+///
+/// Scoped to the profile's OUTBOUND `lan_access` (what the client may initiate
+/// to), so a limited-access profile's peer reaches exactly the profiles that
+/// profile can — keeping the VPN client consistent with the profile rules.
+///
+/// TODO(reverse-parity): a profile permitted to initiate INTO this one (e.g. an
+/// admin profile with access to all) cannot reach this peer, because its subnet
+/// is absent from `AllowedIPs` and WireGuard drops inbound packets whose source
+/// falls outside `AllowedIPs`. A wired client in the same profile WOULD be
+/// reachable. To close this gap, also include the subnets of profiles whose
+/// firewall zone forwards into this profile's zone.
+fn lan_only_allowed_ips(
+    ctx: impl CtrlContext,
+    cfgs: &Configs,
+    profile_interface: &str,
+    gateway_ip: Ipv4Addr,
+) -> Result<String, Error> {
+    use crate::profiles::{LanAccess, Lookup, ProfileIdOpt};
+
+    let mut subnets = vec![subnet_cidr_of_ip(gateway_ip)];
+
+    let profile = crate::profiles::get_config(
+        ctx.clone(),
+        cfgs,
+        ProfileIdOpt {
+            fullname: None,
+            interface: Some(profile_interface.to_string()),
+            vlan_tag: None,
+        },
+    )?;
+
+    let add = |iface: &str, subnets: &mut Vec<String>| {
+        if iface == profile_interface {
+            return;
+        }
+        if let Some(cidr) = profile_subnet_cidr(cfgs, iface) {
+            if !subnets.contains(&cidr) {
+                subnets.push(cidr);
+            }
+        }
+    };
+
+    match profile.lan_access {
+        LanAccess::SameProfile => {}
+        LanAccess::OtherProfiles(ids) => {
+            for id in &ids {
+                add(&id.interface, &mut subnets);
+            }
+        }
+        LanAccess::All => {
+            let lookup = Lookup::parse(ctx, cfgs)?;
+            for id in lookup.list() {
+                add(&id.interface, &mut subnets);
+            }
+        }
+    }
+
+    Ok(subnets.join(", "))
 }
 
 /// Returns a map of profile_interface -> peer_count for profiles that have VPN peers.
@@ -460,6 +746,7 @@ pub(crate) fn remove_vpn_server(
 
     // Clean up routing and proxy ARP UCI
     sync_peer_policy_routes(cfgs, profile_interface)?;
+    sync_vpn_peer_cross_routes(cfgs)?;
     sync_proxy_arp(cfgs, profile_interface)?;
 
     Ok(vlan_tag)
@@ -678,7 +965,9 @@ pub async fn set(
     let mut retries = 4;
     loop {
         let arena = Arena::new();
-        let mut cfgs = parse_all("/etc/config", &arena, &["network", "startwrt", "firewall"]).await?;
+        // `dhcp` is needed so set_wireguard_interface can gate the server's v6
+        // address on is_ipv6_enabled (which reads the LAN RA setting).
+        let mut cfgs = parse_all("/etc/config", &arena, &["network", "startwrt", "firewall", "dhcp"]).await?;
 
         // Verify the profile exists and get its gateway IP
         let profile_lookup = profiles::Lookup::parse(ServerContext::default(), &cfgs)?;
@@ -718,6 +1007,8 @@ pub async fn set(
 
         // Sync /32 peer routes in the profile's policy routing table
         sync_peer_policy_routes(&mut cfgs, profile_interface)?;
+        // Keep cross-profile peer /32 routes in sibling VPN tables in sync.
+        sync_vpn_peer_cross_routes(&mut cfgs)?;
 
         // Enable proxy ARP on the profile's LAN interface so LAN devices can reach VPN peers
         sync_proxy_arp(&mut cfgs, profile_interface)?;
@@ -821,6 +1112,8 @@ pub async fn delete(_ctx: ServerContext, args: DeleteArgs) -> Result<(), Error> 
 
         // Clean up /32 peer routes from the profile's policy routing table
         sync_peer_policy_routes(&mut cfgs, profile_interface)?;
+        // Keep cross-profile peer /32 routes in sibling VPN tables in sync.
+        sync_vpn_peer_cross_routes(&mut cfgs)?;
 
         // Disable proxy ARP now that no VPN server exists for this profile
         sync_proxy_arp(&mut cfgs, profile_interface)?;
@@ -975,8 +1268,38 @@ pub async fn peer_add(
         // Add the new peer
         add_single_peer(&mut cfgs, &wg_interface_name, &peer, &arena)?;
 
+        // Keep the server interface's v6 address consistent (e.g. if IPv6 was
+        // enabled after the server was created).
+        ensure_server_v6_address(&mut cfgs, &wg_interface_name)?;
+
+        // Compute the client's Address + split-tunnel AllowedIPs before dump_all
+        // consumes cfgs. The peer gets a /128 in the server's dedicated WG /64
+        // when the profile serves IPv6 (see wg_server_v6_groups).
+        let v6_groups = wg_server_v6_groups(&cfgs, profile_interface);
+        let address_line = match v6_groups {
+            Some(g) => format!("{}/32, {}/128", peer_ip, wg_peer_v6_addr(g, peer_ip.octets()[3])),
+            None => format!("{}/32", peer_ip),
+        };
+        // "All traffic" peers tunnel everything; "LAN only" peers tunnel exactly
+        // the LAN subnets this profile's lan_access permits.
+        let allowed_ips = if peer.route_all == Some(true) {
+            "0.0.0.0/0, ::/0".to_string()
+        } else {
+            let mut s = lan_only_allowed_ips(ServerContext::default(), &cfgs, profile_interface, gateway_ip)?;
+            if let Some(g) = v6_groups {
+                // The device ULA /48 covers every profile's dynamic /64 plus the
+                // WG /64. v6 lan_access is enforced at the firewall — we can't
+                // scope to specific sibling /64s because DHCPv6-PD assigns them
+                // at runtime (unlike the static v4 /24s above).
+                s.push_str(&format!(", {:x}:{:x}:{:x}::/48", g[0], g[1], g[2]));
+            }
+            s
+        };
+
         // Sync /32 peer routes in the profile's policy routing table
         sync_peer_policy_routes(&mut cfgs, profile_interface)?;
+        // Keep cross-profile peer /32 routes in sibling VPN tables in sync.
+        sync_vpn_peer_cross_routes(&mut cfgs)?;
 
         match dump_all("/etc/config", cfgs).await {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
@@ -991,15 +1314,8 @@ pub async fn peer_add(
                 // Restart the WireGuard interface to apply peer changes immediately
                 restart_wireguard_interface(&wg_interface_name).await?;
 
-                // Generate client config if we generated the keys
-                let route_all = peer.route_all == Some(true);
-                let allowed_ips = if route_all {
-                    "0.0.0.0/0, ::/0".to_string()
-                } else {
-                    let octets = gateway_ip.octets();
-                    format!("{}.{}.{}.0/24", octets[0], octets[1], octets[2])
-                };
-
+                // Generate client config if we generated the keys.
+                // `allowed_ips` was computed above, before dump_all consumed cfgs.
                 let client_config = client_private_key.map(|private_key| {
                     let psk = peer.preshared_key.as_deref().unwrap_or("");
 
@@ -1009,7 +1325,7 @@ pub async fn peer_add(
                          \n\
                          [Interface]\n\
                          PrivateKey = {privkey}\n\
-                         Address = {addr}/32\n\
+                         Address = {address}\n\
                          DNS = {gateway}\n\
                          \n\
                          [Peer]\n\
@@ -1020,7 +1336,7 @@ pub async fn peer_add(
                          PersistentKeepalive = 25\n",
                         name = peer.name,
                         privkey = private_key.to_base64(),
-                        addr = peer_ip,
+                        address = address_line,
                         server_pubkey = server_public_key,
                         psk = psk,
                         endpoint = server_endpoint,
@@ -1098,6 +1414,8 @@ pub async fn peer_delete(_ctx: ServerContext, args: PeerDeleteArgs) -> Result<()
 
         // Sync /32 peer routes in the profile's policy routing table
         sync_peer_policy_routes(&mut cfgs, profile_interface)?;
+        // Keep cross-profile peer /32 routes in sibling VPN tables in sync.
+        sync_vpn_peer_cross_routes(&mut cfgs)?;
 
         match dump_all("/etc/config", cfgs).await {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
@@ -1210,6 +1528,19 @@ fn add_single_peer<'a>(
         comment: LineComment::None,
     });
 
+    // When the host profile serves IPv6, also allow the peer's WG-/64 ULA /128.
+    // route_allowed_ips='1' (set above) then installs this /128 in the main
+    // table, which is how the router and other profiles reach the peer over v6.
+    let profile_interface = interface_name.strip_prefix("wg_").unwrap_or(interface_name);
+    if let Some(groups) = wg_server_v6_groups(cfgs, profile_interface) {
+        let v6_str: &str = arena.alloc(format!("{}/128", wg_peer_v6_addr(groups, ip.octets()[3])));
+        lines.push(Line::List {
+            list: Token::from_str("allowed_ips", arena),
+            item: Token::from_str(v6_str, arena),
+            comment: LineComment::None,
+        });
+    }
+
     let section = Section { arena, lines };
     cfgs["network"].sections.push(section);
 
@@ -1239,10 +1570,13 @@ fn get_peers_for_interface(cfgs: &Configs, interface_name: &str) -> Vec<VpnServe
                     },
                     Line::List { list, item, .. } => {
                         if list.as_str() == "allowed_ips" {
-                            // Parse IP from "x.x.x.x/32" format
+                            // Parse the v4 host from "x.x.x.x/32"; ignore the v6
+                            // "<ula>/128" entry (parse fails, must not clobber).
                             let ip_str = item.as_str();
                             if let Some(ip_part) = ip_str.split('/').next() {
-                                ip = ip_part.parse().ok();
+                                if let Ok(v4) = ip_part.parse::<Ipv4Addr>() {
+                                    ip = Some(v4);
+                                }
                             }
                         }
                     }
@@ -1276,7 +1610,13 @@ fn set_wireguard_interface(
     let mut found = false;
     // Use /32 for WireGuard to avoid routing conflicts with the LAN bridge.
     // WireGuard handles routing to peers via allowed_ips, not interface subnet.
-    let address_cidr = format!("{}/32", server_address);
+    // When the host profile serves IPv6, also give the interface its dedicated
+    // WG-/64 ULA /128 so peers get first-class v6 (see wg_server_v6_groups).
+    let profile_interface = interface_name.strip_prefix("wg_").unwrap_or(interface_name);
+    let mut addresses = vec![format!("{}/32", server_address)];
+    if let Some(groups) = wg_server_v6_groups(cfgs, profile_interface) {
+        addresses.push(format!("{}/128", wg_server_v6_addr(groups)));
+    }
 
     for section in &mut cfgs["network"].sections {
         if section.name().as_deref() != Some(interface_name) {
@@ -1296,7 +1636,7 @@ fn set_wireguard_interface(
             wg_iface.private_key = new_key.clone();
         }
         wg_iface.listen_port = if config.enabled { Some(config.listen_port) } else { None };
-        wg_iface.addresses = vec![address_cidr.clone()];
+        wg_iface.addresses = addresses.clone();
         section.set(&wg_iface)?;
         found = true;
         break;
@@ -1313,7 +1653,7 @@ fn set_wireguard_interface(
             proto: "wireguard".to_string(),
             private_key,
             listen_port: if config.enabled { Some(config.listen_port) } else { None },
-            addresses: vec![address_cidr],
+            addresses,
             disabled: None,
         };
         cfgs["network"].append(&new_iface, Some(interface_name))?;
@@ -2620,5 +2960,272 @@ config dhcp 'guest'
             .filter_map(|s| s.get::<uciedit::openwrt::FirewallRule>().ok())
             .any(|r| r.name == "Allow-WireGuard-wg_guest");
         assert!(has_rule, "re-enabled should restore WAN rule");
+    }
+
+    /// Configs for a v6-serving, vpn-routed Guest profile (outbound wg_vpn1, a
+    /// v6-capable tunnel) hosting an inbound server wg_guest. Includes a concrete
+    /// device ULA prefix and global RA, so wg_server_v6_groups returns Some.
+    fn setup_v6_configs(dir: &Path) {
+        std::fs::write(
+            dir.join("startwrt"),
+            "\
+config profile lan
+\toption fullname 'Admin'
+\toption interface 'lan'
+\toption vlan_tag '99'
+\toption access_to_new_profiles '1'
+
+config profile guest
+\toption fullname 'Guest'
+\toption interface 'guest'
+\toption vlan_tag '101'
+\toption outbound 'wg_vpn1'
+
+config vpn_server 'wg_guest'
+\toption interface 'wg_guest'
+\toption profile_interface 'guest'
+\toption label 'Guest VPN'
+\toption listen_port '51820'
+\toption endpoint 'vpn.example.com'
+",
+        )
+        .unwrap();
+
+        std::fs::write(
+            dir.join("network"),
+            "\
+config globals 'globals'
+\toption ula_prefix 'fdaa:bbbb:cccc::/48'
+
+config interface 'lan'
+\toption device 'br-lan.99'
+\toption proto 'static'
+\toption ipaddr '192.168.1.1'
+\toption netmask '255.255.255.0'
+
+config interface 'guest'
+\toption device 'br-lan.101'
+\toption proto 'static'
+\toption ipaddr '192.168.101.1'
+\toption netmask '255.255.255.0'
+
+config interface 'wg_vpn1'
+\toption proto 'wireguard'
+\toption private_key 'AAAA'
+\tlist addresses '10.9.0.2/32'
+\tlist addresses 'fd00:9::2/128'
+
+config interface 'wg_guest'
+\toption proto 'wireguard'
+\toption private_key 'BBBB'
+\tlist addresses '192.168.101.254/32'
+",
+        )
+        .unwrap();
+
+        std::fs::write(
+            dir.join("dhcp"),
+            "\
+config dhcp 'lan'
+\toption interface 'lan'
+\toption start '100'
+\toption limit '150'
+\toption leasetime '12h'
+\toption ra 'server'
+
+config dhcp 'guest'
+\toption interface 'guest'
+\toption start '100'
+\toption limit '150'
+\toption leasetime '12h'
+\toption ra 'server'
+",
+        )
+        .unwrap();
+
+        std::fs::write(
+            dir.join("firewall"),
+            "\
+config zone
+\toption name 'wan'
+\tlist network 'wan'
+\toption input 'REJECT'
+\toption output 'ACCEPT'
+\toption forward 'REJECT'
+
+config zone
+\toption name 'vlan_guest'
+\tlist network 'guest'
+\toption input 'ACCEPT'
+\toption output 'ACCEPT'
+\toption forward 'ACCEPT'
+",
+        )
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_wg_server_v6_groups_derivation() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_v6_configs(dir.path());
+        let arena = Arena::new();
+        let cfgs = parse_all(dir.path(), &arena, &["network", "startwrt", "firewall", "dhcp"]).await.unwrap();
+
+        let groups = wg_server_v6_groups(&cfgs, "guest").expect("guest serves v6");
+        // ULA /48 high groups + high subnet-id band (0xf000 | vlan_tag 101).
+        assert_eq!(groups, [0xfdaa, 0xbbbb, 0xcccc, 0xf000 | 101]);
+        assert_eq!(wg_server_v6_addr(groups).to_string(), "fdaa:bbbb:cccc:f065::1");
+        // Peer host id reuses the v4 octet (.202 = 0xca).
+        assert_eq!(wg_peer_v6_addr(groups, 202).to_string(), "fdaa:bbbb:cccc:f065::ca");
+    }
+
+    #[tokio::test]
+    async fn test_wg_server_v6_groups_none_when_not_serving_v6() {
+        // setup_with_vpn_server has no ULA prefix and no global RA → v4-only.
+        let dir = tempfile::tempdir().unwrap();
+        setup_with_vpn_server(dir.path());
+        let arena = Arena::new();
+        let cfgs = parse_all(dir.path(), &arena, &["network", "startwrt", "firewall", "dhcp"]).await.unwrap();
+        assert!(wg_server_v6_groups(&cfgs, "guest").is_none());
+    }
+
+    #[tokio::test]
+    async fn test_set_wireguard_interface_adds_v6_when_serving() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_v6_configs(dir.path());
+        let arena = Arena::new();
+        let mut cfgs = parse_all(dir.path(), &arena, &["network", "startwrt", "firewall", "dhcp"]).await.unwrap();
+
+        let config = VpnServerConfig {
+            label: "Guest VPN".into(),
+            enabled: true,
+            listen_port: 51820,
+            endpoint: "vpn.example.com".into(),
+            private_key: Some(gen_key()),
+        };
+        set_wireguard_interface(&mut cfgs, "wg_guest", &config, Ipv4Addr::new(192, 168, 101, 254)).unwrap();
+
+        let wg = cfgs["network"].sections.iter()
+            .find(|s| s.name().as_deref() == Some("wg_guest"))
+            .and_then(|s| s.get::<WgInterface>().ok()).unwrap();
+        assert_eq!(wg.addresses, vec!["192.168.101.254/32", "fdaa:bbbb:cccc:f065::1/128"]);
+    }
+
+    #[tokio::test]
+    async fn test_add_single_peer_includes_v6_when_serving() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_v6_configs(dir.path());
+        let arena = Arena::new();
+        let mut cfgs = parse_all(dir.path(), &arena, &["network", "startwrt", "firewall", "dhcp"]).await.unwrap();
+
+        let key = gen_key();
+        let peer = VpnServerPeer {
+            name: "Tablet".into(),
+            ip: Some(Ipv4Addr::new(192, 168, 101, 202)),
+            public_key: Some(key.clone()),
+            preshared_key: None,
+            route_all: None,
+        };
+        add_single_peer(&mut cfgs, "wg_guest", &peer, &arena).unwrap();
+
+        let new_peer = cfgs["network"].sections.iter()
+            .find(|s| s.ty() == "wireguard_wg_guest")
+            .expect("peer should exist");
+        let has_v4 = new_peer.lines.iter().any(|l| matches!(l, Line::List { list, item, .. }
+            if list.as_str() == "allowed_ips" && item.as_str() == "192.168.101.202/32"));
+        let has_v6 = new_peer.lines.iter().any(|l| matches!(l, Line::List { list, item, .. }
+            if list.as_str() == "allowed_ips" && item.as_str() == "fdaa:bbbb:cccc:f065::ca/128"));
+        assert!(has_v4, "peer should have v4 /32 allowed_ips");
+        assert!(has_v6, "peer should have v6 /128 allowed_ips");
+    }
+
+    #[tokio::test]
+    async fn test_add_single_peer_no_v6_when_not_serving() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_with_vpn_server(dir.path());
+        let arena = Arena::new();
+        let mut cfgs = parse_all(dir.path(), &arena, &["network", "startwrt", "firewall", "dhcp"]).await.unwrap();
+
+        let key = gen_key();
+        let peer = VpnServerPeer {
+            name: "Tablet".into(),
+            ip: Some(Ipv4Addr::new(192, 168, 101, 202)),
+            public_key: Some(key.clone()),
+            preshared_key: None,
+            route_all: None,
+        };
+        add_single_peer(&mut cfgs, "wg_guest", &peer, &arena).unwrap();
+
+        let new_peer = cfgs["network"].sections.iter()
+            .filter(|s| s.ty() == "wireguard_wg_guest")
+            .find(|s| s.lines.iter().any(|l| matches!(l, Line::Option { option, value, .. }
+                if option.as_str() == "public_key" && value.as_str() == key)))
+            .unwrap();
+        let v6_count = new_peer.lines.iter().filter(|l| matches!(l, Line::List { list, item, .. }
+            if list.as_str() == "allowed_ips" && item.as_str().contains(':'))).count();
+        assert_eq!(v6_count, 0, "v4-only profile peer must have no v6 allowed_ips");
+    }
+
+    #[tokio::test]
+    async fn test_sync_peer_policy_routes_v6_steering() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_v6_configs(dir.path());
+        let arena = Arena::new();
+        let mut cfgs = parse_all(dir.path(), &arena, &["network", "startwrt", "firewall", "dhcp"]).await.unwrap();
+
+        sync_peer_policy_routes(&mut cfgs, "guest").unwrap();
+
+        let vsl6 = cfgs["network"].sections.iter()
+            .find(|s| s.name().as_deref() == Some("vsl6_guest"))
+            .and_then(|s| s.get::<NetworkRule6>().ok())
+            .expect("vsl6_guest rule should exist");
+        assert_eq!(vsl6.in_iface.as_deref(), Some("wg_guest"));
+        assert_eq!(vsl6.lookup, 254, "local escape looks up main");
+        assert_eq!(vsl6.suppress_prefixlength, Some(0));
+        assert_eq!(vsl6.priority, Some(150), "must match prl6_ priority");
+
+        let vsr6 = cfgs["network"].sections.iter()
+            .find(|s| s.name().as_deref() == Some("vsr6_guest"))
+            .and_then(|s| s.get::<NetworkRule6>().ok())
+            .expect("vsr6_guest rule should exist");
+        assert_eq!(vsr6.in_iface.as_deref(), Some("wg_guest"));
+        assert_eq!(vsr6.lookup, 101, "captures to the per-VLAN table");
+        assert_eq!(vsr6.priority, Some(200), "must match prr6_ priority");
+    }
+
+    #[tokio::test]
+    async fn test_sync_peer_policy_routes_no_v6_steering_for_wan_routed() {
+        // setup_with_vpn_server's Guest is wan-routed (no outbound) but has an
+        // inbound server — it must NOT get v6 steering (main table is correct).
+        let dir = tempfile::tempdir().unwrap();
+        setup_with_vpn_server(dir.path());
+        let arena = Arena::new();
+        let mut cfgs = parse_all(dir.path(), &arena, &["network", "startwrt", "firewall", "dhcp"]).await.unwrap();
+
+        sync_peer_policy_routes(&mut cfgs, "guest").unwrap();
+
+        let has_steering = cfgs["network"].sections.iter().any(|s| {
+            let n = s.name();
+            n.as_deref() == Some("vsl6_guest") || n.as_deref() == Some("vsr6_guest")
+        });
+        assert!(!has_steering, "wan-routed profile must not get v6 steering rules");
+    }
+
+    #[tokio::test]
+    async fn test_ensure_server_v6_address_adds_when_serving() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_v6_configs(dir.path());
+        let arena = Arena::new();
+        let mut cfgs = parse_all(dir.path(), &arena, &["network", "startwrt", "firewall", "dhcp"]).await.unwrap();
+
+        // The fixture's wg_guest starts with only a v4 address.
+        ensure_server_v6_address(&mut cfgs, "wg_guest").unwrap();
+
+        let wg = cfgs["network"].sections.iter()
+            .find(|s| s.name().as_deref() == Some("wg_guest"))
+            .and_then(|s| s.get::<WgInterface>().ok()).unwrap();
+        assert!(wg.addresses.iter().any(|a| a == "192.168.101.254/32"), "v4 preserved");
+        assert!(wg.addresses.iter().any(|a| a == "fdaa:bbbb:cccc:f065::1/128"),
+            "should add the server v6 /128 when the profile serves v6");
     }
 }

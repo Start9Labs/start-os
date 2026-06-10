@@ -220,19 +220,40 @@ pub async fn set<C: CtrlContext>(
                     // WiFi clients and br-lan are dropped — including
                     // this RPC's response if we blocked here.
                     //
-                    // `firewall restart` (not `reload`): the bridge
-                    // sub-interfaces were just recreated, and fw4's
-                    // diff-style reload is unreliable against the
-                    // rebuilt state.
+                    // `network reload` is sufficient and correct: netifd
+                    // reprograms an existing bridge member's VLAN/PVID live
+                    // via RTM_SETLINK/RTM_DELLINK netlink (no teardown, no
+                    // reboot).  odhcpd re-binds automatically (it has a
+                    // `network` procd reload trigger); dnsmasq needs nothing
+                    // because moving eth0 between VLANs doesn't recreate the
+                    // per-profile sub-interfaces it's bound to.
                     //
-                    // Skip wifi/dnsmasq/smartdns: only network config
-                    // changed, and running `wifi` would destroy and
-                    // recreate wireless interfaces whose new instances
-                    // lose their bridge VLAN 1 entry, permanently
-                    // breaking WiFi.
+                    // `firewall reload` (NOT `restart`): a port-VLAN move
+                    // doesn't change any zone↔interface binding, so the fw4
+                    // ruleset is still valid and only needs an incremental
+                    // refresh.  `firewall restart` flushes the whole table
+                    // and rebuilds from zero — under the default `input
+                    // REJECT` policy that opens a window where management
+                    // traffic is dropped, which (racing netifd's bridge
+                    // work) intermittently locked out all access until a
+                    // manual reboot.
+                    //
+                    // `wifi reload` AFTER the network reload: the AP netdevs
+                    // are attached to br-lan at runtime by hostapd, not by
+                    // netifd, and they never appear in the `network` bridge
+                    // config — so `network reload` rebuilds the bridge VLAN
+                    // table without them and they lose their VLAN membership.
+                    // Re-running `wifi` re-attaches them so they pick up
+                    // their PVID once the VLANs exist again (this mirrors
+                    // `lan::restart_network_services` and `profiles`).  It
+                    // doesn't flush the firewall or cycle br-lan/ethernet, so
+                    // it can't re-trigger the lockout above; WiFi clients
+                    // just briefly reassociate.  Run sequentially so it
+                    // doesn't race the network reload.
                     tokio::spawn(async move {
                         let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/network").arg("reload")).await;
-                        let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/firewall").arg("restart")).await;
+                        let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/firewall").arg("reload")).await;
+                        let _ = crate::run_quiet_async(&mut tokio::process::Command::new("wifi")).await;
                         bounce_changed_ports(&old_ports, &ethernet).await;
                     });
                 }
@@ -447,7 +468,23 @@ fn set_config(
         }
 
         let vlan = profile.vlan_tag;
-        if ports.is_empty() && vlan == 1 {
+        // VLAN filtering OFF (no profile has a tag != 1): br-lan is a plain
+        // flat bridge — the `lan` L3 interface sits on `br-lan` directly, not
+        // `br-lan.1`, and no bridge-vlan sections exist (the br-lan -> br-lan.1
+        // flip + VID-1 creation happens only in profiles::ensure_vlan_filtering,
+        // when the first non-admin profile is created). There is no Admin VLAN
+        // to preserve here; emitting an empty VID-1 section would needlessly
+        // turn the flat bridge into a filtering bridge with no member ports.
+        // So skip it.
+        //
+        // VLAN filtering ON: do NOT skip. The (possibly empty) VID-1 section is
+        // what keeps the Admin VLAN on the bridge, carrying the router's own
+        // `br-lan.1` management interface and the default `network='lan'`
+        // wireless SSID — the AP ports are attached at runtime by hostapd and
+        // never appear in `ethernet.ports`. Dropping it there was the bug that
+        // left WiFi/gateway with "No route to host"; hence the
+        // `&& !needs_vlan_filtering` guard.
+        if ports.is_empty() && vlan == 1 && !needs_vlan_filtering {
             continue;
         }
         cfgs["network"].append(
@@ -1253,6 +1290,93 @@ config interface 'wan'
             after.ports["eth1"].profile.as_ref().unwrap().interface,
             "lan",
             "unassigned port should default to admin profile"
+        );
+    }
+
+    #[tokio::test]
+    async fn set_keeps_admin_vlan_when_last_admin_port_reassigned() {
+        // Regression for the Admin-VLAN-drop bug: on real hardware the AP
+        // netdevs are attached to br-lan at runtime by hostapd and are NOT
+        // listed in the `network` bridge `ports`.  Here the bridge has a
+        // single ethernet member (eth0) and no wireless ports in config.
+        // Moving eth0 (the only Admin port) to Guest leaves Admin with zero
+        // ports — the buggy `if ports.is_empty() && vlan == 1` skip then
+        // deleted the VLAN-1 bridge-vlan section entirely, taking down the
+        // gateway (br-lan.1) and the default-network WiFi SSID.
+        let dir = tempfile::tempdir().unwrap();
+        setup_basic(dir.path()); // startwrt: lan(vlan 1) + guest(vlan 3); firewall
+        // Single-port bridge, no wireless in config (mirrors real hardware).
+        std::fs::write(
+            dir.path().join("network"),
+            "\
+config device
+\toption name 'br-lan'
+\toption type 'bridge'
+\tlist ports 'eth0'
+
+config bridge-vlan
+\toption device 'br-lan'
+\toption vlan '1'
+\tlist ports 'eth0:u*'
+
+config interface 'lan'
+\toption device 'br-lan.1'
+\toption proto 'static'
+\toption ipaddr '192.168.1.1'
+\toption netmask '255.255.255.0'
+
+config interface 'guest'
+\toption device 'br-lan.3'
+\toption proto 'static'
+\toption ipaddr '192.168.3.1'
+\toption netmask '255.255.255.0'
+",
+        )
+        .unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        // Move eth0 (the only Admin port) to Guest.
+        set(
+            ctx.clone(),
+            DeserializeStdin(Ethernet {
+                wan_ipv6: false,
+                wan_port: None,
+                ports: BTreeMap::from([(
+                    "eth0".into(),
+                    Port {
+                        profile: Some(ProfileIdOpt {
+                            fullname: None,
+                            interface: Some("guest".into()),
+                            vlan_tag: None,
+                        }),
+                    },
+                )]),
+            }),
+        )
+        .await
+        .unwrap();
+
+        // The Admin VLAN (1) section must still exist so br-lan.1 and the
+        // default-network SSID keep their bridge VLAN, even though it now has
+        // no member ports.
+        let arena = Arena::new();
+        let cfgs =
+            parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"]).await.unwrap();
+        let mut vlans: Vec<u16> = Vec::new();
+        for section in &cfgs["network"].sections {
+            if let Some(v) = section.get_typed::<NetworkBridgeVlan>().unwrap() {
+                if v.device == "br-lan" {
+                    vlans.push(v.vlan);
+                }
+            }
+        }
+        assert!(
+            vlans.contains(&1),
+            "Admin VLAN 1 must survive even with no assigned ports (got vlans: {vlans:?})"
+        );
+        assert!(
+            vlans.contains(&101) || vlans.contains(&3),
+            "Guest VLAN should be present too (got vlans: {vlans:?})"
         );
     }
 

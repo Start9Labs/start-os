@@ -390,6 +390,17 @@ pub struct NetworkRule6 {
     pub suppress_prefixlength: Option<u32>,
 }
 
+/// The `config globals 'globals'` section of /etc/config/network. Holds the
+/// device-wide ULA prefix. With `ula_prefix 'auto'` the stock uci-default
+/// `12_network-generate-ula` resolves it to a concrete random /48 and commits it
+/// at first boot, so post-first-boot reads return a stable per-device prefix.
+#[derive(Debug, TypedSection, Default)]
+#[uci(ty = "globals")]
+pub struct NetworkGlobals {
+    #[uci(default)]
+    pub ula_prefix: Option<String>,
+}
+
 #[derive(Debug, TypedSection)]
 #[uci(ty = "dhcp")]
 pub struct Dhcp {

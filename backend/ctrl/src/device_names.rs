@@ -8,11 +8,12 @@
 //! advertised so the placeholder is only ever shown for a device we have never
 //! seen named.
 //!
-//! Scope: the cache holds ONLY DHCP-learned hostnames. UCI static-host names
-//! (set via the UI) are authoritative, live in `/etc/config/dhcp`, already
-//! survive sysupgrade, and must never be pruned — so they are deliberately not
-//! cached here. `devices::list` consults the cache only as a fallback below the
-//! live UCI and DHCP-lease sources; a fresh live name always wins.
+//! Scope: the cache holds auto-learned hostnames — DHCP-lease names and
+//! reverse-mDNS (`.local`) names. UCI static-host names (set via the UI) are
+//! authoritative, live in `/etc/config/dhcp`, already survive sysupgrade, and
+//! must never be pruned — so they are deliberately not cached here.
+//! `devices::list` consults the cache only as a fallback below the live UCI,
+//! DHCP-lease, and mDNS sources; a fresh live name always wins.
 //!
 //! Storage: a JSON file written atomically (temp + rename), NOT SQLite. The file
 //! is listed in `keep.d` so it survives sysupgrade and is captured by the
@@ -55,9 +56,10 @@ struct CachedName {
 pub struct Observation {
     /// Canonical uppercase MAC (matches the in-memory convention in devices.rs).
     pub mac: String,
-    /// The DHCP-lease hostname for this MAC this poll, if it advertised a real
-    /// one (`None` for `*`/absent). UCI names are intentionally excluded.
-    pub dhcp_hostname: Option<String>,
+    /// The name this MAC advertised this poll via a live source — the DHCP-lease
+    /// hostname, or a reverse-mDNS `.local` name when DHCP gave none (`None` if
+    /// neither). UCI static-host names are intentionally excluded.
+    pub hostname: Option<String>,
 }
 
 /// Authoritative in-memory map, lazily loaded from disk on first access.
@@ -138,7 +140,7 @@ fn apply_observations(
 ) -> bool {
     let mut changed = false;
     for obs in observations {
-        match &obs.dhcp_hostname {
+        match &obs.hostname {
             Some(name) => {
                 if let Some(entry) = map.get_mut(&obs.mac) {
                     // Known device still advertising a name: refresh if it
@@ -233,7 +235,7 @@ mod tests {
     fn obs(mac: &str, hostname: Option<&str>) -> Observation {
         Observation {
             mac: mac.to_string(),
-            dhcp_hostname: hostname.map(String::from),
+            hostname: hostname.map(String::from),
         }
     }
 

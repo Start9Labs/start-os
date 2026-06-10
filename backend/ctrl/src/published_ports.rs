@@ -733,8 +733,9 @@ async fn resolve_device_info(
         })
         .collect();
 
-    // Read DHCP leases as fallback for IPv4
-    let leases = tokio::fs::read_to_string("/tmp/dhcp.leases").await.unwrap_or_default();
+    // Read DHCP leases as fallback for IPv4 — merge the base file and every
+    // per-profile `/tmp/dhcp.leases.dns_*` instance.
+    let leases = devices::read_all_dhcp_leases().await;
     let mut lease_ipv4: HashMap<String, String> = HashMap::new();
     for line in leases.lines() {
         let parts: Vec<&str> = line.split_whitespace().collect();

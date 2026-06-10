@@ -658,6 +658,9 @@ pub async fn delete(ctx: ServerContext, args: OutboundVpnDeleteRequest) -> Resul
 
         // Rebuild cross-subnet routes (affected profiles switched to WAN)
         crate::profiles::sync_cross_subnet_routes(&mut cfgs)?;
+        // Recompute the /32 peer overrides alongside the /24 cross routes so
+        // tables left by removed/reset profiles don't retain stale vxr_ entries.
+        crate::vpn_server::sync_vpn_peer_cross_routes(&mut cfgs)?;
 
         // Remove any orphaned VPN interfaces from the WAN firewall zone.
         // This is more robust than removing just the deleted VPN — it also
@@ -810,6 +813,9 @@ pub async fn set_enabled(
 
         // Rebuild cross-subnet routes (profile routing may have changed)
         crate::profiles::sync_cross_subnet_routes(&mut cfgs)?;
+        // Recompute the /32 peer overrides alongside the /24 cross routes so
+        // tables left by removed/reset profiles don't retain stale vxr_ entries.
+        crate::vpn_server::sync_vpn_peer_cross_routes(&mut cfgs)?;
 
         rewrite_vpn_chain_routes(&mut cfgs)?;
 

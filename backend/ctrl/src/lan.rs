@@ -643,9 +643,12 @@ pub fn update_profile_ips_for_block_change(
 /// its DHCP client to lose its lease and breaking internet).
 /// Then reloads firewall and restarts dnsmasq once br-lan has the new IP.
 pub async fn restart_network_services(new_lan_ip: Ipv4Addr, interfaces: Vec<String>) {
-    // Clear DHCP leases — old leases reference the previous
-    // subnet and would cause clients to receive stale IPs.
-    let _ = tokio::fs::remove_file("/tmp/dhcp.leases").await;
+    // Clear DHCP leases — old leases reference the previous subnet and would
+    // cause clients to receive stale IPs. Remove the base file and every
+    // per-profile `/tmp/dhcp.leases.dns_*`.
+    for path in crate::devices::dhcp_lease_files().await {
+        let _ = tokio::fs::remove_file(&path).await;
+    }
     // Cycle only the changed interfaces — `network reload` restarts ALL
     // interfaces including WAN, causing its DHCP client to lose its lease.
     for iface in &interfaces {

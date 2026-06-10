@@ -112,6 +112,13 @@ struct TrafficSnapshot {
 
 static TRAFFIC_CACHE: Mutex<Option<HashMap<String, TrafficSnapshot>>> = Mutex::new(None);
 
+/// MACs already attempted over mDNS this daemon run. A device that answers is
+/// also persisted to the name cache; one that stays silent is recorded here so
+/// it is reverse-resolved at most once per daemon run instead of on every poll.
+/// Cleared only by daemon restart (acceptable: a device that later starts
+/// answering Bonjour is then picked up on the next restart).
+static MDNS_ATTEMPTED: Mutex<Option<std::collections::HashSet<String>>> = Mutex::new(None);
+
 // --- Helpers ---
 
 struct ArpEntry {
@@ -198,6 +205,49 @@ fn parse_dhcp_leases(output: &str) -> Vec<DhcpLease> {
         }
     }
     leases
+}
+
+/// Directory and filename prefix for dnsmasq lease files.
+///
+/// StartWRT runs a separate dnsmasq instance per profile when the profile uses
+/// custom or VPN DNS (see `profiles.rs`), each writing its own lease file at
+/// `/tmp/dhcp.leases.dns_<interface>`; the base `/tmp/dhcp.leases` only holds
+/// clients of the main dnsmasq instance. To see every lease we must read them
+/// all. (odhcpd's IPv6 lease file lives under `/tmp/hosts/` and is not matched.)
+const DHCP_LEASES_DIR: &str = "/tmp";
+const DHCP_LEASES_PREFIX: &str = "dhcp.leases";
+
+/// Enumerate every dnsmasq lease file: the base `/tmp/dhcp.leases` plus any
+/// per-profile `/tmp/dhcp.leases.dns_*`. Empty if `/tmp` can't be read.
+pub(crate) async fn dhcp_lease_files() -> Vec<std::path::PathBuf> {
+    let mut files = Vec::new();
+    if let Ok(mut dir) = tokio::fs::read_dir(DHCP_LEASES_DIR).await {
+        while let Ok(Some(entry)) = dir.next_entry().await {
+            if entry
+                .file_name()
+                .to_str()
+                .map_or(false, |n| n.starts_with(DHCP_LEASES_PREFIX))
+            {
+                files.push(entry.path());
+            }
+        }
+    }
+    files
+}
+
+/// Read and concatenate the contents of every dnsmasq lease file. Unreadable
+/// files are skipped. The result feeds straight into `parse_dhcp_leases`.
+pub(crate) async fn read_all_dhcp_leases() -> String {
+    let mut out = String::new();
+    for path in dhcp_lease_files().await {
+        if let Ok(content) = tokio::fs::read_to_string(&path).await {
+            out.push_str(&content);
+            if !content.ends_with('\n') {
+                out.push('\n');
+            }
+        }
+    }
+    out
 }
 
 /// Run a command and return its stdout, or empty string on failure.
@@ -497,8 +547,13 @@ fn get_vpn_peer_configs(cfgs: &Configs, wg_interface: &str) -> Vec<VpnPeerConfig
                     },
                     Line::List { list, item, .. } => {
                         if list.as_str() == "allowed_ips" {
+                            // Capture the v4 host from "x.x.x.x/32"; ignore the v6
+                            // "<ula>/128" entry so it doesn't clobber the IPv4
+                            // (mirrors get_peers_for_interface in vpn_server.rs).
                             if let Some(ip_part) = item.as_str().split('/').next() {
-                                ip = Some(ip_part.to_string());
+                                if ip_part.parse::<std::net::Ipv4Addr>().is_ok() {
+                                    ip = Some(ip_part.to_string());
+                                }
                             }
                         }
                     }
@@ -603,23 +658,26 @@ async fn flush_device_from_network(mac: &str) {
     )
     .await;
 
-    // Remove the device's lease line from the now-stable file.
-    if let Ok(content) = tokio::fs::read_to_string("/tmp/dhcp.leases").await {
-        let filtered: String = content
-            .lines()
-            .filter(|line| {
-                line.split_whitespace()
-                    .nth(1)
-                    .map_or(true, |m| m.to_uppercase() != mac)
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
-        let filtered = if content.ends_with('\n') && !filtered.is_empty() {
-            filtered + "\n"
-        } else {
-            filtered
-        };
-        let _ = tokio::fs::write("/tmp/dhcp.leases", filtered).await;
+    // Remove the device's lease line from every (now-stable) lease file — the
+    // base file and any per-profile `/tmp/dhcp.leases.dns_*`.
+    for path in dhcp_lease_files().await {
+        if let Ok(content) = tokio::fs::read_to_string(&path).await {
+            let filtered: String = content
+                .lines()
+                .filter(|line| {
+                    line.split_whitespace()
+                        .nth(1)
+                        .map_or(true, |m| m.to_uppercase() != mac)
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            let filtered = if content.ends_with('\n') && !filtered.is_empty() {
+                filtered + "\n"
+            } else {
+                filtered
+            };
+            let _ = tokio::fs::write(&path, filtered).await;
+        }
     }
 
     // Start dnsmasq — picks up both the UCI host removal and edited leases.
@@ -713,14 +771,24 @@ fn non_wifi_probe_candidates(
     (targets, ipv6_only)
 }
 
-/// Ping STALE IPs concurrently and return the set of MACs that did NOT reply.
-/// A MAC is only considered unreachable if ALL of its probed IPs failed.
+/// Ping candidate IPs concurrently. Returns:
+/// - `unreachable_macs`: MACs whose *every* probed IP failed to reply (a MAC is
+///   only unreachable if ALL of its probed IPs failed).
+/// - `live_ipv4s`: the individual IPv4 addresses that *did* reply. This is the
+///   ground truth `choose_ipv4_entry` uses to pick the right address when one
+///   MAC has neighbor entries on several VLANs — e.g. a device that just roamed
+///   profiles, leaving a stale entry on its old bridge.
 /// Each target includes the interface to bind to (`-I`), ensuring pings stay
 /// on the correct LAN segment and don't leak to WAN on overlapping subnets.
-async fn ping_unreachable_macs(targets: Vec<(String, String, String)>) -> std::collections::HashSet<String> {
+async fn ping_unreachable_macs(
+    targets: Vec<(String, String, String)>,
+) -> (
+    std::collections::HashSet<String>,
+    std::collections::HashSet<String>,
+) {
     use std::process::Stdio;
 
-    let mut results: Vec<(String, tokio::process::Child)> = Vec::new();
+    let mut results: Vec<(String, String, tokio::process::Child)> = Vec::new();
     for (ip, mac, iface) in &targets {
         if let Ok(child) = tokio::process::Command::new("ping")
             .args(["-c", "1", "-W", "1", "-I", iface, ip.as_str()])
@@ -729,20 +797,118 @@ async fn ping_unreachable_macs(targets: Vec<(String, String, String)>) -> std::c
             .kill_on_drop(true)
             .spawn()
         {
-            results.push((mac.clone(), child));
+            results.push((mac.clone(), ip.clone(), child));
         }
     }
-    // Track which MACs were probed and which responded to at least one ping.
+    // Track which MACs were probed, which responded to at least one ping, and
+    // the specific IPs that replied.
     let mut probed = std::collections::HashSet::new();
     let mut responded = std::collections::HashSet::new();
-    for (mac, mut child) in results {
+    let mut live_ipv4s = std::collections::HashSet::new();
+    for (mac, ip, mut child) in results {
         probed.insert(mac.clone());
         let ok = child.wait().await.map(|s| s.success()).unwrap_or(false);
         if ok {
             responded.insert(mac);
+            live_ipv4s.insert(ip);
         }
     }
-    probed.difference(&responded).cloned().collect()
+    let unreachable = probed.difference(&responded).cloned().collect();
+    (unreachable, live_ipv4s)
+}
+
+/// Among a MAC's IPv4 neighbor entries, pick the one most likely to be the
+/// device's current address. A device that just roamed to another VLAN leaves a
+/// stale entry on its old bridge; both entries share the MAC, so the list must
+/// not blindly take the first. Ranking (lower = better):
+///   0  REACHABLE      — kernel-confirmed this poll
+///   1  probe-confirmed — replied to our active ping (`live_ipv4s`)
+///   2  DELAY / PROBE  — kernel mid-resolution
+///   3  STALE
+///   4  anything else
+/// The rank deliberately puts a probe-confirmed STALE entry (1) above an
+/// unconfirmed DELAY one (2): the live ping is ground truth, neighbor state is
+/// not — a roamed device's *old* entry is often DELAY while the live one is
+/// only STALE, so ranking on neighbor state alone would pick the wrong address.
+/// Ties keep kernel order (first-listed); a genuinely multi-homed device with
+/// two live IPs is served correctly by either.
+///
+/// Residual window: if a just-roamed device still has a REACHABLE entry on its
+/// *old* bridge (not yet decayed), `non_wifi_probe_candidates` skips probing the
+/// new STALE entry, so the new IP is absent from `live_ipv4s` and the old
+/// REACHABLE entry wins (rank 0) until it ages to STALE — a few tens of seconds.
+fn choose_ipv4_entry<'a>(
+    arp_list: &[&'a ArpEntry],
+    live_ipv4s: &std::collections::HashSet<String>,
+) -> Option<&'a ArpEntry> {
+    fn rank(e: &ArpEntry, live: &std::collections::HashSet<String>) -> u8 {
+        if e.state == "REACHABLE" {
+            0
+        } else if live.contains(&e.ip) {
+            1
+        } else if matches!(e.state.as_str(), "DELAY" | "PROBE") {
+            2
+        } else if e.state == "STALE" {
+            3
+        } else {
+            4
+        }
+    }
+    arp_list
+        .iter()
+        .filter(|e| !e.ip.contains(':'))
+        .copied()
+        .min_by_key(|e| rank(e, live_ipv4s))
+}
+
+/// Recover a device's name via a reverse mDNS (Bonjour) query against its IPv4.
+///
+/// Some devices never advertise a hostname via DHCP option 12, so they never
+/// land in the lease file — but they still answer mDNS. `avahi-resolve -a <ip>`
+/// asks the local avahi daemon (on-link for every LAN VLAN) to issue the
+/// reverse query and returns `<ip>\t<name>.local`. Returns the bare `<name>`
+/// (sans `.local`), or `None` on timeout, error, or empty result. Bounded by a
+/// short timeout with `kill_on_drop` so a non-responder can't stall the device
+/// list.
+async fn mdns_resolve(ip: &str) -> Option<String> {
+    use std::process::Stdio;
+
+    let fut = tokio::process::Command::new("avahi-resolve")
+        .args(["-a", ip])
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .kill_on_drop(true)
+        .output();
+    let out = tokio::time::timeout(std::time::Duration::from_millis(1500), fut)
+        .await
+        .ok()? // timed out
+        .ok()?; // spawn/wait failed
+    if !out.status.success() {
+        return None;
+    }
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    // First line, second whitespace-delimited field: "<ip>\t<name>.local".
+    let line = stdout.lines().next()?;
+    let rest = line.split_once(char::is_whitespace)?.1.trim().trim_end_matches('.');
+    let name = rest.strip_suffix(".local").unwrap_or(rest).trim();
+    if name.is_empty() {
+        return None;
+    }
+    Some(name.to_string())
+}
+
+/// Reverse-resolve a batch of `(mac, ipv4)` targets via mDNS concurrently,
+/// returning the `MAC -> name` map for those that answered. Bounded fan-out so
+/// a large LAN doesn't spawn one `avahi-resolve` per device at once.
+async fn resolve_mdns_names(targets: Vec<(String, String)>) -> HashMap<String, String> {
+    use futures::stream::{self, StreamExt};
+    const CONCURRENCY: usize = 8;
+    stream::iter(targets)
+        .map(|(mac, ip)| async move { mdns_resolve(&ip).await.map(|name| (mac, name)) })
+        .buffer_unordered(CONCURRENCY)
+        .filter_map(|r| async move { r })
+        .collect()
+        .await
 }
 
 #[instrument(skip_all)]
@@ -885,9 +1051,9 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
         })
         .unwrap_or_default();
 
-    let (unreachable_macs, leases_output, nlbw_output, conntrack_output, wg_active_peers) = tokio::join!(
+    let ((unreachable_macs, live_ipv4s), leases_output, nlbw_output, conntrack_output, wg_active_peers) = tokio::join!(
         ping_unreachable_macs(probe_targets),
-        async { tokio::fs::read_to_string("/tmp/dhcp.leases").await.unwrap_or_default() },
+        read_all_dhcp_leases(),
         run_cmd("nlbw", &["-c", "json", "-g", "mac"]),
         run_cmd("conntrack", &["-L", "-o", "extended"]),
         query_wg_active_peers(&wg_interfaces),
@@ -987,6 +1153,15 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
     for mac in hosts_by_mac.keys() {
         all_macs.insert(mac.clone());
     }
+    // Bridge FDB: a MAC the LAN bridge has learned has an L2 link (link lights
+    // on, frames seen) even if it never acquired a DHCP lease or appeared in the
+    // IP-neighbor table — e.g. a static-IP device that only talks to other LAN
+    // hosts through the external switch, never to the router. Without this it
+    // would be silently absent from the list. get_bridge_fdb() already excludes
+    // permanent and router-internal (non-`master`) entries.
+    for mac in fdb_by_mac.keys() {
+        all_macs.insert(mac.clone());
+    }
 
     // --- Phase 4: Build device list ---
     //
@@ -998,6 +1173,49 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
     let cache_now = chrono::Utc::now().timestamp();
     let name_cache = crate::device_names::load_all();
     let mut name_observations: Vec<crate::device_names::Observation> = Vec::new();
+
+    // mDNS/Bonjour name recovery. For any present device that no live source
+    // (UCI host, DHCP lease) or the cache can name, reverse-resolve its IPv4
+    // over mDNS — recovers a name for any device that suppresses DHCP option 12
+    // but still answers Bonjour. A device that answers is persisted to the name
+    // cache below; one that stays silent is recorded in MDNS_ATTEMPTED. Either
+    // way a MAC is queried at most once per daemon run, so on a steady-state
+    // network there are no targets and this is a no-op. The lock is held only
+    // across this synchronous selection loop (no `.await` inside).
+    let mut mdns_targets: Vec<(String, String)> = Vec::new();
+    {
+        let mut guard = MDNS_ATTEMPTED.lock().unwrap();
+        let attempted = guard.get_or_insert_with(std::collections::HashSet::new);
+        for mac in &all_macs {
+            if unreachable_macs.contains(mac) {
+                continue;
+            }
+            if attempted.contains(mac) {
+                continue;
+            }
+            let already_named = hosts_by_mac.get(mac).and_then(|h| h.name.as_ref()).is_some()
+                || lease_by_mac
+                    .get(mac)
+                    .map(|l| l.hostname != "*" && !l.hostname.is_empty())
+                    .unwrap_or(false)
+                || name_cache.contains_key(mac);
+            if already_named {
+                continue;
+            }
+            // Reverse-resolve the device's *current* address, not whatever ARP entry
+            // happens to be first — a roamed device's stale old-bridge entry would
+            // otherwise be queried and fail. Same chooser used for the displayed IP.
+            let ipv4 = arp_by_mac
+                .get(mac)
+                .and_then(|l| choose_ipv4_entry(l, &live_ipv4s).map(|e| e.ip.clone()))
+                .or_else(|| lease_by_mac.get(mac).map(|l| l.ip.clone()));
+            if let Some(ip) = ipv4 {
+                attempted.insert(mac.clone());
+                mdns_targets.push((mac.clone(), ip));
+            }
+        }
+    }
+    let mdns_by_mac = resolve_mdns_names(mdns_targets).await;
 
     let mut devices = Vec::new();
     for mac in &all_macs {
@@ -1021,15 +1239,30 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
             .any(|e| matches!(e.state.as_str(), "REACHABLE" | "STALE" | "DELAY" | "PROBE"))
         {
             DeviceStatus::Online
+        } else if fdb_by_mac.contains_key(mac) {
+            // Present in the bridge FDB (L2 link up, frames seen) but with no
+            // live IP-neighbor entry. The FDB ages (~300 s default), so a
+            // just-unplugged device may linger as Online briefly — preferable
+            // to a physically-connected device never appearing at all.
+            DeviceStatus::Online
         } else {
             DeviceStatus::Offline
         };
 
-        // IPs from ARP
-        let ipv4 = arp_list
-            .iter()
-            .find(|e| !e.ip.contains(':'))
-            .map(|e| e.ip.clone())
+        // IPv4: the configured static reservation (UCI `host.ip`) is
+        // authoritative when set — it's the address the device is pinned to.
+        // Surfacing it first stops the edit form from snapping back to the live
+        // DHCP address after a reservation is saved (the client keeps its old
+        // lease until it renews, so ARP/lease still hold the previous IP for a
+        // while). Otherwise fall back to the best live ARP neighbour — the one
+        // chosen by choose_ipv4_entry, which picks the device's current address
+        // when a stale entry lingers on its old bridge after roaming VLANs —
+        // then the DHCP lease. The same chosen entry drives the profile below,
+        // so the displayed IP and profile can never disagree.
+        let chosen_arp = choose_ipv4_entry(&arp_list, &live_ipv4s);
+        let ipv4 = host
+            .and_then(|h| h.ip.clone())
+            .or_else(|| chosen_arp.map(|e| e.ip.clone()))
             .or_else(|| lease.map(|l| l.ip.clone()));
         let ipv6 = pick_ipv6(
             arp_list
@@ -1038,9 +1271,11 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
                 .map(|e| e.ip.as_str()),
         );
 
-        // Profile from VLAN tag
-        let vlan_tag = arp_list
-            .first()
+        // Profile from VLAN tag, derived from the same chosen entry as the IPv4
+        // address. Fall back to the first entry (e.g. an IPv6-only device with no
+        // IPv4 neighbour) then VLAN 1.
+        let vlan_tag = chosen_arp
+            .or_else(|| arp_list.first().copied())
             .and_then(|e| {
                 e.interface
                     .split('.')
@@ -1051,10 +1286,14 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
         let security_profile = profile_by_vlan.get(&vlan_tag).cloned();
 
         // Fully-resolved display name. UCI static host (user-assigned) wins,
-        // then the live DHCP-lease hostname, then the remembered hostname from
-        // the cache, then a `device-<mac>` placeholder. A fresh live name always
-        // overrides a remembered one because the cache sits below the live
-        // sources in the chain.
+        // then the live DHCP-lease hostname, then a live mDNS `.local` name,
+        // then the remembered hostname from the cache, then a `device-<mac>`
+        // placeholder. A fresh DHCP name always overrides a remembered one
+        // because the cache sits below it. An mDNS name is learned once for an
+        // otherwise-unnamed device and thereafter served from the cache. The
+        // reverse-resolve above queries each MAC at most once per daemon run: a
+        // cached (named) device is gated out by the cache check, and a device
+        // that stays silent is gated out by MDNS_ATTEMPTED.
         let dhcp_hostname = lease.and_then(|l| {
             if l.hostname != "*" && !l.hostname.is_empty() {
                 Some(l.hostname.clone())
@@ -1062,17 +1301,20 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
                 None
             }
         });
+        let mdns_hostname = mdns_by_mac.get(mac).cloned();
         let name = host
             .and_then(|h| h.name.clone())
             .or_else(|| dhcp_hostname.clone())
+            .or_else(|| mdns_hostname.clone())
             .or_else(|| name_cache.get(mac).cloned())
             .unwrap_or_else(|| fallback_name(mac));
         let hostname = lease.map(|l| l.hostname.clone());
 
-        // Remember the DHCP-advertised name (or keep an existing entry alive).
+        // Remember the live-learned name (DHCP, else mDNS), or keep an existing
+        // entry alive against prune.
         name_observations.push(crate::device_names::Observation {
             mac: mac.clone(),
-            dhcp_hostname,
+            hostname: dhcp_hostname.or(mdns_hostname),
         });
 
         // Connection type — only label as "Ethernet" when the bridge FDB
@@ -1083,7 +1325,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
                 .get(mac)
                 .cloned()
                 .or_else(|| {
-                    if !on_wifi_port && !arp_list.is_empty() {
+                    if !on_wifi_port && (!arp_list.is_empty() || fdb_by_mac.contains_key(mac)) {
                         Some("Ethernet".to_string())
                     } else {
                         None
@@ -1559,6 +1801,38 @@ fn days_to_ymd(days: u64) -> (u64, u64, u64) {
 mod tests {
     use super::*;
 
+    #[tokio::test]
+    async fn vpn_peer_config_ip_is_v4_not_clobbered_by_v6() {
+        // A peer whose allowed_ips lists the v4 /32 first and the WG-/64 v6 /128
+        // second (as add_single_peer writes for a v6-serving server). The device
+        // list must report the IPv4, not let the trailing v6 entry clobber it.
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("network"),
+            "\
+config interface 'wg_lan'
+\toption proto 'wireguard'
+\toption private_key 'AAAA'
+\tlist addresses '192.168.0.254/32'
+\tlist addresses 'fdd3:686e:2179:f001::1/128'
+
+config wireguard_wg_lan 'wg_lan_0'
+\toption public_key 'PEERKEY'
+\toption description 'Phone'
+\tlist allowed_ips '192.168.0.200/32'
+\tlist allowed_ips 'fdd3:686e:2179:f001::c8/128'
+",
+        )
+        .unwrap();
+
+        let arena = Arena::new();
+        let cfgs = parse_all(dir.path(), &arena, &["network"]).await.unwrap();
+        let peers = get_vpn_peer_configs(&cfgs, "wg_lan");
+
+        assert_eq!(peers.len(), 1);
+        assert_eq!(peers[0].ip.as_deref(), Some("192.168.0.200"));
+    }
+
     #[test]
     fn ymd_to_days_round_trip() {
         // Spot-check a few known dates and full round-trip a range.
@@ -1608,5 +1882,67 @@ mod tests {
         // Missing rx_bytes column.
         let bad = r#"{"columns":["mac","tx_bytes"],"data":[["aa:bb:cc:dd:ee:ff",1]]}"#;
         assert_eq!(lookup_mac_bytes(bad, "AA:BB:CC:DD:EE:FF"), (0, 0));
+    }
+
+    fn arp(ip: &str, iface: &str, state: &str) -> ArpEntry {
+        ArpEntry {
+            ip: ip.to_string(),
+            mac: "94:A9:90:28:9A:A4".to_string(),
+            interface: iface.to_string(),
+            state: state.to_string(),
+        }
+    }
+
+    #[test]
+    fn choose_ipv4_prefers_probe_confirmed_over_fresher_state() {
+        // The real roaming case: the *stale* old-VLAN entry is DELAY (a fresher
+        // neighbor state) while the *live* new-VLAN entry is only STALE. The
+        // active ping confirmed the new one, so it must win despite ranking
+        // lower on neighbor state alone.
+        let old = arp("192.168.0.187", "br-lan.1", "DELAY");
+        let new = arp("192.168.10.187", "br-lan.101", "STALE");
+        let list = vec![&old, &new];
+        let live: std::collections::HashSet<String> =
+            ["192.168.10.187".to_string()].into_iter().collect();
+
+        let chosen = choose_ipv4_entry(&list, &live).expect("an entry");
+        assert_eq!(chosen.ip, "192.168.10.187");
+        assert_eq!(chosen.interface, "br-lan.101");
+    }
+
+    #[test]
+    fn choose_ipv4_prefers_reachable_without_probe() {
+        // A REACHABLE entry is kernel-confirmed and never gets probed, so it
+        // wins over a STALE entry even when nothing is in the live set.
+        let stale = arp("192.168.0.187", "br-lan.1", "STALE");
+        let reachable = arp("192.168.10.187", "br-lan.101", "REACHABLE");
+        let list = vec![&stale, &reachable];
+        let live = std::collections::HashSet::new();
+
+        let chosen = choose_ipv4_entry(&list, &live).expect("an entry");
+        assert_eq!(chosen.ip, "192.168.10.187");
+    }
+
+    #[test]
+    fn choose_ipv4_ignores_ipv6_and_handles_empty() {
+        // IPv6 entries are skipped; a MAC with only IPv6 yields None.
+        let v6 = arp("fe80::96a9:90ff:fe28:9aa4", "br-lan.101", "STALE");
+        let only_v6 = vec![&v6];
+        let live = std::collections::HashSet::new();
+        assert!(choose_ipv4_entry(&only_v6, &live).is_none());
+        assert!(choose_ipv4_entry(&[], &live).is_none());
+    }
+
+    #[test]
+    fn choose_ipv4_ties_keep_first_listed() {
+        // Two equally-ranked (both STALE, neither probed) entries: kernel order
+        // wins, deterministically.
+        let first = arp("192.168.0.187", "br-lan.1", "STALE");
+        let second = arp("192.168.10.187", "br-lan.101", "STALE");
+        let list = vec![&first, &second];
+        let live = std::collections::HashSet::new();
+
+        let chosen = choose_ipv4_entry(&list, &live).expect("an entry");
+        assert_eq!(chosen.ip, "192.168.0.187");
     }
 }
