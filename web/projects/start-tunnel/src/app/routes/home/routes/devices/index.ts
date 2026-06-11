@@ -75,7 +75,9 @@ import { MappedDevice } from './utils'
                   <button
                     tuiOption
                     [iconStart]="
-                      device.allowDnsInjection ? '@tui.shield-off' : '@tui.shield'
+                      device.allowDnsInjection
+                        ? '@tui.shield-off'
+                        : '@tui.shield'
                     "
                     (click)="onSetDnsInjection(device)"
                   >
@@ -143,15 +145,17 @@ export default class Devices {
 
   protected readonly devices = computed(() =>
     this.subnets()?.flatMap(subnet =>
-      Object.entries(subnet.clients).map(([ip, { name, allowDnsInjection }]) => ({
-        subnet: {
-          name: subnet.name,
-          range: subnet.range,
-        },
-        ip,
-        name,
-        allowDnsInjection,
-      })),
+      Object.entries(subnet.clients).map(
+        ([ip, { name, allowDnsInjection }]) => ({
+          subnet: {
+            name: subnet.name,
+            range: subnet.range,
+          },
+          ip,
+          name,
+          allowDnsInjection,
+        }),
+      ),
     ),
   )
 
