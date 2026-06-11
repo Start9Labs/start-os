@@ -523,12 +523,10 @@ fn soap_u16(body: &str, arg: &str) -> Option<u16> {
 
 fn ok(action: &str, inner: &str) -> Response {
     let body = format!(
-        r#"<?xml version="1.0"?>
-<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
-<s:Body>
-<u:{action}Response xmlns:u="{WANIP_SERVICE}">{inner}</u:{action}Response>
-</s:Body>
-</s:Envelope>"#
+        include_str!("igd_xml/ok.xml"),
+        action = action,
+        service = WANIP_SERVICE,
+        inner = inner,
     );
     (
         StatusCode::OK,
@@ -539,23 +537,7 @@ fn ok(action: &str, inner: &str) -> Response {
 }
 
 fn fault(code: u16, desc: &str) -> Response {
-    let body = format!(
-        r#"<?xml version="1.0"?>
-<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
-<s:Body>
-<s:Fault>
-<faultcode>s:Client</faultcode>
-<faultstring>UPnPError</faultstring>
-<detail>
-<UPnPError xmlns="urn:schemas-upnp-org:control-1-0">
-<errorCode>{code}</errorCode>
-<errorDescription>{desc}</errorDescription>
-</UPnPError>
-</detail>
-</s:Fault>
-</s:Body>
-</s:Envelope>"#
-    );
+    let body = format!(include_str!("igd_xml/fault.xml"), code = code, desc = desc);
     (
         StatusCode::INTERNAL_SERVER_ERROR,
         [(header::CONTENT_TYPE, "text/xml; charset=\"utf-8\"")],
@@ -578,102 +560,19 @@ fn upnp_error_text(code: u16) -> &'static str {
 
 fn render_root_desc(uuid: &str) -> String {
     format!(
-        r#"<?xml version="1.0"?>
-<root xmlns="urn:schemas-upnp-org:device-1-0">
-  <specVersion><major>1</major><minor>0</minor></specVersion>
-  <device>
-    <deviceType>{IGD_DEVICE}</deviceType>
-    <friendlyName>StartTunnel</friendlyName>
-    <manufacturer>Start9</manufacturer>
-    <manufacturerURL>https://start9.com</manufacturerURL>
-    <modelDescription>StartTunnel Internet Gateway Device</modelDescription>
-    <modelName>StartTunnel</modelName>
-    <modelNumber>1</modelNumber>
-    <serialNumber>00000000</serialNumber>
-    <UDN>uuid:{uuid}</UDN>
-    <deviceList>
-      <device>
-        <deviceType>urn:schemas-upnp-org:device:WANDevice:1</deviceType>
-        <friendlyName>WANDevice</friendlyName>
-        <manufacturer>Start9</manufacturer>
-        <modelName>StartTunnel</modelName>
-        <UDN>uuid:{uuid}-wan</UDN>
-        <deviceList>
-          <device>
-            <deviceType>urn:schemas-upnp-org:device:WANConnectionDevice:1</deviceType>
-            <friendlyName>WANConnectionDevice</friendlyName>
-            <manufacturer>Start9</manufacturer>
-            <modelName>StartTunnel</modelName>
-            <UDN>uuid:{uuid}-wanconn</UDN>
-            <serviceList>
-              <service>
-                <serviceType>{WANIP_SERVICE}</serviceType>
-                <serviceId>urn:upnp-org:serviceId:WANIPConn1</serviceId>
-                <controlURL>{CONTROL_PATH}</controlURL>
-                <eventSubURL></eventSubURL>
-                <SCPDURL>{SCPD_PATH}</SCPDURL>
-              </service>
-            </serviceList>
-          </device>
-        </deviceList>
-      </device>
-    </deviceList>
-  </device>
-</root>"#
+        include_str!("igd_xml/root_desc.xml"),
+        device_type = IGD_DEVICE,
+        uuid = uuid,
+        service = WANIP_SERVICE,
+        control = CONTROL_PATH,
+        scpd = SCPD_PATH,
     )
 }
 
 /// Minimal WANIPConnection SCPD exposing the three actions this IGD implements.
 /// IGD clients (e.g. igd-next) read `actionList` to learn each action's input
 /// argument names before issuing a request.
-const SCPD: &str = r#"<?xml version="1.0"?>
-<scpd xmlns="urn:schemas-upnp-org:service-1-0">
-  <specVersion><major>1</major><minor>0</minor></specVersion>
-  <actionList>
-    <action>
-      <name>GetExternalIPAddress</name>
-      <argumentList>
-        <argument>
-          <name>NewExternalIPAddress</name>
-          <direction>out</direction>
-          <relatedStateVariable>ExternalIPAddress</relatedStateVariable>
-        </argument>
-      </argumentList>
-    </action>
-    <action>
-      <name>AddPortMapping</name>
-      <argumentList>
-        <argument><name>NewRemoteHost</name><direction>in</direction><relatedStateVariable>RemoteHost</relatedStateVariable></argument>
-        <argument><name>NewExternalPort</name><direction>in</direction><relatedStateVariable>ExternalPort</relatedStateVariable></argument>
-        <argument><name>NewProtocol</name><direction>in</direction><relatedStateVariable>PortMappingProtocol</relatedStateVariable></argument>
-        <argument><name>NewInternalPort</name><direction>in</direction><relatedStateVariable>InternalPort</relatedStateVariable></argument>
-        <argument><name>NewInternalClient</name><direction>in</direction><relatedStateVariable>InternalClient</relatedStateVariable></argument>
-        <argument><name>NewEnabled</name><direction>in</direction><relatedStateVariable>PortMappingEnabled</relatedStateVariable></argument>
-        <argument><name>NewPortMappingDescription</name><direction>in</direction><relatedStateVariable>PortMappingDescription</relatedStateVariable></argument>
-        <argument><name>NewLeaseDuration</name><direction>in</direction><relatedStateVariable>PortMappingLeaseDuration</relatedStateVariable></argument>
-      </argumentList>
-    </action>
-    <action>
-      <name>DeletePortMapping</name>
-      <argumentList>
-        <argument><name>NewRemoteHost</name><direction>in</direction><relatedStateVariable>RemoteHost</relatedStateVariable></argument>
-        <argument><name>NewExternalPort</name><direction>in</direction><relatedStateVariable>ExternalPort</relatedStateVariable></argument>
-        <argument><name>NewProtocol</name><direction>in</direction><relatedStateVariable>PortMappingProtocol</relatedStateVariable></argument>
-      </argumentList>
-    </action>
-  </actionList>
-  <serviceStateTable>
-    <stateVariable sendEvents="no"><name>ExternalIPAddress</name><dataType>string</dataType></stateVariable>
-    <stateVariable sendEvents="no"><name>RemoteHost</name><dataType>string</dataType></stateVariable>
-    <stateVariable sendEvents="no"><name>ExternalPort</name><dataType>ui2</dataType></stateVariable>
-    <stateVariable sendEvents="no"><name>InternalPort</name><dataType>ui2</dataType></stateVariable>
-    <stateVariable sendEvents="no"><name>InternalClient</name><dataType>string</dataType></stateVariable>
-    <stateVariable sendEvents="no"><name>PortMappingProtocol</name><dataType>string</dataType><allowedValueList><allowedValue>TCP</allowedValue><allowedValue>UDP</allowedValue></allowedValueList></stateVariable>
-    <stateVariable sendEvents="no"><name>PortMappingEnabled</name><dataType>boolean</dataType></stateVariable>
-    <stateVariable sendEvents="no"><name>PortMappingDescription</name><dataType>string</dataType></stateVariable>
-    <stateVariable sendEvents="no"><name>PortMappingLeaseDuration</name><dataType>ui4</dataType></stateVariable>
-  </serviceStateTable>
-</scpd>"#;
+const SCPD: &str = include_str!("igd_xml/scpd.xml");
 
 #[cfg(test)]
 mod tests {

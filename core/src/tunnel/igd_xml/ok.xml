@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+<s:Body>
+<u:{action}Response xmlns:u="{service}">{inner}</u:{action}Response>
+</s:Body>
+</s:Envelope>
