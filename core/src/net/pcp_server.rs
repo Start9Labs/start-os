@@ -59,8 +59,15 @@ pub trait GatewayBackend: Send + Sync {
         peer: Ipv4Addr,
     ) -> Result<(), ()>;
 
-    /// Remove the peer's forward to `(peer, internal_port)`, if any.
+    /// Remove the peer's forward to `(peer, internal_port)`, if any (PCP
+    /// identifies a mapping by its target).
     async fn remove_forward(&self, peer: Ipv4Addr, internal_port: u16);
+
+    /// Remove the forward at external address `source` if it is owned by `peer`
+    /// (UPnP IGD identifies a mapping by its external port). Returns whether a
+    /// peer-owned forward was removed — `false` means "no such mapping", which
+    /// the IGD server reports without revealing other peers' mappings.
+    async fn remove_forward_by_source(&self, source: SocketAddrV4, peer: Ipv4Addr) -> bool;
 
     /// The gateway's current external (WAN) IPv4, or `None` if unknown.
     async fn external_ipv4(&self) -> Option<Ipv4Addr>;

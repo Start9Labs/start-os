@@ -332,6 +332,8 @@ async fn add_mapping(ctx: &TunnelContext, peer: Ipv4Addr, body: &str, any: bool)
 }
 
 async fn delete_mapping(ctx: &TunnelContext, peer: Ipv4Addr, body: &str) -> Response {
+    use crate::net::pcp_server::GatewayBackend;
+
     let Some(external_port) = soap_u16(body, "NewExternalPort") else {
         return fault(402, "Invalid Args");
     };
@@ -340,28 +342,13 @@ async fn delete_mapping(ctx: &TunnelContext, peer: Ipv4Addr, body: &str) -> Resp
     };
     let source = SocketAddrV4::new(source_ip, external_port);
 
-    let owned = current_forward(ctx, source)
-        .await
-        .map_or(false, |e| *e.target.ip() == peer);
-    if !owned {
-        // Don't reveal mappings owned by other peers.
-        return fault(714, "NoSuchEntryInArray");
+    // Identifies the mapping by external port and only removes it if owned by
+    // this peer, so a peer can't delete (or probe for) another's mapping.
+    if ctx.remove_forward_by_source(source, peer).await {
+        ok("DeletePortMapping", "")
+    } else {
+        fault(714, "NoSuchEntryInArray")
     }
-
-    if let Err(e) = ctx
-        .db
-        .mutate(|db| db.as_port_forwards_mut().remove(&source).map(|_| ()))
-        .await
-        .result
-    {
-        tracing::warn!("UPnP IGD: failed to remove forward {source}: {e}");
-        return fault(501, "Action Failed");
-    }
-    if let Some(rc) = ctx.active_forwards.mutate(|m| m.remove(&source)) {
-        drop(rc);
-        ctx.forward.gc().await.log_err();
-    }
-    ok("DeletePortMapping", "")
 }
 
 pub(super) async fn apply_peer_forward(
