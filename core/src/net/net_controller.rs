@@ -23,6 +23,7 @@ use crate::net::forward::{
 use crate::net::gateway::NetworkInterfaceController;
 use crate::net::host::binding::{AddSslOptions, BindId, BindOptions, RangeGatewayAccess};
 use crate::net::host::{Host, Hosts, host_for};
+use crate::net::port_map::candidate_gateways;
 use crate::net::service_interface::HostnameMetadata;
 use crate::net::socks::SocksController;
 use crate::net::vhost::{AlpnInfo, DynVHostTarget, ProxyTarget, VHostController};
@@ -503,6 +504,44 @@ impl NetServiceData {
             }
         }
         ctrl.forward.gc().await?;
+
+        // PCP HOSTNAME mappings come only from PUBLIC domain vhosts: each binds
+        // its FQDN on the shared external port so the gateway demultiplexes
+        // inbound TLS by SNI. Computed before the drain loop consumes `vhosts`.
+        let mut hostname_maps: BTreeMap<(Ipv4Addr, u16), (u16, Vec<Ipv4Addr>, Vec<String>)> =
+            BTreeMap::new();
+        for ((maybe_host, external), target) in vhosts.iter() {
+            let Some(hostname) = maybe_host else { continue };
+            if target.public.is_empty() {
+                continue;
+            }
+            for gw_id in &target.public {
+                let Some(info) = net_ifaces.get(gw_id) else {
+                    continue;
+                };
+                if matches!(info.gateway_type, Some(GatewayType::OutboundOnly)) {
+                    continue;
+                }
+                let Some(ip_info) = &info.ip_info else { continue };
+                let gateways = candidate_gateways(info);
+                if gateways.is_empty() {
+                    continue;
+                }
+                for subnet in &ip_info.subnets {
+                    let IpAddr::V4(local_ip) = subnet.addr() else {
+                        continue;
+                    };
+                    let entry = hostname_maps
+                        .entry((local_ip, *external))
+                        .or_insert_with(|| (*external, gateways.clone(), Vec::new()));
+                    let name = hostname.to_string();
+                    if !entry.2.contains(&name) {
+                        entry.2.push(name);
+                    }
+                }
+            }
+        }
+        ctrl.vhost.sync_hostname_mappings(hostname_maps);
 
         let all = binds
             .vhosts

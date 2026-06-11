@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt;
-use std::net::{IpAddr, SocketAddr, SocketAddrV6};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV6};
 use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Weak};
@@ -43,6 +43,7 @@ use crate::net::ssl::{CertBranding, CertStore, RootCaTlsHandler};
 use crate::net::tls::{
     ChainedHandler, TlsHandler, TlsHandlerAction, TlsListener, TlsMetadata,
 };
+use crate::net::port_map::PortMapController;
 use crate::net::utils::{bind_mio_listener, ipv6_is_link_local, is_private_ip};
 use crate::net::web_server::{Accept, AcceptStream, ExtractVisitor, TcpMetadata, extract};
 use crate::prelude::*;
@@ -255,6 +256,8 @@ pub struct VHostController {
     max_proxy_conns_per_target: usize,
     servers: SyncMutex<BTreeMap<u16, VHostServer<VHostBindListener>>>,
     passthrough_handles: SyncMutex<BTreeMap<(InternedString, u16), PassthroughHandle>>,
+    port_map: PortMapController,
+    hostname_mappings: SyncMutex<BTreeSet<(Ipv4Addr, u16)>>,
 }
 impl VHostController {
     pub fn new(
@@ -274,6 +277,8 @@ impl VHostController {
             max_proxy_conns_per_target,
             servers: SyncMutex::new(BTreeMap::new()),
             passthrough_handles: SyncMutex::new(BTreeMap::new()),
+            port_map: PortMapController::new(),
+            hostname_mappings: SyncMutex::new(BTreeSet::new()),
         };
         for pt in passthroughs {
             if let Err(e) = controller.add_passthrough(
@@ -415,6 +420,36 @@ impl VHostController {
                 }
             }
         })
+    }
+
+    /// Reconcile best-effort PCP HOSTNAME port mappings for public domain
+    /// vhosts. `desired` maps `(box IP to map from, external port)` to
+    /// `(internal port, candidate gateways, FQDNs)`. Only public vhosts
+    /// contribute — the gateway demultiplexes the shared external port by the
+    /// TLS SNI to each bound internal host. Like the rest of the port-map layer
+    /// this is best-effort: a gateway that can't honor it just leaves the user
+    /// on a manual forward.
+    pub fn sync_hostname_mappings(
+        &self,
+        desired: BTreeMap<(Ipv4Addr, u16), (u16, Vec<Ipv4Addr>, Vec<String>)>,
+    ) {
+        self.hostname_mappings.mutate(|active| {
+            for key in active.iter() {
+                if !desired.contains_key(key) {
+                    self.port_map.remove(key.0, key.1);
+                }
+            }
+            for (key, (internal, gateways, hostnames)) in &desired {
+                self.port_map.ensure_hostnames(
+                    key.0,
+                    key.1,
+                    *internal,
+                    gateways.clone(),
+                    hostnames.clone(),
+                );
+            }
+            *active = desired.keys().copied().collect();
+        });
     }
 }
 

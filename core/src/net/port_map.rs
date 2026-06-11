@@ -16,13 +16,14 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::num::NonZeroU16;
 use std::time::Duration;
 
-use crab_nat::{InternetProtocol, PortMapping, PortMappingOptions, TimeoutConfig};
+use crab_nat::{InternetProtocol, PortMapping, PortMappingOptions, TimeoutConfig, pcp};
 use igd_next::aio::Gateway;
 use igd_next::aio::tokio::Tokio;
 use tokio::sync::mpsc;
 use tokio::time::{Instant, interval};
 
 use crate::db::model::public::NetworkInterfaceInfo;
+use crate::net::pcp_hostname::OPTION_HOSTNAME;
 use crate::net::upnp;
 use crate::prelude::*;
 
@@ -72,6 +73,10 @@ pub fn candidate_gateways(info: &NetworkInterfaceInfo) -> Vec<Ipv4Addr> {
 struct Spec {
     internal_port: u16,
     gateways: Vec<Ipv4Addr>,
+    /// FQDNs to bind via the PCP HOSTNAME option (SNI-demultiplexed mappings).
+    /// When non-empty the mapping is PCP-only — no NAT-PMP/UPnP fallback, since
+    /// the gateway demuxes inbound TLS by SNI to share one external port.
+    hostnames: Vec<String>,
 }
 
 enum Active {
@@ -119,12 +124,27 @@ impl PortMapController {
         internal_port: u16,
         gateways: Vec<Ipv4Addr>,
     ) {
+        self.ensure_hostnames(local_ip, external_port, internal_port, gateways, Vec::new());
+    }
+
+    /// Like [`ensure`](Self::ensure) but binds the given FQDNs via the PCP
+    /// HOSTNAME option so the gateway SNI-demultiplexes this external port.
+    /// PCP-only (no NAT-PMP/UPnP fallback).
+    pub fn ensure_hostnames(
+        &self,
+        local_ip: Ipv4Addr,
+        external_port: u16,
+        internal_port: u16,
+        gateways: Vec<Ipv4Addr>,
+        hostnames: Vec<String>,
+    ) {
         self.req
             .send(Command::Ensure {
                 key: (local_ip, external_port),
                 spec: Spec {
                     internal_port,
                     gateways,
+                    hostnames,
                 },
             })
             .ok();
@@ -155,7 +175,9 @@ struct State {
 impl State {
     async fn ensure(&mut self, key: MappingKey, spec: Spec) {
         let changed = self.desired.get(&key).map_or(true, |s| {
-            s.internal_port != spec.internal_port || s.gateways != spec.gateways
+            s.internal_port != spec.internal_port
+                || s.gateways != spec.gateways
+                || s.hostnames != spec.hostnames
         });
         self.desired.insert(key, spec);
         if changed || !self.active.contains_key(&key) {
@@ -219,6 +241,49 @@ impl State {
         ) else {
             return;
         };
+
+        // Hostname (SNI-demux) mappings carry HOSTNAME options and are PCP-only:
+        // NAT-PMP/UPnP can't demultiplex by SNI, so there is no fallback.
+        if !spec.hostnames.is_empty() {
+            let options: Vec<pcp::PcpOption> = spec
+                .hostnames
+                .iter()
+                .map(|h| pcp::PcpOption {
+                    code: OPTION_HOSTNAME,
+                    data: h.as_bytes().to_vec(),
+                })
+                .collect();
+            for gw in &spec.gateways {
+                match pcp::port_mapping(
+                    pcp::BaseMapRequest::new(IpAddr::V4(*gw), IpAddr::V4(local_ip), InternetProtocol::Tcp, intl),
+                    None,
+                    None,
+                    PortMappingOptions {
+                        external_port: Some(ext),
+                        lifetime_seconds: Some(PCP_LIFETIME_SECONDS),
+                        timeout_config: Some(PCP_TIMEOUTS),
+                    },
+                    &options,
+                )
+                .await
+                {
+                    Ok(m) if m.external_port() == ext => {
+                        tracing::debug!(
+                            "PCP HOSTNAME mapped {external_port}->{local_ip}:{} {:?} via {gw}",
+                            spec.internal_port,
+                            spec.hostnames
+                        );
+                        self.active.insert(key, Active::Pcp(m));
+                        return;
+                    }
+                    Ok(m) => {
+                        let _ = m.try_drop().await;
+                    }
+                    Err(e) => tracing::debug!("PCP HOSTNAME map via {gw} failed: {e}"),
+                }
+            }
+            return;
+        }
 
         // PCP first, NAT-PMP fallback (crab_nat), against each candidate gateway.
         for gw in &spec.gateways {
