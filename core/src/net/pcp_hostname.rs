@@ -5,8 +5,10 @@
 //!
 //! The option code and the two new result codes are not yet IANA-assigned, so
 //! we use values from the PCP **Private Use** ranges (Options 224-254, Result
-//! Codes 192-254 per the IANA PCP Parameters registry). Shared by the
-//! StartTunnel PCP server (parses + echoes) and the StartOS client (emits).
+//! Codes 192-254 per the IANA PCP Parameters registry). The StartTunnel PCP
+//! server parses and echoes these options; the StartOS client emits them by
+//! attaching a `crab_nat::pcp::PcpOption { code: OPTION_HOSTNAME, data }` to a
+//! MAP request (see the `crab_nat` fork's custom-option support).
 
 /// HOSTNAME option code (optional-to-process Private Use range).
 pub const OPTION_HOSTNAME: u8 = 224;

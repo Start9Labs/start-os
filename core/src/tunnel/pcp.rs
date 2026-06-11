@@ -16,6 +16,9 @@ use std::time::{Duration, Instant};
 use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 use tokio::net::UdpSocket;
 
+use crate::net::pcp_hostname::{
+    RESULT_UNSUPP_HOSTNAME, encode_hostname_option, parse_hostname_options,
+};
 use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
 use crate::tunnel::igd::{apply_peer_forward, bind_to_wireguard, external_ipv4, is_known_client};
@@ -37,8 +40,12 @@ const UNSUPP_VERSION: u8 = 1;
 const NOT_AUTHORIZED: u8 = 2;
 const MALFORMED_REQUEST: u8 = 3;
 const UNSUPP_OPCODE: u8 = 4;
+const MALFORMED_OPTION: u8 = 6;
 const NO_RESOURCES: u8 = 8;
 const CANNOT_PROVIDE_EXTERNAL: u8 = 11;
+
+/// PCP protocol field value for TCP (the only transport the SNI demux handles).
+const PROTO_TCP: u8 = 6;
 
 /// Run the PCP server for the life of the tunnel, self-restarting on error.
 pub async fn run(ctx: TunnelContext) {
@@ -126,6 +133,34 @@ fn map_response(
     r
 }
 
+/// A MAP response that echoes back the granted HOSTNAME options (RFC echoes
+/// successfully-processed options). The base response is 32-bit aligned, so the
+/// appended options stay aligned.
+fn map_response_with_hostnames(
+    result: u8,
+    req: &[u8],
+    internal_port: u16,
+    external_port: u16,
+    external_ip: Ipv4Addr,
+    lifetime: u32,
+    epoch: u32,
+    hostnames: &[String],
+) -> Vec<u8> {
+    let mut r = map_response(
+        result,
+        req,
+        internal_port,
+        external_port,
+        external_ip,
+        lifetime,
+        epoch,
+    );
+    for name in hostnames {
+        encode_hostname_option(&mut r, name);
+    }
+    r
+}
+
 async fn handle(ctx: &TunnelContext, peer: Ipv4Addr, req: &[u8], epoch: u32) -> Option<Vec<u8>> {
     if req.len() < HEADER_LEN {
         return None;
@@ -181,6 +216,78 @@ async fn handle(ctx: &TunnelContext, peer: Ipv4Addr, req: &[u8], epoch: u32) -> 
             0,
             epoch,
         ));
+    }
+
+    // PCP HOSTNAME extension: if the request carries HOSTNAME option(s), this is
+    // a SNI-demultiplexed binding on a shared external port — handled by the SNI
+    // demux dataplane, not an nft DNAT.
+    let hostnames = match parse_hostname_options(req.get(MAP_REQUEST_LEN..).unwrap_or(&[])) {
+        Ok(h) => h,
+        Err(()) => {
+            return Some(map_response(
+                MALFORMED_OPTION,
+                req,
+                internal_port,
+                external_port,
+                external_ip,
+                0,
+                epoch,
+            ));
+        }
+    };
+    if !hostnames.is_empty() {
+        let nonce: [u8; 12] = req[24..36].try_into().unwrap();
+        if req[36] != PROTO_TCP {
+            return Some(map_response(
+                RESULT_UNSUPP_HOSTNAME,
+                req,
+                internal_port,
+                external_port,
+                external_ip,
+                0,
+                epoch,
+            ));
+        }
+        if lifetime == 0 {
+            ctx.sni
+                .unregister(external_ip, external_port, &hostnames, nonce);
+            return Some(map_response_with_hostnames(
+                SUCCESS,
+                req,
+                internal_port,
+                external_port,
+                external_ip,
+                0,
+                epoch,
+                &hostnames,
+            ));
+        }
+        let target = SocketAddrV4::new(peer, internal_port);
+        let granted = lifetime.min(MAX_LIFETIME_SECONDS);
+        return match ctx
+            .sni
+            .register(external_ip, external_port, &hostnames, target, nonce, granted)
+        {
+            Ok(()) => Some(map_response_with_hostnames(
+                SUCCESS,
+                req,
+                internal_port,
+                external_port,
+                external_ip,
+                granted,
+                epoch,
+                &hostnames,
+            )),
+            Err(code) => Some(map_response(
+                code,
+                req,
+                internal_port,
+                external_port,
+                external_ip,
+                0,
+                epoch,
+            )),
+        };
     }
 
     // Lifetime 0 deletes the mapping (RFC 6887 §15).

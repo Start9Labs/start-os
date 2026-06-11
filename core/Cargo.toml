@@ -236,7 +236,7 @@ x25519-dalek = { version = "2.0.1", features = ["static_secrets"] }
 zbus = "5.1.1"
 igd-next = { version = "0.17.1", default-features = false, features = ["aio_tokio"] }
 xmltree = "0.10"
-crab_nat = "0.7.6"
+crab_nat = { git = "https://github.com/Start9Labs/crab_nat.git", branch = "feat/custom-pcp-options" }
 
 [dev-dependencies]
 clap_mangen = "0.2.33"

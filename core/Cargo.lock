@@ -1343,8 +1343,7 @@ dependencies = [
 [[package]]
 name = "crab_nat"
 version = "0.7.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2ee6b8eaaec72851c6914625d70908689dc15a20f4004a94dc245fc173e09c15"
+source = "git+https://github.com/Start9Labs/crab_nat.git?branch=feat%2Fcustom-pcp-options#223e5db0962e4ac16f7c57ccc856c38561496179"
 dependencies = [
  "bytes",
  "displaydoc",
