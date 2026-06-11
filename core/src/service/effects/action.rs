@@ -313,20 +313,22 @@ async fn create_task(
                         if *once {
                             return Ok(());
                         } else {
-                            false
+                            Some(false)
                         }
                     } else {
-                        true
+                        Some(true)
                     }
                 } else {
-                    // Action or service not available — assume active.
-                    // Will be retested when the action is exported (export_action)
-                    // or service init completes (Service::recheck_tasks).
-                    true
+                    // Action or service not available (e.g. still initializing during
+                    // server boot), so the condition can't be evaluated yet. Resolved
+                    // below from the prior entry for this replay_id; retested when the
+                    // action is exported (export_action) or the service's init
+                    // completes (Service::recheck_tasks).
+                    None
                 }
             }
         },
-        None => true,
+        None => Some(true),
     };
     context
         .seed
@@ -338,6 +340,18 @@ async fn create_task(
                 .as_package_data_mut()
                 .as_idx_mut(src_id)
                 .or_not_found(src_id)?;
+            let active = match active {
+                Some(active) => active,
+                // Unknown: a replayed task keeps its previous state rather than
+                // force-stopping the service on an assumption (the common case is
+                // server boot, where the target service initializes later and the
+                // recheck then corrects the state). A brand new task is
+                // conservatively active.
+                None => match pde.as_tasks().as_idx(&replay_id) {
+                    Some(entry) => entry.as_active().de()?,
+                    None => true,
+                },
+            };
             if active && task.severity == TaskSeverity::Critical {
                 pde.as_status_info_mut().stop()?;
             }
