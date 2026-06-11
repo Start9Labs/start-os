@@ -86,6 +86,29 @@ impl GatewayBackend for TunnelContext {
         remove_peer_forward(self, peer, internal_port).await
     }
 
+    async fn remove_forward_by_source(&self, source: SocketAddrV4, peer: Ipv4Addr) -> bool {
+        let owned = crate::tunnel::igd::current_forward(self, source)
+            .await
+            .is_some_and(|e| *e.target.ip() == peer);
+        if !owned {
+            return false;
+        }
+        if self
+            .db
+            .mutate(|db| db.as_port_forwards_mut().remove(&source).map(|_| ()))
+            .await
+            .result
+            .is_err()
+        {
+            return false;
+        }
+        if let Some(rc) = self.active_forwards.mutate(|m| m.remove(&source)) {
+            drop(rc);
+            self.forward.gc().await.log_err();
+        }
+        true
+    }
+
     async fn external_ipv4(&self) -> Option<Ipv4Addr> {
         external_ipv4(self).await
     }
