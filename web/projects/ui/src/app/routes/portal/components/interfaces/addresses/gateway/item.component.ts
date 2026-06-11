@@ -297,7 +297,10 @@ export class GatewayItemComponent {
             addr.hostnameInfo.port,
           )
         } else if (kind === 'private-domain') {
-          await this.domainHealth.checkPrivateDomain(this.gatewayId())
+          await this.domainHealth.checkPrivateDomain(
+            this.gatewayId(),
+            addr.hostnameInfo.hostname,
+          )
         } else if (
           kind === 'ipv4' &&
           addr.access === 'public' &&

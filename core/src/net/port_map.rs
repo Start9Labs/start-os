@@ -19,7 +19,7 @@ use std::time::Duration;
 use crab_nat::{InternetProtocol, PortMapping, PortMappingOptions, TimeoutConfig, pcp};
 use igd_next::aio::Gateway;
 use igd_next::aio::tokio::Tokio;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use tokio::time::{Instant, interval};
 
 use crate::db::model::public::NetworkInterfaceInfo;
@@ -81,12 +81,24 @@ struct Spec {
 
 enum Active {
     Pcp(PortMapping),
-    Upnp,
+    Upnp { external_ip: Option<Ipv4Addr> },
 }
 
 enum Command {
-    Ensure { key: MappingKey, spec: Spec },
-    Remove { key: MappingKey },
+    Ensure {
+        key: MappingKey,
+        spec: Spec,
+    },
+    Remove {
+        key: MappingKey,
+    },
+    /// Query the gateway-assigned external IP for an active mapping (used to
+    /// confirm reachability without a remote echo service). `None` if not
+    /// mapped or the external IP is unknown.
+    ExternalIp {
+        key: MappingKey,
+        resp: oneshot::Sender<Option<IpAddr>>,
+    },
 }
 
 #[derive(Clone)]
@@ -108,6 +120,14 @@ impl PortMapController {
                     cmd = recv.recv() => match cmd {
                         Some(Command::Ensure { key, spec }) => state.ensure(key, spec).await,
                         Some(Command::Remove { key }) => state.remove(key).await,
+                        Some(Command::ExternalIp { key, resp }) => {
+                            let ip = match state.active.get(&key) {
+                                Some(Active::Pcp(m)) => m.external_ip(),
+                                Some(Active::Upnp { external_ip }) => external_ip.map(IpAddr::V4),
+                                None => None,
+                            };
+                            let _ = resp.send(ip);
+                        }
                         None => break,
                     },
                     _ = refresh.tick() => state.refresh().await,
@@ -157,6 +177,25 @@ impl PortMapController {
             })
             .ok();
     }
+
+    /// The gateway-assigned external IP if an automatic mapping is currently
+    /// active for `(local_ip, external_port)`, else `None`. A `Some` result
+    /// means the port was forwarded automatically (PCP/NAT-PMP/UPnP), so a
+    /// remote reachability check can be skipped.
+    pub async fn mapped_external_ip(
+        &self,
+        local_ip: Ipv4Addr,
+        external_port: u16,
+    ) -> Option<IpAddr> {
+        let (resp, rx) = oneshot::channel();
+        self.req
+            .send(Command::ExternalIp {
+                key: (local_ip, external_port),
+                resp,
+            })
+            .ok()?;
+        rx.await.ok().flatten()
+    }
 }
 
 impl Default for PortMapController {
@@ -203,7 +242,7 @@ impl State {
                 }
                 // UPnP has no lease to renew, but a gateway reboot may have
                 // dropped it; re-assert. `None` retries a prior failure.
-                Some(Active::Upnp) | None => {
+                Some(Active::Upnp { .. }) | None => {
                     self.teardown(key).await;
                     self.apply(key).await;
                 }
@@ -220,7 +259,7 @@ impl State {
                     tracing::debug!("PCP/NAT-PMP unmap for {key:?} failed: {e}");
                 }
             }
-            Some(Active::Upnp) => {
+            Some(Active::Upnp { .. }) => {
                 let (local_ip, external_port) = key;
                 if let Some(gw) = self.gateway_for(local_ip).await {
                     upnp::remove_port(gw, external_port).await.log_err();
@@ -332,7 +371,11 @@ impl State {
             None => false,
         };
         if added {
-            self.active.insert(key, Active::Upnp);
+            // Best-effort external IP so a reachability check can short-circuit
+            // (a local IGD query, not a remote echo service). Private/CGNAT
+            // results are discarded by `get_external_ipv4`.
+            let external_ip = upnp::get_external_ipv4(local_ip).await.ok().flatten();
+            self.active.insert(key, Active::Upnp { external_ip });
         } else {
             // Re-discover next time in case the gateway went away.
             self.upnp_cache.remove(&local_ip);

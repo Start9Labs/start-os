@@ -10,6 +10,7 @@ import { DnsGateway } from './dns.component'
 
 export type PrivateDnsValidationData = {
   gateway: DnsGateway
+  fqdn: string
   initialResults?: { configured: boolean }
 }
 
@@ -243,6 +244,7 @@ export class PrivateDnsValidationComponent {
     try {
       const result = await this.api.checkDns({
         gateway: this.context.data.gateway.id,
+        fqdn: this.context.data.fqdn,
       })
 
       this.pass.set(result)

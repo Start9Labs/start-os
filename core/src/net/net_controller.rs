@@ -23,7 +23,7 @@ use crate::net::forward::{
 use crate::net::gateway::NetworkInterfaceController;
 use crate::net::host::binding::{AddSslOptions, BindId, BindOptions, RangeGatewayAccess};
 use crate::net::host::{Host, Hosts, host_for};
-use crate::net::port_map::candidate_gateways;
+use crate::net::port_map::{PortMapController, candidate_gateways};
 use crate::net::service_interface::HostnameMetadata;
 use crate::net::socks::SocksController;
 use crate::net::vhost::{AlpnInfo, DynVHostTarget, ProxyTarget, VHostController};
@@ -42,6 +42,7 @@ pub struct NetController {
     pub(super) dns: DnsController,
     pub(super) dns_update: DnsUpdateController,
     pub(super) forward: InterfacePortForwardController,
+    pub(crate) port_map: PortMapController,
     pub(super) socks: SocksController,
     pub(crate) callbacks: Arc<ServiceCallbacks>,
 }
@@ -85,6 +86,9 @@ impl NetController {
         let hostname = peek.as_public().as_server_info().as_hostname().de()?;
         drop(peek);
         let branding = crate::net::ssl::CertBranding::start_os(&hostname);
+        // One PortMapController shared by the forward and vhost controllers so a
+        // single query answers "is this port automatically forwarded?".
+        let port_map = PortMapController::new();
         Ok(Self {
             db: db.clone(),
             vhost: VHostController::new(
@@ -94,11 +98,16 @@ impl NetController {
                 branding,
                 passthroughs,
                 max_proxy_conns_per_target,
+                port_map.clone(),
             ),
             tls_client_config,
             dns: DnsController::init(db, &net_iface.watcher).await?,
             dns_update: DnsUpdateController::new(net_iface.watcher.subscribe()),
-            forward: InterfacePortForwardController::new(net_iface.watcher.subscribe()),
+            forward: InterfacePortForwardController::new(
+                net_iface.watcher.subscribe(),
+                port_map.clone(),
+            ),
+            port_map,
             net_iface,
             socks,
             callbacks: Arc::new(ServiceCallbacks::default()),
