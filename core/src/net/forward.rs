@@ -857,9 +857,11 @@ pub struct InterfacePortForwardController {
 }
 
 impl InterfacePortForwardController {
-    pub fn new(mut ip_info: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>) -> Self {
+    pub fn new(
+        mut ip_info: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
+        pmap: PortMapController,
+    ) -> Self {
         let port_forward = PortForwardController::new();
-        let pmap = PortMapController::new();
 
         let (req_send, mut req_recv) = mpsc::unbounded_channel::<InterfaceForwardCommand>();
         let thread = NonDetachingJoinHandle::from(tokio::spawn(async move {

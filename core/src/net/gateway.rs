@@ -249,6 +249,28 @@ pub async fn check_port(
             _ => None,
         })
         .unwrap_or(Ipv4Addr::UNSPECIFIED);
+
+    // If automatic port forwarding (PCP/NAT-PMP/UPnP) already succeeded for this
+    // port, it's reachable — skip the remote echo service and report success.
+    // The mapping reports the gateway-assigned external IP, so we still know our
+    // public address without a third-party round-trip.
+    for ip in ip_info.subnets.iter().filter_map(|s| match s.addr() {
+        IpAddr::V4(v4) => Some(v4),
+        _ => None,
+    }) {
+        if let Some(IpAddr::V4(ip)) = ctx.net_controller.port_map.mapped_external_ip(ip, port).await
+        {
+            let hairpinning = check_hairpin(gateway, local_ipv4, ip, port).await;
+            return Ok(CheckPortRes {
+                ip,
+                port,
+                open_externally: true,
+                open_internally,
+                hairpinning,
+            });
+        }
+    }
+
     let client = reqwest::Client::builder();
     #[cfg(target_os = "linux")]
     let client = client
@@ -332,14 +354,19 @@ async fn check_hairpin(_: GatewayId, _: Ipv4Addr, _: Ipv4Addr, _: u16) -> bool {
 pub struct CheckDnsParams {
     #[arg(help = "help.arg.gateway-id")]
     pub gateway: GatewayId,
+    #[arg(help = "help.arg.fqdn")]
+    pub fqdn: InternedString,
 }
 
+/// Verify a private domain works on the LAN by asking the LAN's own DNS
+/// server(s) for `fqdn` and confirming the answer is one of this server's
+/// addresses on that gateway — i.e. the record actually resolves correctly on
+/// the LAN, rather than merely checking whether we are the LAN's DNS server.
 pub async fn check_dns(
     ctx: RpcContext,
-    CheckDnsParams { gateway }: CheckDnsParams,
+    CheckDnsParams { gateway, fqdn }: CheckDnsParams,
 ) -> Result<bool, Error> {
     use hickory_server::net::runtime::TokioRuntimeProvider;
-    use hickory_server::proto::rr::RData;
     use hickory_server::resolver::Resolver;
     use hickory_server::resolver::config::{ResolverConfig, ResolverOpts};
 
@@ -356,49 +383,32 @@ pub async fn check_dns(
         )
     })?;
 
+    // The private domain should resolve to one of our addresses on this LAN.
+    let expected: BTreeSet<IpAddr> = gw_ip_info.subnets.iter().map(|s| s.addr()).collect();
+    if expected.is_empty() {
+        return Ok(false);
+    }
+
+    // Query each LAN DNS server directly for the record and confirm the answer.
     for dns_ip in &gw_ip_info.dns_servers {
-        // Case 1: DHCP DNS == server IP → immediate success
-        if gw_ip_info.subnets.iter().any(|s| s.addr() == *dns_ip) {
-            return Ok(true);
-        }
+        let mut config = ResolverConfig::from_parts(None, Vec::new(), Vec::new());
+        config.add_name_server(forward_name_server(SocketAddr::new(*dns_ip, 53)));
+        let mut opts = ResolverOpts::default();
+        opts.timeout = Duration::from_secs(5);
+        opts.attempts = 1;
 
-        // Case 2: DHCP DNS is on LAN but not the server → TXT challenge check
-        if gw_ip_info.subnets.iter().any(|s| s.contains(dns_ip)) {
-            let nonce = rand::random::<u64>();
-            let challenge_domain = InternedString::intern(format!("_dns-check-{nonce}.startos"));
-            let challenge_value =
-                InternedString::intern(crate::rpc_continuations::Guid::new().as_ref());
+        let resolver = Resolver::builder_with_config(config, TokioRuntimeProvider::default())
+            .with_options(opts)
+            .build()
+            .map_err(|e| Error::new(eyre!("{e}"), ErrorKind::Network))?;
 
-            let _guard = ctx
-                .net_controller
-                .dns
-                .add_challenge(challenge_domain.clone(), challenge_value.clone())?;
-
-            let mut config = ResolverConfig::from_parts(None, Vec::new(), Vec::new());
-            config.add_name_server(forward_name_server(SocketAddr::new(*dns_ip, 53)));
-            let mut opts = ResolverOpts::default();
-            opts.timeout = Duration::from_secs(5);
-            opts.attempts = 1;
-
-            let resolver = Resolver::builder_with_config(config, TokioRuntimeProvider::default())
-                .with_options(opts)
-                .build()
-                .map_err(|e| Error::new(eyre!("{e}"), ErrorKind::Network))?;
-            let txt_lookup = resolver.txt_lookup(&*challenge_domain).await;
-
-            return Ok(match txt_lookup {
-                Ok(lookup) => lookup.answers().iter().any(|record| {
-                    matches!(&record.data, RData::TXT(txt) if txt
-                        .txt_data
-                        .iter()
-                        .any(|data| data.as_ref() == challenge_value.as_bytes()))
-                }),
-                Err(_) => false,
-            });
+        if let Ok(lookup) = resolver.lookup_ip(&*fqdn).await {
+            if lookup.iter().any(|ip| expected.contains(&ip)) {
+                return Ok(true);
+            }
         }
     }
 
-    // Case 3: No DNS servers in subnet → failure
     Ok(false)
 }
 

@@ -248,7 +248,7 @@ export class GatewayComponent {
         })
       }
 
-      await this.domainHealth.checkPrivateDomain(gatewayId, configured)
+      await this.domainHealth.checkPrivateDomain(gatewayId, fqdn, configured)
 
       return true
     } catch (e: any) {

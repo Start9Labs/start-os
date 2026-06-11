@@ -70,6 +70,7 @@ export class DomainHealthService {
 
   async checkPrivateDomain(
     gatewayId: string,
+    fqdn: string,
     prefetchedConfigured?: boolean,
   ): Promise<void> {
     try {
@@ -78,11 +79,13 @@ export class DomainHealthService {
 
       const configured =
         prefetchedConfigured ??
-        (await this.api.checkDns({ gateway: gatewayId }).catch(() => false))
+        (await this.api
+          .checkDns({ gateway: gatewayId, fqdn })
+          .catch(() => false))
 
       if (!configured) {
         setTimeout(
-          () => this.openPrivateDomainModal(gateway, { configured }),
+          () => this.openPrivateDomainModal(gateway, fqdn, { configured }),
           250,
         )
       }
@@ -142,12 +145,12 @@ export class DomainHealthService {
     }
   }
 
-  async showPrivateDomainSetup(gatewayId: string): Promise<void> {
+  async showPrivateDomainSetup(gatewayId: string, fqdn: string): Promise<void> {
     try {
       const gateway = await this.getGatewayData(gatewayId)
       if (!gateway) return
 
-      this.openPrivateDomainModal(gateway)
+      this.openPrivateDomainModal(gateway, fqdn)
     } catch (e: any) {
       this.errorService.handleError(e)
     }
@@ -196,13 +199,14 @@ export class DomainHealthService {
 
   private openPrivateDomainModal(
     gateway: DnsGateway,
+    fqdn: string,
     initialResults?: { configured: boolean },
   ) {
     this.dialog
       .openComponent(PRIVATE_DNS_VALIDATION, {
         label: 'Address Requirements',
         size: 'm',
-        data: { gateway, initialResults },
+        data: { gateway, fqdn, initialResults },
       })
       .subscribe()
   }

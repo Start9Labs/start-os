@@ -267,6 +267,7 @@ impl VHostController {
         branding: CertBranding,
         passthroughs: Vec<PassthroughInfo>,
         max_proxy_conns_per_target: usize,
+        port_map: PortMapController,
     ) -> Self {
         let controller = Self {
             db,
@@ -277,7 +278,7 @@ impl VHostController {
             max_proxy_conns_per_target,
             servers: SyncMutex::new(BTreeMap::new()),
             passthrough_handles: SyncMutex::new(BTreeMap::new()),
-            port_map: PortMapController::new(),
+            port_map,
             hostname_mappings: SyncMutex::new(BTreeSet::new()),
         };
         for pt in passthroughs {

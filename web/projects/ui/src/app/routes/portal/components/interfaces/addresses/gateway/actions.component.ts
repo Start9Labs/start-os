@@ -297,7 +297,10 @@ export class GatewayActionsComponent {
   }
 
   showPrivateDnsValidation() {
-    this.domainHealth.showPrivateDomainSetup(this.gatewayId())
+    this.domainHealth.showPrivateDomainSetup(
+      this.gatewayId(),
+      this.address().hostnameInfo.hostname,
+    )
   }
 
   showPortForwardValidation() {
