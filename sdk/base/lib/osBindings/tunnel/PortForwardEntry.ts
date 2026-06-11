@@ -4,4 +4,5 @@ export type PortForwardEntry = {
   target: string
   label: string | null
   enabled: boolean
+  count: number
 }

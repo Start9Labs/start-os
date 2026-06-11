@@ -33,12 +33,6 @@ fn is_restricted(port: u16) -> bool {
     port <= 1024 || RESTRICTED_PORTS.contains(&port)
 }
 
-/// Largest port range we'll try to open automatically on the upstream gateway.
-/// PCP/NAT-PMP/UPnP all map one port per request, so a per-port sweep of a huge
-/// range would hammer the gateway (and routers cap their mapping tables); above
-/// this the local forward still applies and the operator forwards manually.
-const MAX_AUTO_MAP_PORTS: u16 = 128;
-
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ForwardRequirements {
     pub public_gateways: BTreeSet<GatewayId>,
@@ -613,15 +607,15 @@ impl InterfaceForwardEntry {
         pmap: &PortMapController,
     ) -> Result<(), Error> {
         let mut keep = BTreeSet::<SocketAddrV4>::new();
-        // (local IP, external port) -> candidate upstream gateways whose
-        // port-control protocol (PCP/NAT-PMP/UPnP) should forward that port to
-        // us. Only public-gateway forwards (the WAN-facing ones) need a port
+        // (local IP, external start port) -> (port count, candidate upstream
+        // gateways) whose port-control protocol should forward that port (range)
+        // to us. Only public-gateway forwards (the WAN-facing ones) need a port
         // opened upstream; private-subnet forwards are already directly
-        // reachable. A range expands to one entry per port, up to a cap — none
-        // of these protocols maps ranges natively, and per-port mapping of a
-        // huge range would hammer the gateway, so very large ranges are left
-        // for the operator to forward manually.
-        let mut want = BTreeMap::<(Ipv4Addr, u16), Vec<Ipv4Addr>>::new();
+        // reachable. A range of `count > 1` is mapped in one request via the PCP
+        // PORT_SET option (RFC 7753) and is skipped on gateways that don't
+        // support it — UPnP/NAT-PMP can't map ranges, so those are left for the
+        // operator to forward manually.
+        let mut want = BTreeMap::<(Ipv4Addr, u16), (u16, Vec<Ipv4Addr>)>::new();
 
         for (gw_id, info) in ip_info.iter() {
             if let Some(ip_info) = &info.ip_info {
@@ -650,13 +644,9 @@ impl InterfaceForwardEntry {
                             };
 
                             keep.insert(addr);
-                            if public && self.count <= MAX_AUTO_MAP_PORTS {
-                                for off in 0..self.count {
-                                    if let Some(port) = self.external.checked_add(off) {
-                                        want.entry((ip, port))
-                                            .or_insert_with(|| candidate_gateways(info));
-                                    }
-                                }
+                            if public {
+                                want.entry((ip, self.external))
+                                    .or_insert_with(|| (self.count, candidate_gateways(info)));
                             }
                             let fwd_rc = port_forward
                                 .add_forward_range(
@@ -682,8 +672,12 @@ impl InterfaceForwardEntry {
         for (ip, port) in self.mapped.iter().filter(|key| !want.contains_key(key)) {
             pmap.remove(*ip, *port);
         }
-        for ((ip, port), gateways) in &want {
-            pmap.ensure(*ip, *port, *port, gateways.clone());
+        for ((ip, port), (count, gateways)) in &want {
+            if *count > 1 {
+                pmap.ensure_range(*ip, *port, *port, *count, gateways.clone());
+            } else {
+                pmap.ensure(*ip, *port, *port, gateways.clone());
+            }
         }
         self.mapped = want.into_keys().collect();
 

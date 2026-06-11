@@ -11,6 +11,7 @@ pub mod keys;
 pub mod mdns;
 pub mod net_controller;
 pub mod pcp_hostname;
+pub mod pcp_portset;
 pub mod port_map;
 pub mod rfc2136;
 pub mod service_interface;

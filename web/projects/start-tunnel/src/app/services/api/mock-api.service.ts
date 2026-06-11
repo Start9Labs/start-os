@@ -254,6 +254,7 @@ export class MockApiService extends ApiService {
           target: params.target,
           label: params.label || null,
           enabled: true,
+          count: 1,
         },
       },
     ]

@@ -267,7 +267,12 @@ impl TunnelContext {
                 })
                 .map(|s| s.prefix_len())
                 .unwrap_or(32);
-            active_forwards.insert(from, forward.add_forward(from, to, prefix, None).await?);
+            active_forwards.insert(
+                from,
+                forward
+                    .add_forward_range(from, to, entry.count, prefix, None)
+                    .await?,
+            );
         }
 
         let ctx = Self(Arc::new(TunnelContextSeed {
