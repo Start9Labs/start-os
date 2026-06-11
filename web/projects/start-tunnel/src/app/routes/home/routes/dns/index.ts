@@ -1,8 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-} from '@angular/core'
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ErrorService } from '@start9labs/shared'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
@@ -75,8 +71,8 @@ import { DNS_ADD } from './add'
           <tr>
             <td colspan="6">
               <app-placeholder icon="@tui.list">
-                No DNS records. Devices you trust can add their own via RFC 2136,
-                or add one manually.
+                No DNS records. Devices you trust can add their own via RFC
+                2136, or add one manually.
               </app-placeholder>
             </td>
           </tr>
