@@ -24,6 +24,7 @@ use tokio::time::{Instant, interval};
 
 use crate::db::model::public::NetworkInterfaceInfo;
 use crate::net::pcp_hostname::OPTION_HOSTNAME;
+use crate::net::pcp_portset::{OPTION_PORT_SET, PortSet};
 use crate::net::upnp;
 use crate::prelude::*;
 
@@ -77,6 +78,11 @@ struct Spec {
     /// When non-empty the mapping is PCP-only — no NAT-PMP/UPnP fallback, since
     /// the gateway demuxes inbound TLS by SNI to share one external port.
     hostnames: Vec<String>,
+    /// Number of contiguous ports to map via the PCP PORT_SET option (RFC 7753);
+    /// `1` is an ordinary single-port mapping. When `> 1` the mapping is
+    /// PCP-only and is skipped entirely on gateways that don't grant the full
+    /// range (UPnP/NAT-PMP can't map ranges).
+    count: u16,
 }
 
 enum Active {
@@ -144,7 +150,7 @@ impl PortMapController {
         internal_port: u16,
         gateways: Vec<Ipv4Addr>,
     ) {
-        self.ensure_hostnames(local_ip, external_port, internal_port, gateways, Vec::new());
+        self.send_ensure(local_ip, external_port, internal_port, gateways, Vec::new(), 1);
     }
 
     /// Like [`ensure`](Self::ensure) but binds the given FQDNs via the PCP
@@ -158,6 +164,32 @@ impl PortMapController {
         gateways: Vec<Ipv4Addr>,
         hostnames: Vec<String>,
     ) {
+        self.send_ensure(local_ip, external_port, internal_port, gateways, hostnames, 1);
+    }
+
+    /// Map `count` contiguous ports starting at `external_port` via the PCP
+    /// PORT_SET option (RFC 7753). PCP-only; skipped on gateways that don't
+    /// grant the full range.
+    pub fn ensure_range(
+        &self,
+        local_ip: Ipv4Addr,
+        external_port: u16,
+        internal_port: u16,
+        count: u16,
+        gateways: Vec<Ipv4Addr>,
+    ) {
+        self.send_ensure(local_ip, external_port, internal_port, gateways, Vec::new(), count);
+    }
+
+    fn send_ensure(
+        &self,
+        local_ip: Ipv4Addr,
+        external_port: u16,
+        internal_port: u16,
+        gateways: Vec<Ipv4Addr>,
+        hostnames: Vec<String>,
+        count: u16,
+    ) {
         self.req
             .send(Command::Ensure {
                 key: (local_ip, external_port),
@@ -165,6 +197,7 @@ impl PortMapController {
                     internal_port,
                     gateways,
                     hostnames,
+                    count,
                 },
             })
             .ok();
@@ -217,6 +250,7 @@ impl State {
             s.internal_port != spec.internal_port
                 || s.gateways != spec.gateways
                 || s.hostnames != spec.hostnames
+                || s.count != spec.count
         });
         self.desired.insert(key, spec);
         if changed || !self.active.contains_key(&key) {
@@ -319,6 +353,65 @@ impl State {
                         let _ = m.try_drop().await;
                     }
                     Err(e) => tracing::debug!("PCP HOSTNAME map via {gw} failed: {e}"),
+                }
+            }
+            return;
+        }
+
+        // Range mappings carry the PCP PORT_SET option (RFC 7753) and are
+        // PCP-only: UPnP/NAT-PMP can't map ranges. A gateway that doesn't
+        // support PORT_SET silently maps a single port, which we detect (the
+        // granted size is missing or short) and skip rather than forward a
+        // partial range.
+        if spec.count > 1 {
+            let want = spec.count;
+            let option = pcp::PcpOption {
+                code: OPTION_PORT_SET,
+                data: PortSet {
+                    size: want,
+                    first_internal_port: spec.internal_port,
+                    parity: false,
+                }
+                .to_payload(),
+            };
+            for gw in &spec.gateways {
+                match pcp::port_mapping(
+                    pcp::BaseMapRequest::new(IpAddr::V4(*gw), IpAddr::V4(local_ip), InternetProtocol::Tcp, intl),
+                    None,
+                    None,
+                    PortMappingOptions {
+                        external_port: Some(ext),
+                        lifetime_seconds: Some(PCP_LIFETIME_SECONDS),
+                        timeout_config: Some(PCP_TIMEOUTS),
+                    },
+                    std::slice::from_ref(&option),
+                )
+                .await
+                {
+                    Ok(m) if m.external_port() == ext => {
+                        let granted = m
+                            .response_options()
+                            .iter()
+                            .find(|o| o.code == OPTION_PORT_SET)
+                            .and_then(|o| PortSet::from_payload(&o.data))
+                            .map_or(1, |ps| ps.size);
+                        if granted >= want {
+                            tracing::debug!(
+                                "PCP PORT_SET mapped {external_port}+{want}->{local_ip}:{} via {gw}",
+                                spec.internal_port
+                            );
+                            self.active.insert(key, Active::Pcp(m));
+                            return;
+                        }
+                        tracing::debug!(
+                            "gateway {gw} granted {granted}/{want} PORT_SET ports; skipping range"
+                        );
+                        let _ = m.try_drop().await;
+                    }
+                    Ok(m) => {
+                        let _ = m.try_drop().await;
+                    }
+                    Err(e) => tracing::debug!("PCP PORT_SET map via {gw} failed: {e}"),
                 }
             }
             return;

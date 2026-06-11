@@ -814,6 +814,7 @@ pub async fn add_forward(
         target,
         label,
         enabled: true,
+        count: 1,
     };
 
     ctx.db

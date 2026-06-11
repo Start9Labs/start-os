@@ -19,9 +19,12 @@ use tokio::net::UdpSocket;
 use crate::net::pcp_hostname::{
     RESULT_UNSUPP_HOSTNAME, encode_hostname_option, parse_hostname_options,
 };
+use crate::net::pcp_portset::{PortSet, encode_port_set_option, parse_port_set_options};
 use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
-use crate::tunnel::igd::{apply_peer_forward, bind_to_wireguard, external_ipv4, is_known_client};
+use crate::tunnel::igd::{
+    apply_peer_forward, apply_peer_forward_range, bind_to_wireguard, external_ipv4, is_known_client,
+};
 use crate::tunnel::wg::WIREGUARD_INTERFACE_NAME;
 
 const PCP_PORT: u16 = 5351;
@@ -46,6 +49,9 @@ const CANNOT_PROVIDE_EXTERNAL: u8 = 11;
 
 /// PCP protocol field value for TCP (the only transport the SNI demux handles).
 const PROTO_TCP: u8 = 6;
+/// Largest PORT_SET range we will grant in one MAP (RFC 7753 lets us grant
+/// fewer than requested; the client skips the range if it can't get them all).
+const MAX_PORT_SET: u16 = 1024;
 
 /// Run the PCP server for the life of the tunnel, self-restarting on error.
 pub async fn run(ctx: TunnelContext) {
@@ -158,6 +164,39 @@ fn map_response_with_hostnames(
     for name in hostnames {
         encode_hostname_option(&mut r, name);
     }
+    r
+}
+
+/// A MAP response echoing the granted PORT_SET (RFC 7753): the opcode's
+/// external port is the first port of the granted range and the option carries
+/// the granted size.
+fn map_response_with_port_set(
+    result: u8,
+    req: &[u8],
+    internal_port: u16,
+    external_port: u16,
+    external_ip: Ipv4Addr,
+    lifetime: u32,
+    epoch: u32,
+    granted: u16,
+) -> Vec<u8> {
+    let mut r = map_response(
+        result,
+        req,
+        internal_port,
+        external_port,
+        external_ip,
+        lifetime,
+        epoch,
+    );
+    encode_port_set_option(
+        &mut r,
+        &PortSet {
+            size: granted,
+            first_internal_port: internal_port,
+            parity: false,
+        },
+    );
     r
 }
 
@@ -288,6 +327,77 @@ async fn handle(ctx: &TunnelContext, peer: Ipv4Addr, req: &[u8], epoch: u32) -> 
                 epoch,
             )),
         };
+    }
+
+    // PCP PORT_SET extension (RFC 7753): map a contiguous range in one request.
+    let port_set = match parse_port_set_options(req.get(MAP_REQUEST_LEN..).unwrap_or(&[])) {
+        Ok(ps) => ps,
+        Err(()) => {
+            return Some(map_response(
+                MALFORMED_OPTION,
+                req,
+                internal_port,
+                external_port,
+                external_ip,
+                0,
+                epoch,
+            ));
+        }
+    };
+    if let Some(ps) = port_set {
+        if ps.size == 0 {
+            return Some(map_response(
+                MALFORMED_OPTION,
+                req,
+                internal_port,
+                external_port,
+                external_ip,
+                0,
+                epoch,
+            ));
+        }
+        if ps.size > 1 {
+            let granted = ps.size.min(MAX_PORT_SET);
+            let source = SocketAddrV4::new(external_ip, external_port);
+            let target = SocketAddrV4::new(peer, internal_port);
+            if lifetime == 0 {
+                remove_peer_forward(ctx, peer, internal_port).await;
+                return Some(map_response_with_port_set(
+                    SUCCESS,
+                    req,
+                    internal_port,
+                    external_port,
+                    external_ip,
+                    0,
+                    epoch,
+                    granted,
+                ));
+            }
+            return match apply_peer_forward_range(ctx, source, target, granted, peer, "PCP").await {
+                Ok(()) => {
+                    let granted_lifetime = lifetime.min(MAX_LIFETIME_SECONDS);
+                    Some(map_response_with_port_set(
+                        SUCCESS,
+                        req,
+                        internal_port,
+                        external_port,
+                        external_ip,
+                        granted_lifetime,
+                        epoch,
+                        granted,
+                    ))
+                }
+                Err(_) => Some(map_response(
+                    NO_RESOURCES,
+                    req,
+                    internal_port,
+                    external_port,
+                    external_ip,
+                    0,
+                    epoch,
+                )),
+            };
+        }
     }
 
     // Lifetime 0 deletes the mapping (RFC 6887 §15).

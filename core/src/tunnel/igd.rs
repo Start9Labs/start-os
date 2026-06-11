@@ -370,8 +370,22 @@ pub(super) async fn apply_peer_forward(
     target: SocketAddrV4,
     peer: Ipv4Addr,
 ) -> Result<(), u16> {
+    apply_peer_forward_range(ctx, source, target, 1, peer, "UPnP").await
+}
+
+/// Like [`apply_peer_forward`] but forwards `count` contiguous ports starting at
+/// `source.port()`/`target.port()` (a PCP PORT_SET range). `protocol_label` is
+/// the human label prefix recorded in the DB (e.g. "UPnP" or "PCP").
+pub(super) async fn apply_peer_forward_range(
+    ctx: &TunnelContext,
+    source: SocketAddrV4,
+    target: SocketAddrV4,
+    count: u16,
+    peer: Ipv4Addr,
+    protocol_label: &str,
+) -> Result<(), u16> {
     if let Some(existing) = current_forward(ctx, source).await {
-        if existing.target != target {
+        if existing.target != target || existing.count != count {
             return Err(718); // ConflictInMappingEntry
         }
         // Idempotent re-assert (the client refreshes periodically): make sure
@@ -381,7 +395,7 @@ pub(super) async fn apply_peer_forward(
             let prefix = prefix_for(ctx, target.ip()).await;
             let rc = ctx
                 .forward
-                .add_forward(source, target, prefix, None)
+                .add_forward_range(source, target, count, prefix, None)
                 .await
                 .map_err(|_| 501u16)?;
             ctx.active_forwards.mutate(|m| {
@@ -394,7 +408,7 @@ pub(super) async fn apply_peer_forward(
     let prefix = prefix_for(ctx, target.ip()).await;
     let rc = ctx
         .forward
-        .add_forward(source, target, prefix, None)
+        .add_forward_range(source, target, count, prefix, None)
         .await
         .map_err(|_| 501u16)?;
     ctx.active_forwards.mutate(|m| {
@@ -402,8 +416,9 @@ pub(super) async fn apply_peer_forward(
     });
     let entry = PortForwardEntry {
         target,
-        label: Some(format!("UPnP ({peer})")),
+        label: Some(format!("{protocol_label} ({peer})")),
         enabled: true,
+        count,
     };
     ctx.db
         .mutate(|db| db.as_port_forwards_mut().insert(&source, &entry).map(|_| ()))

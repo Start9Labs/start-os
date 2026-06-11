@@ -125,10 +125,18 @@ pub struct PortForwardEntry {
     pub label: Option<String>,
     #[serde(default = "default_true")]
     pub enabled: bool,
+    /// Number of contiguous ports forwarded from `source` (a PCP PORT_SET
+    /// range); `1` for a single-port forward.
+    #[serde(default = "default_one")]
+    pub count: u16,
 }
 
 fn default_true() -> bool {
     true
+}
+
+fn default_one() -> u16 {
+    1
 }
 
 /// A DNS record served by the tunnel — either injected by a device via RFC 2136
