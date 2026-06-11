@@ -13,6 +13,7 @@ pub mod dns;
 pub mod igd;
 pub(crate) mod migrations;
 pub mod pcp;
+pub mod sni;
 pub mod update;
 pub mod web;
 pub mod wg;

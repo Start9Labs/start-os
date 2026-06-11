@@ -124,6 +124,7 @@ pub struct TunnelContextSeed {
     pub net_iface: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
     pub forward: PortForwardController,
     pub dns_proxy: DnsProxyController,
+    pub sni: Arc<crate::tunnel::sni::SniDemux>,
     pub dns_injector: Arc<DnsInjector>,
     /// WireGuard client IPs whose `allow_dns_injection` toggle is on; the DNS
     /// injector's authorizer reads this so a toggle change takes effect without
@@ -279,6 +280,7 @@ impl TunnelContext {
             net_iface,
             forward,
             dns_proxy,
+            sni: crate::tunnel::sni::SniDemux::new(),
             dns_injector,
             dns_allowed,
             active_forwards: SyncMutex::new(active_forwards),
