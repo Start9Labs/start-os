@@ -2720,7 +2720,13 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
           reason: 'LND likes BTC a certain way',
           input: {
             kind: 'partial',
-            value: {
+            accept: [
+              {
+                color: '#ffffff',
+                testnet: false,
+              },
+            ],
+            set: {
               color: '#ffffff',
               testnet: false,
             },
@@ -2736,7 +2742,14 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
           reason: `LND want's its own RPC credentials`,
           input: {
             kind: 'partial',
-            value: {
+            accept: [
+              {
+                rpcsettings: {
+                  rpcuser: 'lnd',
+                },
+              },
+            ],
+            set: {
               rpcsettings: {
                 rpcuser: 'lnd',
               },

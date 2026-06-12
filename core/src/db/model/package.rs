@@ -539,16 +539,18 @@ pub enum TaskCondition {
 #[serde(tag = "kind")]
 pub enum TaskInput {
     Partial {
+        #[ts(type = "Record<string, unknown>[]")]
+        accept: Vec<Value>,
         #[ts(type = "Record<string, unknown>")]
-        value: Value,
+        set: Value,
     },
 }
 impl TaskInput {
     pub fn matches(&self, input: Option<&Value>) -> bool {
         match self {
-            Self::Partial { value } => match input {
+            Self::Partial { accept, .. } => match input {
                 None => false,
-                Some(full) => is_partial_of(value, full),
+                Some(full) => accept.iter().any(|a| is_partial_of(a, full)),
             },
         }
     }
