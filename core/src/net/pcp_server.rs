@@ -49,15 +49,16 @@ const MAX_PORT_SET: u16 = 1024;
 #[async_trait::async_trait]
 pub trait GatewayBackend: Send + Sync {
     /// Create or refresh a forward of `count` contiguous ports from `source`
-    /// (the external address) to `target`, on behalf of `peer`. `Err(())` means
-    /// the forward could not be installed (e.g. the external port is taken).
+    /// (the external address) to `target`, on behalf of `peer`. `Err(code)` is
+    /// the UPnP/IGD error code for the failure (e.g. 718 ConflictInMappingEntry,
+    /// 501 Action Failed); the PCP server maps any error to NO_RESOURCES.
     async fn add_forward(
         &self,
         source: SocketAddrV4,
         target: SocketAddrV4,
         count: u16,
         peer: Ipv4Addr,
-    ) -> Result<(), ()>;
+    ) -> Result<(), u16>;
 
     /// Remove the peer's forward to `(peer, internal_port)`, if any (PCP
     /// identifies a mapping by its target).
@@ -379,7 +380,7 @@ pub async fn handle<B: GatewayBackend + ?Sized>(
                         granted,
                     ))
                 }
-                Err(()) => Some(map_response(
+                Err(_) => Some(map_response(
                     NO_RESOURCES,
                     req,
                     internal_port,
@@ -415,7 +416,7 @@ pub async fn handle<B: GatewayBackend + ?Sized>(
             ))
         }
         // The external port is taken by another mapping; the client may retry.
-        Err(()) => Some(map_response(
+        Err(_) => Some(map_response(
             NO_RESOURCES,
             req,
             internal_port,
