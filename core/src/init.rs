@@ -168,6 +168,20 @@ pub async fn init(
         run_script("/media/startos/config/preinit.sh", progress).await;
     }
 
+    // /media/startos's group is only set at image-build time (in the squashfs); re-apply
+    // every boot so a stale root:root entry in the persistent config overlay (left by older
+    // installs) can't shadow it, keeping migrated and fresh installs identical (#3311).
+    Command::new("chown")
+        .arg("root:startos")
+        .arg("/media/startos")
+        .invoke(ErrorKind::Filesystem)
+        .await?;
+    Command::new("chmod")
+        .arg("750")
+        .arg("/media/startos")
+        .invoke(ErrorKind::Filesystem)
+        .await?;
+
     local_auth.start();
     RpcContext::init_auth_cookie().await?;
     local_auth.complete();
