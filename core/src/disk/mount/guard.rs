@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 use tracing::instrument;
 
 use super::filesystem::{FileSystem, MountType, ReadOnly, ReadWrite};
-use super::util::unmount;
+use super::util::{is_mountpoint, unmount};
 use crate::util::{Invoke, Never};
 use crate::{Error, ResultExt};
 
@@ -55,6 +55,14 @@ impl MountGuard {
         mount_type: MountType,
     ) -> Result<Self, Error> {
         let mountpoint = mountpoint.as_ref().to_owned();
+        // A prior process lifetime (e.g. a hard kill, where Drop never ran) can
+        // leave a stale kernel mount at this target; mounting onto it fails with
+        // "already mounted". Reconcile by lazily unmounting first, mirroring the
+        // `bind` helper. Within a live process this branch isn't reached for an
+        // active mount — `TmpMountGuard` dedups via its `Weak<MountGuard>`.
+        if is_mountpoint(&mountpoint).await? {
+            unmount(&mountpoint, true).await?;
+        }
         filesystem.mount(&mountpoint, mount_type).await?;
         Ok(MountGuard {
             mountpoint,
