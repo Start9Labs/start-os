@@ -534,7 +534,7 @@ pub enum TaskCondition {
     InputNotMatches,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Serialize, TS)]
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "kind")]
 pub enum TaskInput {
@@ -544,6 +544,35 @@ pub enum TaskInput {
         #[ts(type = "Record<string, unknown>")]
         set: Value,
     },
+}
+// Accepts both the current `{ accept, set }` shape and the legacy `{ value }`
+// shape emitted by s9pks built against the pre-2.0 SDK.
+impl<'de> Deserialize<'de> for TaskInput {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "kebab-case", tag = "kind")]
+        enum Repr {
+            Partial {
+                #[serde(default)]
+                accept: Option<Vec<Value>>,
+                #[serde(default)]
+                set: Option<Value>,
+                #[serde(default)]
+                value: Option<Value>,
+            },
+        }
+        let Repr::Partial { accept, set, value } = Repr::deserialize(deserializer)?;
+        match (accept, set, value) {
+            (Some(accept), Some(set), _) => Ok(Self::Partial { accept, set }),
+            (_, _, Some(value)) => Ok(Self::Partial {
+                accept: vec![value.clone()],
+                set: value,
+            }),
+            _ => Err(serde::de::Error::custom(
+                "task input requires `accept` and `set`, or the legacy `value`",
+            )),
+        }
+    }
 }
 impl TaskInput {
     pub fn matches(&self, input: Option<&Value>) -> bool {
@@ -575,4 +604,36 @@ impl Map for InterfaceAddressMap {
 pub struct InterfaceAddresses {
     pub tor_address: Option<String>,
     pub lan_address: Option<String>,
+}
+
+#[cfg(test)]
+mod task_input_tests {
+    use super::TaskInput;
+    use serde_json::json;
+
+    #[test]
+    fn legacy_value_shape_normalizes_to_accept_set() {
+        let input: TaskInput =
+            serde_json::from_value(json!({ "kind": "partial", "value": { "a": 1 } })).unwrap();
+        assert_eq!(
+            serde_json::to_value(&input).unwrap(),
+            json!({ "kind": "partial", "accept": [{ "a": 1 }], "set": { "a": 1 } }),
+        );
+    }
+
+    #[test]
+    fn accept_set_shape_round_trips() {
+        let wire = json!({
+            "kind": "partial",
+            "accept": [{ "a": 1 }, { "a": 2 }],
+            "set": { "a": 1 },
+        });
+        let input: TaskInput = serde_json::from_value(wire.clone()).unwrap();
+        assert_eq!(serde_json::to_value(&input).unwrap(), wire);
+    }
+
+    #[test]
+    fn rejects_empty_partial() {
+        assert!(serde_json::from_value::<TaskInput>(json!({ "kind": "partial" })).is_err());
+    }
 }
