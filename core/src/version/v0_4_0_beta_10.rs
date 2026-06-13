@@ -1,9 +1,12 @@
 use exver::{PreReleaseSegment, VersionRange};
 use imbl_value::json;
+use tokio::process::Command;
 
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{VersionT, v0_4_0_beta_9};
+use crate::context::RpcContext;
 use crate::prelude::*;
+use crate::util::Invoke;
 
 lazy_static::lazy_static! {
     static ref V0_4_0_beta_10: exver::Version = exver::Version::new(
@@ -61,6 +64,25 @@ impl VersionT for Version {
             .join(":");
         server_info.insert("caFingerprint".into(), json!(repaired));
         Ok(Value::Null)
+    }
+    async fn post_up(self, _ctx: &RpcContext, _input: Value) -> Result<(), Error> {
+        // Older installs copied /media/startos into the persistent config overlay as
+        // root:root, shadowing the squashfs's root:startos on every boot. Fix the
+        // persisted entry so migrated nodes match fresh installs (#3311).
+        let overlay_media_startos = "/media/startos/config/overlay/media/startos";
+        if tokio::fs::metadata(overlay_media_startos).await.is_ok() {
+            Command::new("chown")
+                .arg("root:startos")
+                .arg(overlay_media_startos)
+                .invoke(ErrorKind::Filesystem)
+                .await?;
+            Command::new("chmod")
+                .arg("750")
+                .arg(overlay_media_startos)
+                .invoke(ErrorKind::Filesystem)
+                .await?;
+        }
+        Ok(())
     }
     fn down(self, _db: &mut Value) -> Result<(), Error> {
         Ok(())
