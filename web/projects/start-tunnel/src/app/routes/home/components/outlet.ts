@@ -161,6 +161,11 @@ export class Outlet {
       icon: '@tui.globe',
       link: 'port-forwards',
     },
+    {
+      name: 'DNS',
+      icon: '@tui.list',
+      link: 'dns',
+    },
   ] as const
 
   protected readonly title = toSignal(

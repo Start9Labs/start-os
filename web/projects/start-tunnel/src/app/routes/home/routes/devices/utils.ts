@@ -10,6 +10,7 @@ export interface MappedDevice {
   }
   readonly ip: string
   readonly name: string
+  readonly allowDnsInjection: boolean
 }
 
 export interface MappedSubnet {

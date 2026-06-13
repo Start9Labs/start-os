@@ -413,7 +413,7 @@ pub async fn add_private_domain<Kind: HostApiKind>(
         .await
         .result?;
 
-    check_dns(ctx, CheckDnsParams { gateway }).await
+    check_dns(ctx, CheckDnsParams { gateway, fqdn }).await
 }
 
 pub async fn remove_private_domain<Kind: HostApiKind>(

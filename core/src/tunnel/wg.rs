@@ -186,6 +186,11 @@ pub struct WgConfig {
     pub name: InternedString,
     pub key: Base64<WgKey>,
     pub psk: Base64<[u8; 32]>,
+    /// Whether this device may inject DNS records via RFC 2136. Off by default
+    /// — only enable for devices you trust (it lets the device add records to
+    /// the tunnel's DNS for every peer to resolve).
+    #[serde(default)]
+    pub allow_dns_injection: bool,
 }
 impl WgConfig {
     pub fn generate(name: InternedString) -> Self {
@@ -193,6 +198,7 @@ impl WgConfig {
             name,
             key: Base64(WgKey::generate()),
             psk: Base64(rand::random()),
+            allow_dns_injection: false,
         }
     }
     pub fn server_peer_config<'a>(&'a self, addr: Ipv4Addr) -> ServerPeerConfig<'a> {

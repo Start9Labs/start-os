@@ -47,6 +47,8 @@ pub struct TunnelDatabase {
     pub gateways: OrdMap<GatewayId, NetworkInterfaceInfo>,
     pub wg: WgServer,
     pub port_forwards: PortForwards,
+    #[serde(default)]
+    pub dns_records: DnsRecords,
 }
 
 impl TunnelDatabase {
@@ -107,6 +109,10 @@ fn export_bindings_tunnel_db() {
     RemovePortForwardParams::export_all_to("bindings/tunnel").unwrap();
     UpdatePortForwardLabelParams::export_all_to("bindings/tunnel").unwrap();
     SetPortForwardEnabledParams::export_all_to("bindings/tunnel").unwrap();
+    SetDnsInjectionParams::export_all_to("bindings/tunnel").unwrap();
+    AddDnsRecordParams::export_all_to("bindings/tunnel").unwrap();
+    RemoveDnsRecordParams::export_all_to("bindings/tunnel").unwrap();
+    DnsRecordEntry::export_all_to("bindings/tunnel").unwrap();
     AddKeyParams::export_all_to("bindings/tunnel").unwrap();
     RemoveKeyParams::export_all_to("bindings/tunnel").unwrap();
     SetPasswordParams::export_all_to("bindings/tunnel").unwrap();
@@ -119,11 +125,38 @@ pub struct PortForwardEntry {
     pub label: Option<String>,
     #[serde(default = "default_true")]
     pub enabled: bool,
+    /// Number of contiguous ports forwarded from `source` (a PCP PORT_SET
+    /// range); `1` for a single-port forward.
+    #[serde(default = "default_one")]
+    pub count: u16,
 }
 
 fn default_true() -> bool {
     true
 }
+
+fn default_one() -> u16 {
+    1
+}
+
+/// A DNS record served by the tunnel — either injected by a device via RFC 2136
+/// or added manually. `value` is the rdata rendered as text (an IP for A/AAAA,
+/// a name for CNAME, the string for TXT).
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct DnsRecordEntry {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub rtype: String,
+    pub value: String,
+    pub ttl: u32,
+    /// The device IP that injected this, or `null` for a manual record.
+    #[serde(default)]
+    pub source: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
+pub struct DnsRecords(pub Vec<DnsRecordEntry>);
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
 pub struct PortForwards(pub BTreeMap<SocketAddrV4, PortForwardEntry>);

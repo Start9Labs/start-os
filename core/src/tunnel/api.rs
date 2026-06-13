@@ -1,6 +1,8 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::str::FromStr;
 
 use clap::{Parser, ValueEnum};
+use hickory_server::proto::rr::{Name, RecordType};
 use imbl_value::InternedString;
 use ipnet::Ipv4Net;
 use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
@@ -10,9 +12,10 @@ use ts_rs::TS;
 use crate::context::CliContext;
 use crate::db::model::public::NetworkInterfaceType;
 use crate::net::forward::nft_rule;
+use crate::net::rfc2136::InjectedRecord;
 use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
-use crate::tunnel::db::PortForwardEntry;
+use crate::tunnel::db::{DnsRecordEntry, PortForwardEntry};
 use crate::tunnel::wg::{
     DnsConfig, WIREGUARD_INTERFACE_NAME, WgConfig, WgSubnetClients, WgSubnetConfig,
 };
@@ -39,6 +42,10 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "device",
             device_api::<C>().with_about("about.add-remove-or-list-devices-in-subnets"),
+        )
+        .subcommand(
+            "dns",
+            dns_api::<C>().with_about("about.view-or-edit-injected-dns-records"),
         )
         .subcommand(
             "port-forward",
@@ -197,6 +204,164 @@ pub fn device_api<C: Context>() -> ParentHandler<C> {
                 .with_about("about.show-wireguard-configuration-for-device")
                 .with_call_remote::<CliContext>(),
         )
+        .subcommand(
+            "set-dns-injection",
+            from_fn_async(set_dns_injection)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("about.allow-or-deny-device-dns-injection")
+                .with_call_remote::<CliContext>(),
+        )
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[serde(rename_all = "camelCase")]
+pub struct SetDnsInjectionParams {
+    #[ts(type = "string")]
+    subnet: Ipv4Net,
+    #[ts(type = "string")]
+    ip: Ipv4Addr,
+    #[arg(long)]
+    enabled: bool,
+}
+
+/// Allow or deny a device to inject DNS records via RFC 2136. Off by default —
+/// only trusted devices, since an allowed device can add records the whole
+/// tunnel resolves.
+pub async fn set_dns_injection(
+    ctx: TunnelContext,
+    SetDnsInjectionParams {
+        subnet,
+        ip,
+        enabled,
+    }: SetDnsInjectionParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_wg_mut()
+                .as_subnets_mut()
+                .as_idx_mut(&subnet)
+                .or_not_found(&subnet)?
+                .as_clients_mut()
+                .as_idx_mut(&ip)
+                .or_not_found(&ip)?
+                .as_allow_dns_injection_mut()
+                .ser(&enabled)
+        })
+        .await
+        .result?;
+    ctx.dns_allowed.mutate(|s| {
+        if enabled {
+            s.insert(IpAddr::V4(ip));
+        } else {
+            s.remove(&IpAddr::V4(ip));
+        }
+    });
+    Ok(())
+}
+
+pub fn dns_api<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand(
+            "list",
+            from_fn_async(list_dns_records)
+                .with_display_serializable()
+                .with_about("about.list-injected-dns-records")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "add",
+            from_fn_async(add_dns_record)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("about.add-or-replace-a-dns-record")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "remove",
+            from_fn_async(remove_dns_record)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("about.remove-a-dns-record")
+                .with_call_remote::<CliContext>(),
+        )
+}
+
+pub async fn list_dns_records(ctx: TunnelContext) -> Result<Vec<DnsRecordEntry>, Error> {
+    Ok(ctx
+        .dns_injector
+        .list()
+        .iter()
+        .map(|r| {
+            let (name, rtype, value, ttl, source) = r.to_parts();
+            DnsRecordEntry {
+                name,
+                rtype,
+                value,
+                ttl,
+                source: source.map(|s| s.to_string()),
+            }
+        })
+        .collect())
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[serde(rename_all = "camelCase")]
+pub struct AddDnsRecordParams {
+    name: String,
+    #[serde(rename = "type")]
+    #[arg(long = "type")]
+    rtype: String,
+    value: String,
+    #[arg(long)]
+    ttl: Option<u32>,
+}
+
+pub async fn add_dns_record(
+    ctx: TunnelContext,
+    AddDnsRecordParams {
+        name,
+        rtype,
+        value,
+        ttl,
+    }: AddDnsRecordParams,
+) -> Result<(), Error> {
+    let record = InjectedRecord::from_parts(
+        &name,
+        &rtype,
+        &value,
+        ttl.unwrap_or(300),
+        IpAddr::V4(Ipv4Addr::UNSPECIFIED),
+    )?;
+    ctx.dns_injector.upsert(record);
+    Ok(())
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoveDnsRecordParams {
+    name: String,
+    #[serde(rename = "type")]
+    #[arg(long = "type")]
+    rtype: Option<String>,
+}
+
+pub async fn remove_dns_record(
+    ctx: TunnelContext,
+    RemoveDnsRecordParams { name, rtype }: RemoveDnsRecordParams,
+) -> Result<(), Error> {
+    let mut fqdn = Name::from_utf8(&name).with_kind(ErrorKind::ParseUrl)?;
+    fqdn.set_fqdn(true);
+    let rtype = rtype
+        .as_deref()
+        .map(|s| RecordType::from_str(&s.to_ascii_uppercase()))
+        .transpose()
+        .with_kind(ErrorKind::InvalidRequest)?;
+    ctx.dns_injector.delete(&fqdn, rtype);
+    Ok(())
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -414,7 +579,7 @@ pub async fn set_subnet_dns(
     // The DNS line in client configs always points at the subnet's `.1`, so the
     // WireGuard config is unchanged by a mode switch — only the proxy's upstreams
     // change. No `server.sync()` / wg-quick bounce needed.
-    ctx.dns_proxy.sync(&server).await
+    ctx.dns_proxy.sync(&server, ctx.dns_injector.clone()).await
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -649,6 +814,7 @@ pub async fn add_forward(
         target,
         label,
         enabled: true,
+        count: 1,
     };
 
     ctx.db

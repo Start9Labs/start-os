@@ -16,12 +16,14 @@ use crate::db::model::Database;
 use crate::db::model::public::GatewayType;
 use crate::hostname::ServerHostname;
 use crate::net::dns::DnsController;
+use crate::net::dns_update::DnsUpdateController;
 use crate::net::forward::{
     ForwardRequirements, InterfacePortForwardController, START9_BRIDGE_IFACE, nft_rule,
 };
 use crate::net::gateway::NetworkInterfaceController;
 use crate::net::host::binding::{AddSslOptions, BindId, BindOptions, RangeGatewayAccess};
 use crate::net::host::{Host, Hosts, host_for};
+use crate::net::port_map::{PortMapController, candidate_gateways};
 use crate::net::service_interface::HostnameMetadata;
 use crate::net::socks::SocksController;
 use crate::net::vhost::{AlpnInfo, DynVHostTarget, ProxyTarget, VHostController};
@@ -38,7 +40,9 @@ pub struct NetController {
     pub(super) tls_client_config: Arc<TlsClientConfig>,
     pub(crate) net_iface: Arc<NetworkInterfaceController>,
     pub(super) dns: DnsController,
+    pub(super) dns_update: DnsUpdateController,
     pub(super) forward: InterfacePortForwardController,
+    pub(crate) port_map: PortMapController,
     pub(super) socks: SocksController,
     pub(crate) callbacks: Arc<ServiceCallbacks>,
 }
@@ -82,6 +86,9 @@ impl NetController {
         let hostname = peek.as_public().as_server_info().as_hostname().de()?;
         drop(peek);
         let branding = crate::net::ssl::CertBranding::start_os(&hostname);
+        // One PortMapController shared by the forward and vhost controllers so a
+        // single query answers "is this port automatically forwarded?".
+        let port_map = PortMapController::new();
         Ok(Self {
             db: db.clone(),
             vhost: VHostController::new(
@@ -91,10 +98,16 @@ impl NetController {
                 branding,
                 passthroughs,
                 max_proxy_conns_per_target,
+                port_map.clone(),
             ),
             tls_client_config,
             dns: DnsController::init(db, &net_iface.watcher).await?,
-            forward: InterfacePortForwardController::new(net_iface.watcher.subscribe()),
+            dns_update: DnsUpdateController::new(net_iface.watcher.subscribe()),
+            forward: InterfacePortForwardController::new(
+                net_iface.watcher.subscribe(),
+                port_map.clone(),
+            ),
+            port_map,
             net_iface,
             socks,
             callbacks: Arc::new(ServiceCallbacks::default()),
@@ -501,6 +514,44 @@ impl NetServiceData {
         }
         ctrl.forward.gc().await?;
 
+        // PCP HOSTNAME mappings come only from PUBLIC domain vhosts: each binds
+        // its FQDN on the shared external port so the gateway demultiplexes
+        // inbound TLS by SNI. Computed before the drain loop consumes `vhosts`.
+        let mut hostname_maps: BTreeMap<(Ipv4Addr, u16), (u16, Vec<Ipv4Addr>, Vec<String>)> =
+            BTreeMap::new();
+        for ((maybe_host, external), target) in vhosts.iter() {
+            let Some(hostname) = maybe_host else { continue };
+            if target.public.is_empty() {
+                continue;
+            }
+            for gw_id in &target.public {
+                let Some(info) = net_ifaces.get(gw_id) else {
+                    continue;
+                };
+                if matches!(info.gateway_type, Some(GatewayType::OutboundOnly)) {
+                    continue;
+                }
+                let Some(ip_info) = &info.ip_info else { continue };
+                let gateways = candidate_gateways(info);
+                if gateways.is_empty() {
+                    continue;
+                }
+                for subnet in &ip_info.subnets {
+                    let IpAddr::V4(local_ip) = subnet.addr() else {
+                        continue;
+                    };
+                    let entry = hostname_maps
+                        .entry((local_ip, *external))
+                        .or_insert_with(|| (*external, gateways.clone(), Vec::new()));
+                    let name = hostname.to_string();
+                    if !entry.2.contains(&name) {
+                        entry.2.push(name);
+                    }
+                }
+            }
+        }
+        ctrl.vhost.sync_hostname_mappings(hostname_maps);
+
         let all = binds
             .vhosts
             .keys()
@@ -540,11 +591,15 @@ impl NetServiceData {
             }
         });
         for (fqdn, gateways) in private_dns {
+            // Best-effort: also publish the record to the gateway's own DNS via
+            // RFC 2136 so LAN devices not using StartOS's resolver can resolve it.
+            ctrl.dns_update.add(fqdn.clone(), gateways.clone());
             binds
                 .private_dns
                 .insert(fqdn.clone(), ctrl.dns.add_private_domain(fqdn, gateways)?);
         }
         ctrl.dns.gc_private_domains(&rm)?;
+        ctrl.dns_update.gc(rm);
 
         Ok(())
     }

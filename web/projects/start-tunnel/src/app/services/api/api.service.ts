@@ -32,6 +32,14 @@ export abstract class ApiService {
   abstract showDeviceConfig(
     params: T.Tunnel.RemoveDeviceParams,
   ): Promise<string> // device.show-config
+  abstract setDnsInjection(
+    params: T.Tunnel.SetDnsInjectionParams,
+  ): Promise<null> // device.set-dns-injection
+  // dns
+  abstract addDnsRecord(params: T.Tunnel.AddDnsRecordParams): Promise<null> // dns.add
+  abstract removeDnsRecord(
+    params: T.Tunnel.RemoveDnsRecordParams,
+  ): Promise<null> // dns.remove
   // forwards
   abstract addForward(params: T.Tunnel.AddPortForwardParams): Promise<null> // port-forward.add
   abstract deleteForward(

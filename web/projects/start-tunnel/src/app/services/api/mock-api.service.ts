@@ -143,7 +143,12 @@ export class MockApiService extends ApiService {
       {
         op: PatchOp.ADD,
         path: `/wg/subnets/${replaceSlashes(params.subnet)}/clients/${params.ip}`,
-        value: { name: params.name, key: '', psk: '' },
+        value: {
+          name: params.name,
+          key: '',
+          psk: '',
+          allowDnsInjection: false,
+        },
       },
     ]
     this.mockRevision(patch)
@@ -186,6 +191,58 @@ export class MockApiService extends ApiService {
     return MOCK_CONFIG
   }
 
+  async setDnsInjection(params: T.Tunnel.SetDnsInjectionParams): Promise<null> {
+    await pauseFor(1000)
+
+    const patch: ReplaceOperation<boolean>[] = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/wg/subnets/${params.subnet}/clients/${params.ip}/allowDnsInjection`,
+        value: params.enabled,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async addDnsRecord(params: T.Tunnel.AddDnsRecordParams): Promise<null> {
+    await pauseFor(1000)
+
+    const patch: AddOperation<T.Tunnel.DnsRecordEntry>[] = [
+      {
+        op: PatchOp.ADD,
+        path: `/dnsRecords/-`,
+        value: {
+          name: params.name,
+          type: params.type,
+          value: params.value,
+          ttl: params.ttl ?? 300,
+          source: null,
+        },
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async removeDnsRecord(params: T.Tunnel.RemoveDnsRecordParams): Promise<null> {
+    await pauseFor(1000)
+
+    const index = mockTunnelData.dnsRecords.findIndex(
+      r => r.name === params.name && (!params.type || r.type === params.type),
+    )
+    if (index >= 0) {
+      const patch: RemoveOperation[] = [
+        { op: PatchOp.REMOVE, path: `/dnsRecords/${index}` },
+      ]
+      this.mockRevision(patch)
+    }
+
+    return null
+  }
+
   async addForward(params: T.Tunnel.AddPortForwardParams): Promise<null> {
     await pauseFor(1000)
 
@@ -197,6 +254,7 @@ export class MockApiService extends ApiService {
           target: params.target,
           label: params.label || null,
           enabled: true,
+          count: 1,
         },
       },
     ]

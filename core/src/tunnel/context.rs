@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::{IpAddr, SocketAddr, SocketAddrV4};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
@@ -33,7 +33,8 @@ use crate::prelude::*;
 use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
 use crate::tunnel::TUNNEL_DEFAULT_LISTEN;
 use crate::tunnel::api::tunnel_api;
-use crate::tunnel::db::TunnelDatabase;
+use crate::net::rfc2136::{DnsInjector, InjectedRecord};
+use crate::tunnel::db::{DnsRecordEntry, DnsRecords, TunnelDatabase};
 use crate::tunnel::dns::DnsProxyController;
 use crate::tunnel::migrations::run_migrations;
 use crate::tunnel::wg::{WIREGUARD_INTERFACE_NAME, WgServer};
@@ -72,6 +73,47 @@ impl TunnelConfig {
     }
 }
 
+/// WireGuard client IPs whose `allow_dns_injection` toggle is on.
+fn allowed_injectors(server: &WgServer) -> BTreeSet<IpAddr> {
+    let mut out = BTreeSet::new();
+    for (_, subnet) in &server.subnets.0 {
+        for (ip, client) in &subnet.clients.0 {
+            if client.allow_dns_injection {
+                out.insert(IpAddr::V4(*ip));
+            }
+        }
+    }
+    out
+}
+
+/// Seed the injector from the persisted records (dropping any that no longer
+/// parse).
+fn seed_records(records: &DnsRecords) -> Vec<InjectedRecord> {
+    records
+        .0
+        .iter()
+        .filter_map(|e| {
+            let src = e
+                .source
+                .as_deref()
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
+            InjectedRecord::from_parts(&e.name, &e.rtype, &e.value, e.ttl, src).ok()
+        })
+        .collect()
+}
+
+fn dns_entry(r: &InjectedRecord) -> DnsRecordEntry {
+    let (name, rtype, value, ttl, source) = r.to_parts();
+    DnsRecordEntry {
+        name,
+        rtype,
+        value,
+        ttl,
+        source: source.map(|s| s.to_string()),
+    }
+}
+
 pub struct TunnelContextSeed {
     pub listen: SocketAddr,
     pub db: TypedPatchDb<TunnelDatabase>,
@@ -82,6 +124,12 @@ pub struct TunnelContextSeed {
     pub net_iface: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
     pub forward: PortForwardController,
     pub dns_proxy: DnsProxyController,
+    pub sni: Arc<crate::tunnel::sni::SniDemux>,
+    pub dns_injector: Arc<DnsInjector>,
+    /// WireGuard client IPs whose `allow_dns_injection` toggle is on; the DNS
+    /// injector's authorizer reads this so a toggle change takes effect without
+    /// rebuilding the injector.
+    pub dns_allowed: Arc<SyncMutex<BTreeSet<IpAddr>>>,
     pub active_forwards: SyncMutex<BTreeMap<SocketAddrV4, Arc<()>>>,
     pub shutdown: Sender<Option<bool>>,
 }
@@ -151,8 +199,28 @@ impl TunnelContext {
         let dns_proxy = DnsProxyController::new();
         let peek = db.peek().await;
         let wg = peek.as_wg().de()?;
+        let dns_allowed = Arc::new(SyncMutex::new(allowed_injectors(&wg)));
+        let dns_injector = {
+            let seed = seed_records(&peek.as_dns_records().de()?);
+            let allowed = dns_allowed.clone();
+            let persist_db = db.clone();
+            DnsInjector::new(
+                seed,
+                move |src| allowed.peek(|s| s.contains(&src)),
+                move |records| {
+                    let db = persist_db.clone();
+                    let entries: Vec<_> = records.iter().map(dns_entry).collect();
+                    tokio::spawn(async move {
+                        db.mutate(|d| d.as_dns_records_mut().ser(&DnsRecords(entries)))
+                            .await
+                            .result
+                            .log_err();
+                    });
+                },
+            )
+        };
         wg.sync().await?;
-        dns_proxy.sync(&wg).await?;
+        dns_proxy.sync(&wg, dns_injector.clone()).await?;
 
         for iface in net_iface.peek(|i| {
             i.iter()
@@ -199,10 +267,15 @@ impl TunnelContext {
                 })
                 .map(|s| s.prefix_len())
                 .unwrap_or(32);
-            active_forwards.insert(from, forward.add_forward(from, to, prefix, None).await?);
+            active_forwards.insert(
+                from,
+                forward
+                    .add_forward_range(from, to, entry.count, prefix, None)
+                    .await?,
+            );
         }
 
-        Ok(Self(Arc::new(TunnelContextSeed {
+        let ctx = Self(Arc::new(TunnelContextSeed {
             listen,
             db,
             datadir,
@@ -212,9 +285,20 @@ impl TunnelContext {
             net_iface,
             forward,
             dns_proxy,
+            sni: crate::tunnel::sni::SniDemux::new(),
+            dns_injector,
+            dns_allowed,
             active_forwards: SyncMutex::new(active_forwards),
             shutdown,
-        })))
+        }));
+
+        // Serve PCP (preferred) and a UPnP IGD (fallback) to connected peers
+        // over the WireGuard interface so StartOS clients can open their public
+        // ports automatically.
+        tokio::spawn(crate::tunnel::pcp::run(ctx.clone()));
+        tokio::spawn(crate::tunnel::igd::run(ctx.clone()));
+
+        Ok(ctx)
     }
 
     pub async fn gc_forwards(&self, keep: &BTreeSet<SocketAddrV4>) -> Result<(), Error> {
@@ -229,7 +313,8 @@ impl TunnelContext {
     /// `server.sync()`).
     pub async fn sync_network(&self, server: &WgServer) -> Result<(), Error> {
         server.sync().await?;
-        self.dns_proxy.sync(server).await
+        self.dns_allowed.mutate(|s| *s = allowed_injectors(server));
+        self.dns_proxy.sync(server, self.dns_injector.clone()).await
     }
 }
 impl AsRef<RpcContinuations> for TunnelContext {
