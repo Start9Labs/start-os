@@ -1171,7 +1171,8 @@ export class SystemForEmbassy implements System {
             reason: `Configure this dependency for the needs of ${this.manifest.title}`,
             input: {
               kind: "partial",
-              value: diff.diff,
+              accept: [diff.diff],
+              set: diff.diff,
             },
             when: {
               condition: "input-not-matches",

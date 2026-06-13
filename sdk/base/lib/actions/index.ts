@@ -54,7 +54,8 @@ type TaskBase = {
 }
 type TaskInput<T extends ActionInfo<T.ActionId, any>> = {
   kind: 'partial'
-  value: T.DeepPartial<GetActionInputType<T>>
+  accept: T.DeepPartial<GetActionInputType<T>>[]
+  set: T.DeepPartial<GetActionInputType<T>>
 }
 export type TaskOptions<T extends ActionInfo<T.ActionId, any>> = TaskBase &
   (
@@ -97,7 +98,11 @@ export const createTask = <T extends ActionInfo<T.ActionId, any>>(options: {
   const actionId = options.action.id
   const input =
     'input' in request && request.input
-      ? { ...request.input, value: undefinedToNull(request.input.value) }
+      ? {
+          ...request.input,
+          accept: request.input.accept.map(undefinedToNull),
+          set: undefinedToNull(request.input.set),
+        }
       : (request as any).input
   const req = {
     ...request,

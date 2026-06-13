@@ -190,7 +190,7 @@ export class ActionInputModal {
               task.actionId === this.actionId &&
               task.when?.condition === 'input-not-matches' &&
               task.input &&
-              conflicts(task.input.value, input),
+              task.input.accept.every(accept => conflicts(accept, input)),
           ),
       )
       .map(id => id)

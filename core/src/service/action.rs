@@ -114,14 +114,14 @@ pub fn update_tasks(
         if let Some(when) = &v.task.when {
             match &when.condition {
                 TaskCondition::InputNotMatches => match &v.task.input {
-                    Some(TaskInput::Partial { value }) => {
-                        if is_partial_of(value, input) {
+                    Some(TaskInput::Partial { accept, .. }) => {
+                        if accept.iter().any(|a| is_partial_of(a, input)) {
                             if when.once {
                                 return !was_run;
                             } else {
                                 v.active = false;
                             }
-                        } else if conflicts(value, input) {
+                        } else if accept.iter().all(|a| conflicts(a, input)) {
                             v.active = true;
                             if v.task.severity == TaskSeverity::Critical {
                                 critical_activated = true;
