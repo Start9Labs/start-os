@@ -68,16 +68,33 @@ impl PortBindings {
     }
 }
 
+/// Notified `(ext_port, active)` when a demultiplexed port's listener starts
+/// (`true`) or stops (`false`), so a gateway can open/close inbound access to it
+/// (e.g. a StartWRT firewall ACCEPT rule). The tunnel needs no such hook.
+type OnChange = Box<dyn Fn(u16, bool) + Send + Sync>;
+
 pub struct SniDemux {
     ports: Arc<SyncMutex<BTreeMap<PortKey, PortBindings>>>,
     listeners: SyncMutex<BTreeMap<PortKey, NonDetachingJoinHandle<()>>>,
+    on_change: Option<OnChange>,
 }
 
 impl SniDemux {
     pub fn new() -> Arc<Self> {
+        Self::build(None)
+    }
+
+    /// Like [`new`](Self::new) but invokes `on_change(ext_port, active)` whenever
+    /// a port's listener is created or torn down.
+    pub fn with_on_change(on_change: impl Fn(u16, bool) + Send + Sync + 'static) -> Arc<Self> {
+        Self::build(Some(Box::new(on_change)))
+    }
+
+    fn build(on_change: Option<OnChange>) -> Arc<Self> {
         let this = Arc::new(Self {
             ports: Arc::new(SyncMutex::new(BTreeMap::new())),
             listeners: SyncMutex::new(BTreeMap::new()),
+            on_change,
         });
         let weak = Arc::downgrade(&this);
         tokio::spawn(async move {
@@ -174,6 +191,9 @@ impl SniDemux {
             });
             if let Some(handle) = self.listeners.mutate(|l| l.remove(&key)) {
                 drop(handle); // aborts the listener task
+                if let Some(cb) = &self.on_change {
+                    cb(key.1, false);
+                }
             }
         }
     }
@@ -192,6 +212,9 @@ impl SniDemux {
         self.listeners.mutate(|l| {
             l.insert(key, handle);
         });
+        if let Some(cb) = &self.on_change {
+            cb(key.1, true);
+        }
     }
 }
 
@@ -308,6 +331,7 @@ impl Default for SniDemux {
         Self {
             ports: Arc::new(SyncMutex::new(BTreeMap::new())),
             listeners: SyncMutex::new(BTreeMap::new()),
+            on_change: None,
         }
     }
 }
