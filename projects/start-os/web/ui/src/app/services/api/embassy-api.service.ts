@@ -144,6 +144,12 @@ export abstract class ApiService {
 
   abstract testSmtp(params: T.TestSmtpParams): Promise<null>
 
+  // nut
+
+  abstract setNut(params: T.SetNutParams): Promise<null>
+
+  abstract getNutStatus(params: {}): Promise<T.NutStatus>
+
   // marketplace URLs
 
   abstract checkOSUpdate(params: {
