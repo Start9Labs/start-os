@@ -1,17 +1,27 @@
 {
   "name": "@start9labs/shared",
-  "version": "0.3.15",
+  "version": "0.3.16",
   "peerDependencies": {
-    "@angular/common": ">=13.2.0",
-    "@angular/core": ">=13.2.0",
-    "@angular/router": ">=13.2.0",
-    "@ng-web-apis/mutation-observer": ">=4.0.0",
-    "@ng-web-apis/resize-observer": ">=4.0.0",
-    "@taiga-ui/cdk": ">=4.0.0",
-    "@taiga-ui/core": ">=4.0.0",
-    "@taiga-ui/layout": ">=4.0.0",
-    "@tinkoff/ng-dompurify": ">=4.0.0",
-    "ansi-to-html": "^0.7.2"
+    "@angular/cdk": ">=21.0.0",
+    "@angular/common": ">=21.0.0",
+    "@angular/core": ">=21.0.0",
+    "@angular/forms": ">=21.0.0",
+    "@angular/platform-browser": ">=21.0.0",
+    "@angular/router": ">=21.0.0",
+    "@ng-web-apis/intersection-observer": ">=5.0.0",
+    "@ng-web-apis/mutation-observer": ">=5.0.0",
+    "@start9labs/start-sdk": ">=1.5.3",
+    "@taiga-ui/addon-mobile": ">=5.0.0",
+    "@taiga-ui/cdk": ">=5.0.0",
+    "@taiga-ui/core": ">=5.0.0",
+    "@taiga-ui/dompurify": ">=5.0.0",
+    "@taiga-ui/i18n": ">=5.0.0",
+    "@taiga-ui/kit": ">=5.0.0",
+    "@taiga-ui/polymorpheus": ">=5.0.0",
+    "ansi-to-html": "^0.7.2",
+    "base64-js": "^1.5.1",
+    "marked": "^4.0.0",
+    "rxjs": ">=7.0.0"
   },
   "exports": {
     "./assets/": "./assets/"
