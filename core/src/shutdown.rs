@@ -1,3 +1,7 @@
+use clap::Parser;
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
+
 use crate::PLATFORM;
 use crate::context::RpcContext;
 use crate::disk::main::export;
@@ -86,7 +90,35 @@ impl Shutdown {
     }
 }
 
-pub async fn shutdown(ctx: RpcContext) -> Result<(), Error> {
+#[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct ShutdownParams {
+    /// Block until graceful teardown completes (default over the CLI; the
+    /// frontend omits this and gets an immediate reply). Cleared with
+    /// `--nowait`. The wait can't outlive the webserver teardown that follows
+    /// container shutdown, so the connection drops once services are stopped.
+    #[arg(long = "nowait", action = clap::ArgAction::SetFalse, help = "help.arg.nowait")]
+    #[serde(default)]
+    wait: bool,
+}
+
+async fn begin_shutdown(ctx: &RpcContext, restart: bool, wait: bool) {
+    ctx.shutdown
+        .send(Some(Shutdown {
+            disk_guid: Some(ctx.disk_guid.clone()),
+            restart,
+        }))
+        .map_err(|_| eyre!("receiver dropped"))
+        .log_err();
+    if wait {
+        ctx.wait_closed().await;
+    }
+}
+
+pub async fn shutdown(ctx: RpcContext, ShutdownParams { wait }: ShutdownParams) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
             db.as_public_mut()
@@ -97,17 +129,11 @@ pub async fn shutdown(ctx: RpcContext) -> Result<(), Error> {
         })
         .await
         .result?;
-    ctx.shutdown
-        .send(Some(Shutdown {
-            disk_guid: Some(ctx.disk_guid.clone()),
-            restart: false,
-        }))
-        .map_err(|_| eyre!("receiver dropped"))
-        .log_err();
+    begin_shutdown(&ctx, false, wait).await;
     Ok(())
 }
 
-pub async fn restart(ctx: RpcContext) -> Result<(), Error> {
+pub async fn restart(ctx: RpcContext, ShutdownParams { wait }: ShutdownParams) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
             db.as_public_mut()
@@ -118,17 +144,11 @@ pub async fn restart(ctx: RpcContext) -> Result<(), Error> {
         })
         .await
         .result?;
-    ctx.shutdown
-        .send(Some(Shutdown {
-            disk_guid: Some(ctx.disk_guid.clone()),
-            restart: true,
-        }))
-        .map_err(|_| eyre!("receiver dropped"))
-        .log_err();
+    begin_shutdown(&ctx, true, wait).await;
     Ok(())
 }
 
 pub async fn rebuild(ctx: RpcContext) -> Result<(), Error> {
     tokio::fs::write(SYSTEM_REBUILD_PATH, b"").await?;
-    restart(ctx).await
+    restart(ctx, ShutdownParams { wait: false }).await
 }

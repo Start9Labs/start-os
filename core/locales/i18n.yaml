@@ -3383,6 +3383,13 @@ help.arg.no-verify:
   fr_FR: "Ignorer la vérification de signature"
   pl_PL: "Pomiń weryfikację podpisu"
 
+help.arg.nowait:
+  en_US: "Return immediately instead of waiting for graceful shutdown to complete"
+  de_DE: "Sofort zurückkehren, anstatt auf den Abschluss des ordnungsgemäßen Herunterfahrens zu warten"
+  es_ES: "Volver inmediatamente en lugar de esperar a que se complete el apagado controlado"
+  fr_FR: "Renvoyer immédiatement au lieu d'attendre la fin de l'arrêt propre"
+  pl_PL: "Zwróć natychmiast zamiast czekać na zakończenie kontrolowanego zamykania"
+
 help.arg.nvidia-container:
   en_US: "Enable NVIDIA container support"
   de_DE: "NVIDIA-Container-Unterstützung aktivieren"
