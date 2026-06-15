@@ -395,7 +395,13 @@ export const mockPatchData: DataModel = {
             reason: 'LND likes BTC a certain way',
             input: {
               kind: 'partial',
-              value: {
+              accept: [
+                {
+                  color: '#ffffff',
+                  testnet: false,
+                },
+              ],
+              set: {
                 color: '#ffffff',
                 testnet: false,
               },
@@ -411,7 +417,14 @@ export const mockPatchData: DataModel = {
             reason: `LND want's its own RPC credentials`,
             input: {
               kind: 'partial',
-              value: {
+              accept: [
+                {
+                  rpcsettings: {
+                    rpcuser: 'lnd',
+                  },
+                },
+              ],
+              set: {
                 rpcsettings: {
                   rpcuser: 'lnd',
                 },

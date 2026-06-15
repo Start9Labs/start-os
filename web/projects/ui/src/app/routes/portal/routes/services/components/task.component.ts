@@ -215,7 +215,7 @@ export class ServiceTaskComponent {
           icon: pkg.icon,
         },
         actionInfo: { id: task.actionId, metadata },
-        prefill: task.input?.value,
+        prefill: task.input?.set,
       })
     }
   }
