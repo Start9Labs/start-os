@@ -53,6 +53,7 @@ use crate::{DATA_DIR, PLATFORM, PackageId};
 
 pub struct RpcContextSeed {
     is_closed: AtomicBool,
+    closed: watch::Sender<bool>,
     pub os_partitions: OsPartitionInfo,
     pub disk_guid: InternedString,
     pub ephemeral_sessions: SyncMutex<Sessions>,
@@ -331,6 +332,7 @@ impl RpcContext {
 
         let seed = Arc::new(RpcContextSeed {
             is_closed: AtomicBool::new(false),
+            closed: watch::Sender::new(false),
             os_partitions: OsPartitionInfo::from_fstab().await?,
             disk_guid,
             ephemeral_sessions: SyncMutex::new(Sessions::new()),
@@ -385,8 +387,18 @@ impl RpcContext {
         self.crons.mutate(|c| std::mem::take(c));
         self.services.shutdown_all().await?;
         self.is_closed.store(true, Ordering::SeqCst);
+        self.closed.send_replace(true);
         tracing::info!("{}", t!("context.rpc.rpc-context-shutdown"));
         Ok(())
+    }
+
+    /// Resolves once graceful teardown (`shutdown`) has completed. Used by the
+    /// `wait` path of the server shutdown/restart RPC so a caller can block
+    /// until containers are stopped (it won't outlive the webserver teardown
+    /// that immediately follows).
+    pub async fn wait_closed(&self) {
+        let mut rx = self.0.closed.subscribe();
+        let _ = rx.wait_for(|closed| *closed).await;
     }
 
     pub fn add_cron<F: Future<Output = ()> + Send + 'static>(&self, fut: F) -> Guid {
