@@ -62,9 +62,7 @@ const TYPES = ['A', 'AAAA', 'CNAME', 'TXT'] as const
         />
       </tui-textfield>
       <footer>
-        <button tuiButton [disabled]="form.invalid" (click)="onSave()">
-          Save
-        </button>
+        <button tuiButton (click)="onSave()">Save</button>
       </footer>
     </form>
   `,
@@ -109,11 +107,11 @@ export class DnsAdd {
 
     try {
       await this.api.addDnsRecord({ name, type, value, ttl })
+      this.context.$implicit.complete()
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
-      this.context.$implicit.complete()
     }
   }
 }

@@ -161,8 +161,13 @@ export default class Devices {
     this.dialogs
       .open(TUI_CONFIRM, {
         label: allowDnsInjection
-          ? 'Stop allowing this device to add DNS records?'
-          : 'Allow this device to add DNS records? Only do this for devices you trust.',
+          ? 'Stop allowing DNS records?'
+          : 'Allow DNS records?',
+        data: {
+          content: allowDnsInjection
+            ? 'This device will no longer be able to add DNS records to the tunnel.'
+            : 'The device will be able to add and update the DNS records the tunnel serves. Only do this for devices you trust.',
+        },
       })
       .pipe(filter(Boolean))
       .subscribe(async () => {
