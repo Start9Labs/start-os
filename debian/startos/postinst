@@ -133,6 +133,8 @@ dns=systemd-resolved
 managed=true
 EOF
 $SYSTEMCTL enable startd.service
+$SYSTEMCTL enable startos-shutdown.service
+$SYSTEMCTL enable startos-restart.service
 $SYSTEMCTL enable systemd-resolved.service
 $SYSTEMCTL enable ssh.service
 $SYSTEMCTL enable systemd-oomd.service

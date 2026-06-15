@@ -1,0 +1,23 @@
+[Unit]
+Description=StartOS graceful shutdown
+# DefaultDependencies=no ties this unit to poweroff/halt specifically rather
+# than the generic shutdown.target, so it (and its ExecStop) fire only on a
+# power-off, not on a reboot. After=startd.service makes it stop before startd,
+# so startd is still up to run the graceful teardown its ExecStop requests.
+DefaultDependencies=no
+After=startd.service
+Before=poweroff.target halt.target
+Conflicts=poweroff.target halt.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/true
+# start-cli waits for graceful teardown by default; authenticates locally via
+# /run/startos/rpc.authcookie. startd then re-issues the matching poweroff,
+# which is idempotent since systemd is already powering off.
+ExecStop=/usr/bin/start-cli server shutdown
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target

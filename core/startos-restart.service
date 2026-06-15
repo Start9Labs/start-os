@@ -1,0 +1,17 @@
+[Unit]
+Description=StartOS graceful restart
+# Reboot/kexec counterpart of startos-shutdown.service (see its comment).
+DefaultDependencies=no
+After=startd.service
+Before=reboot.target kexec.target
+Conflicts=reboot.target kexec.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/true
+ExecStop=/usr/bin/start-cli server restart
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target
