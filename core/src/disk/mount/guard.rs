@@ -55,14 +55,6 @@ impl MountGuard {
         mount_type: MountType,
     ) -> Result<Self, Error> {
         let mountpoint = mountpoint.as_ref().to_owned();
-        // A prior process lifetime (e.g. a hard kill, where Drop never ran) can
-        // leave a stale kernel mount at this target; mounting onto it fails with
-        // "already mounted". Reconcile by lazily unmounting first, mirroring the
-        // `bind` helper. Within a live process this branch isn't reached for an
-        // active mount — `TmpMountGuard` dedups via its `Weak<MountGuard>`.
-        if is_mountpoint(&mountpoint).await? {
-            unmount(&mountpoint, true).await?;
-        }
         filesystem.mount(&mountpoint, mount_type).await?;
         Ok(MountGuard {
             mountpoint,
@@ -164,6 +156,13 @@ impl TmpMountGuard {
             }
             Ok(TmpMountGuard { guard })
         } else {
+            // No live guard, yet a hard-killed prior process (Drop never ran)
+            // can leave a stale kernel mount here. The mountpoint is derived
+            // from the source hash, so any mount present is the same content —
+            // safe to lazily unmount and remount.
+            if is_mountpoint(&mountpoint).await? {
+                unmount(&mountpoint, true).await?;
+            }
             let guard = Arc::new(MountGuard::mount(filesystem, &mountpoint, mount_type).await?);
             *weak_slot = Arc::downgrade(&guard);
             *prev_mt = mount_type;
