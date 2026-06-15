@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 use tracing::instrument;
 
 use super::filesystem::{FileSystem, MountType, ReadOnly, ReadWrite};
-use super::util::unmount;
+use super::util::{is_mountpoint, unmount};
 use crate::util::{Invoke, Never};
 use crate::{Error, ResultExt};
 
@@ -156,6 +156,13 @@ impl TmpMountGuard {
             }
             Ok(TmpMountGuard { guard })
         } else {
+            // No live guard, yet a hard-killed prior process (Drop never ran)
+            // can leave a stale kernel mount here. The mountpoint is derived
+            // from the source hash, so any mount present is the same content —
+            // safe to lazily unmount and remount.
+            if is_mountpoint(&mountpoint).await? {
+                unmount(&mountpoint, true).await?;
+            }
             let guard = Arc::new(MountGuard::mount(filesystem, &mountpoint, mount_type).await?);
             *weak_slot = Arc::downgrade(&guard);
             *prev_mt = mount_type;
