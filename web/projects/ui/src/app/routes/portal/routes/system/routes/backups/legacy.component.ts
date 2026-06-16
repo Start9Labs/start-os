@@ -64,19 +64,21 @@ export interface LegacyBackupData {
         </span>
       </div>
 
-      <ol class="options">
-        <li>
-          <strong>{{ 'Option 1' | i18n }}</strong>
-          {{
-            'Delete the old "StartOSBackups" folder from this drive, then try again.'
-              | i18n
-          }}
-        </li>
-        <li>
-          <strong>{{ 'Option 2' | i18n }}</strong>
-          {{ 'Choose a different drive for this backup.' | i18n }}
-        </li>
-      </ol>
+      <div tuiNotification appearance="positive">
+        <div class="options">
+          <p>
+            <strong>{{ 'Option 1' | i18n }}:</strong>
+            {{
+              'Delete the old "StartOSBackups" folder from this drive, then try again.'
+                | i18n
+            }}
+          </p>
+          <p>
+            <strong>{{ 'Option 2' | i18n }}:</strong>
+            {{ 'Choose a different drive for this backup.' | i18n }}
+          </p>
+        </div>
+      </div>
 
       <footer class="g-buttons">
         <button tuiButton (click)="context.completeWith(false)">
@@ -97,14 +99,12 @@ export interface LegacyBackupData {
     }
 
     .options {
-      margin: 0;
-      padding-left: 1.25rem;
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
 
-      strong {
-        display: block;
+      p {
+        margin: 0;
       }
     }
 
