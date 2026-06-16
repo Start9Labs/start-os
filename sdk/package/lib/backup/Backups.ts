@@ -699,9 +699,11 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
    * @param effects - The effects context
    */
   async createBackup(effects: T.Effects) {
-    // Root tracker reports to the backup progress UI via setBackupProgress.
-    const tracker = new FullProgressTracker((e, progress) =>
-      e.setBackupProgress({ progress }),
+    // Root tracker reports to the backup progress UI via setBackupProgress,
+    // with the effects context baked into the sink. Phase updates auto-sync in
+    // the background; we only flush at the end.
+    const tracker = new FullProgressTracker(progress =>
+      effects.setBackupProgress({ progress }),
     )
     const preHook = tracker.addNestedPhase('pre-backup', 1)
     const syncs = this.backupSet.map((s, i) =>
@@ -709,10 +711,8 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
     )
     const postHook = tracker.addNestedPhase('post-backup', 1)
 
-    await tracker.sync(effects)
     await this.preBackup(effects as BackupEffects, preHook)
     preHook.complete()
-    await tracker.sync(effects)
 
     for (let i = 0; i < this.backupSet.length; i++) {
       const item = this.backupSet[i]!
@@ -720,7 +720,6 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
       phase.start()
       phase.setTotal(100)
       phase.setDone(0)
-      await tracker.sync(effects)
 
       const rsyncResults = await runRsync({
         srcPath: item.dataPath,
@@ -732,12 +731,11 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
           ...item.backupOptions,
         },
       })
-      // Poll rsync's parsed percentage and push to host. Cap at 99 until
-      // wait() resolves so the bar never claims "done" before rsync exits.
+      // Poll rsync's parsed percentage; setDone auto-syncs to the host. Cap at
+      // 99 until wait() resolves so the bar never claims "done" before exit.
       const interval = setInterval(async () => {
         const pct = await rsyncResults.progress()
         phase.setDone(Math.min(99, Math.floor(pct)))
-        await tracker.sync(effects)
       }, 500)
       try {
         await rsyncResults.wait()
@@ -745,7 +743,6 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
         clearInterval(interval)
       }
       phase.complete()
-      await tracker.sync(effects)
     }
 
     const dataVersion = await effects.getDataVersion()
@@ -756,7 +753,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
     await this.postBackup(effects as BackupEffects, postHook)
     postHook.complete()
     tracker.complete()
-    await tracker.sync(effects)
+    await tracker.sync()
     return
   }
 
@@ -777,17 +774,20 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
    * @param progress - Tracker from the init harness (falls back to a no-op tracker)
    */
   async restoreBackup(effects: T.Effects, progress?: FullProgressTracker) {
-    const tracker = progress ?? new FullProgressTracker()
+    // Restore runs as part of init, so progress reports through the init
+    // tracker passed in. When called directly, fall back to a tracker wired to
+    // setInitProgress. Phase updates auto-sync; we flush at the end.
+    const tracker =
+      progress ??
+      new FullProgressTracker(p => effects.setInitProgress({ progress: p }))
     const preHook = tracker.addNestedPhase('pre-restore', 1)
     const syncs = this.backupSet.map(s =>
       tracker.addPhase(`restore:${s.dataPath}`, 1),
     )
     const postHook = tracker.addNestedPhase('post-restore', 1)
 
-    await tracker.sync(effects)
     await this.preRestore(effects as BackupEffects, preHook)
     preHook.complete()
-    await tracker.sync(effects)
 
     for (let i = 0; i < this.backupSet.length; i++) {
       const item = this.backupSet[i]!
@@ -795,7 +795,6 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
       phase.start()
       phase.setTotal(100)
       phase.setDone(0)
-      await tracker.sync(effects)
 
       const rsyncResults = await runRsync({
         srcPath: item.backupPath,
@@ -810,7 +809,6 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
       const interval = setInterval(async () => {
         const pct = await rsyncResults.progress()
         phase.setDone(Math.min(99, Math.floor(pct)))
-        await tracker.sync(effects)
       }, 500)
       try {
         await rsyncResults.wait()
@@ -818,7 +816,6 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
         clearInterval(interval)
       }
       phase.complete()
-      await tracker.sync(effects)
     }
     const dataVersion = await fs
       .readFile('/media/startos/backup/dataVersion.txt', {
@@ -828,7 +825,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
     if (dataVersion) await effects.setDataVersion({ version: dataVersion })
     await this.postRestore(effects as BackupEffects, postHook)
     postHook.complete()
-    await tracker.sync(effects)
+    await tracker.sync()
     return
   }
 }

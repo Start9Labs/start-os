@@ -10,8 +10,9 @@ export const IMPOSSIBLE: unique symbol = Symbol('IMPOSSIBLE')
 
 /**
  * Opts passed to a migration. `progress` is a {@link FullProgressTracker} for
- * this migration step — add a phase and call `progress.sync(effects)` to show
- * progress in the update UI. Safe to ignore for quick migrations.
+ * this migration step — add a phase and update it to show progress in the
+ * update UI; updates auto-report in the background. Safe to ignore for quick
+ * migrations.
  */
 export type MigrationOpts = {
   effects: T.Effects

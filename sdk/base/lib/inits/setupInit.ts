@@ -16,9 +16,10 @@ export type InitKind = 'install' | 'update' | 'restore' | null
  * Function signature for an init handler that runs during service startup.
  *
  * `progress` is this handler's own {@link FullProgressTracker}, created by the
- * harness. Add phases to it and call `progress.sync(effects)` to surface
- * progress in the install/update UI — no need to touch the effect directly.
- * It's safe to ignore if the handler has nothing to report.
+ * harness. Add phases to it and update them — updates auto-report to the
+ * install/update UI in the background, so you never touch the effect. Call
+ * `progress.sync()` only to force a flush. Safe to ignore if there's nothing
+ * to report.
  */
 export type InitFn<Kind extends InitKind = InitKind> = (
   effects: T.Effects,
@@ -48,13 +49,14 @@ export type InitScriptOrFn<Kind extends InitKind = InitKind> =
  */
 export function setupInit(...inits: InitScriptOrFn[]): T.ExpectedExports.init {
   return async opts => {
-    // Root tracker reports to the install/update finalization phase. Each init
-    // gets its own nested sub-tracker so handlers stay unaware of each other.
-    const tracker = new FullProgressTracker((effects, progress) =>
-      effects.setInitProgress({ progress }),
+    // Root tracker reports to the install/update finalization phase, with the
+    // effects context baked into the sink. Each init gets its own nested
+    // sub-tracker so handlers stay unaware of each other. Phase updates
+    // auto-sync in the background; we only flush at the end.
+    const tracker = new FullProgressTracker(progress =>
+      opts.effects.setInitProgress({ progress }),
     )
     const phases = inits.map((_, idx) => tracker.addNestedPhase(`init:${idx}`, 1))
-    await tracker.sync(opts.effects)
 
     for (const idx in inits) {
       const init = inits[idx]
@@ -79,10 +81,9 @@ export function setupInit(...inits: InitScriptOrFn[]): T.ExpectedExports.init {
       }
       await fn()
       phase.complete()
-      await tracker.sync(opts.effects)
     }
     tracker.complete()
-    await tracker.sync(opts.effects)
+    await tracker.sync()
   }
 }
 

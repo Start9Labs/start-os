@@ -97,9 +97,9 @@ export type Effects = {
 
   // backup
   /**
-   * Low-level backup-progress report. **Prefer `FullProgressTracker.sync()`** —
-   * the backup harness hands each hook a tracker, and `sync(effects)` calls
-   * this under the hood. Service code should not call this directly.
+   * Low-level backup-progress report. **Prefer `FullProgressTracker`** — the
+   * backup harness hands each hook a tracker whose phase updates auto-report
+   * via this effect. Service code should not call this directly.
    *
    * The host stores `progress` as the service's phase in the server-wide
    * backup tracker (same `FullProgress` wire format used by installs/updates).
@@ -110,10 +110,10 @@ export type Effects = {
 
   // init
   /**
-   * Low-level init-progress report. **Prefer `FullProgressTracker.sync()`** —
-   * the init harness hands each init handler (and migration) a tracker, and
-   * `sync(effects)` calls this under the hood. Service code should not call
-   * this directly.
+   * Low-level init-progress report. **Prefer `FullProgressTracker`** — the init
+   * harness hands each init handler (and migration) a tracker whose phase
+   * updates auto-report via this effect. Service code should not call this
+   * directly.
    *
    * The host stores `progress` as this service's install/update finalization
    * phase, so the UI surfaces it in the "Installing" / "Updating" phase of the
