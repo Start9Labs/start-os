@@ -1,0 +1,4 @@
+# LLVM codegen recurses deep enough on the apple-darwin target to overflow the
+# 2 MiB default rustc codegen-worker stack; 64 MiB clears it. Harmless on other targets.
+[env]
+RUST_MIN_STACK = "67108864"
