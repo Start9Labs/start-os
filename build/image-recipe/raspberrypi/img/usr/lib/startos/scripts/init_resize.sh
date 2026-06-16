@@ -72,14 +72,19 @@ main () {
   fi
 
   log "resizing partition $ROOT_PART_NUM to $TARGET_END"
-  if ! parted -ms --align=optimal "$ROOT_DEV" u s resizepart "$ROOT_PART_NUM" "$TARGET_END" ; then
+  # Root is mounted, so parted asks "partition is in use, are you sure you want
+  # to continue?" — answer Yes; it then resizes via BLKPG so the kernel sees the
+  # new size live. Plain -s/script mode ABORTS on that prompt (which is what was
+  # failing). The GPT backup header was relocated in get_variables, so no
+  # Fix/Ignore prompt remains here.
+  if ! echo Yes | parted -m --align=optimal "$ROOT_DEV" ---pretend-input-tty u s resizepart "$ROOT_PART_NUM" "$TARGET_END" ; then
     FAIL_REASON="Root partition resize failed"
     return 1
   fi
 
   if [ -n "$DATA_PART_START" ]; then
     log "creating data partition $DATA_PART_START-$DATA_PART_END"
-    if ! parted -ms --align=optimal "$ROOT_DEV" u s mkpart data "$DATA_PART_START" "$DATA_PART_END"; then
+    if ! echo Yes | parted -m --align=optimal "$ROOT_DEV" ---pretend-input-tty u s mkpart data "$DATA_PART_START" "$DATA_PART_END"; then
       FAIL_REASON="Data partition creation failed"
       return 1
     fi
