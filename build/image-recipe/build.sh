@@ -516,6 +516,13 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	rm -rf $BOOT_STAGING
 
 	mkdir $TMPDIR/root/images $TMPDIR/root/config
+
+	# Pre-installed image == post-os_install state. os_install writes this marker
+	# (SetupInfo) on a no-data-drive install; without it, core's setup status
+	# returns NeedsInstall and the device boots the install wizard instead of
+	# setup. The data drive is created during the user's setup, so guid is null.
+	printf '{"guid":null,"attach":false,"mokEnrolled":false}\n' > $TMPDIR/root/config/setup.json
+
 	B3SUM=$(b3sum $prep_results_dir/binary/live/filesystem.squashfs | head -c 16)
 	cp $prep_results_dir/binary/live/filesystem.squashfs $TMPDIR/root/images/$B3SUM.rootfs
 	ln -rsf $TMPDIR/root/images/$B3SUM.rootfs $TMPDIR/root/config/current.rootfs
