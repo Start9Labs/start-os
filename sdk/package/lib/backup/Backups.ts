@@ -626,7 +626,10 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
    * @param fn - Async function receiving backup-scoped effects and a progress tracker for this hook
    */
   setPreBackup(
-    fn: (effects: BackupEffects, progress: FullProgressTracker) => Promise<void>,
+    fn: (
+      effects: BackupEffects,
+      progress: FullProgressTracker,
+    ) => Promise<void>,
   ) {
     this.preBackup = fn
     return this
@@ -637,7 +640,10 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
    * @param fn - Async function receiving backup-scoped effects and a progress tracker for this hook
    */
   setPostBackup(
-    fn: (effects: BackupEffects, progress: FullProgressTracker) => Promise<void>,
+    fn: (
+      effects: BackupEffects,
+      progress: FullProgressTracker,
+    ) => Promise<void>,
   ) {
     this.postBackup = fn
     return this
@@ -648,7 +654,10 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
    * @param fn - Async function receiving backup-scoped effects and a progress tracker for this hook
    */
   setPreRestore(
-    fn: (effects: BackupEffects, progress: FullProgressTracker) => Promise<void>,
+    fn: (
+      effects: BackupEffects,
+      progress: FullProgressTracker,
+    ) => Promise<void>,
   ) {
     this.preRestore = fn
     return this
@@ -659,7 +668,10 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
    * @param fn - Async function receiving backup-scoped effects and a progress tracker for this hook
    */
   setPostRestore(
-    fn: (effects: BackupEffects, progress: FullProgressTracker) => Promise<void>,
+    fn: (
+      effects: BackupEffects,
+      progress: FullProgressTracker,
+    ) => Promise<void>,
   ) {
     this.postRestore = fn
     return this
