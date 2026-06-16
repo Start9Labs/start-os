@@ -824,6 +824,7 @@ pub fn pipe_wrap(
 
     let mut cmd = StdCommand::new(program);
     cmd.args(args);
+    cmd.env("STARTOS_ENVIRONMENT", crate::version::ENVIRONMENT.trim());
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
 
