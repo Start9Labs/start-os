@@ -109,12 +109,6 @@ main () {
 mkdir -p /run/systemd
 mount /boot
 
-# Drop our own init= hook up front, before any resize work. A failed *or* hung
-# resize must never loop the device forever — worst case it boots through
-# unresized, which is recoverable; an infinite reboot loop is not.
-sed -i 's| init=/usr/lib/startos/scripts/init_resize\.sh||' /boot/grub/grub.cfg
-sync
-
 log "starting (kernel $(uname -r))"
 mount / -o remount,ro
 
@@ -122,12 +116,18 @@ beep
 
 if main; then
   log "SUCCESS — resized root filesystem"
+  # Clear our own init= hook only on success — a botched resize should be
+  # retried, not leave the device booted-but-unresized (which is unusable).
+  sed -i 's| init=/usr/lib/startos/scripts/init_resize\.sh||' /boot/grub/grub.cfg
+  log "rebooting in 5 seconds"
+  sleep 5
 else
   log "FAILED — ${FAIL_REASON:-unknown}"
+  # Long pause so the failure and the last step marker above stay on screen;
+  # the previous build rebooted too fast to read the cause.
+  log "pausing 5 minutes before reboot so this is readable"
+  sleep 300
 fi
-
-log "rebooting in 5 seconds"
-sleep 5
 
 sync
 
