@@ -112,6 +112,24 @@ export type Effects = {
    */
   setBackupProgress(o: { progress: Progress }): Promise<null>
 
+  // init
+  /**
+   * Report progress for this service's currently-running init procedure.
+   *
+   * Called from inside an init handler (see `setupInit`). The host stores
+   * `progress` as this service's install/update finalization phase, so the
+   * UI surfaces it in the "Installing" / "Updating" phase of the install
+   * progress — the same `FullProgress` wire format used by backups.
+   *
+   * `progress` is a `Progress` — null / true / false / `{ done, total, units }`
+   * for a leaf reading, or a nested `FullProgress` (`{ overall, phases }`)
+   * if the service is tracking its own sub-phases (use the
+   * `FullProgressTracker` SDK utility for that).
+   *
+   * No-op outside the init transition.
+   */
+  setInitProgress(o: { progress: Progress }): Promise<null>
+
   // health
   /** sets the result of a health check */
   setHealth(o: SetHealth): Promise<null>

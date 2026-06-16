@@ -314,6 +314,7 @@ impl Service {
         procedure_id: Guid,
         init_kind: Option<InitKind>,
         recovery_source: Option<impl GenericMountGuard>,
+        init_progress: Option<crate::progress::PhaseProgressTrackerHandle>,
     ) -> Result<ServiceRef, Error> {
         let id = s9pk.as_manifest().id.clone();
         ctx.db
@@ -334,6 +335,7 @@ impl Service {
             ctx,
             backup: SyncMutex::new(None),
             backup_phase: SyncMutex::new(None),
+            init_phase: SyncMutex::new(init_progress),
         });
         let service: ServiceRef = Self {
             actor: ConcurrentActor::new(ServiceActor(seed.clone())),
@@ -381,7 +383,7 @@ impl Service {
                         tokio::fs::create_dir_all(&path).await?;
                     }
                 }
-                Self::new(ctx, s9pk, Guid::new(), None, None::<MountGuard>)
+                Self::new(ctx, s9pk, Guid::new(), None, None::<MountGuard>, None)
                     .await
                     .map(Some)
             }
@@ -548,7 +550,15 @@ impl Service {
                             .await
                             .result
                     };
-                    match Self::new(ctx.clone(), s9pk, Guid::new(), None, None::<MountGuard>).await
+                    match Self::new(
+                        ctx.clone(),
+                        s9pk,
+                        Guid::new(),
+                        None,
+                        None::<MountGuard>,
+                        None,
+                    )
+                    .await
                     {
                         Ok(service) => match async {
                             service
@@ -611,12 +621,20 @@ impl Service {
         let developer_key = s9pk.as_archive().signer();
         let icon = s9pk.icon_data_url().await?;
         let procedure_id = Guid::new();
+        let (finalization_progress, overall_progress) = match progress {
+            Some(InstallProgressHandles {
+                finalization_progress,
+                progress,
+            }) => (Some(finalization_progress), Some(progress)),
+            None => (None, None),
+        };
         let service = Self::new(
             ctx.clone(),
             s9pk,
             procedure_id.clone(),
             Some(kind),
             recovery_source,
+            finalization_progress,
         )
         .await?;
 
@@ -663,9 +681,11 @@ impl Service {
             .await
             .result?;
 
-        if let Some(mut progress) = progress {
-            progress.finalization_progress.complete();
-            progress.progress.complete();
+        if let Some(mut finalization_progress) = service.seed.init_phase.replace(None) {
+            finalization_progress.complete();
+        }
+        if let Some(mut overall_progress) = overall_progress {
+            overall_progress.complete();
             tokio::task::yield_now().await;
         }
 
@@ -770,6 +790,10 @@ struct ServiceActorSeed {
     /// Set while a backup procedure is running so the service container can
     /// stream progress updates back via the `setBackupProgress` effect.
     backup_phase: SyncMutex<Option<crate::progress::PhaseProgressTrackerHandle>>,
+    /// Set while the init procedure is running so the service container can
+    /// stream progress updates back via the `setInitProgress` effect. Routed
+    /// to the install/update finalization phase of the install progress.
+    init_phase: SyncMutex<Option<crate::progress::PhaseProgressTrackerHandle>>,
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]

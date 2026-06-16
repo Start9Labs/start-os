@@ -320,6 +320,11 @@ export function makeEffects(context: EffectContext): Effects {
         T.Effects["setBackupProgress"]
       >
     },
+    setInitProgress(...[options]: Parameters<T.Effects["setInitProgress"]>) {
+      return rpcRound("set-init-progress", options) as ReturnType<
+        T.Effects["setInitProgress"]
+      >
+    },
     notification: {
       create(...[options]: Parameters<T.Effects["notification"]["create"]>) {
         return rpcRound("notification.create", options) as ReturnType<

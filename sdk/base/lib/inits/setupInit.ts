@@ -1,6 +1,7 @@
 import { VersionRange } from '../../../base/lib/exver'
 import * as T from '../../../base/lib/types'
 import { once } from '../util'
+import { FullProgressTracker } from '../util/FullProgressTracker'
 
 /**
  * The reason a service's init function is being called:
@@ -35,8 +36,16 @@ export type InitScriptOrFn<Kind extends InitKind = InitKind> =
  */
 export function setupInit(...inits: InitScriptOrFn[]): T.ExpectedExports.init {
   return async opts => {
+    const tracker = new FullProgressTracker()
+    const phases = inits.map((_, idx) => tracker.addPhase(`init:${idx}`, 1))
+    const pushProgress = () =>
+      opts.effects
+        .setInitProgress({ progress: tracker.snapshot() })
+        .catch(() => null)
+
     for (const idx in inits) {
       const init = inits[idx]
+      const phase = phases[idx]
       const fn = async () => {
         let res: (value?: undefined) => void = () => {}
         const complete = new Promise(resolve => {
@@ -53,8 +62,14 @@ export function setupInit(...inits: InitScriptOrFn[]): T.ExpectedExports.init {
           res()
         }
       }
+      phase.start()
+      await pushProgress()
       await fn()
+      phase.complete()
+      await pushProgress()
     }
+    tracker.complete()
+    await pushProgress()
   }
 }
 
