@@ -16,7 +16,7 @@ export interface LegacyBackupData {
   template: `
     <div tuiNotification appearance="warning" class="header">
       <span tuiTitle>
-        <strong>{{ 'Important! New Backup Format' | i18n }}</strong>
+        <strong>{{ 'New Backup Format' | i18n }}</strong>
         <span tuiSubtitle>
           {{
             'A major performance improvement to StartOS backups has changed the backup format. The existing backup on this drive — the old "StartOSBackups" folder — is now obsolete and can no longer be updated. Your new backup will be created in a separate "StartOSBackupsV2" folder.'

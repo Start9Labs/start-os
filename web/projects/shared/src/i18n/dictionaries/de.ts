@@ -771,7 +771,7 @@ export default {
   859: 'LAN',
   860: 'LAN+WAN',
   861: 'leiten Sie den folgenden Portbereich für TCP und UDP an diesen Server weiter, falls noch nicht geschehen',
-  862: 'Wichtig! Neues Backup-Format',
+  862: 'Wichtig!',
   863: 'Eine bedeutende Leistungsverbesserung der StartOS-Backups hat das Backup-Format geändert. Das vorhandene Backup auf diesem Laufwerk — der alte Ordner "StartOSBackups" — ist nun veraltet und kann nicht mehr aktualisiert werden. Ihr neues Backup wird in einem separaten Ordner "StartOSBackupsV2" erstellt.',
   864: 'Sichern Sie alles, was Sie benötigen',
   865: 'Da das alte Backup nicht mehr aktualisiert wird, wählen Sie unbedingt ALLE Dienste aus, die Sie sichern möchten. Sobald dieses neue Backup erfolgreich abgeschlossen ist, LÖSCHEN Sie den alten Ordner "StartOSBackups" vom Laufwerk, um Speicherplatz freizugeben — löschen Sie NICHT "StartOSBackupsV2".',
@@ -782,4 +782,5 @@ export default {
   870: 'Option 2',
   871: 'Wählen Sie ein anderes Laufwerk für dieses Backup.',
   872: 'OK',
+  873: 'Neues Backup-Format',
 } satisfies i18n

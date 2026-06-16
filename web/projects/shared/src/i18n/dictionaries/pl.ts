@@ -771,7 +771,7 @@ export default {
   859: 'LAN',
   860: 'LAN+WAN',
   861: 'przekieruj poniższy zakres portów na ten serwer, zarówno dla TCP, jak i UDP, jeśli jeszcze tego nie zrobiono',
-  862: 'Ważne! Nowy format kopii zapasowej',
+  862: 'Ważne!',
   863: 'Znacząca poprawa wydajności kopii zapasowych StartOS zmieniła format kopii zapasowej. Istniejąca kopia zapasowa na tym dysku — stary folder "StartOSBackups" — jest teraz przestarzała i nie może już być aktualizowana. Twoja nowa kopia zapasowa zostanie utworzona w osobnym folderze "StartOSBackupsV2".',
   864: 'Wykonaj kopię zapasową wszystkiego, czego potrzebujesz',
   865: 'Ponieważ stara kopia zapasowa nie będzie już aktualizowana, pamiętaj, aby wybrać WSZYSTKIE usługi, które chcesz zarchiwizować. Po pomyślnym zakończeniu tej nowej kopii zapasowej USUŃ stary folder "StartOSBackups" z dysku, aby zwolnić miejsce — NIE usuwaj "StartOSBackupsV2".',
@@ -782,4 +782,5 @@ export default {
   870: 'Opcja 2',
   871: 'Wybierz inny dysk dla tej kopii zapasowej.',
   872: 'OK',
+  873: 'Nowy format kopii zapasowej',
 } satisfies i18n

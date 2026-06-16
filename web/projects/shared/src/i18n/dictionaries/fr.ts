@@ -771,7 +771,7 @@ export default {
   859: 'LAN',
   860: 'LAN+WAN',
   861: 'redirigez la plage de ports suivante vers ce serveur, pour TCP et UDP, si ce n’est pas déjà fait',
-  862: 'Important ! Nouveau format de sauvegarde',
+  862: 'Important !',
   863: "Une amélioration majeure des performances des sauvegardes StartOS a modifié le format de sauvegarde. La sauvegarde existante sur ce disque — l'ancien dossier 'StartOSBackups' — est désormais obsolète et ne peut plus être mise à jour. Votre nouvelle sauvegarde sera créée dans un dossier distinct 'StartOSBackupsV2'.",
   864: 'Sauvegardez tout ce dont vous avez besoin',
   865: "Comme l'ancienne sauvegarde ne sera plus mise à jour, veillez à sélectionner TOUS les services que vous souhaitez sauvegarder. Une fois cette nouvelle sauvegarde terminée avec succès, SUPPRIMEZ l'ancien dossier 'StartOSBackups' du disque pour libérer de l'espace — ne supprimez PAS 'StartOSBackupsV2'.",
@@ -782,4 +782,5 @@ export default {
   870: 'Option 2',
   871: 'Choisissez un autre disque pour cette sauvegarde.',
   872: 'OK',
+  873: 'Nouveau format de sauvegarde',
 } satisfies i18n

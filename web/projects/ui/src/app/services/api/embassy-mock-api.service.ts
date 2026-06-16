@@ -882,11 +882,21 @@ export class MockApiService extends ApiService {
     return Mock.BackupInfo
   }
 
+  private legacyBackupCall = 0
   async getBackupLegacyInfo(
     params: T.LegacyInfoParams,
   ): Promise<T.LegacyBackupInfo | null> {
     await pauseFor(1000)
-    return null
+    // Cycle through the three states on each call so both alerts (and the
+    // no-warning path) can be tested in the mock: fits → too big → none.
+    switch (this.legacyBackupCall++ % 3) {
+      case 0:
+        return { size: 5_000_000_000, available: 50_000_000_000 }
+      case 1:
+        return { size: 50_000_000_000, available: 5_000_000_000 }
+      default:
+        return null
+    }
   }
 
   async createBackup(params: T.BackupParams): Promise<null> {
