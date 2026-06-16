@@ -106,6 +106,10 @@ const evalType = z.object({
   }),
 })
 
+const isDevBuild = (process.env.STARTOS_ENVIRONMENT ?? "")
+  .split("-")
+  .includes("dev")
+
 const jsonParse = (x: string) => JSON.parse(x)
 
 const handleRpc = (id: IdType, result: Promise<RpcResult>) =>
@@ -164,12 +168,13 @@ export class RpcListener {
       const logData =
         (location: string) =>
         <X>(x: X) => {
-          console.log({
-            location,
-            stringified: JSON.stringify(x),
-            type: typeof x,
-            id,
-          })
+          if (isDevBuild)
+            console.log({
+              location,
+              stringified: JSON.stringify(x),
+              type: typeof x,
+              id,
+            })
           return x
         }
       const mapError = (error: any): SocketResponse => ({
