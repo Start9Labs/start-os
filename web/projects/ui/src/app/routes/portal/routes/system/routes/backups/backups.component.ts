@@ -7,15 +7,23 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, RouterLink } from '@angular/router'
-import { DialogService, DocsLinkDirective, i18nPipe } from '@start9labs/shared'
+import {
+  DialogService,
+  DocsLinkDirective,
+  ErrorService,
+  i18nPipe,
+} from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import { TuiMapperPipe } from '@taiga-ui/cdk'
 import { TuiButton, TuiLoader, TuiNotification, TuiTitle } from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
+import { firstValueFrom } from 'rxjs'
 import {
   CifsBackupTarget,
   DiskBackupTarget,
 } from 'src/app/services/api/api.types'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { OSService } from 'src/app/services/os.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
@@ -136,6 +144,8 @@ export default class SystemBackupComponent implements OnInit {
   readonly type = inject(ActivatedRoute).snapshot.data['type']
   readonly service = inject(BackupService)
   readonly os = inject(OSService)
+  private readonly api = inject(ApiService)
+  private readonly errorService = inject(ErrorService)
   readonly server = toSignal(
     inject<PatchDB<DataModel>>(PatchDB).watch$('serverInfo'),
   )
@@ -161,8 +171,12 @@ export default class SystemBackupComponent implements OnInit {
     this.service.getBackupTargets()
   }
 
-  onTarget(target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>) {
+  async onTarget(
+    target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
+  ) {
     if (this.type === 'create') {
+      if (!(await this.confirmLegacy(target.id))) return
+
       this.dialog
         .openComponent(BACKUP, {
           label: 'Select services',
@@ -179,5 +193,39 @@ export default class SystemBackupComponent implements OnInit {
         })
         .subscribe()
     }
+  }
+
+  private async confirmLegacy(targetId: string): Promise<boolean> {
+    let legacy: T.LegacyBackupInfo | null
+
+    try {
+      legacy = await this.api.getBackupLegacyInfo({ targetId })
+    } catch (e: any) {
+      this.errorService.handleError(e)
+      return false
+    }
+
+    if (!legacy) return true
+
+    if (legacy.size > legacy.available) {
+      this.dialog.openAlert(
+        'This drive contains an older "StartOSBackups" folder that is larger than the free space remaining, so a new backup will not fit. Delete the "StartOSBackups" folder first, or choose another drive.',
+        { label: 'Not enough space' },
+      )
+      return false
+    }
+
+    return firstValueFrom(
+      this.dialog.openConfirm({
+        label: 'Backup format changed',
+        size: 's',
+        data: {
+          content: `The backup format has changed. Your new backup will be created in a separate "StartOSBackupsV2" folder. After this backup completes successfully, delete the old "StartOSBackups" folder (do NOT delete "StartOSBackupsV2") to free up space.`,
+          yes: 'Continue',
+          no: 'Cancel',
+        },
+      }),
+      { defaultValue: false },
+    )
   }
 }

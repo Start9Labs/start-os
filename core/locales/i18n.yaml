@@ -5414,6 +5414,8 @@ about.list-disk-info:
   fr_FR: "Lister les informations du disque"
   pl_PL: "Wyświetl informacje o dysku"
 
+about.legacy-backup-information:
+  en_US: "Report a pre-V2 StartOSBackups folder on a backup target, if present"
 about.list-existing-backup-targets:
   en_US: "List existing backup targets"
   de_DE: "Vorhandene Backup-Ziele auflisten"

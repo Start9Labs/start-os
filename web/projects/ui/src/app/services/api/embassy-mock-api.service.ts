@@ -882,6 +882,13 @@ export class MockApiService extends ApiService {
     return Mock.BackupInfo
   }
 
+  async getBackupLegacyInfo(
+    params: T.LegacyInfoParams,
+  ): Promise<T.LegacyBackupInfo | null> {
+    await pauseFor(1000)
+    return null
+  }
+
   async createBackup(params: T.BackupParams): Promise<null> {
     await pauseFor(2000)
     const serverPath = '/serverInfo/statusInfo/backupProgress'
