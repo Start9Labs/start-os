@@ -14,6 +14,9 @@ use igd_next::{PortMappingProtocol, SearchOptions};
 use crate::prelude::*;
 
 const DISCOVERY_TIMEOUT: Duration = Duration::from_secs(4);
+/// IGD SOAP control calls are unbounded in igd-next; without this a gateway that
+/// accepts TCP but never answers would wedge the single-threaded port-map daemon.
+const CONTROL_TIMEOUT: Duration = Duration::from_secs(5);
 /// `0` requests an indefinite lease; the controller re-asserts periodically.
 const LEASE_DURATION: u32 = 0;
 const DESCRIPTION: &str = "StartOS";
@@ -41,27 +44,35 @@ pub async fn add_port(
     local_ip: Ipv4Addr,
     internal_port: u16,
 ) -> Result<(), Error> {
-    gateway
-        .add_port(
-            PortMappingProtocol::TCP,
-            external_port,
-            SocketAddr::new(IpAddr::V4(local_ip), internal_port),
-            LEASE_DURATION,
-            DESCRIPTION,
-        )
-        .await
-        .map_err(|e| Error::new(eyre!("UPnP AddPortMapping failed: {e}"), ErrorKind::Network))
+    let call = gateway.add_port(
+        PortMappingProtocol::TCP,
+        external_port,
+        SocketAddr::new(IpAddr::V4(local_ip), internal_port),
+        LEASE_DURATION,
+        DESCRIPTION,
+    );
+    match tokio::time::timeout(CONTROL_TIMEOUT, call).await {
+        Ok(r) => {
+            r.map_err(|e| Error::new(eyre!("UPnP AddPortMapping failed: {e}"), ErrorKind::Network))
+        }
+        Err(_) => Err(Error::new(
+            eyre!("UPnP AddPortMapping timed out"),
+            ErrorKind::Network,
+        )),
+    }
 }
 
 /// Remove the TCP mapping for `external_port`; a missing mapping is not an error.
 pub async fn remove_port(gateway: &Gateway<Tokio>, external_port: u16) -> Result<(), Error> {
-    match gateway
-        .remove_port(PortMappingProtocol::TCP, external_port)
-        .await
-    {
-        Ok(()) | Err(igd_next::RemovePortError::NoSuchPortMapping) => Ok(()),
-        Err(e) => Err(Error::new(
+    let call = gateway.remove_port(PortMappingProtocol::TCP, external_port);
+    match tokio::time::timeout(CONTROL_TIMEOUT, call).await {
+        Ok(Ok(())) | Ok(Err(igd_next::RemovePortError::NoSuchPortMapping)) => Ok(()),
+        Ok(Err(e)) => Err(Error::new(
             eyre!("UPnP DeletePortMapping failed: {e}"),
+            ErrorKind::Network,
+        )),
+        Err(_) => Err(Error::new(
+            eyre!("UPnP DeletePortMapping timed out"),
             ErrorKind::Network,
         )),
     }
@@ -87,13 +98,17 @@ fn is_wan_candidate(ip: Ipv4Addr) -> bool {
 /// public IP from outside the NAT).
 pub async fn get_external_ipv4(local_ip: Ipv4Addr) -> Result<Option<Ipv4Addr>, Error> {
     let gateway = discover(local_ip).await?;
-    match gateway.get_external_ip().await {
-        Ok(IpAddr::V4(ip)) if is_wan_candidate(ip) => Ok(Some(ip)),
+    match tokio::time::timeout(CONTROL_TIMEOUT, gateway.get_external_ip()).await {
+        Ok(Ok(IpAddr::V4(ip))) if is_wan_candidate(ip) => Ok(Some(ip)),
         // A non-public (private/CGNAT) external IP is discarded so the caller
         // falls back to an echoip query.
-        Ok(_) => Ok(None),
-        Err(e) => Err(Error::new(
+        Ok(Ok(_)) => Ok(None),
+        Ok(Err(e)) => Err(Error::new(
             eyre!("UPnP GetExternalIPAddress failed: {e}"),
+            ErrorKind::Network,
+        )),
+        Err(_) => Err(Error::new(
+            eyre!("UPnP GetExternalIPAddress timed out"),
             ErrorKind::Network,
         )),
     }

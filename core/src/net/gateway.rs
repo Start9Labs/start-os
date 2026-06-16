@@ -258,7 +258,11 @@ pub async fn check_port(
         IpAddr::V4(v4) => Some(v4),
         _ => None,
     }) {
-        if let Some(IpAddr::V4(ip)) = ctx.net_controller.port_map.mapped_external_ip(ip, port).await
+        if let Ok(Some(IpAddr::V4(ip))) = tokio::time::timeout(
+            Duration::from_secs(2),
+            ctx.net_controller.port_map.mapped_external_ip(ip, port),
+        )
+        .await
         {
             let hairpinning = check_hairpin(gateway, local_ipv4, ip, port).await;
             return Ok(CheckPortRes {
