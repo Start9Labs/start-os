@@ -9,8 +9,9 @@ import {
   UninitScript,
   UninitScriptOrFn,
 } from '../../../base/lib/inits'
+import { FullProgressTracker } from '../../../base/lib/util/FullProgressTracker'
 import { Graph, Vertex, once } from '../util'
-import { IMPOSSIBLE, VersionInfo } from './VersionInfo'
+import { IMPOSSIBLE, MigrationOpts, VersionInfo } from './VersionInfo'
 
 /**
  * Read the current data version from the effects system.
@@ -84,7 +85,7 @@ export class VersionGraph<CurrentVersion extends string>
   protected uninitFn = this.uninit.bind(this)
   private readonly graph: () => Graph<
     ExtendedVersion | VersionRange,
-    ((opts: { effects: T.Effects }) => Promise<void>) | undefined
+    ((opts: MigrationOpts) => Promise<void>) | undefined
   >
   /** Dump the version graph as a human-readable string for debugging */
   dump(): string {
@@ -97,7 +98,7 @@ export class VersionGraph<CurrentVersion extends string>
     this.graph = once(() => {
       const graph = new Graph<
         ExtendedVersion | VersionRange,
-        ((opts: { effects: T.Effects }) => Promise<void>) | undefined
+        ((opts: MigrationOpts) => Promise<void>) | undefined
       >()
       const flavorMap: Record<
         string,
@@ -106,7 +107,7 @@ export class VersionGraph<CurrentVersion extends string>
           VersionInfo<any>,
           Vertex<
             ExtendedVersion | VersionRange,
-            ((opts: { effects: T.Effects }) => Promise<void>) | undefined
+            ((opts: MigrationOpts) => Promise<void>) | undefined
           >,
         ][]
       > = {}
@@ -127,7 +128,7 @@ export class VersionGraph<CurrentVersion extends string>
               VersionInfo<any>,
               Vertex<
                 ExtendedVersion | VersionRange,
-                ((opts: { effects: T.Effects }) => Promise<void>) | undefined
+                ((opts: MigrationOpts) => Promise<void>) | undefined
               >,
             ]
           | undefined = undefined
@@ -213,12 +214,17 @@ export class VersionGraph<CurrentVersion extends string>
     effects,
     from,
     to,
+    progress,
   }: {
     effects: T.Effects
     from: ExtendedVersion | VersionRange
     to: ExtendedVersion | VersionRange
+    progress?: FullProgressTracker
   }): Promise<ExtendedVersion | VersionRange> {
     if (overlaps(from, to)) return from
+    // Each migration step gets a FullProgressTracker. When invoked without one
+    // (tests, direct calls) fall back to a sink-less tracker that no-ops sync.
+    const reportProgress = progress ?? new FullProgressTracker()
     const graph = this.graph()
     if (from && to) {
       const path = graph.shortestPath(
@@ -246,7 +252,7 @@ export class VersionGraph<CurrentVersion extends string>
         let dataVersion = from
         for (let edge of path) {
           if (edge.metadata) {
-            await edge.metadata({ effects })
+            await edge.metadata({ effects, progress: reportProgress })
           }
           dataVersion = edge.to.metadata
           await setDataVersion(effects, edge.to.metadata)
@@ -305,14 +311,21 @@ export class VersionGraph<CurrentVersion extends string>
    * InitScript implementation: migrate from the stored data version to the current version.
    * If no data version exists (fresh install), sets it to the current version.
    * @param effects - The effects context
+   * @param _kind - The init kind (unused; migration is decided by data version)
+   * @param progress - Tracker the harness threads into each migration step
    */
-  async init(effects: T.Effects): Promise<void> {
+  async init(
+    effects: T.Effects,
+    _kind?: InitKind,
+    progress?: FullProgressTracker,
+  ): Promise<void> {
     const from = await getDataVersion(effects)
     if (from) {
       await this.migrate({
         effects,
         from,
         to: this.currentVersion(),
+        progress,
       })
     } else {
       await effects.setDataVersion({ version: this.current.options.version })

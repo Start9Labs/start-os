@@ -43,8 +43,12 @@ export function setupBackups<M extends T.SDKManifest>(
     },
     get restoreInit(): InitScript {
       return {
-        init: async (effects, kind) => {
-          return (await backupsFactory({ effects })).init(effects, kind)
+        init: async (effects, kind, progress) => {
+          return (await backupsFactory({ effects })).init(
+            effects,
+            kind,
+            progress,
+          )
         },
       }
     },

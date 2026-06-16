@@ -97,36 +97,28 @@ export type Effects = {
 
   // backup
   /**
-   * Report progress for this service's currently-running backup procedure.
+   * Low-level backup-progress report. **Prefer `FullProgressTracker.sync()`** —
+   * the backup harness hands each hook a tracker, and `sync(effects)` calls
+   * this under the hood. Service code should not call this directly.
    *
-   * Called from inside `createBackup`. The host stores `progress` as the
-   * service's phase in the server-wide backup tracker, so the UI sees the
-   * same `FullProgress` wire format used by OS updates / package installs.
-   *
-   * `progress` is a `Progress` — null / true / false / `{ done, total, units }`
-   * for a leaf reading, or a nested `FullProgress` (`{ overall, phases }`)
-   * if the service is tracking its own sub-phases (use the
-   * `FullProgressTracker` SDK utility for that).
-   *
-   * No-op outside the backup transition.
+   * The host stores `progress` as the service's phase in the server-wide
+   * backup tracker (same `FullProgress` wire format used by installs/updates).
+   * `progress` is a leaf `Progress` or a nested `FullProgress`. No-op outside
+   * the backup transition.
    */
   setBackupProgress(o: { progress: Progress }): Promise<null>
 
   // init
   /**
-   * Report progress for this service's currently-running init procedure.
+   * Low-level init-progress report. **Prefer `FullProgressTracker.sync()`** —
+   * the init harness hands each init handler (and migration) a tracker, and
+   * `sync(effects)` calls this under the hood. Service code should not call
+   * this directly.
    *
-   * Called from inside an init handler (see `setupInit`). The host stores
-   * `progress` as this service's install/update finalization phase, so the
-   * UI surfaces it in the "Installing" / "Updating" phase of the install
-   * progress — the same `FullProgress` wire format used by backups.
-   *
-   * `progress` is a `Progress` — null / true / false / `{ done, total, units }`
-   * for a leaf reading, or a nested `FullProgress` (`{ overall, phases }`)
-   * if the service is tracking its own sub-phases (use the
-   * `FullProgressTracker` SDK utility for that).
-   *
-   * No-op outside the init transition.
+   * The host stores `progress` as this service's install/update finalization
+   * phase, so the UI surfaces it in the "Installing" / "Updating" phase of the
+   * install progress. `progress` is a leaf `Progress` or a nested
+   * `FullProgress`. No-op outside the init transition.
    */
   setInitProgress(o: { progress: Progress }): Promise<null>
 

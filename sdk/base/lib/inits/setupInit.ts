@@ -12,15 +12,27 @@ import { FullProgressTracker } from '../util/FullProgressTracker'
  */
 export type InitKind = 'install' | 'update' | 'restore' | null
 
-/** Function signature for an init handler that runs during service startup. */
+/**
+ * Function signature for an init handler that runs during service startup.
+ *
+ * `progress` is this handler's own {@link FullProgressTracker}, created by the
+ * harness. Add phases to it and call `progress.sync(effects)` to surface
+ * progress in the install/update UI — no need to touch the effect directly.
+ * It's safe to ignore if the handler has nothing to report.
+ */
 export type InitFn<Kind extends InitKind = InitKind> = (
   effects: T.Effects,
   kind: Kind,
+  progress: FullProgressTracker,
 ) => Promise<void | null | undefined>
 
 /** Object form of an init handler — implements an `init()` method. */
 export interface InitScript<Kind extends InitKind = InitKind> {
-  init(effects: T.Effects, kind: Kind): Promise<void>
+  init(
+    effects: T.Effects,
+    kind: Kind,
+    progress?: FullProgressTracker,
+  ): Promise<void>
 }
 
 /** Either an {@link InitScript} object or an {@link InitFn} function. */
@@ -36,17 +48,20 @@ export type InitScriptOrFn<Kind extends InitKind = InitKind> =
  */
 export function setupInit(...inits: InitScriptOrFn[]): T.ExpectedExports.init {
   return async opts => {
-    const tracker = new FullProgressTracker()
-    const phases = inits.map((_, idx) => tracker.addPhase(`init:${idx}`, 1))
-    const pushProgress = () =>
-      opts.effects
-        .setInitProgress({ progress: tracker.snapshot() })
-        .catch(() => null)
+    // Root tracker reports to the install/update finalization phase. Each init
+    // gets its own nested sub-tracker so handlers stay unaware of each other.
+    const tracker = new FullProgressTracker((effects, progress) =>
+      effects.setInitProgress({ progress }),
+    )
+    const phases = inits.map((_, idx) => tracker.addNestedPhase(`init:${idx}`, 1))
+    await tracker.sync(opts.effects)
 
     for (const idx in inits) {
       const init = inits[idx]
       const phase = phases[idx]
       const fn = async () => {
+        // A re-run (constRetry) starts the handler's phases fresh.
+        phase.reset()
         let res: (value?: undefined) => void = () => {}
         const complete = new Promise(resolve => {
           res = resolve
@@ -56,20 +71,18 @@ export function setupInit(...inits: InitScriptOrFn[]): T.ExpectedExports.init {
           complete.then(() => fn()).catch(console.error),
         )
         try {
-          if ('init' in init) await init.init(e, opts.kind)
-          else await init(e, opts.kind)
+          if ('init' in init) await init.init(e, opts.kind, phase)
+          else await init(e, opts.kind, phase)
         } finally {
           res()
         }
       }
-      phase.start()
-      await pushProgress()
       await fn()
       phase.complete()
-      await pushProgress()
+      await tracker.sync(opts.effects)
     }
     tracker.complete()
-    await pushProgress()
+    await tracker.sync(opts.effects)
   }
 }
 
@@ -78,8 +91,8 @@ export function setupOnInit(onInit: InitScriptOrFn): InitScript {
   return 'init' in onInit
     ? onInit
     : {
-        init: async (effects, kind) => {
-          await onInit(effects, kind)
+        init: async (effects, kind, progress) => {
+          await onInit(effects, kind, progress as FullProgressTracker)
         },
       }
 }
