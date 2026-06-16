@@ -49,21 +49,23 @@ export type InitScriptOrFn<Kind extends InitKind = InitKind> =
  */
 export function setupInit(...inits: InitScriptOrFn[]): T.ExpectedExports.init {
   return async opts => {
-    // Root tracker reports to the install/update finalization phase, with the
-    // effects context baked into the sink. Each init gets its own nested
-    // sub-tracker so handlers stay unaware of each other. Phase updates
-    // auto-sync in the background; we only flush at the end.
+    // One root tracker, shared across all inits — each handler adds its own
+    // phases (with its own names) to it, unaware of the others. The effects
+    // context is baked into the sink, and phase updates auto-sync in the
+    // background; we only flush at the end.
     const tracker = new FullProgressTracker(progress =>
       opts.effects.setInitProgress({ progress }),
     )
-    const phases = inits.map((_, idx) => tracker.addNestedPhase(`init:${idx}`, 1))
 
     for (const idx in inits) {
       const init = inits[idx]
-      const phase = phases[idx]
+      // Progress belongs to the initial install/update pass. A constRetry
+      // re-run (reactive `.const` watcher) gets a detached tracker so its
+      // phases don't pile up on the root over the container's lifetime.
+      let firstRun = true
       const fn = async () => {
-        // A re-run (constRetry) starts the handler's phases fresh.
-        phase.reset()
+        const progress = firstRun ? tracker : new FullProgressTracker()
+        firstRun = false
         let res: (value?: undefined) => void = () => {}
         const complete = new Promise(resolve => {
           res = resolve
@@ -73,14 +75,13 @@ export function setupInit(...inits: InitScriptOrFn[]): T.ExpectedExports.init {
           complete.then(() => fn()).catch(console.error),
         )
         try {
-          if ('init' in init) await init.init(e, opts.kind, phase)
-          else await init(e, opts.kind, phase)
+          if ('init' in init) await init.init(e, opts.kind, progress)
+          else await init(e, opts.kind, progress)
         } finally {
           res()
         }
       }
       await fn()
-      phase.complete()
     }
     tracker.complete()
     await tracker.sync()

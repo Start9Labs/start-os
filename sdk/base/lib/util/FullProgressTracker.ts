@@ -100,13 +100,6 @@ export class FullProgressTracker {
     this.notifyChange()
   }
 
-  /** Drop all phases and clear completion — used to start a fresh pass when a handler re-runs. */
-  reset(): void {
-    this.phases = []
-    this.completed = false
-    this.notifyChange()
-  }
-
   /**
    * Flush: push the current state and resolve once the in-flight and queued
    * reports have drained. Auto-sync already fires on every update, so this is
