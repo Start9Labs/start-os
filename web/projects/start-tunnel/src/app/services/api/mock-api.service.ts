@@ -73,7 +73,12 @@ export class MockApiService extends ApiService {
       {
         op: PatchOp.ADD,
         path: `/wg/subnets/${replaceSlashes(params.subnet)}`,
-        value: { name: params.name, clients: {}, dns: { type: 'default' } },
+        value: {
+          name: params.name,
+          clients: {},
+          dns: { type: 'default' },
+          wanIp: null,
+        },
       },
     ]
     this.mockRevision(patch)
@@ -98,6 +103,21 @@ export class MockApiService extends ApiService {
         op: PatchOp.REPLACE,
         path: `/wg/subnets/${replaceSlashes(params.subnet)}/dns`,
         value: dns,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async setSubnetWan(params: T.Tunnel.SetSubnetWanParams): Promise<null> {
+    await pauseFor(1000)
+
+    const patch: ReplaceOperation<string | null>[] = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/wg/subnets/${replaceSlashes(params.subnet)}/wanIp`,
+        value: params.wanIp,
       },
     ]
     this.mockRevision(patch)
@@ -148,6 +168,7 @@ export class MockApiService extends ApiService {
           key: '',
           psk: '',
           allowDnsInjection: false,
+          wanIp: null,
         },
       },
     ]
@@ -197,8 +218,23 @@ export class MockApiService extends ApiService {
     const patch: ReplaceOperation<boolean>[] = [
       {
         op: PatchOp.REPLACE,
-        path: `/wg/subnets/${params.subnet}/clients/${params.ip}/allowDnsInjection`,
+        path: `/wg/subnets/${replaceSlashes(params.subnet)}/clients/${params.ip}/allowDnsInjection`,
         value: params.enabled,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async setDeviceWan(params: T.Tunnel.SetDeviceWanParams): Promise<null> {
+    await pauseFor(1000)
+
+    const patch: ReplaceOperation<string | null>[] = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/wg/subnets/${replaceSlashes(params.subnet)}/clients/${params.ip}/wanIp`,
+        value: params.wanIp,
       },
     ]
     this.mockRevision(patch)

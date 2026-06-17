@@ -47,7 +47,13 @@ export function mapForwards(
     return {
       externalip: externalip!,
       externalport: externalport!,
-      device: devices.find(d => d.ip === targetip)!,
+      // Fall back to the raw target IP when it isn't a named device (e.g. a
+      // manual SNI route to a non-client) so the row still renders rather than
+      // crashing the whole table on an undefined device.
+      device: devices.find(d => d.ip === targetip) ?? {
+        ip: targetip!,
+        name: targetip!,
+      },
       internalport: internalport!,
       label,
       enabled,

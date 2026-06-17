@@ -1,5 +1,6 @@
 import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
+import { ErrorService } from '@start9labs/shared'
 import { T, utils } from '@start9labs/start-sdk'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiButton, TuiDataList, TuiDropdown } from '@taiga-ui/core'
@@ -11,6 +12,7 @@ import {
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
 import { PlaceholderComponent } from 'src/app/routes/home/components/placeholder'
+import { SET_WAN } from 'src/app/routes/home/components/set-wan'
 import { ApiService } from 'src/app/services/api/api.service'
 import { TunnelData } from 'src/app/services/patch-db/data-model'
 
@@ -24,6 +26,7 @@ import { SUBNETS_ADD } from './add'
           <th>Name</th>
           <th>IP Range</th>
           <th>DNS</th>
+          <th>WAN</th>
           <th [style.padding-inline-end.rem]="0.625">
             <button tuiButton size="xs" iconStart="@tui.plus" (click)="onAdd()">
               Add
@@ -37,6 +40,7 @@ import { SUBNETS_ADD } from './add'
             <td>{{ subnet.name }}</td>
             <td>{{ subnet.range }}</td>
             <td>{{ subnet.dnsLabel }}</td>
+            <td>{{ subnet.wanIp ?? 'Default' }}</td>
             <td>
               <button
                 tuiIconButton
@@ -61,6 +65,13 @@ import { SUBNETS_ADD } from './add'
                   </button>
                   <button
                     tuiOption
+                    iconStart="@tui.globe"
+                    (click)="onSetWan(subnet)"
+                  >
+                    Set WAN IP
+                  </button>
+                  <button
+                    tuiOption
                     iconStart="@tui.trash"
                     (click)="onDelete($index)"
                   >
@@ -72,7 +83,7 @@ import { SUBNETS_ADD } from './add'
           </tr>
         } @empty {
           <tr>
-            <td colspan="4">
+            <td colspan="5">
               <app-placeholder icon="@tui.network">No subnets</app-placeholder>
             </td>
           </tr>
@@ -97,22 +108,37 @@ export default class Subnets {
   private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly api = inject(ApiService)
   private readonly loading = inject(TuiNotificationMiddleService)
+  private readonly errorService = inject(ErrorService)
+  private readonly patch = inject<PatchDB<TunnelData>>(PatchDB)
+
+  private readonly wans = toSignal(
+    this.patch.watch$('gateways').pipe(
+      map(g =>
+        Object.values(g)
+          .flatMap(
+            val => val.ipInfo?.subnets.map(s => utils.IpNet.parse(s)) || [],
+          )
+          .filter(s => s.isIpv4() && s.isPublic())
+          .map(s => s.address),
+      ),
+    ),
+    { initialValue: [] },
+  )
 
   protected readonly subnets = toSignal(
-    inject<PatchDB<TunnelData>>(PatchDB)
-      .watch$('wg', 'subnets')
-      .pipe(
-        map(s =>
-          Object.entries(s).map(([range, info]) => ({
-            range,
-            name: info.name,
-            hasClients: !!Object.keys(info.clients).length,
-            dns: info.dns,
-            clients: info.clients,
-            dnsLabel: dnsLabel(info.dns, info.clients),
-          })),
-        ),
+    this.patch.watch$('wg', 'subnets').pipe(
+      map(s =>
+        Object.entries(s).map(([range, info]) => ({
+          range,
+          name: info.name,
+          hasClients: !!Object.keys(info.clients).length,
+          dns: info.dns,
+          clients: info.clients,
+          dnsLabel: dnsLabel(info.dns, info.clients),
+          wanIp: info.wanIp,
+        })),
       ),
+    ),
     { initialValue: null },
   )
 
@@ -153,6 +179,25 @@ export default class Subnets {
         },
       })
       .subscribe()
+  }
+
+  protected onSetWan({ range, wanIp }: MappedSubnet): void {
+    this.dialogs
+      .open<string | null>(SET_WAN, {
+        label: 'Set WAN IP',
+        data: { wanIp, options: this.wans() },
+      })
+      .subscribe(async wanIp => {
+        const loader = this.loading.open('').subscribe()
+
+        try {
+          await this.api.setSubnetWan({ subnet: range, wanIp })
+        } catch (e: any) {
+          this.errorService.handleError(e)
+        } finally {
+          loader.unsubscribe()
+        }
+      })
   }
 
   protected onDelete(index: number): void {
@@ -200,6 +245,7 @@ type MappedSubnet = {
   dns: T.Tunnel.DnsConfig
   clients: T.Tunnel.WgSubnetClients
   dnsLabel: string
+  wanIp: string | null
 }
 
 function dnsLabel(

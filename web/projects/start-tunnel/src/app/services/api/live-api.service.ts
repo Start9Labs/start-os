@@ -76,6 +76,10 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'subnet.set-dns', params })
   }
 
+  async setSubnetWan(params: T.Tunnel.SetSubnetWanParams): Promise<null> {
+    return this.rpcRequest({ method: 'subnet.set-wan', params })
+  }
+
   // devices
 
   async addDevice(params: T.Tunnel.AddDeviceParams): Promise<null> {
@@ -96,6 +100,10 @@ export class LiveApiService extends ApiService {
 
   async setDnsInjection(params: T.Tunnel.SetDnsInjectionParams): Promise<null> {
     return this.rpcRequest({ method: 'device.set-dns-injection', params })
+  }
+
+  async setDeviceWan(params: T.Tunnel.SetDeviceWanParams): Promise<null> {
+    return this.rpcRequest({ method: 'device.set-wan', params })
   }
 
   // dns

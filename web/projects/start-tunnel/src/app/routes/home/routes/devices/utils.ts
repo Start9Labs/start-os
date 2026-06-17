@@ -11,6 +11,7 @@ export interface MappedDevice {
   readonly ip: string
   readonly name: string
   readonly allowDnsInjection: boolean
+  readonly wanIp: string | null
 }
 
 export interface MappedSubnet {

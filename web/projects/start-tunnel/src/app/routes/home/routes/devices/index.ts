@@ -1,6 +1,7 @@
 import { Component, computed, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ErrorService } from '@start9labs/shared'
+import { utils } from '@start9labs/start-sdk'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiButton, TuiDataList, TuiDropdown } from '@taiga-ui/core'
 import {
@@ -11,6 +12,7 @@ import {
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
 import { PlaceholderComponent } from 'src/app/routes/home/components/placeholder'
+import { SET_WAN } from 'src/app/routes/home/components/set-wan'
 import { ApiService } from 'src/app/services/api/api.service'
 import { TunnelData } from 'src/app/services/patch-db/data-model'
 import { DEVICES_ADD } from './add'
@@ -84,6 +86,13 @@ import { MappedDevice } from './utils'
                   </button>
                   <button
                     tuiOption
+                    iconStart="@tui.globe"
+                    (click)="onSetWan(device)"
+                  >
+                    Set WAN IP
+                  </button>
+                  <button
+                    tuiOption
                     iconStart="@tui.trash"
                     (click)="onDelete(device)"
                   >
@@ -121,26 +130,39 @@ export default class Devices {
   private readonly api = inject(ApiService)
   private readonly loading = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
+  private readonly patch = inject<PatchDB<TunnelData>>(PatchDB)
+
+  private readonly wans = toSignal(
+    this.patch.watch$('gateways').pipe(
+      map(g =>
+        Object.values(g)
+          .flatMap(
+            val => val.ipInfo?.subnets.map(s => utils.IpNet.parse(s)) || [],
+          )
+          .filter(s => s.isIpv4() && s.isPublic())
+          .map(s => s.address),
+      ),
+    ),
+    { initialValue: [] },
+  )
 
   protected readonly subnets = toSignal(
-    inject<PatchDB<TunnelData>>(PatchDB)
-      .watch$('wg', 'subnets')
-      .pipe(
-        map(subnets =>
-          Object.entries(subnets).map(([range, { name, clients }]) => ({
-            range,
-            name,
-            clients,
-          })),
-        ),
+    this.patch.watch$('wg', 'subnets').pipe(
+      map(subnets =>
+        Object.entries(subnets).map(([range, { name, clients }]) => ({
+          range,
+          name,
+          clients,
+        })),
       ),
+    ),
     { initialValue: null },
   )
 
   protected readonly devices = computed(() =>
     this.subnets()?.flatMap(subnet =>
       Object.entries(subnet.clients).map(
-        ([ip, { name, allowDnsInjection }]) => ({
+        ([ip, { name, allowDnsInjection, wanIp }]) => ({
           subnet: {
             name: subnet.name,
             range: subnet.range,
@@ -148,6 +170,7 @@ export default class Devices {
           ip,
           name,
           allowDnsInjection,
+          wanIp,
         }),
       ),
     ),
@@ -178,6 +201,25 @@ export default class Devices {
             ip,
             enabled: !allowDnsInjection,
           })
+        } catch (e: any) {
+          this.errorService.handleError(e)
+        } finally {
+          loader.unsubscribe()
+        }
+      })
+  }
+
+  protected onSetWan({ subnet, ip, wanIp }: MappedDevice): void {
+    this.dialogs
+      .open<string | null>(SET_WAN, {
+        label: 'Set WAN IP',
+        data: { wanIp, options: this.wans() },
+      })
+      .subscribe(async wanIp => {
+        const loader = this.loading.open('').subscribe()
+
+        try {
+          await this.api.setDeviceWan({ subnet: subnet.range, ip, wanIp })
         } catch (e: any) {
           this.errorService.handleError(e)
         } finally {
