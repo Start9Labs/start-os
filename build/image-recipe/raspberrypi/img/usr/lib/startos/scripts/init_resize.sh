@@ -113,12 +113,12 @@ main () {
     return 1
   fi
 
-  # Record the OS drive in setup.json. The path is only knowable at runtime
-  # (mmcblk0 for SD, sda for USB boot), so the baked image can't, but the setup
-  # wizard needs it to fix+disable the OS drive and ask only for a data drive.
-  if ! grep -q osDrive /media/startos/config/setup.json; then
-    sed -i 's|}$|,"osDrive":"'"$ROOT_DEV"'"}|' /media/startos/config/setup.json
-  fi
+  # Write the pre-installed SetupInfo marker. Without setup.json core boots the
+  # install wizard instead of setup; with it and a null guid (the data drive is
+  # created during the user's setup) the wizard asks only for a data drive.
+  # osDrive is the OS drive, only knowable at runtime (mmcblk0 for SD, sda for
+  # USB boot), which is why this is written here rather than baked into the image.
+  printf '{"guid":null,"attach":false,"mokEnrolled":false,"osDrive":"%s"}\n' "$ROOT_DEV" > /media/startos/config/setup.json
 
   echo start > /etc/hostname
 
