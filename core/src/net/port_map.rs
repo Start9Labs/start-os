@@ -253,7 +253,13 @@ impl State {
                 || s.count != spec.count
         });
         self.desired.insert(key, spec);
-        if changed || !self.active.contains_key(&key) {
+        // Only (re)apply on a genuine spec change. Re-applying whenever the key
+        // isn't active would busy-loop a mapping the gateway can't satisfy: it
+        // never becomes active, so every repeat ensure() — e.g. a burst of
+        // reconciles flooding the unbounded queue — would redo the full
+        // (slow, e.g. UPnP-discovery) apply. Retrying failed/lost mappings is
+        // the periodic refresh's job.
+        if changed {
             self.teardown(key).await;
             self.apply(key).await;
         }
