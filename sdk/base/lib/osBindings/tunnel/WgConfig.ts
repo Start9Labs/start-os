@@ -11,4 +11,9 @@ export type WgConfig = {
    * the tunnel's DNS for every peer to resolve).
    */
   allowDnsInjection: boolean
+  /**
+   * SNAT this device's egress to this WAN IP, overriding the subnet's
+   * `wan_ip` / the default masquerade. `None` falls back to the subnet rule.
+   */
+  wanIp: string | null
 }

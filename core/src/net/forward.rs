@@ -349,6 +349,30 @@ async fn nft_rules_with_comment(chain: &str, comment: &str) -> Vec<(u32, String)
         .collect()
 }
 
+/// Comment tags currently present in `chain` of `table ip startos` that begin
+/// with `prefix`. Used to find and prune orphaned per-device/per-subnet rules
+/// whose owning entity no longer exists.
+pub(crate) async fn nft_comments_with_prefix(chain: &str, prefix: &str) -> Vec<String> {
+    let out = Command::new("nft")
+        .arg("-a")
+        .arg("list")
+        .arg("chain")
+        .arg("ip")
+        .arg("startos")
+        .arg(chain)
+        .invoke(ErrorKind::Network)
+        .await
+        .unwrap_or_default();
+    String::from_utf8_lossy(&out)
+        .lines()
+        .filter_map(|line| {
+            let after = line.split_once("comment \"")?.1;
+            let tag = after.split_once('"')?.0;
+            tag.starts_with(prefix).then(|| tag.to_owned())
+        })
+        .collect()
+}
+
 /// Idempotently install (or, with `undo`, remove) the rule tagged `comment` in
 /// `chain` of `table ip startos`. The reconcile is applied as a single atomic
 /// nft transaction — every prior rule with this comment is deleted and the new

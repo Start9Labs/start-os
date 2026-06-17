@@ -81,7 +81,7 @@ pub async fn remove_port(gateway: &Gateway<Tokio>, external_port: u16) -> Result
 /// A WAN address worth reporting: a real, routable public IPv4. A gateway
 /// behind CGNAT (or double NAT) reports a private external IP, which is useless
 /// for clearnet, so reject it and let the caller fall back to an echoip probe.
-fn is_wan_candidate(ip: Ipv4Addr) -> bool {
+pub(crate) fn is_wan_candidate(ip: Ipv4Addr) -> bool {
     !(ip.is_unspecified()
         || ip.is_loopback()
         || ip.is_private()

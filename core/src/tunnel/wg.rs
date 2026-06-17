@@ -120,6 +120,11 @@ pub struct WgSubnetConfig {
     pub clients: WgSubnetClients,
     #[serde(default)]
     pub dns: DnsConfig,
+    /// SNAT this subnet's egress to this WAN IP instead of `masquerade`. `None`
+    /// keeps the default masquerade; a per-device `wan_ip` overrides this.
+    #[serde(default)]
+    #[ts(type = "string | null")]
+    pub wan_ip: Option<std::net::Ipv4Addr>,
 }
 impl WgSubnetConfig {
     pub fn new(name: InternedString) -> Self {
@@ -191,6 +196,11 @@ pub struct WgConfig {
     /// the tunnel's DNS for every peer to resolve).
     #[serde(default)]
     pub allow_dns_injection: bool,
+    /// SNAT this device's egress to this WAN IP, overriding the subnet's
+    /// `wan_ip` / the default masquerade. `None` falls back to the subnet rule.
+    #[serde(default)]
+    #[ts(type = "string | null")]
+    pub wan_ip: Option<std::net::Ipv4Addr>,
 }
 impl WgConfig {
     pub fn generate(name: InternedString) -> Self {
@@ -199,6 +209,7 @@ impl WgConfig {
             key: Base64(WgKey::generate()),
             psk: Base64(rand::random()),
             allow_dns_injection: false,
+            wan_ip: None,
         }
     }
     pub fn server_peer_config<'a>(&'a self, addr: Ipv4Addr) -> ServerPeerConfig<'a> {

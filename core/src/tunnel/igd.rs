@@ -320,7 +320,16 @@ pub(super) async fn is_known_client(ctx: &TunnelContext, peer: Ipv4Addr) -> bool
     subnet_gateway_for(ctx, peer).await.is_some()
 }
 
-pub(super) async fn external_ipv4(ctx: &TunnelContext) -> Option<Ipv4Addr> {
+/// The external (WAN) IPv4 `peer`'s egress is routed out of: the assigned WAN
+/// for its subnet/device if any, else the gateway's default WAN.
+pub(super) async fn external_ipv4(ctx: &TunnelContext, peer: Ipv4Addr) -> Option<Ipv4Addr> {
+    assigned_wan_for(ctx, peer).await.or_else(|| default_wan(ctx))
+}
+
+/// The first usable WAN candidate across the gateway's non-loopback, non-wg
+/// interfaces. This is the egress used when neither the peer's device nor its
+/// subnet pins a `wan_ip`.
+fn default_wan(ctx: &TunnelContext) -> Option<Ipv4Addr> {
     ctx.net_iface.peek(|ifaces| {
         ifaces.iter().find_map(|(id, info)| {
             if id.as_str() == WIREGUARD_INTERFACE_NAME {
@@ -330,13 +339,26 @@ pub(super) async fn external_ipv4(ctx: &TunnelContext) -> Option<Ipv4Addr> {
             if ip_info.device_type == Some(NetworkInterfaceType::Loopback) {
                 return None;
             }
-            ip_info.wan_ip.or_else(|| {
-                ip_info.subnets.iter().find_map(|s| match s.addr() {
-                    IpAddr::V4(v4) if !v4.is_loopback() && !v4.is_unspecified() => Some(v4),
-                    _ => None,
+            ip_info
+                .wan_ip
+                .filter(|v4| crate::net::upnp::is_wan_candidate(*v4))
+                .or_else(|| {
+                    ip_info.subnets.iter().find_map(|s| match s.addr() {
+                        IpAddr::V4(v4) if crate::net::upnp::is_wan_candidate(v4) => Some(v4),
+                        _ => None,
+                    })
                 })
-            })
         })
+    })
+}
+
+/// The WAN IP pinned for `peer` — its device override if set, else its subnet's
+/// `wan_ip`. `None` if `peer` isn't a configured client or nothing is pinned.
+async fn assigned_wan_for(ctx: &TunnelContext, peer: Ipv4Addr) -> Option<Ipv4Addr> {
+    let subnets = ctx.db.peek().await.as_wg().as_subnets().de().ok()?;
+    subnets.0.values().find_map(|cfg| {
+        let client = cfg.clients.0.get(&peer)?;
+        client.wan_ip.or(cfg.wan_ip)
     })
 }
 

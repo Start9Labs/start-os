@@ -70,8 +70,9 @@ pub trait GatewayBackend: Send + Sync {
     /// the IGD server reports without revealing other peers' mappings.
     async fn remove_forward_by_source(&self, source: SocketAddrV4, peer: Ipv4Addr) -> bool;
 
-    /// The gateway's current external (WAN) IPv4, or `None` if unknown.
-    async fn external_ipv4(&self) -> Option<Ipv4Addr>;
+    /// The external (WAN) IPv4 the gateway routes `peer`'s egress out of, or
+    /// `None` if unknown.
+    async fn external_ipv4(&self, peer: Ipv4Addr) -> Option<Ipv4Addr>;
 
     /// Whether `peer` is a client this gateway will create mappings for.
     async fn is_known_client(&self, peer: Ipv4Addr) -> bool;
@@ -80,7 +81,7 @@ pub trait GatewayBackend: Send + Sync {
     fn sni(&self) -> &Arc<SniDemux>;
 
     /// Register SNI-demuxed hostname routes on `source` (the shared external
-    /// address) to `target`, owned by `nonce`. `lifetime` is `None` for a
+    /// address) to `target`, owned by `target`. `lifetime` is `None` for a
     /// permanent (DB-backed) binding. Default: dataplane-only (the tunnel
     /// overrides this to also persist the routes).
     async fn add_sni_forward(
@@ -88,15 +89,14 @@ pub trait GatewayBackend: Send + Sync {
         source: SocketAddrV4,
         target: SocketAddrV4,
         hostnames: &[String],
-        nonce: [u8; 12],
         lifetime: Option<u32>,
     ) -> Result<(), u8> {
-        self.sni().register(*source.ip(), source.port(), hostnames, target, nonce, lifetime)
+        self.sni().register(*source.ip(), source.port(), hostnames, target, lifetime)
     }
 
-    /// Remove the SNI routes for `hostnames` on `source` owned by `nonce`.
-    async fn remove_sni_forward(&self, source: SocketAddrV4, hostnames: &[String], nonce: [u8; 12]) {
-        self.sni().unregister(*source.ip(), source.port(), hostnames, nonce);
+    /// Remove the SNI routes for `hostnames` on `source` owned by `target`.
+    async fn remove_sni_forward(&self, source: SocketAddrV4, target: SocketAddrV4, hostnames: &[String]) {
+        self.sni().unregister(*source.ip(), source.port(), hostnames, target);
     }
 }
 
@@ -240,7 +240,7 @@ pub async fn handle<B: GatewayBackend + ?Sized>(
     let internal_port = u16::from_be_bytes([req[40], req[41]]);
     let suggested_external_port = u16::from_be_bytes([req[42], req[43]]);
 
-    let Some(external_ip) = backend.external_ipv4().await else {
+    let Some(external_ip) = backend.external_ipv4(peer).await else {
         return Some(map_response(
             CANNOT_PROVIDE_EXTERNAL,
             req,
@@ -287,7 +287,6 @@ pub async fn handle<B: GatewayBackend + ?Sized>(
         }
     };
     if !hostnames.is_empty() {
-        let nonce: [u8; 12] = req[24..36].try_into().unwrap();
         if req[36] != PROTO_TCP {
             return Some(map_response(
                 RESULT_UNSUPP_HOSTNAME,
@@ -299,12 +298,15 @@ pub async fn handle<B: GatewayBackend + ?Sized>(
                 epoch,
             ));
         }
+        // The route is owned by the requesting peer's own address; the response
+        // echoes the request's nonce verbatim via `map_response`.
+        let target = SocketAddrV4::new(peer, internal_port);
         if lifetime == 0 {
             backend
                 .remove_sni_forward(
                     SocketAddrV4::new(external_ip, external_port),
+                    target,
                     &hostnames,
-                    nonce,
                 )
                 .await;
             return Some(map_response_with_hostnames(
@@ -318,14 +320,12 @@ pub async fn handle<B: GatewayBackend + ?Sized>(
                 &hostnames,
             ));
         }
-        let target = SocketAddrV4::new(peer, internal_port);
         let granted = lifetime.min(MAX_LIFETIME_SECONDS);
         return match backend
             .add_sni_forward(
                 SocketAddrV4::new(external_ip, external_port),
                 target,
                 &hostnames,
-                nonce,
                 Some(granted),
             )
             .await

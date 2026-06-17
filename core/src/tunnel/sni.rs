@@ -25,7 +25,6 @@ use crate::util::sync::SyncMutex;
 
 /// (external IP, external port) — a demultiplexed port.
 type PortKey = (Ipv4Addr, u16);
-type Nonce = [u8; 12];
 
 const CLIENTHELLO_CAP: usize = 16384;
 const CLIENTHELLO_TIMEOUT: Duration = Duration::from_secs(5);
@@ -33,7 +32,6 @@ const CLIENTHELLO_TIMEOUT: Duration = Duration::from_secs(5);
 #[derive(Clone)]
 struct Binding {
     target: SocketAddrV4,
-    nonce: Nonce,
     /// `None` for a permanent (DB-backed/manual) binding that never expires.
     expiry: Option<Instant>,
 }
@@ -108,9 +106,9 @@ impl SniDemux {
         this
     }
 
-    /// Register hostname bindings for `(ext_ip, ext_port) -> target` under
-    /// `nonce`. Returns `Err(RESULT_HOSTNAME_TAKEN)` if any name is held by a
-    /// different nonce (no bindings are then created). Ensures the port's
+    /// Register hostname bindings for `(ext_ip, ext_port) -> target`. Returns
+    /// `Err(RESULT_HOSTNAME_TAKEN)` if any name is held by a different target (no
+    /// bindings are then created; the same target reclaims). Ensures the port's
     /// listener is running.
     pub fn register(
         self: &Arc<Self>,
@@ -118,7 +116,6 @@ impl SniDemux {
         ext_port: u16,
         hostnames: &[String],
         target: SocketAddrV4,
-        nonce: Nonce,
         lifetime_secs: Option<u32>,
     ) -> Result<(), u8> {
         let now = Instant::now();
@@ -129,20 +126,15 @@ impl SniDemux {
             entry.prune(now);
             for name in hostnames {
                 if let Some(b) = entry.hostnames.get(name) {
-                    if b.nonce != nonce {
+                    if b.target != target {
                         return Err(RESULT_HOSTNAME_TAKEN);
                     }
                 }
             }
             for name in hostnames {
-                entry.hostnames.insert(
-                    name.clone(),
-                    Binding {
-                        target,
-                        nonce,
-                        expiry,
-                    },
-                );
+                entry
+                    .hostnames
+                    .insert(name.clone(), Binding { target, expiry });
             }
             Ok(())
         })?;
@@ -150,13 +142,19 @@ impl SniDemux {
         Ok(())
     }
 
-    /// Delete the named bindings (lifetime-0 MAP), only those held by `nonce`.
-    pub fn unregister(&self, ext_ip: Ipv4Addr, ext_port: u16, hostnames: &[String], nonce: Nonce) {
+    /// Delete the named bindings (lifetime-0 MAP), only those held by `target`.
+    pub fn unregister(
+        &self,
+        ext_ip: Ipv4Addr,
+        ext_port: u16,
+        hostnames: &[String],
+        target: SocketAddrV4,
+    ) {
         let key = (ext_ip, ext_port);
         self.ports.mutate(|ports| {
             if let Some(entry) = ports.get_mut(&key) {
                 for name in hostnames {
-                    if entry.hostnames.get(name).is_some_and(|b| b.nonce == nonce) {
+                    if entry.hostnames.get(name).is_some_and(|b| b.target == target) {
                         entry.hostnames.remove(name);
                     }
                 }
@@ -397,7 +395,6 @@ mod tests {
         let exp = Instant::now() + Duration::from_secs(60);
         let mk = |o: u8| Binding {
             target: SocketAddrV4::new(Ipv4Addr::new(10, 0, 0, o), 443),
-            nonce: [0; 12],
             expiry: Some(exp),
         };
         pb.hostnames.insert("a.example.com".into(), mk(1));

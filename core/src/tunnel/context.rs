@@ -27,7 +27,7 @@ use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
 use crate::middleware::auth::Auth;
 use crate::middleware::auth::local::LocalAuthContext;
 use crate::middleware::cors::Cors;
-use crate::net::forward::{PortForwardController, nft_rule};
+use crate::net::forward::{PortForwardController, nft_comments_with_prefix, nft_rule};
 use crate::net::static_server::{EMPTY_DIR, UiContext};
 use crate::prelude::*;
 use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
@@ -131,6 +131,10 @@ pub struct TunnelContextSeed {
     /// rebuilding the injector.
     pub dns_allowed: Arc<SyncMutex<BTreeSet<IpAddr>>>,
     pub active_forwards: SyncMutex<BTreeMap<SocketAddrV4, Arc<()>>>,
+    /// Serializes `resync_egress` so a concurrent reconcile can't prune a
+    /// device SNAT rule another call just installed (read-DB → install → prune
+    /// is not otherwise atomic).
+    pub egress_lock: tokio::sync::Mutex<()>,
     pub shutdown: Sender<Option<bool>>,
 }
 
@@ -222,31 +226,6 @@ impl TunnelContext {
         wg.sync().await?;
         dns_proxy.sync(&wg, dns_injector.clone()).await?;
 
-        for iface in net_iface.peek(|i| {
-            i.iter()
-                .filter(|(_, info)| {
-                    info.ip_info.as_ref().map_or(false, |i| {
-                        i.device_type != Some(NetworkInterfaceType::Loopback)
-                    })
-                })
-                .map(|(name, _)| name)
-                .filter(|id| id.as_str() != WIREGUARD_INTERFACE_NAME)
-                .cloned()
-                .collect::<Vec<_>>()
-        }) {
-            for subnet in peek.as_wg().as_subnets().keys()? {
-                let net = subnet.trunc();
-                nft_rule(
-                    "postrouting",
-                    &format!("tunnel-masq-{net}-{iface}"),
-                    false,
-                    false,
-                    &format!("ip saddr {net} oifname \"{iface}\" masquerade"),
-                )
-                .await?;
-            }
-        }
-
         let sni = crate::tunnel::sni::SniDemux::new();
         let mut active_forwards = BTreeMap::new();
         for (from, entry) in peek.as_port_forwards().de()?.0 {
@@ -290,7 +269,6 @@ impl TunnelContext {
                             from.port(),
                             &[hostname.clone()],
                             route.target,
-                            route.nonce,
                             None,
                         ) {
                             tracing::warn!(
@@ -316,8 +294,11 @@ impl TunnelContext {
             dns_injector,
             dns_allowed,
             active_forwards: SyncMutex::new(active_forwards),
+            egress_lock: tokio::sync::Mutex::new(()),
             shutdown,
         }));
+
+        ctx.resync_egress().await?;
 
         // Serve PCP (preferred) and a UPnP IGD (fallback) to connected peers
         // over the WireGuard interface so StartOS clients can open their public
@@ -331,14 +312,14 @@ impl TunnelContext {
     pub async fn gc_forwards(
         &self,
         keep: &BTreeSet<SocketAddrV4>,
-        dropped_sni: &[(SocketAddrV4, String, [u8; 12])],
+        dropped_sni: &[(SocketAddrV4, String, SocketAddrV4)],
     ) -> Result<(), Error> {
-        for (source, hostname, nonce) in dropped_sni {
+        for (source, hostname, target) in dropped_sni {
             self.sni.unregister(
                 *source.ip(),
                 source.port(),
                 std::slice::from_ref(hostname),
-                *nonce,
+                *target,
             );
         }
         self.active_forwards
@@ -353,7 +334,73 @@ impl TunnelContext {
     pub async fn sync_network(&self, server: &WgServer) -> Result<(), Error> {
         server.sync().await?;
         self.dns_allowed.mutate(|s| *s = allowed_injectors(server));
-        self.dns_proxy.sync(server, self.dns_injector.clone()).await
+        self.dns_proxy.sync(server, self.dns_injector.clone()).await?;
+        self.resync_egress().await
+    }
+
+    /// Reconcile the per-subnet (and per-device override) egress NAT rules in
+    /// `postrouting`. A subnet with no assigned `wan_ip` keeps plain
+    /// `masquerade`; one with a `wan_ip` is SNATed to that address. A device with
+    /// its own `wan_ip` gets a higher-priority `/32` rule that wins over its
+    /// subnet's rule. Comment tags are stable per (subnet/device, iface) so each
+    /// re-run replaces in place — a subnet reverting `wan_ip` to `None` swaps its
+    /// snat rule back to masquerade rather than leaving a stale duplicate.
+    pub async fn resync_egress(&self) -> Result<(), Error> {
+        let _guard = self.egress_lock.lock().await;
+        let ifaces: Vec<GatewayId> = self.net_iface.peek(|i| {
+            i.iter()
+                .filter(|(_, info)| {
+                    info.ip_info.as_ref().map_or(false, |i| {
+                        i.device_type != Some(NetworkInterfaceType::Loopback)
+                    })
+                })
+                .map(|(name, _)| name)
+                .filter(|id| id.as_str() != WIREGUARD_INTERFACE_NAME)
+                .cloned()
+                .collect()
+        });
+        let subnets = self.db.peek().await.as_wg().as_subnets().de()?;
+        let mut want_dev: BTreeSet<String> = BTreeSet::new();
+        for iface in &ifaces {
+            for (subnet, cfg) in &subnets.0 {
+                let net = subnet.trunc();
+                let subnet_rule = match cfg.wan_ip {
+                    Some(wan) => format!("ip saddr {net} oifname \"{iface}\" snat to {wan}"),
+                    None => format!("ip saddr {net} oifname \"{iface}\" masquerade"),
+                };
+                nft_rule(
+                    "postrouting",
+                    &format!("tunnel-masq-{net}-{iface}"),
+                    false,
+                    false,
+                    &subnet_rule,
+                )
+                .await?;
+
+                for (client_ip, client) in &cfg.clients.0 {
+                    if let Some(wan) = client.wan_ip {
+                        let comment = format!("tunnel-snat-dev-{client_ip}-{iface}");
+                        nft_rule(
+                            "postrouting",
+                            &comment,
+                            false,
+                            true,
+                            &format!("ip saddr {client_ip}/32 oifname \"{iface}\" snat to {wan}"),
+                        )
+                        .await?;
+                        want_dev.insert(comment);
+                    }
+                }
+            }
+        }
+        // Prune device-override rules whose device was removed or had its
+        // `wan_ip` cleared since the last reconcile.
+        for comment in nft_comments_with_prefix("postrouting", "tunnel-snat-dev-").await {
+            if !want_dev.contains(&comment) {
+                nft_rule("postrouting", &comment, true, false, "").await?;
+            }
+        }
+        Ok(())
     }
 }
 impl AsRef<RpcContinuations> for TunnelContext {

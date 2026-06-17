@@ -5981,6 +5981,13 @@ about.set-default-outbound-gateway:
   fr_FR: "Définir la passerelle sortante par défaut"
   pl_PL: "Ustaw domyślną bramę wychodzącą"
 
+about.set-device-wan:
+  en_US: "Override the WAN IP for a single device"
+  de_DE: "Die WAN-IP für ein einzelnes Gerät überschreiben"
+  es_ES: "Anular la IP WAN para un solo dispositivo"
+  fr_FR: "Remplacer l'IP WAN pour un seul appareil"
+  pl_PL: "Zastąp adres IP WAN dla pojedynczego urządzenia"
+
 about.set-echoip-urls:
   en_US: "Set the Echo IP service URLs"
   de_DE: "Die Echo-IP-Dienst-URLs festlegen"
@@ -6071,6 +6078,13 @@ about.set-subnet-dns:
   es_ES: "Establecer DNS de subred"
   fr_FR: "Définir le DNS du sous-réseau"
   pl_PL: "Ustaw DNS podsieci"
+
+about.set-subnet-wan:
+  en_US: "Assign the WAN IP a subnet's traffic uses"
+  de_DE: "Die WAN-IP zuweisen, die der Datenverkehr eines Subnetzes verwendet"
+  es_ES: "Asignar la IP WAN que usa el tráfico de una subred"
+  fr_FR: "Attribuer l'IP WAN qu'utilise le trafic d'un sous-réseau"
+  pl_PL: "Przypisz adres IP WAN używany przez ruch podsieci"
 
 about.set-user-interface-password:
   en_US: "Set user interface password"

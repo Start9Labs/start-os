@@ -6,6 +6,9 @@ use crate::tunnel::db::TunnelDatabase;
 mod m_00_port_forward_entry;
 mod m_01_port_forward_kind;
 
+#[cfg(test)]
+pub use m_01_port_forward_kind::PortForwardKind;
+
 pub trait TunnelMigration {
     fn name(&self) -> &'static str {
         let val = std::any::type_name_of_val(self);

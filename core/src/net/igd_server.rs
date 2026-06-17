@@ -182,7 +182,7 @@ pub async fn handle_control<B: GatewayBackend + ?Sized>(
     body: &str,
 ) -> Response {
     match soap_action(headers, body).as_deref() {
-        Some("GetExternalIPAddress") => get_external_ip(backend).await,
+        Some("GetExternalIPAddress") => get_external_ip(backend, peer).await,
         Some("AddPortMapping") => add_mapping(backend, peer, body, false).await,
         Some("AddAnyPortMapping") => add_mapping(backend, peer, body, true).await,
         Some("DeletePortMapping") => delete_mapping(backend, peer, body).await,
@@ -190,8 +190,8 @@ pub async fn handle_control<B: GatewayBackend + ?Sized>(
     }
 }
 
-async fn get_external_ip<B: GatewayBackend + ?Sized>(backend: &B) -> Response {
-    match backend.external_ipv4().await {
+async fn get_external_ip<B: GatewayBackend + ?Sized>(backend: &B, peer: Ipv4Addr) -> Response {
+    match backend.external_ipv4(peer).await {
         Some(ip) => ok(
             "GetExternalIPAddress",
             &format!("<NewExternalIPAddress>{ip}</NewExternalIPAddress>"),
@@ -218,7 +218,7 @@ async fn add_mapping<B: GatewayBackend + ?Sized>(
     if !backend.is_known_client(peer).await {
         return fault(606, "Action not authorized");
     }
-    let Some(source_ip) = backend.external_ipv4().await else {
+    let Some(source_ip) = backend.external_ipv4(peer).await else {
         return fault(501, "Action Failed");
     };
     let source = SocketAddrV4::new(source_ip, external_port);
@@ -243,7 +243,7 @@ async fn delete_mapping<B: GatewayBackend + ?Sized>(
     let Some(external_port) = soap_u16(body, "NewExternalPort") else {
         return fault(402, "Invalid Args");
     };
-    let Some(source_ip) = backend.external_ipv4().await else {
+    let Some(source_ip) = backend.external_ipv4(peer).await else {
         return fault(714, "NoSuchEntryInArray");
     };
     let source = SocketAddrV4::new(source_ip, external_port);

@@ -108,8 +108,8 @@ impl GatewayBackend for TunnelContext {
         true
     }
 
-    async fn external_ipv4(&self) -> Option<Ipv4Addr> {
-        external_ipv4(self).await
+    async fn external_ipv4(&self, peer: Ipv4Addr) -> Option<Ipv4Addr> {
+        external_ipv4(self, peer).await
     }
 
     async fn is_known_client(&self, peer: Ipv4Addr) -> bool {
@@ -125,11 +125,10 @@ impl GatewayBackend for TunnelContext {
         source: SocketAddrV4,
         target: SocketAddrV4,
         hostnames: &[String],
-        nonce: [u8; 12],
         _lifetime: Option<u32>,
     ) -> Result<(), u8> {
         // Persist first so the DB is the source of truth: reject a DNAT-occupied
-        // port or a hostname already owned by a different nonce BEFORE touching
+        // port or a hostname already owned by a different target BEFORE touching
         // the dataplane. Registering first risked a rollback (on a transient DB
         // error during a client's refresh) tearing down a still-valid binding.
         let hostnames_owned = hostnames.to_vec();
@@ -144,7 +143,7 @@ impl GatewayBackend for TunnelContext {
                     match entry {
                         PortForward::Sni { routes } => {
                             for h in &hostnames_owned {
-                                if routes.get(h).is_some_and(|r| r.nonce != nonce) {
+                                if routes.get(h).is_some_and(|r| r.target != target) {
                                     return Err(Error::new(
                                         eyre!("SNI hostname {h} on {source} is held by another client"),
                                         ErrorKind::InvalidRequest,
@@ -154,7 +153,7 @@ impl GatewayBackend for TunnelContext {
                             for h in &hostnames_owned {
                                 routes.insert(
                                     h.clone(),
-                                    SniRoute { target, label: None, enabled: true, nonce },
+                                    SniRoute { target, label: None, enabled: true },
                                 );
                             }
                             Ok(())
@@ -176,17 +175,17 @@ impl GatewayBackend for TunnelContext {
         // unexpected register failure, undo the DB routes we just added.
         if self
             .sni()
-            .register(*source.ip(), source.port(), hostnames, target, nonce, None)
+            .register(*source.ip(), source.port(), hostnames, target, None)
             .is_err()
         {
-            self.remove_sni_forward(source, hostnames, nonce).await;
+            self.remove_sni_forward(source, target, hostnames).await;
             return Err(crate::net::pcp_hostname::RESULT_HOSTNAME_TAKEN);
         }
         Ok(())
     }
 
-    async fn remove_sni_forward(&self, source: SocketAddrV4, hostnames: &[String], nonce: [u8; 12]) {
-        self.sni().unregister(*source.ip(), source.port(), hostnames, nonce);
+    async fn remove_sni_forward(&self, source: SocketAddrV4, target: SocketAddrV4, hostnames: &[String]) {
+        self.sni().unregister(*source.ip(), source.port(), hostnames, target);
         let hostnames = hostnames.to_vec();
         self.db
             .mutate(|db| {
@@ -194,7 +193,7 @@ impl GatewayBackend for TunnelContext {
                     use crate::tunnel::db::PortForward;
                     let mut now_empty = false;
                     if let Some(PortForward::Sni { routes }) = pf.0.get_mut(&source) {
-                        routes.retain(|h, r| !(r.nonce == nonce && hostnames.contains(h)));
+                        routes.retain(|h, r| !(r.target == target && hostnames.contains(h)));
                         now_empty = routes.is_empty();
                     }
                     if now_empty {

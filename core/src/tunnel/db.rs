@@ -77,9 +77,9 @@ impl Model<TunnelDatabase> {
     /// can unregister them from the in-memory demux dataplane).
     pub fn gc_forwards(
         &mut self,
-    ) -> Result<(BTreeSet<SocketAddrV4>, Vec<(SocketAddrV4, String, [u8; 12])>), Error> {
+    ) -> Result<(BTreeSet<SocketAddrV4>, Vec<(SocketAddrV4, String, SocketAddrV4)>), Error> {
         let mut keep_sources = BTreeSet::new();
-        let mut dropped_sni: Vec<(SocketAddrV4, String, [u8; 12])> = Vec::new();
+        let mut dropped_sni: Vec<(SocketAddrV4, String, SocketAddrV4)> = Vec::new();
         let mut keep_targets = BTreeSet::new();
         for (_, cfg) in self.as_wg().as_subnets().as_entries()? {
             keep_targets.extend(cfg.as_clients().keys()?);
@@ -91,7 +91,7 @@ impl Model<TunnelDatabase> {
                     PortForward::Sni { routes } => {
                         for (h, r) in routes.iter() {
                             if !keep_targets.contains(r.target.ip()) {
-                                dropped_sni.push((*k, h.clone(), r.nonce));
+                                dropped_sni.push((*k, h.clone(), r.target));
                             }
                         }
                         routes.retain(|_, r| keep_targets.contains(r.target.ip()));
@@ -105,6 +105,100 @@ impl Model<TunnelDatabase> {
             }))
         })?;
         Ok((keep_sources, dropped_sni))
+    }
+}
+
+#[test]
+fn sni_and_dnat_persistence_round_trip() {
+    use crate::tunnel::migrations::{PortForwardKind, TunnelMigration};
+
+    let route = SniRoute {
+        target: "10.59.0.2:443".parse().unwrap(),
+        label: None,
+        enabled: true,
+    };
+    let mut routes = BTreeMap::new();
+    routes.insert("id.thebarsonists.run".to_string(), route);
+    let sni = PortForward::Sni { routes };
+
+    let sni_json = serde_json::to_value(&sni).unwrap();
+    eprintln!("SNI serialized: {sni_json}");
+    assert_eq!(sni_json["kind"], serde_json::json!("sni"));
+    let sni_back: PortForward = serde_json::from_value(sni_json).unwrap();
+    match &sni_back {
+        PortForward::Sni { routes } => {
+            let r = routes.get("id.thebarsonists.run").expect("route present");
+            assert_eq!(r.target, "10.59.0.2:443".parse().unwrap());
+            assert_eq!(r.label, None);
+            assert!(r.enabled);
+        }
+        other => panic!("expected Sni, got {other:?}"),
+    }
+
+    let dnat = PortForward::Dnat {
+        target: "10.59.0.2:443".parse().unwrap(),
+        label: None,
+        enabled: true,
+        count: 1,
+    };
+    let dnat_json = serde_json::to_value(&dnat).unwrap();
+    eprintln!("DNAT serialized: {dnat_json}");
+    assert_eq!(dnat_json["kind"], serde_json::json!("dnat"));
+    let dnat_back: PortForward = serde_json::from_value(dnat_json).unwrap();
+    assert!(matches!(dnat_back, PortForward::Dnat { count: 1, .. }));
+
+    // Step 2: legacy entry with NO `kind` field, run through the m_01 migration.
+    let mut legacy: imbl_value::Value = imbl_value::json!({
+        "portForwards": {
+            "1.2.3.4:443": {
+                "target": "10.59.0.2:443",
+                "label": null,
+                "enabled": true,
+                "count": 1
+            }
+        }
+    });
+    PortForwardKind.action(&mut legacy).unwrap();
+    eprintln!("Migrated legacy: {legacy}");
+    let migrated_entry = legacy["portForwards"]["1.2.3.4:443"].clone();
+    let migrated: PortForward =
+        serde_json::from_value(serde_json::to_value(&migrated_entry).unwrap()).unwrap();
+    assert!(
+        matches!(migrated, PortForward::Dnat { count: 1, .. }),
+        "migrated legacy entry should be Dnat, got {migrated:?}"
+    );
+
+    // Step 3: whole PortForwards map mixing a migrated dnat and a new sni entry.
+    let mixed = serde_json::json!({
+        "1.2.3.4:443": {
+            "kind": "dnat",
+            "target": "10.59.0.2:443",
+            "label": null,
+            "enabled": true,
+            "count": 1
+        },
+        "5.6.7.8:443": {
+            "kind": "sni",
+            "routes": {
+                "id.thebarsonists.run": {
+                    "target": "10.59.0.2:443",
+                    "label": null,
+                    "enabled": true
+                }
+            }
+        }
+    });
+    let map: PortForwards = serde_json::from_value(mixed).unwrap();
+    assert_eq!(map.0.len(), 2);
+    let dnat_e = map.0.get(&"1.2.3.4:443".parse().unwrap()).unwrap();
+    assert!(matches!(dnat_e, PortForward::Dnat { .. }));
+    let sni_e = map.0.get(&"5.6.7.8:443".parse().unwrap()).unwrap();
+    match sni_e {
+        PortForward::Sni { routes } => {
+            let r = routes.get("id.thebarsonists.run").unwrap();
+            assert!(r.enabled);
+        }
+        other => panic!("expected Sni, got {other:?}"),
     }
 }
 
@@ -126,6 +220,8 @@ fn export_bindings_tunnel_db() {
     UpdatePortForwardLabelParams::export_all_to("bindings/tunnel").unwrap();
     SetPortForwardEnabledParams::export_all_to("bindings/tunnel").unwrap();
     SetDnsInjectionParams::export_all_to("bindings/tunnel").unwrap();
+    SetSubnetWanParams::export_all_to("bindings/tunnel").unwrap();
+    SetDeviceWanParams::export_all_to("bindings/tunnel").unwrap();
     AddDnsRecordParams::export_all_to("bindings/tunnel").unwrap();
     RemoveDnsRecordParams::export_all_to("bindings/tunnel").unwrap();
     DnsRecordEntry::export_all_to("bindings/tunnel").unwrap();
@@ -164,11 +260,6 @@ pub struct SniRoute {
     pub label: Option<String>,
     #[serde(default = "default_true")]
     pub enabled: bool,
-    /// The PCP MAP nonce that owns this route (server-managed; not exposed to
-    /// the UI). Persisted so a PCP client can refresh/delete after a restart.
-    #[ts(skip)]
-    #[serde(default)]
-    pub nonce: [u8; 12],
 }
 
 fn default_true() -> bool {

@@ -155,6 +155,14 @@ pub fn subnet_api<C: Context>() -> ParentHandler<C, SubnetParams> {
                 .with_about("about.set-subnet-dns")
                 .with_call_remote::<CliContext>(),
         )
+        .subcommand(
+            "set-wan",
+            from_fn_async(set_subnet_wan)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("about.set-subnet-wan")
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 pub fn device_api<C: Context>() -> ParentHandler<C> {
@@ -211,6 +219,14 @@ pub fn device_api<C: Context>() -> ParentHandler<C> {
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
                 .with_about("about.allow-or-deny-device-dns-injection")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "set-wan",
+            from_fn_async(set_device_wan)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("about.set-device-wan")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -411,30 +427,9 @@ pub async fn add_subnet(
         })
         .await
         .result?;
+    // `sync_network` runs `resync_egress`, which installs this subnet's
+    // postrouting masquerade rule (and any per-device override).
     ctx.sync_network(&server).await?;
-
-    for iface in ctx.net_iface.peek(|i| {
-        i.iter()
-            .filter(|(_, info)| {
-                info.ip_info.as_ref().map_or(false, |i| {
-                    i.device_type != Some(NetworkInterfaceType::Loopback)
-                })
-            })
-            .map(|(name, _)| name)
-            .filter(|id| id.as_str() != WIREGUARD_INTERFACE_NAME)
-            .cloned()
-            .collect::<Vec<_>>()
-    }) {
-        let net = subnet.trunc();
-        nft_rule(
-            "postrouting",
-            &format!("tunnel-masq-{net}-{iface}"),
-            false,
-            false,
-            &format!("ip saddr {net} oifname \"{iface}\" masquerade"),
-        )
-        .await?;
-    }
 
     Ok(())
 }
@@ -581,6 +576,77 @@ pub async fn set_subnet_dns(
     // WireGuard config is unchanged by a mode switch — only the proxy's upstreams
     // change. No `server.sync()` / wg-quick bounce needed.
     ctx.dns_proxy.sync(&server, ctx.dns_injector.clone()).await
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[serde(rename_all = "camelCase")]
+pub struct SetSubnetWanParams {
+    #[ts(type = "string")]
+    subnet: Ipv4Net,
+    #[arg(long)]
+    #[ts(type = "string | null")]
+    wan_ip: Option<Ipv4Addr>,
+}
+
+/// Pin the WAN IP a subnet's egress is SNATed to, or `null` to fall back to the
+/// default masquerade. Per-device overrides still take precedence.
+pub async fn set_subnet_wan(
+    ctx: TunnelContext,
+    SetSubnetWanParams { subnet, wan_ip }: SetSubnetWanParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_wg_mut()
+                .as_subnets_mut()
+                .as_idx_mut(&subnet)
+                .or_not_found(&subnet)?
+                .as_wan_ip_mut()
+                .ser(&wan_ip)
+        })
+        .await
+        .result?;
+    ctx.resync_egress().await
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[serde(rename_all = "camelCase")]
+pub struct SetDeviceWanParams {
+    #[ts(type = "string")]
+    subnet: Ipv4Net,
+    #[ts(type = "string")]
+    ip: Ipv4Addr,
+    #[arg(long)]
+    #[ts(type = "string | null")]
+    wan_ip: Option<Ipv4Addr>,
+}
+
+/// Pin the WAN IP a single device's egress is SNATed to, overriding its
+/// subnet's `wan_ip`. `null` falls back to the subnet rule / default masquerade.
+pub async fn set_device_wan(
+    ctx: TunnelContext,
+    SetDeviceWanParams {
+        subnet,
+        ip,
+        wan_ip,
+    }: SetDeviceWanParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_wg_mut()
+                .as_subnets_mut()
+                .as_idx_mut(&subnet)
+                .or_not_found(&subnet)?
+                .as_clients_mut()
+                .as_idx_mut(&ip)
+                .or_not_found(&ip)?
+                .as_wan_ip_mut()
+                .ser(&wan_ip)
+        })
+        .await
+        .result?;
+    ctx.resync_egress().await
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -794,8 +860,7 @@ pub async fn add_forward(
     }: AddPortForwardParams,
 ) -> Result<(), Error> {
     if !sni.is_empty() {
-        let nonce: [u8; 12] = rand::random();
-        ctx.add_sni_forward(source, target, &sni, nonce, None)
+        ctx.add_sni_forward(source, target, &sni, None)
             .await
             .map_err(|code| {
                 Error::new(
@@ -884,15 +949,15 @@ pub async fn remove_forward(
         .cloned();
     match entry {
         Some(PortForward::Sni { routes }) => {
-            let to_remove: Vec<(String, [u8; 12])> = match &hostname {
+            let to_remove: Vec<(String, SocketAddrV4)> = match &hostname {
                 Some(h) => routes
                     .get(h)
-                    .map(|r| vec![(h.clone(), r.nonce)])
+                    .map(|r| vec![(h.clone(), r.target)])
                     .unwrap_or_default(),
-                None => routes.iter().map(|(h, r)| (h.clone(), r.nonce)).collect(),
+                None => routes.iter().map(|(h, r)| (h.clone(), r.target)).collect(),
             };
-            for (h, nonce) in to_remove {
-                ctx.remove_sni_forward(source, &[h], nonce).await;
+            for (h, route_target) in to_remove {
+                ctx.remove_sni_forward(source, route_target, &[h]).await;
             }
             Ok(())
         }
@@ -984,15 +1049,10 @@ pub struct SetPortForwardEnabledParams {
 }
 
 /// What the db.mutate selected: a DNAT forward (its target) or an SNI route
-/// (its hostname, target + owning nonce), so the dataplane action runs after
-/// the mutate.
+/// (its hostname + target), so the dataplane action runs after the mutate.
 enum ForwardToggle {
     Dnat(SocketAddrV4),
-    Sni {
-        hostname: String,
-        target: SocketAddrV4,
-        nonce: [u8; 12],
-    },
+    Sni { hostname: String, target: SocketAddrV4 },
 }
 
 pub async fn set_forward_enabled(
@@ -1037,7 +1097,6 @@ pub async fn set_forward_enabled(
                         Ok(ForwardToggle::Sni {
                             hostname,
                             target: route.target,
-                            nonce: route.nonce,
                         })
                     }
                 }
@@ -1076,14 +1135,10 @@ pub async fn set_forward_enabled(
                 ctx.forward.gc().await?;
             }
         }
-        ForwardToggle::Sni {
-            hostname,
-            target,
-            nonce,
-        } => {
+        ForwardToggle::Sni { hostname, target } => {
             if enabled {
                 ctx.sni()
-                    .register(*source.ip(), source.port(), &[hostname], target, nonce, None)
+                    .register(*source.ip(), source.port(), &[hostname], target, None)
                     .map_err(|code| {
                         Error::new(
                             eyre!("SNI registration failed (code {code})"),
@@ -1092,7 +1147,7 @@ pub async fn set_forward_enabled(
                     })?;
             } else {
                 ctx.sni()
-                    .unregister(*source.ip(), source.port(), &[hostname], nonce);
+                    .unregister(*source.ip(), source.port(), &[hostname], target);
             }
         }
     }
