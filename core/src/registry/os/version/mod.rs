@@ -219,31 +219,6 @@ pub async fn get_version(
             })
             .collect::<Result<_, _>>()?,
     )?;
-
-    // TODO: remove
-    if device_info.map_or(false, |d| {
-        "0.4.0-alpha.17"
-            .parse::<Version>()
-            .map_or(false, |v| d.os.version <= v)
-    }) {
-        for (_, v) in res
-            .as_object_mut()
-            .into_iter()
-            .map(|v| v.iter_mut())
-            .flatten()
-        {
-            for asset_ty in ["iso", "squashfs", "img"] {
-                for (_, v) in v[asset_ty]
-                    .as_object_mut()
-                    .into_iter()
-                    .map(|v| v.iter_mut())
-                    .flatten()
-                {
-                    v["url"] = v["urls"][0].clone();
-                }
-            }
-        }
-    }
     Ok(res)
 }
 
