@@ -4,6 +4,7 @@ use crate::prelude::*;
 use crate::tunnel::db::TunnelDatabase;
 
 mod m_00_port_forward_entry;
+mod m_01_port_forward_kind;
 
 pub trait TunnelMigration {
     fn name(&self) -> &'static str {
@@ -13,7 +14,10 @@ pub trait TunnelMigration {
     fn action(&self, db: &mut Value) -> Result<(), Error>;
 }
 
-pub const MIGRATIONS: &[&dyn TunnelMigration] = &[&m_00_port_forward_entry::PortForwardEntry];
+pub const MIGRATIONS: &[&dyn TunnelMigration] = &[
+    &m_00_port_forward_entry::PortForwardEntry,
+    &m_01_port_forward_kind::PortForwardKind,
+];
 
 #[instrument(skip_all)]
 pub fn run_migrations(db: &mut Model<TunnelDatabase>) -> Result<(), Error> {

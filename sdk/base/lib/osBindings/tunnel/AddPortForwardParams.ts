@@ -4,4 +4,8 @@ export type AddPortForwardParams = {
   source: string
   target: string
   label: string | null
+  /**
+   * Hostnames to SNI-demux on the shared `source` port. Empty = normal DNAT.
+   */
+  sni: Array<string>
 }

@@ -15,7 +15,8 @@ use crate::net::forward::nft_rule;
 use crate::net::rfc2136::InjectedRecord;
 use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
-use crate::tunnel::db::{DnsRecordEntry, PortForwardEntry};
+use crate::net::pcp_server::GatewayBackend;
+use crate::tunnel::db::{DnsRecordEntry, PortForward};
 use crate::tunnel::wg::{
     DnsConfig, WIREGUARD_INTERFACE_NAME, WgConfig, WgSubnetClients, WgSubnetConfig,
 };
@@ -443,7 +444,7 @@ pub async fn remove_subnet(
     _: Empty,
     SubnetParams { subnet }: SubnetParams,
 ) -> Result<(), Error> {
-    let (server, keep) = ctx
+    let (server, (keep, dropped_sni)) = ctx
         .db
         .mutate(|db| {
             db.as_wg_mut().as_subnets_mut().remove(&subnet)?;
@@ -452,7 +453,7 @@ pub async fn remove_subnet(
         .await
         .result?;
     ctx.sync_network(&server).await?;
-    ctx.gc_forwards(&keep).await?;
+    ctx.gc_forwards(&keep, &dropped_sni).await?;
 
     for iface in ctx.net_iface.peek(|i| {
         i.iter()
@@ -660,7 +661,7 @@ pub async fn remove_device(
     ctx: TunnelContext,
     RemoveDeviceParams { subnet, ip }: RemoveDeviceParams,
 ) -> Result<(), Error> {
-    let (server, keep) = ctx
+    let (server, (keep, dropped_sni)) = ctx
         .db
         .mutate(|db| {
             db.as_wg_mut()
@@ -675,7 +676,7 @@ pub async fn remove_device(
         .await
         .result?;
     ctx.sync_network(&server).await?;
-    ctx.gc_forwards(&keep).await
+    ctx.gc_forwards(&keep, &dropped_sni).await
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -777,6 +778,10 @@ pub struct AddPortForwardParams {
     target: SocketAddrV4,
     #[arg(long)]
     label: Option<String>,
+    /// Hostnames to SNI-demux on the shared `source` port. Empty = normal DNAT.
+    #[arg(long = "sni")]
+    #[serde(default)]
+    sni: Vec<String>,
 }
 
 pub async fn add_forward(
@@ -785,8 +790,22 @@ pub async fn add_forward(
         source,
         target,
         label,
+        sni,
     }: AddPortForwardParams,
 ) -> Result<(), Error> {
+    if !sni.is_empty() {
+        let nonce: [u8; 12] = rand::random();
+        ctx.add_sni_forward(source, target, &sni, nonce, None)
+            .await
+            .map_err(|code| {
+                Error::new(
+                    eyre!("SNI registration failed (code {code})"),
+                    ErrorKind::InvalidRequest,
+                )
+            })?;
+        return Ok(());
+    }
+
     let prefix = ctx
         .net_iface
         .peek(|i| {
@@ -810,7 +829,7 @@ pub async fn add_forward(
         m.insert(source, rc);
     });
 
-    let entry = PortForwardEntry {
+    let entry = PortForward::Dnat {
         target,
         label,
         enabled: true,
@@ -844,21 +863,52 @@ pub async fn add_forward(
 pub struct RemovePortForwardParams {
     #[ts(type = "string")]
     source: SocketAddrV4,
+    /// Remove a single SNI route on `source`; omit to remove the whole forward.
+    #[arg(long)]
+    #[serde(default)]
+    hostname: Option<String>,
 }
 
 pub async fn remove_forward(
     ctx: TunnelContext,
-    RemovePortForwardParams { source, .. }: RemovePortForwardParams,
+    RemovePortForwardParams { source, hostname }: RemovePortForwardParams,
 ) -> Result<(), Error> {
-    ctx.db
-        .mutate(|db| db.as_port_forwards_mut().remove(&source))
+    let entry = ctx
+        .db
+        .peek()
         .await
-        .result?;
-    if let Some(rc) = ctx.active_forwards.mutate(|m| m.remove(&source)) {
-        drop(rc);
-        ctx.forward.gc().await?;
+        .as_port_forwards()
+        .de()?
+        .0
+        .get(&source)
+        .cloned();
+    match entry {
+        Some(PortForward::Sni { routes }) => {
+            let to_remove: Vec<(String, [u8; 12])> = match &hostname {
+                Some(h) => routes
+                    .get(h)
+                    .map(|r| vec![(h.clone(), r.nonce)])
+                    .unwrap_or_default(),
+                None => routes.iter().map(|(h, r)| (h.clone(), r.nonce)).collect(),
+            };
+            for (h, nonce) in to_remove {
+                ctx.remove_sni_forward(source, &[h], nonce).await;
+            }
+            Ok(())
+        }
+        Some(PortForward::Dnat { .. }) => {
+            ctx.db
+                .mutate(|db| db.as_port_forwards_mut().remove(&source))
+                .await
+                .result?;
+            if let Some(rc) = ctx.active_forwards.mutate(|m| m.remove(&source)) {
+                drop(rc);
+                ctx.forward.gc().await?;
+            }
+            Ok(())
+        }
+        None => Ok(()),
     }
-    Ok(())
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -868,11 +918,19 @@ pub struct UpdatePortForwardLabelParams {
     #[ts(type = "string")]
     source: SocketAddrV4,
     label: Option<String>,
+    /// Label a single SNI route on `source`; omit to label the DNAT forward.
+    #[arg(long)]
+    #[serde(default)]
+    hostname: Option<String>,
 }
 
 pub async fn update_forward_label(
     ctx: TunnelContext,
-    UpdatePortForwardLabelParams { source, label }: UpdatePortForwardLabelParams,
+    UpdatePortForwardLabelParams {
+        source,
+        label,
+        hostname,
+    }: UpdatePortForwardLabelParams,
 ) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
@@ -883,8 +941,28 @@ pub async fn update_forward_label(
                         ErrorKind::NotFound,
                     )
                 })?;
-                entry.label = label;
-                Ok(())
+                match entry {
+                    PortForward::Dnat { label: l, .. } => {
+                        *l = label;
+                        Ok(())
+                    }
+                    PortForward::Sni { routes } => {
+                        let hostname = hostname.ok_or_else(|| {
+                            Error::new(
+                                eyre!("--hostname is required to label an SNI route"),
+                                ErrorKind::InvalidRequest,
+                            )
+                        })?;
+                        let route = routes.get_mut(&hostname).ok_or_else(|| {
+                            Error::new(
+                                eyre!("No SNI route for {hostname} on {source}"),
+                                ErrorKind::NotFound,
+                            )
+                        })?;
+                        route.label = label;
+                        Ok(())
+                    }
+                }
             })
         })
         .await
@@ -899,13 +977,33 @@ pub struct SetPortForwardEnabledParams {
     source: SocketAddrV4,
     #[arg(long)]
     enabled: bool,
+    /// Toggle a single SNI route on `source`; omit for a DNAT forward.
+    #[arg(long)]
+    #[serde(default)]
+    hostname: Option<String>,
+}
+
+/// What the db.mutate selected: a DNAT forward (its target) or an SNI route
+/// (its hostname, target + owning nonce), so the dataplane action runs after
+/// the mutate.
+enum ForwardToggle {
+    Dnat(SocketAddrV4),
+    Sni {
+        hostname: String,
+        target: SocketAddrV4,
+        nonce: [u8; 12],
+    },
 }
 
 pub async fn set_forward_enabled(
     ctx: TunnelContext,
-    SetPortForwardEnabledParams { source, enabled }: SetPortForwardEnabledParams,
+    SetPortForwardEnabledParams {
+        source,
+        enabled,
+        hostname,
+    }: SetPortForwardEnabledParams,
 ) -> Result<(), Error> {
-    let target = ctx
+    let toggle = ctx
         .db
         .mutate(|db| {
             db.as_port_forwards_mut().mutate(|pf| {
@@ -915,40 +1013,87 @@ pub async fn set_forward_enabled(
                         ErrorKind::NotFound,
                     )
                 })?;
-                entry.enabled = enabled;
-                Ok(entry.target)
+                match entry {
+                    PortForward::Dnat {
+                        enabled: e, target, ..
+                    } => {
+                        *e = enabled;
+                        Ok(ForwardToggle::Dnat(*target))
+                    }
+                    PortForward::Sni { routes } => {
+                        let hostname = hostname.clone().ok_or_else(|| {
+                            Error::new(
+                                eyre!("--hostname is required to toggle an SNI route"),
+                                ErrorKind::InvalidRequest,
+                            )
+                        })?;
+                        let route = routes.get_mut(&hostname).ok_or_else(|| {
+                            Error::new(
+                                eyre!("No SNI route for {hostname} on {source}"),
+                                ErrorKind::NotFound,
+                            )
+                        })?;
+                        route.enabled = enabled;
+                        Ok(ForwardToggle::Sni {
+                            hostname,
+                            target: route.target,
+                            nonce: route.nonce,
+                        })
+                    }
+                }
             })
         })
         .await
         .result?;
 
-    if enabled {
-        let prefix = ctx
-            .net_iface
-            .peek(|i| {
-                i.iter()
-                    .find_map(|(_, i)| {
-                        i.ip_info.as_ref().and_then(|i| {
-                            i.subnets
-                                .iter()
-                                .find(|s| s.contains(&IpAddr::from(*target.ip())))
-                        })
+    match toggle {
+        ForwardToggle::Dnat(target) => {
+            if enabled {
+                let prefix = ctx
+                    .net_iface
+                    .peek(|i| {
+                        i.iter()
+                            .find_map(|(_, i)| {
+                                i.ip_info.as_ref().and_then(|i| {
+                                    i.subnets
+                                        .iter()
+                                        .find(|s| s.contains(&IpAddr::from(*target.ip())))
+                                })
+                            })
+                            .cloned()
                     })
-                    .cloned()
-            })
-            .map(|s| s.prefix_len())
-            .unwrap_or(32);
-        let rc = ctx
-            .forward
-            .add_forward(source, target, prefix, None)
-            .await?;
-        ctx.active_forwards.mutate(|m| {
-            m.insert(source, rc);
-        });
-    } else {
-        if let Some(rc) = ctx.active_forwards.mutate(|m| m.remove(&source)) {
-            drop(rc);
-            ctx.forward.gc().await?;
+                    .map(|s| s.prefix_len())
+                    .unwrap_or(32);
+                let rc = ctx
+                    .forward
+                    .add_forward(source, target, prefix, None)
+                    .await?;
+                ctx.active_forwards.mutate(|m| {
+                    m.insert(source, rc);
+                });
+            } else if let Some(rc) = ctx.active_forwards.mutate(|m| m.remove(&source)) {
+                drop(rc);
+                ctx.forward.gc().await?;
+            }
+        }
+        ForwardToggle::Sni {
+            hostname,
+            target,
+            nonce,
+        } => {
+            if enabled {
+                ctx.sni()
+                    .register(*source.ip(), source.port(), &[hostname], target, nonce, None)
+                    .map_err(|code| {
+                        Error::new(
+                            eyre!("SNI registration failed (code {code})"),
+                            ErrorKind::InvalidRequest,
+                        )
+                    })?;
+            } else {
+                ctx.sni()
+                    .unregister(*source.ip(), source.port(), &[hostname], nonce);
+            }
         }
     }
 

@@ -34,7 +34,8 @@ const CLIENTHELLO_TIMEOUT: Duration = Duration::from_secs(5);
 struct Binding {
     target: SocketAddrV4,
     nonce: Nonce,
-    expiry: Instant,
+    /// `None` for a permanent (DB-backed/manual) binding that never expires.
+    expiry: Option<Instant>,
 }
 
 #[derive(Default)]
@@ -47,7 +48,7 @@ struct PortBindings {
 
 impl PortBindings {
     fn prune(&mut self, now: Instant) {
-        self.hostnames.retain(|_, b| b.expiry > now);
+        self.hostnames.retain(|_, b| b.expiry.is_none_or(|e| e > now));
     }
     fn is_empty(&self) -> bool {
         self.hostnames.is_empty() && self.fallback.is_none()
@@ -118,10 +119,10 @@ impl SniDemux {
         hostnames: &[String],
         target: SocketAddrV4,
         nonce: Nonce,
-        lifetime_secs: u32,
+        lifetime_secs: Option<u32>,
     ) -> Result<(), u8> {
         let now = Instant::now();
-        let expiry = now + Duration::from_secs(lifetime_secs as u64);
+        let expiry = lifetime_secs.map(|s| now + Duration::from_secs(s as u64));
         let key = (ext_ip, ext_port);
         self.ports.mutate(|ports| {
             let entry = ports.entry(key).or_default();
@@ -397,7 +398,7 @@ mod tests {
         let mk = |o: u8| Binding {
             target: SocketAddrV4::new(Ipv4Addr::new(10, 0, 0, o), 443),
             nonce: [0; 12],
-            expiry: exp,
+            expiry: Some(exp),
         };
         pb.hostnames.insert("a.example.com".into(), mk(1));
         pb.hostnames.insert("*.example.com".into(), mk(2));

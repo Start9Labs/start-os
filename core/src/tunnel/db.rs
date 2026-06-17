@@ -72,23 +72,39 @@ impl TunnelDatabase {
 }
 
 impl Model<TunnelDatabase> {
-    pub fn gc_forwards(&mut self) -> Result<BTreeSet<SocketAddrV4>, Error> {
+    /// Prune forwards whose target is no longer a known client. Returns the
+    /// surviving sources, plus the SNI routes that were dropped (so the caller
+    /// can unregister them from the in-memory demux dataplane).
+    pub fn gc_forwards(
+        &mut self,
+    ) -> Result<(BTreeSet<SocketAddrV4>, Vec<(SocketAddrV4, String, [u8; 12])>), Error> {
         let mut keep_sources = BTreeSet::new();
+        let mut dropped_sni: Vec<(SocketAddrV4, String, [u8; 12])> = Vec::new();
         let mut keep_targets = BTreeSet::new();
         for (_, cfg) in self.as_wg().as_subnets().as_entries()? {
             keep_targets.extend(cfg.as_clients().keys()?);
         }
         self.as_port_forwards_mut().mutate(|pf| {
             Ok(pf.0.retain(|k, v| {
-                if keep_targets.contains(v.target.ip()) {
+                let keep = match v {
+                    PortForward::Dnat { target, .. } => keep_targets.contains(target.ip()),
+                    PortForward::Sni { routes } => {
+                        for (h, r) in routes.iter() {
+                            if !keep_targets.contains(r.target.ip()) {
+                                dropped_sni.push((*k, h.clone(), r.nonce));
+                            }
+                        }
+                        routes.retain(|_, r| keep_targets.contains(r.target.ip()));
+                        !routes.is_empty()
+                    }
+                };
+                if keep {
                     keep_sources.insert(*k);
-                    true
-                } else {
-                    false
                 }
+                keep
             }))
         })?;
-        Ok(keep_sources)
+        Ok((keep_sources, dropped_sni))
     }
 }
 
@@ -118,17 +134,41 @@ fn export_bindings_tunnel_db() {
     SetPasswordParams::export_all_to("bindings/tunnel").unwrap();
 }
 
+/// One external-port forward: either a standard nftables DNAT, or an
+/// SNI-demultiplexed shared port (multiple hostname routes to backend targets).
+/// The two are mutually exclusive for a given external address.
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum PortForward {
+    Dnat {
+        target: SocketAddrV4,
+        label: Option<String>,
+        #[serde(default = "default_true")]
+        enabled: bool,
+        /// Contiguous ports forwarded from the source (a PCP PORT_SET range);
+        /// `1` for a single-port forward.
+        #[serde(default = "default_one")]
+        count: u16,
+    },
+    Sni {
+        /// hostname (lowercase; may be `*.suffix`) -> route.
+        routes: BTreeMap<String, SniRoute>,
+    },
+}
+
+/// One SNI-demultiplexed hostname route on a shared external port.
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-pub struct PortForwardEntry {
+pub struct SniRoute {
     pub target: SocketAddrV4,
     pub label: Option<String>,
     #[serde(default = "default_true")]
     pub enabled: bool,
-    /// Number of contiguous ports forwarded from `source` (a PCP PORT_SET
-    /// range); `1` for a single-port forward.
-    #[serde(default = "default_one")]
-    pub count: u16,
+    /// The PCP MAP nonce that owns this route (server-managed; not exposed to
+    /// the UI). Persisted so a PCP client can refresh/delete after a restart.
+    #[ts(skip)]
+    #[serde(default)]
+    pub nonce: [u8; 12],
 }
 
 fn default_true() -> bool {
@@ -159,10 +199,10 @@ pub struct DnsRecordEntry {
 pub struct DnsRecords(pub Vec<DnsRecordEntry>);
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
-pub struct PortForwards(pub BTreeMap<SocketAddrV4, PortForwardEntry>);
+pub struct PortForwards(pub BTreeMap<SocketAddrV4, PortForward>);
 impl Map for PortForwards {
     type Key = SocketAddrV4;
-    type Value = PortForwardEntry;
+    type Value = PortForward;
     fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
         Self::key_string(key)
     }

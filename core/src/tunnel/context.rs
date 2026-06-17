@@ -34,7 +34,7 @@ use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
 use crate::tunnel::TUNNEL_DEFAULT_LISTEN;
 use crate::tunnel::api::tunnel_api;
 use crate::net::rfc2136::{DnsInjector, InjectedRecord};
-use crate::tunnel::db::{DnsRecordEntry, DnsRecords, TunnelDatabase};
+use crate::tunnel::db::{DnsRecordEntry, DnsRecords, PortForward, TunnelDatabase};
 use crate::tunnel::dns::DnsProxyController;
 use crate::tunnel::migrations::run_migrations;
 use crate::tunnel::wg::{WIREGUARD_INTERFACE_NAME, WgServer};
@@ -247,32 +247,59 @@ impl TunnelContext {
             }
         }
 
+        let sni = crate::tunnel::sni::SniDemux::new();
         let mut active_forwards = BTreeMap::new();
         for (from, entry) in peek.as_port_forwards().de()?.0 {
-            if !entry.enabled {
-                continue;
-            }
-            let to = entry.target;
-            let prefix = net_iface
-                .peek(|i| {
-                    i.iter()
-                        .find_map(|(_, i)| {
-                            i.ip_info.as_ref().and_then(|i| {
-                                i.subnets
-                                    .iter()
-                                    .find(|s| s.contains(&IpAddr::from(*to.ip())))
-                            })
+            match entry {
+                PortForward::Dnat {
+                    target,
+                    enabled,
+                    count,
+                    ..
+                } => {
+                    if !enabled {
+                        continue;
+                    }
+                    let to = target;
+                    let prefix = net_iface
+                        .peek(|i| {
+                            i.iter()
+                                .find_map(|(_, i)| {
+                                    i.ip_info.as_ref().and_then(|i| {
+                                        i.subnets
+                                            .iter()
+                                            .find(|s| s.contains(&IpAddr::from(*to.ip())))
+                                    })
+                                })
+                                .cloned()
                         })
-                        .cloned()
-                })
-                .map(|s| s.prefix_len())
-                .unwrap_or(32);
-            active_forwards.insert(
-                from,
-                forward
-                    .add_forward_range(from, to, entry.count, prefix, None)
-                    .await?,
-            );
+                        .map(|s| s.prefix_len())
+                        .unwrap_or(32);
+                    active_forwards.insert(
+                        from,
+                        forward.add_forward_range(from, to, count, prefix, None).await?,
+                    );
+                }
+                PortForward::Sni { routes } => {
+                    for (hostname, route) in routes {
+                        if !route.enabled {
+                            continue;
+                        }
+                        if let Err(code) = sni.register(
+                            *from.ip(),
+                            from.port(),
+                            &[hostname.clone()],
+                            route.target,
+                            route.nonce,
+                            None,
+                        ) {
+                            tracing::warn!(
+                                "failed to restore SNI route {hostname} on {from}: code {code}"
+                            );
+                        }
+                    }
+                }
+            }
         }
 
         let ctx = Self(Arc::new(TunnelContextSeed {
@@ -285,7 +312,7 @@ impl TunnelContext {
             net_iface,
             forward,
             dns_proxy,
-            sni: crate::tunnel::sni::SniDemux::new(),
+            sni,
             dns_injector,
             dns_allowed,
             active_forwards: SyncMutex::new(active_forwards),
@@ -301,7 +328,19 @@ impl TunnelContext {
         Ok(ctx)
     }
 
-    pub async fn gc_forwards(&self, keep: &BTreeSet<SocketAddrV4>) -> Result<(), Error> {
+    pub async fn gc_forwards(
+        &self,
+        keep: &BTreeSet<SocketAddrV4>,
+        dropped_sni: &[(SocketAddrV4, String, [u8; 12])],
+    ) -> Result<(), Error> {
+        for (source, hostname, nonce) in dropped_sni {
+            self.sni.unregister(
+                *source.ip(),
+                source.port(),
+                std::slice::from_ref(hostname),
+                *nonce,
+            );
+        }
         self.active_forwards
             .mutate(|pf| pf.retain(|k, _| keep.contains(k)));
         self.forward.gc().await

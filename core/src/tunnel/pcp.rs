@@ -17,6 +17,7 @@ use tokio::net::UdpSocket;
 use crate::net::pcp_server::{GatewayBackend, PCP_PORT, handle};
 use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
+use crate::tunnel::db::PortForward;
 use crate::tunnel::igd::{
     apply_peer_forward_range, bind_to_wireguard, external_ipv4, is_known_client,
 };
@@ -87,7 +88,7 @@ impl GatewayBackend for TunnelContext {
     async fn remove_forward_by_source(&self, source: SocketAddrV4, peer: Ipv4Addr) -> bool {
         let owned = crate::tunnel::igd::current_forward(self, source)
             .await
-            .is_some_and(|e| *e.target.ip() == peer);
+            .is_some_and(|e| matches!(e, PortForward::Dnat { target, .. } if *target.ip() == peer));
         if !owned {
             return false;
         }
@@ -118,6 +119,94 @@ impl GatewayBackend for TunnelContext {
     fn sni(&self) -> &Arc<SniDemux> {
         &self.sni
     }
+
+    async fn add_sni_forward(
+        &self,
+        source: SocketAddrV4,
+        target: SocketAddrV4,
+        hostnames: &[String],
+        nonce: [u8; 12],
+        _lifetime: Option<u32>,
+    ) -> Result<(), u8> {
+        // Persist first so the DB is the source of truth: reject a DNAT-occupied
+        // port or a hostname already owned by a different nonce BEFORE touching
+        // the dataplane. Registering first risked a rollback (on a transient DB
+        // error during a client's refresh) tearing down a still-valid binding.
+        let hostnames_owned = hostnames.to_vec();
+        let persisted = self
+            .db
+            .mutate(|db| {
+                db.as_port_forwards_mut().mutate(|pf| {
+                    use crate::tunnel::db::{PortForward, SniRoute};
+                    let entry = pf.0.entry(source).or_insert_with(|| PortForward::Sni {
+                        routes: std::collections::BTreeMap::new(),
+                    });
+                    match entry {
+                        PortForward::Sni { routes } => {
+                            for h in &hostnames_owned {
+                                if routes.get(h).is_some_and(|r| r.nonce != nonce) {
+                                    return Err(Error::new(
+                                        eyre!("SNI hostname {h} on {source} is held by another client"),
+                                        ErrorKind::InvalidRequest,
+                                    ));
+                                }
+                            }
+                            for h in &hostnames_owned {
+                                routes.insert(
+                                    h.clone(),
+                                    SniRoute { target, label: None, enabled: true, nonce },
+                                );
+                            }
+                            Ok(())
+                        }
+                        // external port already used by a DNAT forward
+                        PortForward::Dnat { .. } => Err(Error::new(
+                            eyre!("{source} is already a DNAT forward"),
+                            ErrorKind::InvalidRequest,
+                        )),
+                    }
+                })
+            })
+            .await
+            .result;
+        if persisted.is_err() {
+            return Err(crate::net::pcp_hostname::RESULT_HOSTNAME_TAKEN);
+        }
+        // Mirror into the dataplane (the DB already validated ownership). On the
+        // unexpected register failure, undo the DB routes we just added.
+        if self
+            .sni()
+            .register(*source.ip(), source.port(), hostnames, target, nonce, None)
+            .is_err()
+        {
+            self.remove_sni_forward(source, hostnames, nonce).await;
+            return Err(crate::net::pcp_hostname::RESULT_HOSTNAME_TAKEN);
+        }
+        Ok(())
+    }
+
+    async fn remove_sni_forward(&self, source: SocketAddrV4, hostnames: &[String], nonce: [u8; 12]) {
+        self.sni().unregister(*source.ip(), source.port(), hostnames, nonce);
+        let hostnames = hostnames.to_vec();
+        self.db
+            .mutate(|db| {
+                db.as_port_forwards_mut().mutate(|pf| {
+                    use crate::tunnel::db::PortForward;
+                    let mut now_empty = false;
+                    if let Some(PortForward::Sni { routes }) = pf.0.get_mut(&source) {
+                        routes.retain(|h, r| !(r.nonce == nonce && hostnames.contains(h)));
+                        now_empty = routes.is_empty();
+                    }
+                    if now_empty {
+                        pf.0.remove(&source);
+                    }
+                    Ok(())
+                })
+            })
+            .await
+            .result
+            .log_err();
+    }
 }
 
 /// Remove the peer's forward to `(peer, internal_port)`, if any. PCP identifies
@@ -134,7 +223,9 @@ async fn remove_peer_forward(ctx: &TunnelContext, peer: Ipv4Addr, internal_port:
         .ok()
         .and_then(|pf| {
             pf.0.iter()
-                .find(|(_, entry)| entry.target == target)
+                .find(|(_, entry)| {
+                    matches!(entry, PortForward::Dnat { target: t, .. } if *t == target)
+                })
                 .map(|(source, _)| *source)
         });
     let Some(source) = source else {

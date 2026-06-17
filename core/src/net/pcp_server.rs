@@ -78,6 +78,26 @@ pub trait GatewayBackend: Send + Sync {
 
     /// The SNI demultiplexer used for HOSTNAME-bound shared-port mappings.
     fn sni(&self) -> &Arc<SniDemux>;
+
+    /// Register SNI-demuxed hostname routes on `source` (the shared external
+    /// address) to `target`, owned by `nonce`. `lifetime` is `None` for a
+    /// permanent (DB-backed) binding. Default: dataplane-only (the tunnel
+    /// overrides this to also persist the routes).
+    async fn add_sni_forward(
+        &self,
+        source: SocketAddrV4,
+        target: SocketAddrV4,
+        hostnames: &[String],
+        nonce: [u8; 12],
+        lifetime: Option<u32>,
+    ) -> Result<(), u8> {
+        self.sni().register(*source.ip(), source.port(), hostnames, target, nonce, lifetime)
+    }
+
+    /// Remove the SNI routes for `hostnames` on `source` owned by `nonce`.
+    async fn remove_sni_forward(&self, source: SocketAddrV4, hostnames: &[String], nonce: [u8; 12]) {
+        self.sni().unregister(*source.ip(), source.port(), hostnames, nonce);
+    }
 }
 
 fn ipv4_mapped(ip: Ipv4Addr) -> [u8; 16] {
@@ -281,8 +301,12 @@ pub async fn handle<B: GatewayBackend + ?Sized>(
         }
         if lifetime == 0 {
             backend
-                .sni()
-                .unregister(external_ip, external_port, &hostnames, nonce);
+                .remove_sni_forward(
+                    SocketAddrV4::new(external_ip, external_port),
+                    &hostnames,
+                    nonce,
+                )
+                .await;
             return Some(map_response_with_hostnames(
                 SUCCESS,
                 req,
@@ -297,8 +321,14 @@ pub async fn handle<B: GatewayBackend + ?Sized>(
         let target = SocketAddrV4::new(peer, internal_port);
         let granted = lifetime.min(MAX_LIFETIME_SECONDS);
         return match backend
-            .sni()
-            .register(external_ip, external_port, &hostnames, target, nonce, granted)
+            .add_sni_forward(
+                SocketAddrV4::new(external_ip, external_port),
+                target,
+                &hostnames,
+                nonce,
+                Some(granted),
+            )
+            .await
         {
             Ok(()) => Some(map_response_with_hostnames(
                 SUCCESS,

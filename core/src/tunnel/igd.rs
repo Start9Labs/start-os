@@ -36,7 +36,7 @@ use crate::net::igd_server::{
 };
 use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
-use crate::tunnel::db::PortForwardEntry;
+use crate::tunnel::db::PortForward;
 use crate::tunnel::wg::WIREGUARD_INTERFACE_NAME;
 
 /// Run the IGD server (SSDP responder + HTTP control server) for the life of
@@ -253,25 +253,34 @@ pub(super) async fn apply_peer_forward_range(
     peer: Ipv4Addr,
     protocol_label: &str,
 ) -> Result<(), u16> {
-    if let Some(existing) = current_forward(ctx, source).await {
-        if existing.target != target || existing.count != count {
+    match current_forward(ctx, source).await {
+        Some(PortForward::Dnat {
+            target: t, count: c, ..
+        }) if t != target || c != count => {
             return Err(718); // ConflictInMappingEntry
         }
-        // Idempotent re-assert (the client refreshes periodically): make sure
-        // the nft forward is actually installed, then we're done.
-        let active = ctx.active_forwards.mutate(|m| m.contains_key(&source));
-        if !active {
-            let prefix = prefix_for(ctx, target.ip()).await;
-            let rc = ctx
-                .forward
-                .add_forward_range(source, target, count, prefix, None)
-                .await
-                .map_err(|_| 501u16)?;
-            ctx.active_forwards.mutate(|m| {
-                m.insert(source, rc);
-            });
+        // The external port is held by an SNI-demuxed forward.
+        Some(PortForward::Sni { .. }) => {
+            return Err(718); // ConflictInMappingEntry
         }
-        return Ok(());
+        Some(PortForward::Dnat { .. }) => {
+            // Idempotent re-assert (the client refreshes periodically): make
+            // sure the nft forward is actually installed, then we're done.
+            let active = ctx.active_forwards.mutate(|m| m.contains_key(&source));
+            if !active {
+                let prefix = prefix_for(ctx, target.ip()).await;
+                let rc = ctx
+                    .forward
+                    .add_forward_range(source, target, count, prefix, None)
+                    .await
+                    .map_err(|_| 501u16)?;
+                ctx.active_forwards.mutate(|m| {
+                    m.insert(source, rc);
+                });
+            }
+            return Ok(());
+        }
+        None => {}
     }
 
     let prefix = prefix_for(ctx, target.ip()).await;
@@ -283,7 +292,7 @@ pub(super) async fn apply_peer_forward_range(
     ctx.active_forwards.mutate(|m| {
         m.insert(source, rc);
     });
-    let entry = PortForwardEntry {
+    let entry = PortForward::Dnat {
         target,
         label: Some(format!("{protocol_label} ({peer})")),
         enabled: true,
@@ -297,7 +306,7 @@ pub(super) async fn apply_peer_forward_range(
     Ok(())
 }
 
-pub(super) async fn current_forward(ctx: &TunnelContext, source: SocketAddrV4) -> Option<PortForwardEntry> {
+pub(super) async fn current_forward(ctx: &TunnelContext, source: SocketAddrV4) -> Option<PortForward> {
     ctx.db
         .peek()
         .await
