@@ -27,12 +27,16 @@ export type ProgressSink = (progress: Progress) => Promise<unknown>
  * Phases can be nested: `addNestedPhase` returns a child tracker whose
  * snapshot the parent folds in as a `Progress::Nested(...)` value, and whose
  * updates bubble up to this tracker's auto-sync.
+ *
+ * A handler that doesn't hold onto the handle from `addPhase` can fetch it
+ * back later by name with `getPhase(name)` (or `getNestedPhase(name)`).
  */
 export class FullProgressTracker {
   private phases: Array<{
     name: string
     contribution: number | null
-    value: () => Progress
+    handle?: PhaseHandle
+    child?: FullProgressTracker
   }> = []
   private completed = false
   private parent?: FullProgressTracker
@@ -80,7 +84,7 @@ export class FullProgressTracker {
 
   addPhase(name: string, contribution: number | null = 1): PhaseHandle {
     const handle = new PhaseHandle(() => this.notifyChange())
-    this.phases.push({ name, contribution, value: () => handle.snapshot() })
+    this.phases.push({ name, contribution, handle })
     return handle
   }
 
@@ -90,8 +94,24 @@ export class FullProgressTracker {
   ): FullProgressTracker {
     const child = new FullProgressTracker()
     child.parent = this
-    this.phases.push({ name, contribution, value: () => child.snapshot() })
+    this.phases.push({ name, contribution, child })
     return child
+  }
+
+  /**
+   * Retrieve the handle for a leaf phase added earlier by `name`. Returns
+   * `undefined` if no such phase exists (or it was added as a nested phase).
+   */
+  getPhase(name: string): PhaseHandle | undefined {
+    return this.phases.find(p => p.name === name && p.handle)?.handle
+  }
+
+  /**
+   * Retrieve the child tracker for a nested phase added earlier by `name`.
+   * Returns `undefined` if no such phase exists (or it was added as a leaf).
+   */
+  getNestedPhase(name: string): FullProgressTracker | undefined {
+    return this.phases.find(p => p.name === name && p.child)?.child
   }
 
   /** Mark the overall progress as complete. Does not mutate individual phases. */
@@ -112,12 +132,20 @@ export class FullProgressTracker {
     while (root.inFlight) await root.inFlight
   }
 
+  private phaseValue(entry: {
+    handle?: PhaseHandle
+    child?: FullProgressTracker
+  }): Progress {
+    if (entry.child) return entry.child.snapshot()
+    return entry.handle ? entry.handle.snapshot() : null
+  }
+
   snapshot(): FullProgress {
     return {
       overall: this.completed ? true : this.computeOverall(),
       phases: this.phases.map(p => ({
         name: p.name,
-        progress: p.value(),
+        progress: this.phaseValue(p),
       })),
     }
   }
@@ -133,7 +161,7 @@ export class FullProgressTracker {
     let done = 0
     let anyStarted = false
     for (const p of weighted) {
-      const v = p.value()
+      const v = this.phaseValue(p)
       done += progressRatio(v) * (p.contribution as number)
       if (v !== null) anyStarted = true
     }

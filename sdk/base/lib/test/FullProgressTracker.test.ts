@@ -107,3 +107,33 @@ describe('FullProgressTracker auto-sync', () => {
     await expect(tracker.sync()).resolves.toBeUndefined()
   })
 })
+
+describe('FullProgressTracker phase retrieval', () => {
+  it('getPhase returns the handle for an existing leaf phase', () => {
+    const tracker = new FullProgressTracker()
+    const handle = tracker.addPhase('seed', 1)
+    expect(tracker.getPhase('seed')).toBe(handle)
+    expect(tracker.getPhase('missing')).toBeUndefined()
+    expect(tracker.getNestedPhase('seed')).toBeUndefined() // leaf, not nested
+  })
+
+  it('getNestedPhase returns the child tracker for an existing nested phase', () => {
+    const tracker = new FullProgressTracker()
+    const child = tracker.addNestedPhase('migrate', 1)
+    expect(tracker.getNestedPhase('migrate')).toBe(child)
+    expect(tracker.getNestedPhase('missing')).toBeUndefined()
+    expect(tracker.getPhase('migrate')).toBeUndefined() // nested, not leaf
+  })
+
+  it('a retrieved handle drives the same phase', async () => {
+    const pushed: Progress[] = []
+    const tracker = new FullProgressTracker(p => {
+      pushed.push(p)
+      return Promise.resolve()
+    })
+    tracker.addPhase('seed', 1).setTotal(10)
+    tracker.getPhase('seed')!.setDone(4)
+    await tracker.sync()
+    expect(phaseDone(pushed[pushed.length - 1]!)).toBe(4)
+  })
+})
