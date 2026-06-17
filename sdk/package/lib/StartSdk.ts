@@ -180,6 +180,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       setHealth: (effects, ...args) => effects.setHealth(...args),
       setBackupProgress: (effects, ...args) =>
         effects.setBackupProgress(...args),
+      setInitProgress: (effects, ...args) => effects.setInitProgress(...args),
     }
 
     return {

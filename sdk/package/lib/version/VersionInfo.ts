@@ -1,5 +1,6 @@
 import { ValidateExVer, ValidateExVerRange } from '../../../base/lib/exver'
 import * as T from '../../../base/lib/types'
+import { FullProgressTracker } from '../../../base/lib/util/FullProgressTracker'
 
 /**
  * Sentinel value indicating that a migration in a given direction is not possible.
@@ -7,9 +8,20 @@ import * as T from '../../../base/lib/types'
  */
 export const IMPOSSIBLE: unique symbol = Symbol('IMPOSSIBLE')
 
+/**
+ * Opts passed to a migration. `progress` is a {@link FullProgressTracker} for
+ * this migration step — add a phase and update it to show progress in the
+ * update UI; updates auto-report in the background. Safe to ignore for quick
+ * migrations.
+ */
+export type MigrationOpts = {
+  effects: T.Effects
+  progress: FullProgressTracker
+}
+
 type Migration = {
-  up?: (opts: { effects: T.Effects }) => Promise<void>
-  down?: (opts: { effects: T.Effects }) => Promise<void>
+  up?: (opts: MigrationOpts) => Promise<void>
+  down?: (opts: MigrationOpts) => Promise<void>
 }
 
 /**
@@ -42,20 +54,20 @@ export type VersionOptions<Version extends string> = {
      * A migration from the previous version. Leave empty to indicate no migration is necessary.
      * Set to `IMPOSSIBLE` to indicate migrating from the previous version is not possible.
      */
-    up?: ((opts: { effects: T.Effects }) => Promise<void>) | typeof IMPOSSIBLE
+    up?: ((opts: MigrationOpts) => Promise<void>) | typeof IMPOSSIBLE
     /**
      * A migration to the previous version. Leave blank to indicate no migration is necessary.
      * Set to `IMPOSSIBLE` to indicate downgrades are prohibited
      */
-    down?: ((opts: { effects: T.Effects }) => Promise<void>) | typeof IMPOSSIBLE
+    down?: ((opts: MigrationOpts) => Promise<void>) | typeof IMPOSSIBLE
     /**
      * Additional migrations, such as fast-forward migrations, or migrations from other flavors.
      */
     other?: Record<
       string,
       {
-        up?: (opts: { effects: T.Effects }) => Promise<void>
-        down?: (opts: { effects: T.Effects }) => Promise<void>
+        up?: (opts: MigrationOpts) => Promise<void>
+        down?: (opts: MigrationOpts) => Promise<void>
       }
     >
   }

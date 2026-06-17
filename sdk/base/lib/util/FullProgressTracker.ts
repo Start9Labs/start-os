@@ -1,28 +1,90 @@
 import { FullProgress, Progress, ProgressUnits } from '../osBindings'
 
 /**
+ * Pushes a snapshot to the host. The harness bakes the effects context in at
+ * construction (`(progress) => effects.setInitProgress({ progress })` for
+ * init, `setBackupProgress` for backup) so service code never touches the
+ * effect — or the effects context — directly.
+ */
+export type ProgressSink = (progress: Progress) => Promise<unknown>
+
+/**
  * Mirror of the core Rust `FullProgressTracker`. Use this when a service's
- * backup (or restore) procedure has internal phases it wants to surface to
- * the host's progress UI.
+ * init / backup / restore procedure has internal phases it wants to surface
+ * to the host's progress UI.
  *
- * Wire it up by `snapshot()`ing on demand and sending the result via
- * `effects.setBackupProgress({ progress: tracker.snapshot() })`. On the
- * wire that snapshot lands as `Progress::Nested(FullProgress)`.
+ * Service code does not call the progress effect directly, and usually does
+ * not call `sync()` either. The init and backup harnesses build a root tracker
+ * (with the effects context baked in) and hand each handler its own tracker.
+ * **Every phase update auto-syncs in the background** — just add phases and
+ * update them. On the wire a snapshot lands as `Progress::Nested(FullProgress)`.
+ *
+ * Auto-sync is coalesced: at most one report is in flight and one queued. A
+ * burst of updates collapses to the latest snapshot, so promises never stack
+ * up. `sync()` is the explicit flush — it resolves once the in-flight and
+ * queued reports have drained — handy before a handler returns.
  *
  * Phases can be nested: `addNestedPhase` returns a child tracker whose
- * snapshot the parent folds in as a `Progress::Nested(...)` value.
+ * snapshot the parent folds in as a `Progress::Nested(...)` value, and whose
+ * updates bubble up to this tracker's auto-sync.
+ *
+ * A handler that doesn't hold onto what `addPhase` / `addNestedPhase` returned
+ * can fetch it back later by name with `getPhase(name)`.
  */
 export class FullProgressTracker {
   private phases: Array<{
     name: string
     contribution: number | null
-    value: () => Progress
+    handle?: PhaseHandle
+    child?: FullProgressTracker
   }> = []
   private completed = false
+  private parent?: FullProgressTracker
+  /** Root-only: the push currently draining, or null when idle. */
+  private inFlight: Promise<void> | null = null
+  /** Root-only: a newer update arrived while a push was in flight. */
+  private queued = false
+
+  constructor(private readonly pushEffect?: ProgressSink) {}
+
+  private root(): FullProgressTracker {
+    return this.parent ? this.parent.root() : this
+  }
+
+  /** Called by phases (directly or via nested children) on every update. */
+  private notifyChange(): void {
+    this.root().scheduleSync()
+  }
+
+  /** Root-only. Start a drain, or mark a follow-up if one is already running. */
+  private scheduleSync(): void {
+    if (!this.pushEffect) return
+    if (this.inFlight) {
+      this.queued = true
+      return
+    }
+    this.inFlight = this.drain()
+  }
+
+  private async drain(): Promise<void> {
+    // Each iteration snapshots fresh, so a coalesced burst reports its latest
+    // state. Loop while updates kept arriving during the previous push.
+    while (true) {
+      const snapshot = this.snapshot()
+      try {
+        await this.pushEffect!(snapshot)
+      } catch {
+        // best-effort; a no-op outside the relevant transition
+      }
+      if (!this.queued) break
+      this.queued = false
+    }
+    this.inFlight = null
+  }
 
   addPhase(name: string, contribution: number | null = 1): PhaseHandle {
-    const handle = new PhaseHandle()
-    this.phases.push({ name, contribution, value: () => handle.snapshot() })
+    const handle = new PhaseHandle(() => this.notifyChange())
+    this.phases.push({ name, contribution, handle })
     return handle
   }
 
@@ -31,13 +93,45 @@ export class FullProgressTracker {
     contribution: number | null = 1,
   ): FullProgressTracker {
     const child = new FullProgressTracker()
-    this.phases.push({ name, contribution, value: () => child.snapshot() })
+    child.parent = this
+    this.phases.push({ name, contribution, child })
     return child
+  }
+
+  /**
+   * Retrieve a phase added earlier by `name` — a `PhaseHandle` for a leaf phase
+   * (`addPhase`) or a `FullProgressTracker` for a nested one (`addNestedPhase`).
+   * Returns `undefined` if no phase by that name exists.
+   */
+  getPhase(name: string): PhaseHandle | FullProgressTracker | undefined {
+    const entry = this.phases.find(p => p.name === name)
+    return entry && (entry.child ?? entry.handle)
   }
 
   /** Mark the overall progress as complete. Does not mutate individual phases. */
   complete(): void {
     this.completed = true
+    this.notifyChange()
+  }
+
+  /**
+   * Flush: push the current state and resolve once the in-flight and queued
+   * reports have drained. Auto-sync already fires on every update, so this is
+   * only needed to guarantee the final state has landed before returning.
+   * No-op for a root with no sink (e.g. a detached tracker).
+   */
+  async sync(): Promise<void> {
+    const root = this.root()
+    root.scheduleSync()
+    while (root.inFlight) await root.inFlight
+  }
+
+  private phaseValue(entry: {
+    handle?: PhaseHandle
+    child?: FullProgressTracker
+  }): Progress {
+    if (entry.child) return entry.child.snapshot()
+    return entry.handle ? entry.handle.snapshot() : null
   }
 
   snapshot(): FullProgress {
@@ -45,7 +139,7 @@ export class FullProgressTracker {
       overall: this.completed ? true : this.computeOverall(),
       phases: this.phases.map(p => ({
         name: p.name,
-        progress: p.value(),
+        progress: this.phaseValue(p),
       })),
     }
   }
@@ -61,7 +155,7 @@ export class FullProgressTracker {
     let done = 0
     let anyStarted = false
     for (const p of weighted) {
-      const v = p.value()
+      const v = this.phaseValue(p)
       done += progressRatio(v) * (p.contribution as number)
       if (v !== null) anyStarted = true
     }
@@ -74,8 +168,15 @@ export class FullProgressTracker {
 export class PhaseHandle {
   private state: Progress = null
 
+  /**
+   * @param onChange - fired after every mutation so the owning tracker can
+   * auto-sync. Defaults to a no-op for standalone handles.
+   */
+  constructor(private readonly onChange: () => void = () => {}) {}
+
   start(): void {
     if (this.state === null) this.state = false
+    this.onChange()
   }
 
   setDone(done: number): void {
@@ -86,11 +187,13 @@ export class PhaseHandle {
       isFullProgress(this.state)
     ) {
       this.state = { done, total: null, units: null }
+      this.onChange()
       return
     }
     const clamped =
       this.state.total !== null ? Math.min(done, this.state.total) : done
     this.state = { ...this.state, done: clamped }
+    this.onChange()
   }
 
   setTotal(total: number): void {
@@ -101,9 +204,11 @@ export class PhaseHandle {
       isFullProgress(this.state)
     ) {
       this.state = { done: 0, total, units: null }
+      this.onChange()
       return
     }
     this.state = { ...this.state, total }
+    this.onChange()
   }
 
   addTotal(total: number): void {
@@ -118,6 +223,7 @@ export class PhaseHandle {
       return
     }
     this.state = { ...this.state, total: this.state.total + total }
+    this.onChange()
   }
 
   setUnits(units: ProgressUnits | null): void {
@@ -128,18 +234,22 @@ export class PhaseHandle {
       isFullProgress(this.state)
     ) {
       this.state = { done: 0, total: null, units }
+      this.onChange()
       return
     }
     this.state = { ...this.state, units }
+    this.onChange()
   }
 
   complete(): void {
     this.state = true
+    this.onChange()
   }
 
   /** Replace this phase's value wholesale — accepts any `Progress`, including a nested `FullProgress`. */
   setRaw(value: Progress): void {
     this.state = value
+    this.onChange()
   }
 
   snapshot(): Progress {

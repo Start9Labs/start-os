@@ -15,6 +15,7 @@ pub mod context;
 mod control;
 mod dependency;
 mod health;
+mod init;
 mod net;
 pub mod notification;
 pub mod plugin;
@@ -104,6 +105,11 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "set-backup-progress",
             from_fn_async(backup::set_backup_progress).no_cli(),
+        )
+        // init
+        .subcommand(
+            "set-init-progress",
+            from_fn_async(init::set_init_progress).no_cli(),
         )
         // health
         .subcommand("set-health", from_fn_async(health::set_health).no_cli())
