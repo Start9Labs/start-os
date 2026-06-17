@@ -1,4 +1,8 @@
-import { FullProgressTracker, leafProgress } from '../util/FullProgressTracker'
+import {
+  FullProgressTracker,
+  PhaseHandle,
+  leafProgress,
+} from '../util/FullProgressTracker'
 import { FullProgress, Progress } from '../osBindings'
 
 const flush = () => new Promise(resolve => setTimeout(resolve, 0))
@@ -114,15 +118,12 @@ describe('FullProgressTracker phase retrieval', () => {
     const handle = tracker.addPhase('seed', 1)
     expect(tracker.getPhase('seed')).toBe(handle)
     expect(tracker.getPhase('missing')).toBeUndefined()
-    expect(tracker.getNestedPhase('seed')).toBeUndefined() // leaf, not nested
   })
 
-  it('getNestedPhase returns the child tracker for an existing nested phase', () => {
+  it('getPhase returns the child tracker for an existing nested phase', () => {
     const tracker = new FullProgressTracker()
     const child = tracker.addNestedPhase('migrate', 1)
-    expect(tracker.getNestedPhase('migrate')).toBe(child)
-    expect(tracker.getNestedPhase('missing')).toBeUndefined()
-    expect(tracker.getPhase('migrate')).toBeUndefined() // nested, not leaf
+    expect(tracker.getPhase('migrate')).toBe(child)
   })
 
   it('a retrieved handle drives the same phase', async () => {
@@ -132,7 +133,9 @@ describe('FullProgressTracker phase retrieval', () => {
       return Promise.resolve()
     })
     tracker.addPhase('seed', 1).setTotal(10)
-    tracker.getPhase('seed')!.setDone(4)
+    const handle = tracker.getPhase('seed')
+    expect(handle).toBeInstanceOf(PhaseHandle)
+    ;(handle as PhaseHandle).setDone(4)
     await tracker.sync()
     expect(phaseDone(pushed[pushed.length - 1]!)).toBe(4)
   })

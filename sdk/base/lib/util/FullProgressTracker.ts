@@ -28,8 +28,8 @@ export type ProgressSink = (progress: Progress) => Promise<unknown>
  * snapshot the parent folds in as a `Progress::Nested(...)` value, and whose
  * updates bubble up to this tracker's auto-sync.
  *
- * A handler that doesn't hold onto the handle from `addPhase` can fetch it
- * back later by name with `getPhase(name)` (or `getNestedPhase(name)`).
+ * A handler that doesn't hold onto what `addPhase` / `addNestedPhase` returned
+ * can fetch it back later by name with `getPhase(name)`.
  */
 export class FullProgressTracker {
   private phases: Array<{
@@ -99,19 +99,13 @@ export class FullProgressTracker {
   }
 
   /**
-   * Retrieve the handle for a leaf phase added earlier by `name`. Returns
-   * `undefined` if no such phase exists (or it was added as a nested phase).
+   * Retrieve a phase added earlier by `name` — a `PhaseHandle` for a leaf phase
+   * (`addPhase`) or a `FullProgressTracker` for a nested one (`addNestedPhase`).
+   * Returns `undefined` if no phase by that name exists.
    */
-  getPhase(name: string): PhaseHandle | undefined {
-    return this.phases.find(p => p.name === name && p.handle)?.handle
-  }
-
-  /**
-   * Retrieve the child tracker for a nested phase added earlier by `name`.
-   * Returns `undefined` if no such phase exists (or it was added as a leaf).
-   */
-  getNestedPhase(name: string): FullProgressTracker | undefined {
-    return this.phases.find(p => p.name === name && p.child)?.child
+  getPhase(name: string): PhaseHandle | FullProgressTracker | undefined {
+    const entry = this.phases.find(p => p.name === name)
+    return entry && (entry.child ?? entry.handle)
   }
 
   /** Mark the overall progress as complete. Does not mutate individual phases. */
