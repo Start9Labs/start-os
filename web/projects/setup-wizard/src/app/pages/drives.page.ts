@@ -457,7 +457,9 @@ export default class DrivesPage {
 
     try {
       const result = await this.api.installOs({
-        osDrive: osDrive.logicalname,
+        // Pre-installed: null OS drive tells the backend to skip the install
+        // and only provision the data drive.
+        osDrive: this.stateService.osDrive ? null : osDrive.logicalname,
         dataDrive: {
           logicalname: dataDrive.logicalname,
           wipe,
