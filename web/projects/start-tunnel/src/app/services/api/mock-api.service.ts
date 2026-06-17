@@ -246,19 +246,47 @@ export class MockApiService extends ApiService {
   async addForward(params: T.Tunnel.AddPortForwardParams): Promise<null> {
     await pauseFor(1000)
 
-    const patch: AddOperation<T.Tunnel.PortForwardEntry>[] = [
-      {
-        op: PatchOp.ADD,
-        path: `/portForwards/${params.source}`,
-        value: {
+    const forwards = mockTunnelData.portForwards
+    const existing = forwards[params.source]
+
+    if (params.sni.length) {
+      const routes: { [hostname: string]: T.Tunnel.SniRoute } =
+        existing?.kind === 'sni' ? { ...existing.routes } : {}
+
+      for (const hostname of params.sni) {
+        routes[hostname] = {
           target: params.target,
           label: params.label || null,
           enabled: true,
-          count: 1,
+        }
+      }
+
+      const value: T.Tunnel.PortForward = { kind: 'sni', routes }
+      forwards[params.source] = value
+      this.mockRevision([
+        {
+          op: existing ? PatchOp.REPLACE : PatchOp.ADD,
+          path: `/portForwards/${params.source}`,
+          value,
         },
-      },
-    ]
-    this.mockRevision(patch)
+      ])
+    } else {
+      const value: T.Tunnel.PortForward = {
+        kind: 'dnat',
+        target: params.target,
+        label: params.label || null,
+        enabled: true,
+        count: 1,
+      }
+      forwards[params.source] = value
+      this.mockRevision([
+        {
+          op: existing ? PatchOp.REPLACE : PatchOp.ADD,
+          path: `/portForwards/${params.source}`,
+          value,
+        },
+      ])
+    }
 
     return null
   }
@@ -268,14 +296,29 @@ export class MockApiService extends ApiService {
   ): Promise<null> {
     await pauseFor(1000)
 
-    const patch: ReplaceOperation<string | null>[] = [
-      {
-        op: PatchOp.REPLACE,
-        path: `/portForwards/${params.source}/label`,
-        value: params.label,
-      },
-    ]
-    this.mockRevision(patch)
+    const entry = mockTunnelData.portForwards[params.source]
+    if (!entry) return null
+
+    if (params.hostname && entry.kind === 'sni') {
+      const route = entry.routes[params.hostname]
+      if (route) route.label = params.label
+      this.mockRevision([
+        {
+          op: PatchOp.REPLACE,
+          path: `/portForwards/${params.source}/routes/${params.hostname}/label`,
+          value: params.label,
+        },
+      ])
+    } else if (entry.kind === 'dnat') {
+      entry.label = params.label
+      this.mockRevision([
+        {
+          op: PatchOp.REPLACE,
+          path: `/portForwards/${params.source}/label`,
+          value: params.label,
+        },
+      ])
+    }
 
     return null
   }
@@ -285,14 +328,29 @@ export class MockApiService extends ApiService {
   ): Promise<null> {
     await pauseFor(1000)
 
-    const patch: ReplaceOperation<boolean>[] = [
-      {
-        op: PatchOp.REPLACE,
-        path: `/portForwards/${params.source}/enabled`,
-        value: params.enabled,
-      },
-    ]
-    this.mockRevision(patch)
+    const entry = mockTunnelData.portForwards[params.source]
+    if (!entry) return null
+
+    if (params.hostname && entry.kind === 'sni') {
+      const route = entry.routes[params.hostname]
+      if (route) route.enabled = params.enabled
+      this.mockRevision([
+        {
+          op: PatchOp.REPLACE,
+          path: `/portForwards/${params.source}/routes/${params.hostname}/enabled`,
+          value: params.enabled,
+        },
+      ])
+    } else if (entry.kind === 'dnat') {
+      entry.enabled = params.enabled
+      this.mockRevision([
+        {
+          op: PatchOp.REPLACE,
+          path: `/portForwards/${params.source}/enabled`,
+          value: params.enabled,
+        },
+      ])
+    }
 
     return null
   }
@@ -300,13 +358,31 @@ export class MockApiService extends ApiService {
   async deleteForward(params: T.Tunnel.RemovePortForwardParams): Promise<null> {
     await pauseFor(1000)
 
-    const patch: RemoveOperation[] = [
-      {
-        op: PatchOp.REMOVE,
-        path: `/portForwards/${params.source}`,
-      },
-    ]
-    this.mockRevision(patch)
+    const entry = mockTunnelData.portForwards[params.source]
+    if (!entry) return null
+
+    if (params.hostname && entry.kind === 'sni') {
+      delete entry.routes[params.hostname]
+
+      if (Object.keys(entry.routes).length) {
+        this.mockRevision([
+          {
+            op: PatchOp.REMOVE,
+            path: `/portForwards/${params.source}/routes/${params.hostname}`,
+          },
+        ])
+      } else {
+        delete mockTunnelData.portForwards[params.source]
+        this.mockRevision([
+          { op: PatchOp.REMOVE, path: `/portForwards/${params.source}` },
+        ])
+      }
+    } else {
+      delete mockTunnelData.portForwards[params.source]
+      this.mockRevision([
+        { op: PatchOp.REMOVE, path: `/portForwards/${params.source}` },
+      ])
+    }
 
     return null
   }

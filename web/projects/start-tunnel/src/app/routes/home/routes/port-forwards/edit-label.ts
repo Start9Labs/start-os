@@ -14,7 +14,8 @@ import { ApiService } from 'src/app/services/api/api.service'
 
 export interface EditLabelData {
   readonly source: string
-  readonly label: T.Tunnel.PortForwardEntry['label']
+  readonly label: T.Tunnel.SniRoute['label']
+  readonly hostname: string | null
 }
 
 @Component({
@@ -53,6 +54,7 @@ export class PortForwardsEditLabel {
       await this.api.updateForwardLabel({
         source: this.context.data.source,
         label: this.form.getRawValue().label,
+        hostname: this.context.data.hostname,
       })
     } catch (e: any) {
       console.error(e)

@@ -38,16 +38,33 @@ export const mockTunnelData: TunnelData = {
   },
   portForwards: {
     '69.1.1.42:443': {
+      kind: 'dnat',
       target: '10.59.0.2:443',
       label: 'HTTPS',
       enabled: true,
       count: 1,
     },
     '69.1.1.42:3000': {
+      kind: 'dnat',
       target: '10.59.0.2:3000',
       label: 'Grafana',
       enabled: true,
       count: 1,
+    },
+    '69.1.1.42:8443': {
+      kind: 'sni',
+      routes: {
+        'app.example.com': {
+          target: '10.59.0.2:443',
+          label: 'App',
+          enabled: true,
+        },
+        'blog.example.com': {
+          target: '10.59.0.3:443',
+          label: 'Blog',
+          enabled: true,
+        },
+      },
     },
   },
   dnsRecords: [

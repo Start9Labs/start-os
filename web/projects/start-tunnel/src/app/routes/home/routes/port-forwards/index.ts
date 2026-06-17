@@ -25,7 +25,7 @@ import { PORT_FORWARDS_EDIT_LABEL } from 'src/app/routes/home/routes/port-forwar
 import { ApiService } from 'src/app/services/api/api.service'
 import { TunnelData } from 'src/app/services/patch-db/data-model'
 
-import { MappedDevice, MappedForward } from './utils'
+import { mapForwards, MappedDevice, MappedForward } from './utils'
 
 @Component({
   template: `
@@ -36,6 +36,7 @@ import { MappedDevice, MappedForward } from './utils'
           <th>Label</th>
           <th>External IP</th>
           <th>External Port</th>
+          <th>SNI</th>
           <th>Device</th>
           <th>Internal Port</th>
           <th>Protocol</th>
@@ -69,6 +70,7 @@ import { MappedDevice, MappedForward } from './utils'
             <td>{{ forward.label || '—' }}</td>
             <td>{{ forward.externalip }}</td>
             <td>{{ forward.externalport }}</td>
+            <td>{{ forward.sni || '—' }}</td>
             <td>{{ forward.device.name }}</td>
             <td>{{ forward.internalport }}</td>
             <td>TCP/UDP</td>
@@ -107,7 +109,7 @@ import { MappedDevice, MappedForward } from './utils'
           </tr>
         } @empty {
           <tr>
-            <td colspan="8">
+            <td colspan="9">
               <app-placeholder icon="@tui.globe">
                 No port forwards
               </app-placeholder>
@@ -164,19 +166,7 @@ export default class PortForwards {
 
   protected readonly portForwards = toSignal(this.patch.watch$('portForwards'))
   protected readonly forwards = computed(() =>
-    Object.entries(this.portForwards() || {}).map(([source, entry]) => {
-      const sourceSplit = source.split(':')
-      const targetSplit = entry.target.split(':')
-
-      return {
-        externalip: sourceSplit[0]!,
-        externalport: sourceSplit[1]!,
-        device: this.devices().find(d => d.ip === targetSplit[0])!,
-        internalport: targetSplit[1]!,
-        label: entry.label,
-        enabled: entry.enabled,
-      }
-    }),
+    mapForwards(this.portForwards() || {}, this.devices()),
   )
 
   protected readonly toggling = signal<number | null>(null)
@@ -186,7 +176,11 @@ export default class PortForwards {
     const source = `${forward.externalip}:${forward.externalport}`
 
     try {
-      await this.api.setForwardEnabled({ source, enabled: !forward.enabled })
+      await this.api.setForwardEnabled({
+        source,
+        enabled: !forward.enabled,
+        hostname: forward.hostname,
+      })
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -210,12 +204,17 @@ export default class PortForwards {
         data: {
           source: `${forward.externalip}:${forward.externalport}`,
           label: forward.label,
+          hostname: forward.hostname,
         },
       })
       .subscribe()
   }
 
-  protected onDelete({ externalip, externalport }: MappedForward): void {
+  protected onDelete({
+    externalip,
+    externalport,
+    hostname,
+  }: MappedForward): void {
     this.dialogs
       .open(TUI_CONFIRM, { label: 'Are you sure?' })
       .pipe(filter(Boolean))
@@ -224,7 +223,7 @@ export default class PortForwards {
         const source = `${externalip}:${externalport}`
 
         try {
-          await this.api.deleteForward({ source })
+          await this.api.deleteForward({ source, hostname })
         } catch (e: any) {
           console.log(e)
           this.errorService.handleError(e)

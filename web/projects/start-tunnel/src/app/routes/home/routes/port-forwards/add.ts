@@ -104,6 +104,10 @@ import { MappedDevice, PortForwardsData } from './utils'
         />
       </tui-textfield>
       <tui-error formControlName="internalport" />
+      <tui-textfield>
+        <label tuiLabel>SNI hostnames (optional, comma-separated)</label>
+        <input tuiInput formControlName="sni" />
+      </tui-textfield>
       <tui-elastic-container>
         @if (show80) {
           <label tuiLabel>
@@ -158,6 +162,7 @@ export class PortForwardsAdd {
     externalport: [null as number | null, Validators.required],
     device: [null as MappedDevice | null, Validators.required],
     internalport: [null as number | null, Validators.required],
+    sni: [''],
     also80: [true],
   })
 
@@ -178,21 +183,40 @@ export class PortForwardsAdd {
 
     const loader = this.loading.open('').subscribe()
 
-    const { label, externalip, externalport, device, internalport, also80 } =
-      this.form.getRawValue()
+    const {
+      label,
+      externalip,
+      externalport,
+      device,
+      internalport,
+      sni,
+      also80,
+    } = this.form.getRawValue()
+
+    const hostnames = sni
+      .split(/[\s,]+/)
+      .map(h => h.trim())
+      .filter(Boolean)
 
     try {
       await this.api.addForward({
         source: `${externalip}:${externalport}`,
         target: `${device!.ip}:${internalport}`,
         label,
+        sni: hostnames,
       })
 
-      if (externalport === 443 && internalport === 443 && also80) {
+      if (
+        !hostnames.length &&
+        externalport === 443 &&
+        internalport === 443 &&
+        also80
+      ) {
         await this.api.addForward({
           source: `${externalip}:80`,
           target: `${device!.ip}:443`,
           label: `${label} (HTTP redirect)`,
+          sni: [],
         })
       }
     } catch (e: any) {
