@@ -537,6 +537,7 @@ async fn install_os_inner(
 
         let mut info = SetupInfo::default();
         info.mok_enrolled = mok_enrolled;
+        info.os_drive = Some(os_drive.clone());
         ctx.install_rootfs.replace(Some((rootfs, config)));
 
         (info, part_info.data)

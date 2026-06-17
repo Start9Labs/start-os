@@ -113,6 +113,13 @@ main () {
     return 1
   fi
 
+  # Record the OS drive in setup.json. The path is only knowable at runtime
+  # (mmcblk0 for SD, sda for USB boot), so the baked image can't, but the setup
+  # wizard needs it to fix+disable the OS drive and ask only for a data drive.
+  if ! grep -q osDrive /media/startos/config/setup.json; then
+    sed -i 's|}$|,"osDrive":"'"$ROOT_DEV"'"}|' /media/startos/config/setup.json
+  fi
+
   echo start > /etc/hostname
 
   return 0

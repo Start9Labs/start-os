@@ -367,21 +367,12 @@ pub struct SetupInfo {
     pub guid: Option<InternedString>,
     pub attach: bool,
     pub mok_enrolled: bool,
-    /// The whole disk the running OS booted from. Set when the device is
-    /// pre-installed (setup-after-install), so the wizard fixes it as the OS
-    /// drive and asks only for a data drive.
+    /// The whole disk the OS is installed on, recorded by whatever installed it
+    /// (os_install, or init_resize for a pre-installed image). When the device
+    /// is pre-installed the wizard fixes this as the OS drive and asks only for
+    /// a data drive.
     #[serde(default)]
     pub os_drive: Option<PathBuf>,
-}
-
-/// The whole disk holding the running OS partitions, if it can be determined.
-async fn booted_os_drive() -> Option<PathBuf> {
-    let os = crate::disk::OsPartitionInfo::from_fstab().await.ok()?;
-    let disks = crate::disk::util::list(&Default::default()).await.ok()?;
-    disks
-        .into_iter()
-        .find(|d| d.partitions.iter().any(|p| os.contains(&p.logicalname)))
-        .map(|d| d.logicalname)
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]
@@ -406,10 +397,9 @@ pub async fn status(ctx: SetupContext) -> Result<SetupStatusRes, Error> {
             if tokio::fs::metadata(path).await.is_err() {
                 return Ok(SetupStatusRes::NeedsInstall);
             }
-            let mut info: SetupInfo =
-                IoFormat::Json.from_slice(read_file_to_string(path).await?.as_bytes())?;
-            info.os_drive = booted_os_drive().await;
-            Ok(SetupStatusRes::Incomplete(info))
+            IoFormat::Json
+                .from_slice(read_file_to_string(path).await?.as_bytes())
+                .map(SetupStatusRes::Incomplete)
         }
     }
 }
