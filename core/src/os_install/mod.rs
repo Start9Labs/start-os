@@ -474,9 +474,9 @@ async fn install_os_inner(
         }
     }
 
-    let mut disks = crate::disk::util::list(&Default::default()).await?;
+    let disks = crate::disk::util::list(&Default::default()).await?;
     let disk = disks
-        .iter_mut()
+        .iter()
         .find(|d| &d.logicalname == &os_drive)
         .ok_or_else(|| {
             Error::new(
@@ -484,6 +484,51 @@ async fn install_os_inner(
                 crate::ErrorKind::DiskManagement,
             )
         })?;
+
+    // If os_drive already holds the running OS (a pre-installed image booted
+    // for first-time setup), don't reinstall — just provision the selected
+    // data drive and record it in the already-mounted config.
+    let os = crate::disk::OsPartitionInfo::from_fstab().await?;
+    if disk.partitions.iter().any(|p| os.contains(&p.logicalname)) {
+        let DataDrive { logicalname, wipe } = data_drive.ok_or_else(|| {
+            Error::new(
+                eyre!("a data drive must be selected"),
+                ErrorKind::InvalidRequest,
+            )
+        })?;
+        let mut setup_info = SetupInfo::default();
+        if let Some(guid) = (!wipe)
+            .then(|| disks.iter())
+            .into_iter()
+            .flatten()
+            .find_map(|d| {
+                d.guid
+                    .as_ref()
+                    .filter(|_| d.logicalname == logicalname)
+                    .cloned()
+                    .or_else(|| {
+                        d.partitions.iter().find_map(|p| {
+                            p.guid
+                                .as_ref()
+                                .filter(|_| p.logicalname == logicalname)
+                                .cloned()
+                        })
+                    })
+            })
+        {
+            setup_info.guid = Some(guid);
+            setup_info.attach = true;
+        } else {
+            let guid = crate::setup::setup_data_drive(&ctx, &logicalname).await?;
+            setup_info.guid = Some(guid);
+        }
+        write_file_atomic(
+            "/media/startos/config/setup.json",
+            IoFormat::JsonPretty.to_vec(&setup_info)?,
+        )
+        .await?;
+        return Ok(setup_info);
+    }
 
     let protect: Option<PathBuf> = data_drive.as_ref().and_then(|dd| {
         if dd.wipe {

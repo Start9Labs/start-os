@@ -44,6 +44,10 @@ export class StateService {
   attach = false
   mokEnrolled = false
 
+  // Set when the device is pre-installed: the OS drive is fixed to the disk
+  // the running OS booted from, and the wizard only asks for a data drive.
+  osDrive = ''
+
   // Set during setup flow
   setupType?: SetupType
   recoverySource?: RecoverySource
@@ -120,6 +124,7 @@ export class StateService {
     this.dataDriveGuid = ''
     this.attach = false
     this.mokEnrolled = false
+    this.osDrive = ''
     this.setupType = undefined
     this.recoverySource = undefined
   }
