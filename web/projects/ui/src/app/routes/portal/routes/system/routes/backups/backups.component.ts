@@ -7,16 +7,10 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, RouterLink } from '@angular/router'
-import {
-  DialogService,
-  DocsLinkDirective,
-  ErrorService,
-  i18nPipe,
-} from '@start9labs/shared'
+import { DialogService, DocsLinkDirective, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiMapperPipe } from '@taiga-ui/cdk'
 import { TuiButton, TuiLoader, TuiNotification, TuiTitle } from '@taiga-ui/core'
-import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom } from 'rxjs'
@@ -24,7 +18,6 @@ import {
   CifsBackupTarget,
   DiskBackupTarget,
 } from 'src/app/services/api/api.types'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { OSService } from 'src/app/services/os.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
@@ -146,9 +139,6 @@ export default class SystemBackupComponent implements OnInit {
   readonly type = inject(ActivatedRoute).snapshot.data['type']
   readonly service = inject(BackupService)
   readonly os = inject(OSService)
-  private readonly api = inject(ApiService)
-  private readonly errorService = inject(ErrorService)
-  private readonly loader = inject(TuiNotificationMiddleService)
   readonly server = toSignal(
     inject<PatchDB<DataModel>>(PatchDB).watch$('serverInfo'),
   )
@@ -178,7 +168,7 @@ export default class SystemBackupComponent implements OnInit {
     target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
   ) {
     if (this.type === 'create') {
-      if (!(await this.confirmLegacy(target.id))) return
+      if (!(await this.confirmLegacy(target.entry.legacyBackup))) return
 
       this.dialog
         .openComponent(BACKUP, {
@@ -198,23 +188,8 @@ export default class SystemBackupComponent implements OnInit {
     }
   }
 
-  private async confirmLegacy(targetId: string): Promise<boolean> {
-    const loader = this.loader
-      .open('Checking drive for an existing backup')
-      .subscribe()
-
-    let legacy: T.LegacyBackupInfo | null
-
-    try {
-      legacy = await this.api.getBackupLegacyInfo({ targetId })
-    } catch (e: any) {
-      this.errorService.handleError(e)
-      return false
-    } finally {
-      loader.unsubscribe()
-    }
-
-    if (!legacy) return true
+  private confirmLegacy(legacy: T.LegacyBackupInfo | null): Promise<boolean> {
+    if (!legacy) return Promise.resolve(true)
 
     return firstValueFrom(
       this.dialog.openComponent<boolean>(LEGACY_BACKUP, {

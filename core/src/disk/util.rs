@@ -22,6 +22,7 @@ use crate::disk::mount::guard::GenericMountGuard;
 use crate::hostname::ServerHostname;
 use crate::prelude::*;
 use crate::util::Invoke;
+use crate::util::io::dir_size;
 use crate::util::serde::IoFormat;
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
@@ -55,8 +56,40 @@ pub struct PartitionInfo {
     #[ts(type = "number | null")]
     pub used: Option<u64>,
     pub start_os: BTreeMap<String, StartOsRecoveryInfo>,
+    pub legacy_backup: Option<LegacyBackupInfo>,
     pub guid: Option<InternedString>,
     pub filesystem: Option<String>,
+}
+
+/// A pre-V2 `StartOSBackups` folder found on a backup target. Surfaced so the
+/// UI can warn (or refuse, when it wouldn't fit) before a new V2 backup runs.
+#[derive(Clone, Debug, Deserialize, Serialize, ts_rs::TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct LegacyBackupInfo {
+    #[ts(type = "number")]
+    pub size: u64,
+    #[ts(type = "number")]
+    pub available: u64,
+}
+
+#[instrument(skip_all)]
+pub async fn legacy_backup_info(
+    mountpoint: impl AsRef<Path>,
+) -> Result<Option<LegacyBackupInfo>, Error> {
+    let legacy_dir = mountpoint.as_ref().join(super::LEGACY_BACKUP_DIR_NAME);
+    if !tokio::fs::metadata(&legacy_dir)
+        .await
+        .map(|m| m.is_dir())
+        .unwrap_or(false)
+    {
+        return Ok(None);
+    }
+    let size = dir_size(&legacy_dir, None)
+        .await
+        .with_kind(crate::ErrorKind::Filesystem)?;
+    let available = get_available(mountpoint.as_ref()).await?;
+    Ok(Some(LegacyBackupInfo { size, available }))
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, ts_rs::TS)]
@@ -515,6 +548,7 @@ async fn lvm_pv_part_info(part: PathBuf, guid: Option<InternedString>) -> Partit
         capacity,
         used: None,
         start_os: BTreeMap::new(),
+        legacy_backup: None,
         guid,
         filesystem,
     }
@@ -586,6 +620,11 @@ async fn part_info(part: PathBuf) -> Option<PartitionInfo> {
             BTreeMap::new()
         }
     };
+    let legacy_backup = legacy_backup_info(mount_guard.path())
+        .await
+        .map_err(|e| tracing::warn!("could not read legacy backup info: {e}"))
+        .ok()
+        .flatten();
     if let Err(e) = mount_guard.unmount().await {
         tracing::error!(
             "{}",
@@ -603,6 +642,7 @@ async fn part_info(part: PathBuf) -> Option<PartitionInfo> {
         capacity,
         used,
         start_os,
+        legacy_backup,
         guid: None,
         filesystem: None,
     })

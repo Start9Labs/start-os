@@ -1401,6 +1401,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
           wrappedKey: '',
         },
       },
+      legacyBackup: null,
     },
     // 'ftcvewdnkemfksdm': {
     //   type: 'disk',
@@ -1419,6 +1420,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
       username: 'TestUser',
       mountable: true,
       startOs: {},
+      legacyBackup: { size: 5000000000, available: 50000000000 },
     },
     powjefhjbnwhdva: {
       type: 'disk',
@@ -1441,6 +1443,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
           wrappedKey: '',
         },
       },
+      legacyBackup: { size: 5000000000000, available: 1000000000 },
     },
   }
 

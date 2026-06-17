@@ -20,15 +20,13 @@ use self::cifs::CifsBackupTarget;
 use crate::PackageId;
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::DatabaseModel;
-use crate::disk::LEGACY_BACKUP_DIR_NAME;
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::cifs::Cifs;
-use crate::disk::mount::filesystem::{FileSystem, MountType, ReadOnly, ReadWrite};
+use crate::disk::mount::filesystem::{FileSystem, MountType, ReadWrite};
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
-use crate::disk::util::{PartitionInfo, get_available};
+use crate::disk::util::PartitionInfo;
 use crate::prelude::*;
-use crate::util::io::dir_size;
 use crate::util::serde::{
     HandlerExtSerde, WithIoFormat, deserialize_from_str, display_serializable, serialize_display,
 };
@@ -164,13 +162,6 @@ pub fn target<C: Context>() -> ParentHandler<C> {
                     display_backup_info(params.params, info)
                 })
                 .with_about("about.display-package-backup-information")
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand(
-            "legacy-info",
-            from_fn_async(legacy_info)
-                .with_display_serializable()
-                .with_about("about.legacy-backup-information")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -312,54 +303,6 @@ pub async fn info(
     .await?;
 
     let res = guard.metadata.clone();
-
-    guard.unmount().await?;
-
-    Ok(res)
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-pub struct LegacyBackupInfo {
-    #[ts(type = "number")]
-    pub size: u64,
-    #[ts(type = "number")]
-    pub available: u64,
-}
-
-#[derive(Deserialize, Serialize, Parser, TS)]
-#[group(skip)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-#[command(rename_all = "kebab-case")]
-pub struct LegacyInfoParams {
-    #[arg(help = "help.arg.backup-target-id")]
-    target_id: BackupTargetId,
-}
-
-/// Detect a pre-V2 `StartOSBackups` folder on the target drive so the UI can
-/// warn (or refuse, when it wouldn't fit) before a new V2 backup is created.
-#[instrument(skip_all)]
-pub async fn legacy_info(
-    ctx: RpcContext,
-    LegacyInfoParams { target_id }: LegacyInfoParams,
-) -> Result<Option<LegacyBackupInfo>, Error> {
-    let guard = TmpMountGuard::mount(&target_id.load(&ctx.db.peek().await)?, ReadOnly).await?;
-    let legacy_dir = guard.path().join(LEGACY_BACKUP_DIR_NAME);
-    let res = if tokio::fs::metadata(&legacy_dir)
-        .await
-        .map(|m| m.is_dir())
-        .unwrap_or(false)
-    {
-        let size = dir_size(&legacy_dir, None)
-            .await
-            .with_kind(ErrorKind::Filesystem)?;
-        let available = get_available(guard.path()).await?;
-        Some(LegacyBackupInfo { size, available })
-    } else {
-        None
-    };
 
     guard.unmount().await?;
 

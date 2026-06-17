@@ -474,12 +474,6 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'backup.target.info', params })
   }
 
-  async getBackupLegacyInfo(
-    params: T.LegacyInfoParams,
-  ): Promise<T.LegacyBackupInfo | null> {
-    return this.rpcRequest({ method: 'backup.target.legacy-info', params })
-  }
-
   async createBackup(params: T.BackupParams): Promise<null> {
     return this.rpcRequest({ method: 'backup.create', params })
   }

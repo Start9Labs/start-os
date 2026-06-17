@@ -239,10 +239,6 @@ export abstract class ApiService {
 
   abstract getBackupInfo(params: T.InfoParams): Promise<T.BackupInfo>
 
-  abstract getBackupLegacyInfo(
-    params: T.LegacyInfoParams,
-  ): Promise<T.LegacyBackupInfo | null>
-
   abstract createBackup(params: T.BackupParams): Promise<null>
 
   // @TODO 041
