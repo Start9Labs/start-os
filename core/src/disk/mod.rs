@@ -22,6 +22,7 @@ pub mod util;
 pub const BOOT_RW_PATH: &str = "/media/boot-rw";
 pub const REPAIR_DISK_PATH: &str = "/media/startos/config/repair-disk";
 pub const BACKUP_DIR_NAME: &str = "StartOSBackupsV2";
+pub const LEGACY_BACKUP_DIR_NAME: &str = "StartOSBackups";
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]

@@ -8,10 +8,12 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, RouterLink } from '@angular/router'
 import { DialogService, DocsLinkDirective, i18nPipe } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import { TuiMapperPipe } from '@taiga-ui/cdk'
 import { TuiButton, TuiLoader, TuiNotification, TuiTitle } from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
+import { firstValueFrom } from 'rxjs'
 import {
   CifsBackupTarget,
   DiskBackupTarget,
@@ -21,6 +23,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
 import { BACKUP } from './backup.component'
 import { BackupService, MappedBackupTarget } from './backup.service'
+import { LEGACY_BACKUP } from './legacy.component'
 import { BackupNetworkComponent } from './network.component'
 import { BackupPhysicalComponent } from './physical.component'
 import { BackupProgressComponent } from './progress.component'
@@ -161,8 +164,12 @@ export default class SystemBackupComponent implements OnInit {
     this.service.getBackupTargets()
   }
 
-  onTarget(target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>) {
+  async onTarget(
+    target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
+  ) {
     if (this.type === 'create') {
+      if (!(await this.confirmLegacy(target.entry.legacyBackup))) return
+
       this.dialog
         .openComponent(BACKUP, {
           label: 'Select services',
@@ -179,5 +186,18 @@ export default class SystemBackupComponent implements OnInit {
         })
         .subscribe()
     }
+  }
+
+  private confirmLegacy(legacy: T.LegacyBackupInfo | null): Promise<boolean> {
+    if (!legacy) return Promise.resolve(true)
+
+    return firstValueFrom(
+      this.dialog.openComponent<boolean>(LEGACY_BACKUP, {
+        label: 'Important!',
+        size: 'm',
+        data: { fits: legacy.size <= legacy.available },
+      }),
+      { defaultValue: false },
+    )
   }
 }

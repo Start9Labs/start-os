@@ -853,6 +853,7 @@ export class MockApiService extends ApiService {
         username,
         mountable: true,
         startOs: {},
+        legacyBackup: null,
       },
     }
   }
