@@ -1,4 +1,10 @@
-import { AfterViewInit, Component, inject } from '@angular/core'
+import {
+  AfterViewInit,
+  Component,
+  inject,
+  signal,
+  computed,
+} from '@angular/core'
 import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiCell, TuiIcon, TuiLoader, TuiTitle } from '@taiga-ui/core'
@@ -32,11 +38,11 @@ import { StateService } from '../services/state.service'
         </hgroup>
       </header>
 
-      @if (!result) {
+      @if (!result()) {
         <tui-loader />
       } @else {
         <!-- Step: Restart flow -->
-        @if (result.needsRestart) {
+        @if (result()?.needsRestart) {
           <button tuiCell="l" (click)="removeMedia()">
             <span tuiAvatar="@tui.usb" appearance="secondary"></span>
             <span tuiTitle>
@@ -48,7 +54,7 @@ import { StateService } from '../services/state.service'
                 }}
               </span>
             </span>
-            @if (usbRemoved) {
+            @if (usbRemoved()) {
               <tui-icon icon="@tui.circle-check" class="g-positive" />
             }
           </button>
@@ -57,8 +63,8 @@ import { StateService } from '../services/state.service'
           @if (stateService.mokEnrolled) {
             <button
               tuiCell="l"
-              [class.disabled]="!usbRemoved"
-              [disabled]="!usbRemoved"
+              [class.disabled]="!usbRemoved()"
+              [disabled]="!usbRemoved()"
               (click)="acknowledgeMok()"
             >
               <span tuiAvatar="@tui.shield-check" appearance="secondary"></span>
@@ -71,7 +77,7 @@ import { StateService } from '../services/state.service'
                   }}
                 </span>
               </span>
-              @if (mokAcknowledged) {
+              @if (mokAcknowledged()) {
                 <tui-icon icon="@tui.circle-check" class="g-positive" />
               }
             </button>
@@ -81,10 +87,10 @@ import { StateService } from '../services/state.service'
           <button
             tuiCell="l"
             [class.disabled]="
-              !usbRemoved || (stateService.mokEnrolled && !mokAcknowledged)
+              !usbRemoved() || (stateService.mokEnrolled && !mokAcknowledged())
             "
             [disabled]="
-              !usbRemoved || (stateService.mokEnrolled && !mokAcknowledged)
+              !usbRemoved() || (stateService.mokEnrolled && !mokAcknowledged())
             "
             (click)="reboot()"
           >
@@ -92,18 +98,18 @@ import { StateService } from '../services/state.service'
             <span tuiTitle>
               <b>{{ 'Restart Server' | i18n }}</b>
               <span tuiSubtitle>
-                @if (rebooting) {
+                @if (rebooting()) {
                   {{ 'Waiting for server to come back online' | i18n }}
-                } @else if (rebooted) {
+                } @else if (rebooted()) {
                   {{ 'Server is back online' | i18n }}
                 } @else {
                   {{ 'Restart your server to complete setup' | i18n }}
                 }
               </span>
             </span>
-            @if (rebooting) {
+            @if (rebooting()) {
               <tui-loader />
-            } @else if (rebooted) {
+            } @else if (rebooted()) {
               <tui-icon icon="@tui.circle-check" class="g-positive" />
             }
           </button>
@@ -123,14 +129,14 @@ import { StateService } from '../services/state.service'
         @if (!stateService.kiosk) {
           <button
             tuiCell="l"
-            [class.disabled]="!canOpenAddress"
-            [disabled]="!canOpenAddress"
+            [class.disabled]="!canOpenAddress()"
+            [disabled]="!canOpenAddress()"
             (click)="openLocalAddress()"
           >
             <span tuiAvatar="@tui.external-link" appearance="secondary"></span>
             <span tuiTitle>
               <b>{{ 'Open Local Address' | i18n }}</b>
-              <span tuiSubtitle>{{ lanAddress }}</span>
+              <span tuiSubtitle>{{ lanAddress() }}</span>
             </span>
           </button>
         }
@@ -163,17 +169,17 @@ export default class SuccessPage implements AfterViewInit {
 
   readonly stateService = inject(StateService)
 
-  result?: T.SetupResult
-  lanAddress = ''
-  usbRemoved = false
-  mokAcknowledged = false
-  rebooting = false
-  rebooted = false
+  readonly result = signal<T.SetupResult | undefined>(undefined)
+  readonly lanAddress = signal('')
+  readonly usbRemoved = signal(false)
+  readonly mokAcknowledged = signal(false)
+  readonly rebooting = signal(false)
+  readonly rebooted = signal(false)
 
-  get canOpenAddress(): boolean {
-    if (this.result?.needsRestart && !this.rebooted) return false
+  readonly canOpenAddress = computed(() => {
+    if (this.result()?.needsRestart && !this.rebooted()) return false
     return true
-  }
+  })
 
   ngAfterViewInit() {
     setTimeout(() => this.complete(), 500)
@@ -186,7 +192,7 @@ export default class SuccessPage implements AfterViewInit {
         closable: false,
       })
       .subscribe(() => {
-        this.usbRemoved = true
+        this.usbRemoved.set(true)
       })
   }
 
@@ -199,7 +205,7 @@ export default class SuccessPage implements AfterViewInit {
         closable: false,
       })
       .subscribe(() => {
-        this.mokAcknowledged = true
+        this.mokAcknowledged.set(true)
       })
   }
 
@@ -208,33 +214,34 @@ export default class SuccessPage implements AfterViewInit {
   }
 
   openLocalAddress() {
-    window.open(this.lanAddress, '_blank')
+    window.open(this.lanAddress(), '_blank')
   }
 
   async reboot() {
-    if (this.rebooting || this.rebooted) return
+    if (this.rebooting() || this.rebooted()) return
 
-    this.rebooting = true
+    this.rebooting.set(true)
 
     try {
       await this.api.exit()
       await this.pollForServer()
-      this.rebooted = true
-      this.rebooting = false
+      this.rebooted.set(true)
+      this.rebooting.set(false)
     } catch (e: any) {
       this.errorService.handleError(e)
-      this.rebooting = false
+      this.rebooting.set(false)
     }
   }
 
   private async complete() {
     try {
-      this.result = await this.api.complete()
+      const result = await this.api.complete()
+      this.result.set(result)
 
       if (!this.stateService.kiosk) {
-        this.lanAddress = `http://${this.result.hostname}.local`
+        this.lanAddress.set(`http://${result.hostname}.local`)
 
-        if (!this.result.needsRestart) {
+        if (!result.needsRestart) {
           await this.api.exit()
         }
       }
@@ -249,7 +256,7 @@ export default class SuccessPage implements AfterViewInit {
 
     while (attempts < maxAttempts) {
       try {
-        await this.api.echo({ message: 'ping' }, `${this.lanAddress}/rpc/v1`)
+        await this.api.echo({ message: 'ping' }, `${this.lanAddress()}/rpc/v1`)
         return
       } catch {
         await new Promise(resolve => setTimeout(resolve, 5000))

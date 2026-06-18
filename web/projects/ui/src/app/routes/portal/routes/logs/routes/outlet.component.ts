@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { Component } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { i18nPipe } from '@start9labs/shared'
 import { TuiIcon, TuiTitle } from '@taiga-ui/core'
@@ -18,7 +18,6 @@ import { TitleDirective } from 'src/app/services/title.service'
       </a>
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'g-page' },
   styles: [
     `

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common'
-import { Component, Inject } from '@angular/core'
+import { Component, Inject, signal } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { WA_WINDOW } from '@ng-web-apis/common'
 import { DialogService, i18nKey, i18nPipe } from '@start9labs/shared'
@@ -16,13 +16,16 @@ import { ConfigService } from 'src/app/services/config.service'
   imports: [CommonModule, TuiButton, i18nPipe, RouterLink],
 })
 export default class HomePage {
-  restarted = false
-  error?: {
-    code: number
-    problem: i18nKey
-    solution: i18nKey
-    details?: string
-  }
+  readonly restarted = signal(false)
+  readonly error = signal<
+    | {
+        code: number
+        problem: i18nKey
+        solution: i18nKey
+        details?: string
+      }
+    | undefined
+  >(undefined)
 
   constructor(
     private readonly loader: TuiNotificationMiddleService,
@@ -37,57 +40,57 @@ export default class HomePage {
       const error = await this.api.diagnosticGetError()
       // incorrect drive
       if (error.code === 15) {
-        this.error = {
+        this.error.set({
           code: 15,
           problem: 'Unknown storage drive detected',
           solution:
             'To use a different storage drive, replace the current one and click RESTART SERVER below. To use the current storage drive, click USE CURRENT DRIVE below, then follow instructions. No data will be erased during this process.',
           details: error.data?.details,
-        }
+        })
         // no drive
       } else if (error.code === 20) {
-        this.error = {
+        this.error.set({
           code: 20,
           problem: 'Storage drive not found',
           solution:
             'Insert your StartOS storage drive and click RESTART SERVER below.',
           details: error.data?.details,
-        }
+        })
         // drive corrupted
       } else if (error.code === 25) {
-        this.error = {
+        this.error.set({
           code: 25,
           problem:
             'Storage drive corrupted. This could be the result of data corruption or physical damage.',
           solution:
             'It may or may not be possible to re-use this drive by reformatting and recovering from backup. To enter recovery mode, click ENTER RECOVERY MODE below, then follow instructions. No data will be erased during this step.',
           details: error.data?.details,
-        }
+        })
         // filesystem I/O error - disk needs repair
       } else if (error.code === 2) {
-        this.error = {
+        this.error.set({
           code: 2,
           problem: 'Filesystem error',
           solution:
             'Repairing the disk could help resolve this issue. Please DO NOT unplug the drive or server during this time or the situation will become worse.',
           details: error.data?.details,
-        }
+        })
         // disk management error - disk needs repair
       } else if (error.code === 48) {
-        this.error = {
+        this.error.set({
           code: 48,
           problem: 'Disk management error',
           solution:
             'Repairing the disk could help resolve this issue. Please DO NOT unplug the drive or server during this time or the situation will become worse.',
           details: error.data?.details,
-        }
+        })
       } else {
-        this.error = {
+        this.error.set({
           code: error.code,
           problem: error.message as i18nKey,
           solution: 'Please contact support',
           details: error.data?.details,
-        }
+        })
       }
     } catch (e) {
       console.error(e)
@@ -99,7 +102,7 @@ export default class HomePage {
 
     try {
       await this.api.diagnosticRestart()
-      this.restarted = true
+      this.restarted.set(true)
     } catch (e) {
       console.error(e)
     } finally {
@@ -113,7 +116,7 @@ export default class HomePage {
     try {
       await this.api.diagnosticForgetDrive()
       await this.api.diagnosticRestart()
-      this.restarted = true
+      this.restarted.set(true)
     } catch (e) {
       console.error(e)
     } finally {
@@ -153,7 +156,7 @@ export default class HomePage {
     try {
       await this.api.diagnosticRepairDisk()
       await this.api.diagnosticRestart()
-      this.restarted = true
+      this.restarted.set(true)
     } catch (e) {
       console.error(e)
     } finally {

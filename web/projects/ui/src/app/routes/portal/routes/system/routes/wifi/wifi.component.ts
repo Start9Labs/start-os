@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  ChangeDetectorRef,
-  Component,
-  inject,
-  signal,
-} from '@angular/core'
+import { ChangeDetectorRef, Component, inject, signal } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
@@ -104,7 +98,7 @@ import { wifiSpec } from './wifi.const'
             tuiSwitch
             [style.margin-inline-start]="status()?.enabled ? '' : 'auto'"
             [showIcons]="false"
-            [ngModel]="status()?.enabled"
+            [ngModel]="$safeNavigationMigration(status()?.enabled)"
             (ngModelChange)="onToggle($event)"
           />
         }
@@ -150,7 +144,6 @@ import { wifiSpec } from './wifi.const'
       display: none;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormsModule,
     TuiButton,

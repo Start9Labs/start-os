@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { Component } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
 import {
   TuiButton,
@@ -112,7 +112,6 @@ export interface LegacyBackupData {
       margin-top: 0.5rem;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButton, TuiNotification, TuiTitle, i18nPipe],
 })
 export class LegacyBackupModal {

@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  input,
-} from '@angular/core'
+import { Component, computed, input } from '@angular/core'
 import { T } from '@start9labs/start-sdk'
 import { DataComponent } from './data.component'
 import { i18nKey } from '@start9labs/shared'
@@ -82,7 +77,6 @@ const LABELS: Record<string, i18nKey> = {
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [DataComponent],
 })
 export class CpuComponent {

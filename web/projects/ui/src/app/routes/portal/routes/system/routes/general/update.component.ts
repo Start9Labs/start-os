@@ -1,5 +1,5 @@
 import { CommonModule, TitleCasePipe } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import {
   ErrorService,
   i18nPipe,
@@ -39,7 +39,6 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
       color: var(--tui-text-secondary);
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     MarkdownPipe,

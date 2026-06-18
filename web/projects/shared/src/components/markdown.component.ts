@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { Component } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { TuiLoader, TuiNotification } from '@taiga-ui/core'
 import { NgDompurifyPipe } from '@taiga-ui/dompurify'
@@ -27,7 +27,6 @@ import { getErrorMessage } from '../services/error.service'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'g-subpage' },
   imports: [
     TuiNotification,

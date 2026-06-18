@@ -1,11 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  signal,
-  Signal,
-} from '@angular/core'
+import { Component, computed, inject, signal, Signal } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import { ErrorService } from '@start9labs/shared'
@@ -124,7 +117,6 @@ import { MappedDevice, MappedForward } from './utils'
       </tbody>
     </table>
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormsModule,
     TuiButton,

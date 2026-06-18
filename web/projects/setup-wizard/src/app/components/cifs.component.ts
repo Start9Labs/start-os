@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common'
-import { Component, inject } from '@angular/core'
+import { Component, inject, signal } from '@angular/core'
 import {
   FormControl,
   FormGroup,
@@ -70,12 +70,12 @@ export interface CifsResult {
           tuiButton
           appearance="secondary"
           type="button"
-          [disabled]="connecting"
+          [disabled]="connecting()"
           (click)="cancel()"
         >
           {{ 'Cancel' | i18n }}
         </button>
-        <button tuiButton [disabled]="form.invalid" [loading]="connecting">
+        <button tuiButton [disabled]="form.invalid" [loading]="connecting()">
           {{ 'Connect' | i18n }}
         </button>
       </footer>
@@ -114,7 +114,7 @@ export class CifsComponent {
   private readonly api = inject(ApiService)
   private readonly context = injectContext<TuiDialogContext<CifsResult>>()
 
-  connecting = false
+  readonly connecting = signal(false)
 
   readonly form = new FormGroup({
     hostname: new FormControl('', {
@@ -140,7 +140,7 @@ export class CifsComponent {
   }
 
   async submit(): Promise<void> {
-    this.connecting = true
+    this.connecting.set(true)
 
     try {
       const diskInfo = await this.api.verifyCifs({
@@ -160,7 +160,7 @@ export class CifsComponent {
         servers,
       })
     } catch (e) {
-      this.connecting = false
+      this.connecting.set(false)
       this.onFail()
     }
   }

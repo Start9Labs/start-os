@@ -1,12 +1,5 @@
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  input,
-  model,
-  signal,
-} from '@angular/core'
+import { Component, inject, input, model, signal } from '@angular/core'
 import { CopyService, DialogService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import {
@@ -199,7 +192,6 @@ import {
   `,
   imports: [TuiButton, TuiDropdown, TuiDataList, TuiInput, i18nPipe],
   providers: [tuiButtonOptionsProvider({ appearance: 'icon' })],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PluginActionsComponent {
   private readonly isMobile = inject(WA_IS_MOBILE)

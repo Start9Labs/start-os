@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, inject, signal } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { Router } from '@angular/router'
 import { TuiButton, TuiError, TuiInput } from '@taiga-ui/core'
@@ -58,7 +53,6 @@ import { AuthService } from 'src/app/services/auth.service'
       width: 18rem;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButton, TuiInput, FormsModule, TuiError, TuiButtonLoading],
 })
 export default class Login {

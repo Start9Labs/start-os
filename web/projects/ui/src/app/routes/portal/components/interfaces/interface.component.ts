@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core'
+import { Component, input } from '@angular/core'
 import { tuiButtonOptionsProvider } from '@taiga-ui/core'
 import { MappedServiceInterface } from './interface.service'
 import { GatewayComponent } from './addresses/gateway/gateway.component'
@@ -38,7 +38,6 @@ import { PluginAddressesComponent } from './addresses/plugin/plugin.component'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [tuiButtonOptionsProvider({ size: 'xs' })],
   imports: [GatewayComponent, PluginAddressesComponent],
 })

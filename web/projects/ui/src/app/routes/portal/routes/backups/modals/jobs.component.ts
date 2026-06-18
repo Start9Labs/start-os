@@ -1,6 +1,6 @@
-import { Component, inject, OnInit } from '@angular/core'
+import { Component, inject, OnInit, signal } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { ErrorService } from '@start9labs/shared'
+import { DocsLinkDirective, ErrorService } from '@start9labs/shared'
 import {
   TuiButton,
   TuiDialogOptions,
@@ -16,7 +16,6 @@ import {
   TuiSkeleton,
 } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { DocsLinkDirective } from 'projects/shared/src/public-api'
 import { BehaviorSubject, filter, from } from 'rxjs'
 import { BackupJob } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -52,7 +51,7 @@ import { EDIT } from './edit.component'
         </tr>
       </thead>
       <tbody>
-        @for (job of jobs; track $index) {
+        @for (job of jobs(); track $index) {
           <tr>
             <td class="title">{{ job.name }}</td>
             <td class="target">
@@ -81,7 +80,7 @@ import { EDIT } from './edit.component'
             </td>
           </tr>
         } @empty {
-          @if (jobs) {
+          @if (jobs()) {
             <tr>
               <td colspan="5">No jobs found.</td>
             </tr>
@@ -159,11 +158,11 @@ export class BackupsJobsModal implements OnInit {
   readonly loading$ = new BehaviorSubject(true)
   readonly targets = toSignal(from(this.api.getBackupTargets({})))
 
-  jobs?: BackupJob[]
+  readonly jobs = signal<BackupJob[] | undefined>(undefined)
 
   async ngOnInit() {
     try {
-      this.jobs = await this.api.getBackupJobs({})
+      this.jobs.set(await this.api.getBackupJobs({}))
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -176,11 +175,11 @@ export class BackupsJobsModal implements OnInit {
       .open<BackupJob>(EDIT, {
         label: 'Create New Job',
         data: new BackupJobBuilder({
-          name: `Backup Job ${(this.jobs?.length || 0) + 1}`,
+          name: `Backup Job ${(this.jobs()?.length || 0) + 1}`,
         }),
       })
       .subscribe(job => {
-        this.jobs = this.jobs?.concat(job)
+        this.jobs.update(j => j?.concat(job))
       })
   }
 
@@ -207,7 +206,7 @@ export class BackupsJobsModal implements OnInit {
 
         try {
           await this.api.removeBackupTarget({ id })
-          this.jobs = this.jobs?.filter(a => a.id !== id)
+          this.jobs.update(j => j?.filter(a => a.id !== id))
         } catch (e: any) {
           this.errorService.handleError(e)
         } finally {

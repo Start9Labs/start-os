@@ -1,10 +1,5 @@
 import { CommonModule } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, inject, signal } from '@angular/core'
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import { ActivatedRoute, Router } from '@angular/router'
@@ -42,7 +37,6 @@ import { MarketplaceTileComponent } from './components/tile.component'
       background: #1c1d26;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     FormsModule,

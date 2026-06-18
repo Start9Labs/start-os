@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core'
+import { Component, inject, signal } from '@angular/core'
 import { Router } from '@angular/router'
 import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
@@ -39,7 +39,7 @@ import { UNLOCK_PASSWORD } from '../components/unlock-password.dialog'
         </hgroup>
       </header>
 
-      @if (loading) {
+      @if (loading()) {
         <tui-loader />
       } @else {
         <button
@@ -56,7 +56,7 @@ import { UNLOCK_PASSWORD } from '../components/unlock-password.dialog'
             </button>
             <hr />
             <tui-opt-group [label]="'Physical Backups' | i18n">
-              @for (server of physicalServers; track server.id) {
+              @for (server of physicalServers(); track server.id) {
                 <button tuiOption (click)="selectPhysicalBackup(server)">
                   <span tuiTitle>
                     {{ server.id }}
@@ -97,16 +97,16 @@ export default class RestorePage {
   private readonly errorService = inject(ErrorService)
   private readonly stateService = inject(StateService)
 
-  loading = true
+  readonly loading = signal(true)
   open = false
-  physicalServers: StartOSDiskInfoFull[] = []
+  readonly physicalServers = signal<StartOSDiskInfoFull[]>([])
 
   async ngOnInit() {
     await this.loadDrives()
   }
 
   async refresh() {
-    this.loading = true
+    this.loading.set(true)
     await this.loadDrives()
   }
 
@@ -175,25 +175,27 @@ export default class RestorePage {
   }
 
   private async loadDrives() {
-    this.physicalServers = []
+    this.physicalServers.set([])
 
     try {
       const drives = await this.api.getDisks()
 
-      this.physicalServers = drives.flatMap(drive =>
-        drive.partitions.flatMap(partition =>
-          Object.entries(partition.startOs).map(([id, val]) => ({
-            id,
-            ...val,
-            partition,
-            drive,
-          })),
+      this.physicalServers.set(
+        drives.flatMap(drive =>
+          drive.partitions.flatMap(partition =>
+            Object.entries(partition.startOs).map(([id, val]) => ({
+              id,
+              ...val,
+              partition,
+              drive,
+            })),
+          ),
         ),
       )
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
-      this.loading = false
+      this.loading.set(false)
     }
   }
 }

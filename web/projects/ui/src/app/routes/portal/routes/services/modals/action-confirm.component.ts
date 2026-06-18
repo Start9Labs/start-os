@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { Component } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
 import { TuiButton, TuiDialogContext, TuiNotification } from '@taiga-ui/core'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
@@ -43,7 +43,6 @@ import { PackageActionData } from './action-input.component'
       margin-top: 1.5rem;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButton, TuiNotification, i18nPipe],
 })
 export class ActionConfirmModal {

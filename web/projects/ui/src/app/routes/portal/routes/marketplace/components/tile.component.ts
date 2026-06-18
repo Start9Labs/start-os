@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  input,
-} from '@angular/core'
+import { Component, computed, inject, input } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, Router } from '@angular/router'
 import { MarketplacePkg } from '@start9labs/marketplace'
@@ -77,7 +71,6 @@ import { MarketplacePreviewComponent } from '../modals/preview.component'
   providers: [
     tuiCardOptionsProvider({ space: 'compact', appearance: 'floating' }),
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiAutoFocus,
     TuiPopup,

@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  output,
-} from '@angular/core'
+import { Component, inject, output } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
 import { ISB, T } from '@start9labs/start-sdk'
@@ -168,7 +163,6 @@ const ERROR =
     }
   `,
   host: { class: 'g-card' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiButton,
     TuiDataList,

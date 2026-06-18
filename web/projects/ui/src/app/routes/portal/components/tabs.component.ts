@@ -2,6 +2,7 @@ import {
   Component,
   computed,
   inject,
+  signal,
   TemplateRef,
   viewChildren,
 } from '@angular/core'
@@ -19,7 +20,11 @@ const FILTER = ['services', 'system', 'marketplace']
 @Component({
   selector: 'app-tabs',
   template: `
-    <nav tuiTabBar [(activeItemIndex)]="index">
+    <nav
+      tuiTabBar
+      [activeItemIndex]="index()"
+      (activeItemIndexChange)="index.set($event)"
+    >
       <a
         tuiTabBarItem
         icon="@tui.layout-grid"
@@ -121,7 +126,7 @@ export class TabsComponent {
   private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly links = viewChildren(RouterLinkActive)
 
-  index = 3
+  readonly index = signal(3)
 
   readonly menu = getMenu().filter(item => !FILTER.includes(item.routerLink))
   readonly badge = toSignal(inject(BadgeService).getCount('system'), {
@@ -140,6 +145,6 @@ export class TabsComponent {
 
   update() {
     const index = this.links().findIndex(link => link.isActive)
-    this.index = index === -1 ? 3 : index
+    this.index.set(index === -1 ? 3 : index)
   }
 }

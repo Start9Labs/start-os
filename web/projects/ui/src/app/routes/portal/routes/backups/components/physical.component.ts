@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  EventEmitter,
-  Input,
-  Output,
-} from '@angular/core'
+import { Component, EventEmitter, Input, Output } from '@angular/core'
 import { ConvertBytesPipe } from '@start9labs/shared'
 import { TuiButton } from '@taiga-ui/core'
 import { TuiSkeleton } from '@taiga-ui/kit'
@@ -108,7 +102,6 @@ import { UnknownDisk } from 'src/app/services/api/api.types'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButton, ConvertBytesPipe, TuiSkeleton],
 })
 export class BackupsPhysicalComponent {

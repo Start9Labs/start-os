@@ -1,4 +1,11 @@
-import { Component, ElementRef, inject, OnInit, ViewChild } from '@angular/core'
+import {
+  Component,
+  ElementRef,
+  inject,
+  OnInit,
+  ViewChild,
+  signal,
+} from '@angular/core'
 import { RouterLink } from '@angular/router'
 import {
   WA_INTERSECTION_ROOT,
@@ -28,11 +35,11 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
         waIntersectionObserver
         (waIntersectionObservee)="onTop(!!$event[0]?.isIntersecting)"
       >
-        @if (loading) {
+        @if (loading()) {
           <tui-loader textContent="Loading logs" />
         }
       </section>
-      @for (log of logs; track log) {
+      @for (log of logs(); track log) {
         <pre [innerHTML]="log | dompurify"></pre>
       }
     </tui-scrollbar>
@@ -70,8 +77,8 @@ export default class LogsPage implements OnInit {
   private readonly errorService = inject(ErrorService)
 
   startCursor?: string | null
-  loading = false
-  logs: string[] = []
+  readonly loading = signal(false)
+  readonly logs = signal<string[]>([])
   scrollTop = 0
 
   ngOnInit() {
@@ -83,7 +90,7 @@ export default class LogsPage implements OnInit {
   }
 
   restoreScroll() {
-    if (this.loading || !this.scrollbar) return
+    if (this.loading() || !this.scrollbar) return
 
     const scrollbar = this.scrollbar.nativeElement
     const offset = scrollbar.querySelector('pre')?.clientHeight || 0
@@ -92,9 +99,9 @@ export default class LogsPage implements OnInit {
   }
 
   private async getLogs() {
-    if (this.loading) return
+    if (this.loading()) return
 
-    this.loading = true
+    this.loading.set(true)
 
     try {
       const response = await this.api.diagnosticGetLogs({
@@ -106,12 +113,12 @@ export default class LogsPage implements OnInit {
       if (!response.entries.length) return
 
       this.startCursor = response.startCursor
-      this.logs = [convertAnsi(response.entries), ...this.logs]
+      this.logs.update(logs => [convertAnsi(response.entries), ...logs])
       this.scrollTop = this.scrollbar?.nativeElement.scrollTop || 0
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
-      this.loading = false
+      this.loading.set(false)
     }
   }
 }

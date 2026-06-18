@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-} from '@angular/core'
+import { Component, computed, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterLink } from '@angular/router'
 import { i18nPipe } from '@start9labs/shared'
@@ -36,7 +31,6 @@ import { TitleDirective } from 'src/app/services/title.service'
     <service-interface [value]="ui()" [isRunning]="true" />
   `,
   host: { class: 'g-subpage' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [GatewayService],
   imports: [
     InterfaceComponent,

@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  linkedSignal,
-} from '@angular/core'
+import { Component, computed, inject, linkedSignal } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
@@ -150,7 +144,6 @@ import { GatewaysTableComponent } from './table.component'
       margin-top: 1rem;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [GatewayService],
   imports: [
     FormsModule,

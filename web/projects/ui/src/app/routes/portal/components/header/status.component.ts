@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
 import { TuiIcon } from '@taiga-ui/core'
 import { STATUS } from 'src/app/services/status.service'
@@ -44,7 +44,6 @@ import { STATUS } from 'src/app/services/status.service'
     }
   `,
   host: { '[class._connected]': 'status().status === "success"' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiIcon, i18nPipe],
 })
 export class HeaderStatusComponent {

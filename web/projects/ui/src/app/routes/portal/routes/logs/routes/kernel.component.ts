@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { LogsComponent } from 'src/app/routes/portal/components/logs/logs.component'
@@ -18,7 +18,6 @@ import { LogsHeaderComponent } from '../components/header.component'
       padding: 1rem;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [LogsComponent, LogsHeaderComponent, i18nPipe],
   host: { class: 'g-page' },
 })

@@ -1,5 +1,5 @@
 import { AsyncPipe } from '@angular/common'
-import { ChangeDetectionStrategy, Component, input } from '@angular/core'
+import { Component, input } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
 import { map, timer } from 'rxjs'
 import { distinctUntilChanged } from 'rxjs/operators'
@@ -109,7 +109,6 @@ import { distinctUntilChanged } from 'rxjs/operators'
       }
     `,
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [i18nPipe, AsyncPipe],
 })
 export class ServiceUptimeComponent {

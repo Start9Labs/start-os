@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, inject, signal } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ErrorService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
@@ -139,7 +134,6 @@ function formatPortRange(start: number, count: number): string {
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiButton,
     i18nPipe,

@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-} from '@angular/core'
+import { Component, computed, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, Router, RouterModule } from '@angular/router'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
@@ -41,14 +36,14 @@ type NavItem = { title: i18nKey; icon: string; link: string }
           [round]="false"
           [style.margin-inline-end.rem]="0.75"
         >
-          <img alt="" [src]="service()?.icon" />
+          <img alt="" [src]="$safeNavigationMigration(service()?.icon)" />
         </span>
         <span tuiFade>{{ manifest()?.title }}</span>
       </div>
       <aside class="g-aside">
         <header tuiCell routerLink="./">
           <span tuiAvatar appearance="action-grayscale" [round]="false">
-            <img alt="" [src]="service()?.icon" />
+            <img alt="" [src]="$safeNavigationMigration(service()?.icon)" />
           </span>
           <span tuiTitle>
             <strong tuiFade>{{ manifest()?.title }}</strong>
@@ -178,7 +173,6 @@ type NavItem = { title: i18nKey; icon: string; link: string }
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterModule,
     TuiCell,

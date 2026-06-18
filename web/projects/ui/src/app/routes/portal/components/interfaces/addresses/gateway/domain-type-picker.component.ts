@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { Component } from '@angular/core'
 import { DocsLinkDirective, i18nPipe } from '@start9labs/shared'
 import {
   TuiButton,
@@ -136,7 +136,6 @@ export type DomainType = 'public' | 'private'
       grid-template-columns: 1fr;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     DocsLinkDirective,
     TuiButton,

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { SwUpdate } from '@angular/service-worker'
 import { WA_WINDOW } from '@ng-web-apis/common'
@@ -74,7 +74,6 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
       }
     </ng-template>
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiResponsiveDialog, TuiButton, TuiAutoFocus, i18nPipe],
 })
 export class RefreshAlertComponent {

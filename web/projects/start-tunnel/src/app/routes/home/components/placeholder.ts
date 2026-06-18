@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core'
+import { Component, input } from '@angular/core'
 import { TuiIcon } from '@taiga-ui/core'
 
 @Component({
@@ -27,7 +27,6 @@ import { TuiIcon } from '@taiga-ui/core'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiIcon],
 })
 export class PlaceholderComponent {

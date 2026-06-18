@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { Component } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { IST } from '@start9labs/start-sdk'
 import { TuiIcon } from '@taiga-ui/core'
@@ -39,6 +39,5 @@ import { Control } from './control'
     }
   `,
   imports: [FormsModule, TuiInputColor, TuiIcon, TuiTooltip, HintPipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FormColorComponent extends Control<IST.ValueSpecColor, string> {}

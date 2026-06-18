@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { i18nPipe } from '@start9labs/shared'
 import { TimeService } from 'src/app/services/time.service'
@@ -48,7 +48,6 @@ import { TimeService } from 'src/app/services/time.service'
       font: var(--tui-typography-ui-2xs);
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [i18nPipe],
 })
 export class UptimeComponent {

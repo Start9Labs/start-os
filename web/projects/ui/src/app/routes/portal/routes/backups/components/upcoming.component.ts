@@ -1,6 +1,6 @@
 import { TuiIcon } from '@taiga-ui/core'
 import { DatePipe } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { TuiSkeleton } from '@taiga-ui/kit'
 import { CronJob } from 'cron'
@@ -92,7 +92,6 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [GetBackupIconPipe, DatePipe, TuiIcon, TuiSkeleton],
 })
 export class BackupsUpcomingComponent {

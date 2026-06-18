@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core'
+import { Component, signal } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
 import { tuiIsString } from '@taiga-ui/cdk'
@@ -54,7 +54,6 @@ import { MarketplacePkgSideload, validateS9pk } from './sideload.utils'
       margin: 0 auto;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [tuiInputFilesOptionsProvider({ maxFileSize: Infinity })],
   imports: [
     FormsModule,

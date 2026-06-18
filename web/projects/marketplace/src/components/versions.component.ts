@@ -1,5 +1,4 @@
 import {
-  ChangeDetectionStrategy,
   Component,
   inject,
   input,
@@ -39,7 +38,6 @@ import { filter } from 'rxjs'
   `,
   host: { '(click)': 'promptSelectVersion()' },
   hostDirectives: [TuiCell],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButton, FormsModule, TuiRadioList, i18nPipe, TuiTitle, TuiIcon],
 })
 export class MarketplaceVersionsComponent {

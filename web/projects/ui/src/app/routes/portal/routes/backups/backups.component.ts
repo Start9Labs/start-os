@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { TuiDialogService, TuiIcon, TuiTitle, TuiCell } from '@taiga-ui/core'
 import { BackupsUpcomingComponent } from './components/upcoming.component'
 import { HISTORY } from './modals/history.component'
@@ -25,7 +25,6 @@ import { BackupsRestoreService } from './services/restore.service'
     <table backupsUpcoming class="g-table"></table>
   `,
   host: { class: 'g-page' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [BackupsUpcomingComponent, TuiIcon, TuiCell, TuiTitle],
 })
 export default class BackupsComponent {

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, Input } from '@angular/core'
+import { Component, input, Input } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { i18nPipe, TrustUrlPipe } from '@start9labs/shared'
 import { TuiTitle, TuiCell } from '@taiga-ui/core'
@@ -28,7 +28,6 @@ import { MarketplacePkg } from '../types'
     }
   `,
   hostDirectives: [TuiCardLarge],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterLink,
     TuiCell,

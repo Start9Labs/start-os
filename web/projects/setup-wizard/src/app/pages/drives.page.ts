@@ -1,9 +1,4 @@
-import {
-  ChangeDetectorRef,
-  Component,
-  HostListener,
-  inject,
-} from '@angular/core'
+import { Component, HostListener, inject, signal } from '@angular/core'
 import {
   AbstractControl,
   FormControl,
@@ -46,15 +41,15 @@ import { StateService } from '../services/state.service'
 
 @Component({
   template: `
-    @if (!shuttingDown) {
-      @if (loading) {
+    @if (!shuttingDown()) {
+      @if (loading()) {
         <section tuiCardLarge="compact">
           <header tuiHeader>
             <h2 tuiTitle>{{ 'Select Drives' | i18n }}</h2>
           </header>
           <tui-loader />
         </section>
-      } @else if (drives.length === 0) {
+      } @else if (drives().length === 0) {
         <section tuiCardLarge="compact">
           <header tuiHeader>
             <h2 tuiTitle>{{ 'Select Drives' | i18n }}</h2>
@@ -83,7 +78,7 @@ import { StateService } from '../services/state.service'
               <select
                 tuiSelect
                 formControlName="osDrive"
-                [items]="drives"
+                [items]="drives()"
               ></select>
             } @else {
               <input tuiSelect formControlName="osDrive" />
@@ -91,7 +86,7 @@ import { StateService } from '../services/state.service'
             @if (!mobile) {
               <tui-data-list-wrapper
                 *tuiDropdown
-                [items]="drives"
+                [items]="drives()"
                 [itemContent]="driveContent"
               />
             }
@@ -107,7 +102,7 @@ import { StateService } from '../services/state.service'
               <select
                 tuiSelect
                 formControlName="dataDrive"
-                [items]="drives"
+                [items]="drives()"
                 [tuiValidator]="
                   form.controls.osDrive.value | tuiMapper: dataValidator
                 "
@@ -124,14 +119,14 @@ import { StateService } from '../services/state.service'
             @if (!mobile) {
               <tui-data-list-wrapper
                 *tuiDropdown
-                [items]="drives"
+                [items]="drives()"
                 [itemContent]="driveContent"
               />
             }
-            @if (preserveData === true) {
+            @if (preserveData() === true) {
               <tui-icon icon="@tui.database" class="g-positive" />
             }
-            @if (preserveData === false) {
+            @if (preserveData() === false) {
               <tui-icon icon="@tui.database-zap" class="g-negative" />
             }
             <tui-icon [tuiTooltip]="dataDriveTooltip" />
@@ -202,7 +197,6 @@ export default class DrivesPage {
   private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly stateService = inject(StateService)
-  private readonly cdr = inject(ChangeDetectorRef)
   private readonly i18n = inject(i18nPipe)
 
   protected readonly mobile = inject(WA_IS_MOBILE)
@@ -267,11 +261,11 @@ export default class DrivesPage {
       return null
     }
 
-  drives: DiskInfo[] = []
-  loading = true
-  shuttingDown = false
+  readonly drives = signal<DiskInfo[]>([])
+  readonly loading = signal(true)
+  readonly shuttingDown = signal(false)
   private dialogSub?: Subscription
-  preserveData: boolean | null = null
+  readonly preserveData = signal<boolean | null>(null)
 
   readonly driveName = (drive: DiskInfo): string =>
     [drive.vendor, drive.model].filter(Boolean).join(' ') ||
@@ -300,7 +294,7 @@ export default class DrivesPage {
     this.form.controls.dataDrive.valueChanges
       .pipe(distinctUntilChanged())
       .subscribe(drive => {
-        this.preserveData = null
+        this.preserveData.set(null)
         if (drive) {
           this.form.controls.dataDrive.markAsTouched()
           if (toGuid(drive)) {
@@ -311,9 +305,9 @@ export default class DrivesPage {
   }
 
   async refresh() {
-    this.loading = true
+    this.loading.set(true)
     this.form.reset()
-    this.preserveData = null
+    this.preserveData.set(null)
     await this.loadDrives()
   }
 
@@ -326,13 +320,13 @@ export default class DrivesPage {
     const dataHasStartOS = !!toGuid(dataDrive)
 
     // Scenario 1: Same drive, has StartOS data, preserving → no warning
-    if (sameDevice && dataHasStartOS && this.preserveData) {
+    if (sameDevice && dataHasStartOS && this.preserveData()) {
       this.installOs(false)
       return
     }
 
     // Scenario 2: Different drives, preserving data → warn OS only
-    if (!sameDevice && this.preserveData) {
+    if (!sameDevice && this.preserveData()) {
       this.showOsDriveWarning()
       return
     }
@@ -357,15 +351,13 @@ export default class DrivesPage {
       .subscribe({
         next: preserve => {
           selectionMade = true
-          this.preserveData = preserve
-          this.cdr.markForCheck()
+          this.preserveData.set(preserve)
         },
         complete: () => {
           if (!selectionMade) {
             // Dialog was dismissed without selection - clear the data drive
             this.form.controls.dataDrive.reset()
-            this.preserveData = null
-            this.cdr.markForCheck()
+            this.preserveData.set(null)
           }
         },
       })
@@ -466,7 +458,7 @@ export default class DrivesPage {
 
     try {
       await this.api.shutdown()
-      this.shuttingDown = true
+      this.shuttingDown.set(true)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -476,11 +468,11 @@ export default class DrivesPage {
 
   private async loadDrives() {
     try {
-      this.drives = (await this.api.getDisks()).filter(d => d.capacity > 0)
+      this.drives.set((await this.api.getDisks()).filter(d => d.capacity > 0))
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
-      this.loading = false
+      this.loading.set(false)
     }
   }
 }

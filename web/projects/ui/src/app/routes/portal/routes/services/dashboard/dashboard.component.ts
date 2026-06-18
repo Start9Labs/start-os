@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  viewChild,
-} from '@angular/core'
+import { Component, inject, viewChild } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { i18nPipe } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
@@ -25,7 +20,6 @@ import { ServicesTableComponent } from './table.component'
   `,
   host: { class: 'g-page' },
   imports: [TitleDirective, i18nPipe, ServicesTableComponent],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class DashboardComponent {
   readonly services = toSignal(

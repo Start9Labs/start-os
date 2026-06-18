@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  Input,
-} from '@angular/core'
+import { Component, inject, Input } from '@angular/core'
 import {
   ErrorService,
   i18nPipe,
@@ -81,7 +76,6 @@ import { getManifest } from 'src/app/utils/get-package-data'
     }
   `,
   host: { class: 'g-card' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiProgress,
     InstallingProgressPipe,

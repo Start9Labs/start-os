@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-} from '@angular/core'
+import { Component, computed, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { TitleDirective } from 'src/app/services/title.service'
 import { CpuComponent } from './cpu.component'
@@ -34,15 +29,15 @@ import { i18nPipe } from '@start9labs/shared'
       </section>
       <section class="g-card">
         <header>CPU</header>
-        <metrics-cpu [value]="metrics()?.cpu" />
+        <metrics-cpu [value]="$safeNavigationMigration(metrics()?.cpu)" />
       </section>
       <section class="g-card">
         <header>{{ 'Memory' | i18n }}</header>
-        <metrics-memory [value]="metrics()?.memory" />
+        <metrics-memory [value]="$safeNavigationMigration(metrics()?.memory)" />
       </section>
       <section class="g-card">
         <header>{{ 'Storage' | i18n }}</header>
-        <metrics-storage [value]="metrics()?.disk" />
+        <metrics-storage [value]="$safeNavigationMigration(metrics()?.disk)" />
       </section>
     </div>
   `,
@@ -84,7 +79,6 @@ import { i18nPipe } from '@start9labs/shared'
     }
   `,
   host: { class: 'g-page' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TemperatureComponent,
     StorageComponent,

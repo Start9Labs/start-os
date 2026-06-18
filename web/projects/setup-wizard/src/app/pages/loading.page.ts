@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, inject, signal } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { Router } from '@angular/router'
 import {
@@ -60,7 +55,6 @@ import { StateService } from '../services/state.service'
     }
   `,
   imports: [InitializingComponent, TuiButton, i18nPipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class LoadingPage {
   private readonly api = inject(ApiService)

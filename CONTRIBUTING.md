@@ -74,7 +74,7 @@ This project uses [GNU Make](https://www.gnu.org/software/make/) to build its co
 
 - [GNU Make](https://www.gnu.org/software/make/)
 - [Docker](https://docs.docker.com/get-docker/) or [Podman](https://podman.io/)
-- [NodeJS v20.16.0](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
+- [NodeJS](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm) — v24.15.0 or newer (required by Angular 22's CLI; `nvm install 24` per below)
 - [Rust](https://rustup.rs/) (nightly for formatting)
 - [sed](https://www.gnu.org/software/sed/), [grep](https://www.gnu.org/software/grep/), [awk](https://www.gnu.org/software/gawk/)
 - [jq](https://jqlang.github.io/jq/)

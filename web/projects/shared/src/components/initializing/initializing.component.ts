@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  input,
-} from '@angular/core'
+import { Component, computed, inject, input } from '@angular/core'
 import { TuiProgress } from '@taiga-ui/kit'
 import { LogsWindowComponent } from './logs-window.component'
 import { i18nPipe } from '../../i18n/i18n.pipe'
@@ -65,7 +59,6 @@ import { i18nPipe } from '../../i18n/i18n.pipe'
     }
   `,
   imports: [LogsWindowComponent, TuiProgress, i18nPipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InitializingComponent {
   private readonly i18nPipe = inject(i18nPipe)

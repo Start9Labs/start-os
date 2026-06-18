@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common'
-import { ChangeDetectionStrategy, Component, input } from '@angular/core'
+import { Component, input } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { i18nPipe } from '@start9labs/shared'
 import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
@@ -22,7 +22,6 @@ import { MarketplaceDependencyComponent } from './dependency.component'
     }
   `,
   hostDirectives: [TuiCardLarge],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     MarketplaceDependencyComponent,

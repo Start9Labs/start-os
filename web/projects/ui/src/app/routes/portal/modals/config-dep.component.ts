@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  Input,
-  OnInit,
-} from '@angular/core'
+import { Component, inject, Input, OnInit } from '@angular/core'
 import { TuiNotification } from '@taiga-ui/core'
 import { getValueByPointer, Operation } from 'fast-json-patch'
 import { i18nPipe, isObject } from '@start9labs/shared'
@@ -25,7 +19,6 @@ import { tuiIsNumber } from '@taiga-ui/cdk'
     }
   `,
   imports: [TuiNotification, i18nPipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     tui-notification {
       margin-bottom: 1.5rem;

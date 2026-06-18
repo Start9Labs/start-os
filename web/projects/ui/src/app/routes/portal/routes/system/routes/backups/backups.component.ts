@@ -1,10 +1,5 @@
 import { AsyncPipe, DatePipe } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  OnInit,
-} from '@angular/core'
+import { Component, inject, OnInit } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, RouterLink } from '@angular/router'
 import { DialogService, DocsLinkDirective, i18nPipe } from '@start9labs/shared'
@@ -115,7 +110,6 @@ import { BACKUP_RESTORE } from './restore.component'
       display: none;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     AsyncPipe,
     DatePipe,

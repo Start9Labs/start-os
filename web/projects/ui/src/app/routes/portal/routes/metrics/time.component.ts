@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { DocsLinkDirective, i18nPipe } from '@start9labs/shared'
 import {
@@ -98,7 +98,6 @@ import { TimeService } from 'src/app/services/time.service'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     TuiNotification,

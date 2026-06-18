@@ -1,8 +1,20 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "baseUrl": "./"
+    "paths": {
+      "*": ["./*"],
+      "@start9labs/marketplace": ["../marketplace/index"],
+      "@start9labs/shared": ["../shared/src/public-api"]
+    }
   },
   "files": ["src/main.ts", "src/polyfills.ts"],
-  "include": ["src/**/*.d.ts"]
+  "include": ["src/**/*.d.ts"],
+  "angularCompilerOptions": {
+    "extendedDiagnostics": {
+      "checks": {
+        "nullishCoalescingNotNullable": "suppress",
+        "optionalChainNotNullable": "suppress"
+      }
+    }
+  }
 }

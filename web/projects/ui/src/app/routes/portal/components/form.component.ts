@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  Input,
-  OnInit,
-} from '@angular/core'
+import { Component, inject, Input, OnInit } from '@angular/core'
 import { FormGroup, ReactiveFormsModule } from '@angular/forms'
 import { RouterModule } from '@angular/router'
 import { IST } from '@start9labs/start-sdk'
@@ -101,7 +95,6 @@ export interface FormContext<T> {
     FormGroupComponent,
   ],
   providers: [InvalidService],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FormComponent<T extends Record<string, any>> implements OnInit {
   private readonly confirm = inject(TuiConfirmService, { optional: true })

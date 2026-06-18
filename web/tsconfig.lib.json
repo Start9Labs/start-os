@@ -2,18 +2,23 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "baseUrl": "./",
     "outDir": "../../out-tsc/lib",
     "declaration": true,
     "declarationMap": false,
     "inlineSources": true,
     "useDefineForClassFields": false,
     "paths": {
-      "@start9labs/marketplace": ["dist/marketplace"],
-      "@start9labs/shared": ["dist/shared"]
+      "@start9labs/marketplace": ["./dist/marketplace"],
+      "@start9labs/shared": ["./dist/shared"]
     }
   },
   "angularCompilerOptions": {
-    "compilationMode": "partial"
+    "compilationMode": "partial",
+    "extendedDiagnostics": {
+      "checks": {
+        "nullishCoalescingNotNullable": "suppress",
+        "optionalChainNotNullable": "suppress"
+      }
+    }
   }
 }

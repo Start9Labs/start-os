@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { Router } from '@angular/router'
 import { StoreIconDirective } from '@start9labs/marketplace'
@@ -43,7 +43,7 @@ import { MarketplaceAlertsService } from '../services/alerts.service'
       [(tuiDropdownOpen)]="open"
     >
       <span tuiAvatar appearance="action-grayscale" size="xs">
-        <img [storeIcon]="data()?.current?.url" />
+        <img [storeIcon]="$safeNavigationMigration(data()?.current?.url)" />
       </span>
       <b tuiFade>{{ data()?.current?.name || 'Loading...' }}</b>
       @if (data(); as d) {
@@ -124,7 +124,6 @@ import { MarketplaceAlertsService } from '../services/alerts.service'
       margin: 0.5rem 0.5rem 0.25rem;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     StoreIconDirective,
     TuiButton,

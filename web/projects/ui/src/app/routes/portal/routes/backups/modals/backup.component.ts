@@ -1,4 +1,5 @@
 import { Component, inject } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import {
   TuiButton,
@@ -11,7 +12,7 @@ import {
 import { TuiBlock } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
-import { firstValueFrom, map } from 'rxjs'
+import { map, take } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
 
@@ -26,7 +27,7 @@ interface Package {
 @Component({
   template: `
     <div tuiGroup orientation="vertical" [collapsed]="true">
-      @if (pkgs) {
+      @if (pkgs(); as pkgs) {
         @for (pkg of pkgs; track $index) {
           <label tuiBlock>
             <img class="icon" alt="" [src]="pkg.icon" />
@@ -76,43 +77,43 @@ export class BackupsBackupModal {
 
   hasSelection = false
 
-  pkgs: readonly Package[] | null = null
-
-  async ngOnInit() {
-    this.pkgs = await firstValueFrom(
-      this.patch.watch$('packageData').pipe(
-        map(pkgs =>
-          Object.values(pkgs)
-            .map(pkg => {
-              const { id, title } = getManifest(pkg)
-              return {
-                id,
-                title,
-                icon: pkg.icon,
-                disabled: pkg.stateInfo.state !== 'installed',
-                checked: false,
-              }
-            })
-            .sort((a, b) =>
-              b.title.toLowerCase() > a.title.toLowerCase() ? -1 : 1,
-            ),
-        ),
+  readonly pkgs = toSignal(
+    this.patch.watch$('packageData').pipe(
+      take(1),
+      map(pkgs =>
+        Object.values(pkgs)
+          .map(pkg => {
+            const { id, title } = getManifest(pkg)
+            return {
+              id,
+              title,
+              icon: pkg.icon,
+              disabled: pkg.stateInfo.state !== 'installed',
+              checked: false,
+            }
+          })
+          .sort((a, b) =>
+            b.title.toLowerCase() > a.title.toLowerCase() ? -1 : 1,
+          ),
       ),
-    )
-  }
+    ),
+    { initialValue: null },
+  )
 
   done() {
     this.context.completeWith(
-      this.pkgs?.filter(p => p.checked).map(p => p.id) || [],
+      this.pkgs()
+        ?.filter(p => p.checked)
+        .map(p => p.id) || [],
     )
   }
 
   handleChange() {
-    this.hasSelection = !!this.pkgs?.some(p => p.checked)
+    this.hasSelection = !!this.pkgs()?.some(p => p.checked)
   }
 
   toggleSelectAll() {
-    this.pkgs?.forEach(p => (p.checked = !this.hasSelection && !p.disabled))
+    this.pkgs()?.forEach(p => (p.checked = !this.hasSelection && !p.disabled))
     this.hasSelection = !this.hasSelection
   }
 }

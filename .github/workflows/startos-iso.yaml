@@ -53,7 +53,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  NODEJS_VERSION: "24.11.0"
+  NODEJS_VERSION: "24.17.0"
   ENVIRONMENT: '${{ fromJson(format(''["{0}", ""]'', github.event.inputs.environment || ''dev''))[github.event.inputs.environment == ''NONE''] }}'
 
 jobs:

@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  input,
-} from '@angular/core'
+import { Component, inject, input } from '@angular/core'
 import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
 import { ISB } from '@start9labs/start-sdk'
 import {
@@ -138,7 +133,6 @@ import { PORT_FORWARDS_MODAL } from './port-forwards.component'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButton, TuiDropdown, TuiDataList, TuiIcon, TuiInput, i18nPipe],
 })
 export class GatewaysItemComponent {

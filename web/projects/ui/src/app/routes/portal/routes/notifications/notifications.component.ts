@@ -1,11 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  OnInit,
-  signal,
-  viewChild,
-} from '@angular/core'
+import { Component, inject, OnInit, signal, viewChild } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, Router } from '@angular/router'
 import { ErrorService, i18nPipe, isEmptyObject } from '@start9labs/shared'
@@ -48,7 +41,6 @@ import { NotificationsTableComponent } from './table.component'
     }
   `,
   host: { class: 'g-page' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButton, NotificationsTableComponent, TitleDirective, i18nPipe],
 })
 export default class NotificationsComponent implements OnInit {

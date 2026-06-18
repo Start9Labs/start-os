@@ -1,10 +1,5 @@
 import { AsyncPipe } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  INJECTOR,
-} from '@angular/core'
+import { Component, inject, INJECTOR } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
@@ -252,7 +247,6 @@ import { UPDATE } from './update.component'
     }
   `,
   providers: [tuiCellOptionsProvider({ height: 'spacious' })],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     AsyncPipe,
     RouterLink,

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { FormControl, ReactiveFormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
 import {
@@ -155,7 +155,6 @@ function detectProviderKey(host: string | undefined): string {
       justify-content: flex-end;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     ReactiveFormsModule,

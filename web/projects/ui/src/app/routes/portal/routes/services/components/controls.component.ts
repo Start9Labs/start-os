@@ -1,12 +1,5 @@
 import { AsyncPipe } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  DOCUMENT,
-  inject,
-  input,
-} from '@angular/core'
+import { Component, computed, DOCUMENT, inject, input } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiButton, TuiDataList, TuiDropdown } from '@taiga-ui/core'
@@ -126,7 +119,6 @@ import { InterfaceService } from '../../../components/interfaces/interface.servi
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiButton,
     i18nPipe,

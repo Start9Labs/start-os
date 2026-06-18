@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  input,
-} from '@angular/core'
+import { Component, computed, input } from '@angular/core'
 import { TuiProgress } from '@taiga-ui/kit'
 import { T } from '@start9labs/start-sdk'
 import { DataComponent } from './data.component'
@@ -25,7 +20,7 @@ const LABELS: Record<string, i18nKey> = {
   template: `
     <label tuiProgressLabel>
       <tui-progress-circle size="xl" [max]="100" [value]="used()" />
-      {{ value()?.percentageUsed?.value | value }}%
+      {{ $safeNavigationMigration(value()?.percentageUsed?.value) | value }}%
     </label>
     <metrics-data [labels]="labels" [value]="value()" />
   `,
@@ -36,7 +31,6 @@ const LABELS: Record<string, i18nKey> = {
       width: fit-content;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [DataComponent, TuiProgress, ValuePipe],
 })
 export class MemoryComponent {

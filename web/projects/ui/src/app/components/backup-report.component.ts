@@ -1,10 +1,5 @@
 import { CommonModule } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-} from '@angular/core'
+import { Component, computed, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
 import { TuiDialogContext, TuiIcon } from '@taiga-ui/core'
@@ -70,7 +65,6 @@ import { DataModel } from '../services/patch-db/data-model'
       margin-inline-end: 0.25rem;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, TuiIcon, i18nPipe],
 })
 export class BackupsReportModal {

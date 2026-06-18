@@ -1,11 +1,5 @@
 import { CommonModule, TitleCasePipe } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  input,
-} from '@angular/core'
+import { Component, computed, inject, input } from '@angular/core'
 import { toObservable, toSignal } from '@angular/core/rxjs-interop'
 import { Router } from '@angular/router'
 import { MarketplacePkg } from '@start9labs/marketplace'
@@ -97,7 +91,6 @@ type KEYS = 'id' | 'version' | 'alerts' | 'flavor' | 'satisfies'
       gap: 0.5rem;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     ExverComparesPipe,

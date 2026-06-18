@@ -12,7 +12,7 @@ For AI developers (Claude Code, Copilot, etc.). See `CONTRIBUTING.md` for the do
 ## Sub-scopes
 
 - `core/CLAUDE.md` — Rust backend
-- `web/CLAUDE.md` — Angular 21 + Taiga UI 5 frontend
+- `web/CLAUDE.md` — Angular 22 + Taiga UI 5 frontend
 - `container-runtime/CLAUDE.md` — Node.js LXC service runtime
 - `sdk/CLAUDE.md` — TypeScript service-packaging SDK
 - `patch-db/CLAUDE.md` — git submodule; edits belong upstream

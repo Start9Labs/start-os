@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  input,
-} from '@angular/core'
+import { Component, inject, input } from '@angular/core'
 import { i18nPipe, ROOT_CA_DOWNLOAD_HREF } from '@start9labs/shared'
 import { TuiButton, TuiDataList, TuiDropdown, TuiInput } from '@taiga-ui/core'
 import { Authority, AuthorityService } from './authority.service'
@@ -74,7 +69,6 @@ import { Authority, AuthorityService } from './authority.service'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButton, i18nPipe, TuiDropdown, TuiDataList, TuiInput],
 })
 export class AuthorityItemComponent {

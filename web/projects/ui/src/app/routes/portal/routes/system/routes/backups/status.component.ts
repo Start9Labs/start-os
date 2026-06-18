@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  input,
-} from '@angular/core'
+import { Component, inject, input } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { i18nPipe } from '@start9labs/shared'
 import { TuiIcon } from '@taiga-ui/core'
@@ -45,7 +40,6 @@ import { TuiIcon } from '@taiga-ui/core'
       height: auto;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiIcon, i18nPipe],
 })
 export class BackupStatusComponent {

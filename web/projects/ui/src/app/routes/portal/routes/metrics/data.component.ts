@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  input,
-} from '@angular/core'
+import { Component, computed, input } from '@angular/core'
 import { TuiTitle, TuiCell } from '@taiga-ui/core'
 import { T } from '@start9labs/start-sdk'
 import { ValuePipe } from './value.pipe'
@@ -15,8 +10,17 @@ import { i18nKey, i18nPipe } from '@start9labs/shared'
     @for (key of keys(); track $index) {
       <div tuiCell="m">
         <span tuiTitle>{{ labels()[key] | i18n }}</span>
-        <span tuiTitle [attr.data-unit]="$any(value()?.[key])?.unit">
-          {{ $any(value()?.[key])?.value | value }}
+        <span
+          tuiTitle
+          [attr.data-unit]="
+            $any($safeNavigationMigration(value()?.[key]))?.unit
+          "
+        >
+          {{
+            $safeNavigationMigration(
+              $any($safeNavigationMigration(value()?.[key]))?.value
+            ) | value
+          }}
         </span>
       </div>
     }
@@ -39,7 +43,6 @@ import { i18nKey, i18nPipe } from '@start9labs/shared'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiCell, TuiTitle, ValuePipe, i18nPipe],
 })
 export class DataComponent<M extends T.Metrics[keyof T.Metrics]> {

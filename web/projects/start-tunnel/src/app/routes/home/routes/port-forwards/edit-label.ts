@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import {
   NonNullableFormBuilder,
   ReactiveFormsModule,
@@ -32,7 +32,6 @@ export interface EditLabelData {
       </footer>
     </form>
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule, TuiButton, TuiError, TuiInput, TuiForm],
 })
 export class PortForwardsEditLabel {

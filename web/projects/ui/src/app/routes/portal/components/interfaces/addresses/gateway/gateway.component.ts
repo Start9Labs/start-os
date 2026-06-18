@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  input,
-} from '@angular/core'
+import { Component, inject, input } from '@angular/core'
 import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
 import { ISB, utils } from '@start9labs/start-sdk'
 import { TuiButton, TuiIcon } from '@taiga-ui/core'
@@ -106,7 +101,6 @@ import { GatewayItemComponent } from './item.component'
     i18nPipe,
     GatewayItemComponent,
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GatewayComponent {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)

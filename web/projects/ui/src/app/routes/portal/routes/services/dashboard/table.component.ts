@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  input,
-} from '@angular/core'
+import { Component, inject, input } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { T } from '@start9labs/start-sdk'
@@ -60,7 +55,10 @@ import { RouterLink } from '@angular/router'
         @for (service of services() | tuiTableSort; track $index) {
           <tr
             appService
-            [routerLink]="'/services/' + (service | toManifest)?.id"
+            [routerLink]="
+              '/services/' +
+              $safeNavigationMigration((service | toManifest)?.id)
+            "
             [pkg]="service"
             [depErrors]="errors()?.[(service | toManifest).id] || {}"
           ></tr>
@@ -76,7 +74,6 @@ import { RouterLink } from '@angular/router'
       </table>
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormsModule,
     TableComponent,

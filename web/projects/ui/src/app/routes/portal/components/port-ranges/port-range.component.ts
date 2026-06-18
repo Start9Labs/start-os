@@ -1,11 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  input,
-  signal,
-} from '@angular/core'
+import { Component, computed, inject, input, signal } from '@angular/core'
 import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiCell, TuiIcon, TuiTitle } from '@taiga-ui/core'
@@ -100,7 +93,6 @@ type AccessOption = {
     }
   `,
   host: { class: 'g-card' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiCell, TuiIcon, TuiTitle, TuiSegmented, i18nPipe],
 })
 export class PortRangeComponent {

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { Component } from '@angular/core'
 import { NotificationsToastComponent } from './notifications-toast.component'
 import { RefreshAlertComponent } from './refresh-alert.component'
 
@@ -8,7 +8,6 @@ import { RefreshAlertComponent } from './refresh-alert.component'
     <notifications-toast />
     <refresh-alert />
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NotificationsToastComponent, RefreshAlertComponent],
 })
 export class ToastContainerComponent {}

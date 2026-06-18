@@ -1,11 +1,5 @@
 import { DatePipe } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  input,
-  signal,
-} from '@angular/core'
+import { Component, inject, input, signal } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { MarketplacePkg } from '@start9labs/marketplace'
 import {
@@ -77,7 +71,9 @@ import UpdatesComponent from './updates.component'
         </div>
       </td>
       <td class="desktop">{{ item().gitHash }}</td>
-      <td class="desktop">{{ item().s9pks[0]?.[1]?.publishedAt | date }}</td>
+      <td class="desktop">
+        {{ $safeNavigationMigration(item().s9pks[0]?.[1]?.publishedAt) | date }}
+      </td>
       <td>
         <button
           tuiIconButton
@@ -92,8 +88,9 @@ import UpdatesComponent from './updates.component'
             size="xs"
             [max]="100"
             [value]="
-              (local().stateInfo.installingInfo?.progress?.overall
-                | installingProgress) || 0
+              ($safeNavigationMigration(
+                local().stateInfo.installingInfo?.progress?.overall
+              ) | installingProgress) || 0
             "
           />
         } @else if (pending()) {
@@ -136,7 +133,10 @@ import UpdatesComponent from './updates.component'
           <p tuiTitle class="mobile">
             <b>{{ 'Published' | i18n }}</b>
             <span tuiSubtitle>
-              {{ item().s9pks[0]?.[1]?.publishedAt | date }}
+              {{
+                $safeNavigationMigration(item().s9pks[0]?.[1]?.publishedAt)
+                  | date
+              }}
             </span>
           </p>
           <p tuiTitle>
@@ -148,7 +148,7 @@ import UpdatesComponent from './updates.component'
                 iconEnd="@tui.external-link"
                 routerLink="/marketplace"
                 [queryParams]="{
-                  registry: parent.current()?.url,
+                  registry: $safeNavigationMigration(parent.current()?.url),
                   id: item().id,
                   flavor: item().flavor,
                 }"
@@ -256,7 +256,6 @@ import UpdatesComponent from './updates.component'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterLink,
     TuiExpand,

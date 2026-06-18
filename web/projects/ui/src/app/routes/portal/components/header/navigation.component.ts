@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { Component } from '@angular/core'
 import { RouterLink, RouterLinkActive } from '@angular/router'
 import { i18nPipe } from '@start9labs/shared'
 import { TuiHint, TuiIcon } from '@taiga-ui/core'
@@ -162,7 +162,6 @@ import { getMenu } from 'src/app/utils/system-utilities'
       display: none;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiBadgeNotification,
     TuiBadgedContent,

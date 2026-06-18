@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, inject, signal } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import {
@@ -86,7 +81,9 @@ interface UpdatesData {
           @if (
             (
               data()?.marketplace?.[registry.url]?.packages || []
-              | filterUpdates: data()?.localPkgs : data()?.hidden
+              | filterUpdates
+                : $safeNavigationMigration(data()?.localPkgs)
+                : $safeNavigationMigration(data()?.hidden)
             ).length;
             as length
           ) {
@@ -117,13 +114,18 @@ interface UpdatesData {
             as packages
           ) {
             @if (
-              packages | filterUpdates: data()?.localPkgs : data()?.hidden;
+              packages
+                | filterUpdates
+                  : $safeNavigationMigration(data()?.localPkgs)
+                  : $safeNavigationMigration(data()?.hidden);
               as updates
             ) {
               @for (pkg of updates; track $index) {
                 <updates-item
                   [item]="pkg"
-                  [local]="data()?.localPkgs?.[pkg.id]!"
+                  [local]="
+                    $safeNavigationMigration(data()?.localPkgs?.[pkg.id])!
+                  "
                   [pending]="isPending(pkg)"
                 />
               } @empty {
@@ -232,7 +234,6 @@ interface UpdatesData {
     class: 'g-page',
     '[class._selected]': 'current()',
   },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiCell,
     TuiAvatar,
