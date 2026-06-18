@@ -68,19 +68,6 @@ impl NetController {
                 .de()?
                 .0],
         )?);
-        // Only startd may speak the port-mapping protocols to the gateway;
-        // block packages from opening ports behind StartOS's back. Prepended so
-        // it precedes the lxcbr0-egress accept. (PCP/NAT-PMP = udp/5351; UPnP
-        // SSDP discovery = udp/1900 — blocking discovery neuters UPnP since the
-        // SOAP control URL can't be learned.)
-        nft_rule(
-            "forward",
-            "block-portmap-lxc",
-            false,
-            true,
-            &format!("iifname \"{START9_BRIDGE_IFACE}\" udp dport {{ 5351, 1900 }} drop"),
-        )
-        .await?;
         nft_rule(
             "forward",
             "lxcbr0-egress",
