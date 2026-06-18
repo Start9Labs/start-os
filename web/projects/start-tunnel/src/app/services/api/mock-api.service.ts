@@ -282,8 +282,10 @@ export class MockApiService extends ApiService {
   async addForward(params: T.Tunnel.AddPortForwardParams): Promise<null> {
     await pauseFor(1000)
 
+    // The external IP is fixed server-side to the target device's WAN.
+    const source = `${this.deviceWan(params.target)}:${params.externalPort}`
     const forwards = mockTunnelData.portForwards
-    const existing = forwards[params.source]
+    const existing = forwards[source]
 
     if (params.sni.length) {
       const routes: { [hostname: string]: T.Tunnel.SniRoute } =
@@ -298,11 +300,11 @@ export class MockApiService extends ApiService {
       }
 
       const value: T.Tunnel.PortForward = { kind: 'sni', routes }
-      forwards[params.source] = value
+      forwards[source] = value
       this.mockRevision([
         {
           op: existing ? PatchOp.REPLACE : PatchOp.ADD,
-          path: `/portForwards/${params.source}`,
+          path: `/portForwards/${source}`,
           value,
         },
       ])
@@ -314,17 +316,32 @@ export class MockApiService extends ApiService {
         enabled: true,
         count: 1,
       }
-      forwards[params.source] = value
+      forwards[source] = value
       this.mockRevision([
         {
           op: existing ? PatchOp.REPLACE : PatchOp.ADD,
-          path: `/portForwards/${params.source}`,
+          path: `/portForwards/${source}`,
           value,
         },
       ])
     }
 
     return null
+  }
+
+  /** The WAN IP a device's traffic egresses (device override > subnet > default). */
+  private deviceWan(target: string): string {
+    const ip = target.split(':')[0] ?? ''
+    for (const subnet of Object.values(mockTunnelData.wg.subnets)) {
+      const client = subnet.clients[ip]
+      if (client) return client.wanIp ?? subnet.wanIp ?? this.defaultWan()
+    }
+    return this.defaultWan()
+  }
+
+  private defaultWan(): string {
+    const gw = Object.values(mockTunnelData.gateways)[0]
+    return gw?.ipInfo?.subnets[0]?.split('/')[0] ?? '0.0.0.0'
   }
 
   async updateForwardLabel(

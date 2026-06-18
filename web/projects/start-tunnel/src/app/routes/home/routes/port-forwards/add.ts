@@ -39,23 +39,6 @@ import { MappedDevice, PortForwardsData } from './utils'
         <input tuiInput formControlName="label" />
       </tui-textfield>
       <tui-error formControlName="label" />
-      <tui-textfield tuiChevron [tuiTextfieldCleaner]="false">
-        <label tuiLabel>External IP</label>
-        @if (mobile) {
-          <select
-            tuiSelect
-            formControlName="externalip"
-            placeholder="Select IP"
-            [items]="context.data.ips()"
-          ></select>
-        } @else {
-          <input tuiSelect formControlName="externalip" />
-        }
-        @if (!mobile) {
-          <tui-data-list-wrapper *tuiDropdown [items]="context.data.ips()" />
-        }
-      </tui-textfield>
-      <tui-error formControlName="externalip" />
       <tui-textfield>
         <label tuiLabel>External Port</label>
         <input
@@ -153,12 +136,6 @@ export class PortForwardsAdd {
 
   protected readonly form = inject(NonNullableFormBuilder).group({
     label: ['', Validators.required],
-    externalip: [
-      this.context.data.ips().length === 1
-        ? (this.context.data.ips().at(0) ?? '')
-        : '',
-      Validators.required,
-    ],
     externalport: [null as number | null, Validators.required],
     device: [null as MappedDevice | null, Validators.required],
     internalport: [null as number | null, Validators.required],
@@ -183,15 +160,8 @@ export class PortForwardsAdd {
 
     const loader = this.loading.open('').subscribe()
 
-    const {
-      label,
-      externalip,
-      externalport,
-      device,
-      internalport,
-      sni,
-      also80,
-    } = this.form.getRawValue()
+    const { label, externalport, device, internalport, sni, also80 } =
+      this.form.getRawValue()
 
     const hostnames = sni
       .split(/[\s,]+/)
@@ -199,8 +169,9 @@ export class PortForwardsAdd {
       .filter(Boolean)
 
     try {
+      // The external IP is fixed server-side to the target device's WAN.
       await this.api.addForward({
-        source: `${externalip}:${externalport}`,
+        externalPort: externalport!,
         target: `${device!.ip}:${internalport}`,
         label,
         sni: hostnames,
@@ -213,7 +184,7 @@ export class PortForwardsAdd {
         also80
       ) {
         await this.api.addForward({
-          source: `${externalip}:80`,
+          externalPort: 80,
           target: `${device!.ip}:443`,
           label: `${label} (HTTP redirect)`,
           sni: [],

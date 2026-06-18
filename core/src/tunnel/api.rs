@@ -838,13 +838,15 @@ pub async fn show_config(
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct AddPortForwardParams {
-    #[ts(type = "string")]
-    source: SocketAddrV4,
+    /// External (WAN) port to forward. The external IP is fixed to the target
+    /// device's assigned WAN: a forward's inbound IP must equal the device's
+    /// egress WAN so return traffic is symmetric.
+    external_port: u16,
     #[ts(type = "string")]
     target: SocketAddrV4,
     #[arg(long)]
     label: Option<String>,
-    /// Hostnames to SNI-demux on the shared `source` port. Empty = normal DNAT.
+    /// Hostnames to SNI-demux on the shared external port. Empty = normal DNAT.
     #[arg(long = "sni")]
     #[serde(default)]
     sni: Vec<String>,
@@ -853,12 +855,19 @@ pub struct AddPortForwardParams {
 pub async fn add_forward(
     ctx: TunnelContext,
     AddPortForwardParams {
-        source,
+        external_port,
         target,
         label,
         sni,
     }: AddPortForwardParams,
 ) -> Result<(), Error> {
+    let external_ip = ctx.external_ipv4(*target.ip()).await.ok_or_else(|| {
+        Error::new(
+            eyre!("no WAN IP available for device {}", target.ip()),
+            ErrorKind::Network,
+        )
+    })?;
+    let source = SocketAddrV4::new(external_ip, external_port);
     if !sni.is_empty() {
         ctx.add_sni_forward(source, target, &sni, None)
             .await
