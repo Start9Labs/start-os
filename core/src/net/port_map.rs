@@ -31,6 +31,11 @@ use crate::prelude::*;
 /// Re-assert/renew every desired mapping on this cadence (well under the PCP
 /// lease, and enough to recover a UPnP mapping lost to a gateway reboot).
 const REFRESH_INTERVAL: Duration = Duration::from_secs(180);
+/// On-demand retry floor for a desired-but-not-active mapping: an ensure() for a
+/// mapping whose last apply failed retries at most this often, so a reconcile
+/// burst can't busy-loop slow applies, while boot / tunnel-restart races recover
+/// in seconds instead of waiting for the 180s refresh.
+const RETRY_INTERVAL: Duration = Duration::from_secs(15);
 const GATEWAY_CACHE_TTL: Duration = Duration::from_secs(600);
 const PCP_LIFETIME_SECONDS: u32 = 3600;
 /// Keep PCP/NAT-PMP attempts snappy: a gateway that doesn't speak them should
@@ -242,6 +247,9 @@ struct State {
     desired: BTreeMap<MappingKey, Spec>,
     active: BTreeMap<MappingKey, Active>,
     upnp_cache: BTreeMap<Ipv4Addr, (Gateway<Tokio>, Instant)>,
+    /// Last apply() attempt per key, to rate-limit on-demand retries of
+    /// not-yet-active mappings (see RETRY_INTERVAL).
+    last_attempt: BTreeMap<MappingKey, Instant>,
 }
 
 impl State {
@@ -253,13 +261,17 @@ impl State {
                 || s.count != spec.count
         });
         self.desired.insert(key, spec);
-        // Only (re)apply on a genuine spec change. Re-applying whenever the key
-        // isn't active would busy-loop a mapping the gateway can't satisfy: it
-        // never becomes active, so every repeat ensure() — e.g. a burst of
-        // reconciles flooding the unbounded queue — would redo the full
-        // (slow, e.g. UPnP-discovery) apply. Retrying failed/lost mappings is
-        // the periodic refresh's job.
-        if changed {
+        // (Re)apply on a genuine spec change, or to retry a mapping that isn't
+        // active yet (a failed first apply at boot, or one the gateway dropped)
+        // — but rate-limit that retry to RETRY_INTERVAL per key so a reconcile
+        // burst can't busy-loop a mapping the gateway can't satisfy. `apply`
+        // stamps `last_attempt`; the 180s refresh is the slow safety net.
+        let stale = !self.active.contains_key(&key)
+            && self
+                .last_attempt
+                .get(&key)
+                .map_or(true, |t| t.elapsed() >= RETRY_INTERVAL);
+        if changed || stale {
             self.teardown(key).await;
             self.apply(key).await;
         }
@@ -267,6 +279,7 @@ impl State {
 
     async fn remove(&mut self, key: MappingKey) {
         self.desired.remove(&key);
+        self.last_attempt.remove(&key);
         self.teardown(key).await;
     }
 
@@ -290,6 +303,7 @@ impl State {
         }
         self.upnp_cache
             .retain(|_, (_, at)| at.elapsed() < GATEWAY_CACHE_TTL);
+        self.last_attempt.retain(|k, _| self.desired.contains_key(k));
     }
 
     async fn teardown(&mut self, key: MappingKey) {
@@ -313,6 +327,10 @@ impl State {
         let Some(spec) = self.desired.get(&key).cloned() else {
             return;
         };
+        // Stamp before attempting so a permanently-failing mapping is
+        // rate-limited (not just successful ones) — both ensure() and refresh()
+        // reach here.
+        self.last_attempt.insert(key, Instant::now());
         let (local_ip, external_port) = key;
         let (Some(ext), Some(intl)) = (
             NonZeroU16::new(external_port),
