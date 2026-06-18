@@ -1,0 +1,54 @@
+import { utils } from '@start9labs/start-sdk'
+import { TunnelData } from 'src/app/services/patch-db/data-model'
+
+type Gateways = TunnelData['gateways']
+
+// Ranges core's is_wan_candidate (core/src/net/upnp.rs) rejects: 0/8 +
+// unspecified, loopback, RFC1918, link-local, the TEST-NET docs ranges, and
+// broadcast. CGNAT (100.64/10) is intentionally absent — the backend accepts it
+// as a valid WAN, so the UI must too. Keep this list in sync with that fn.
+const NON_WAN_RANGES = [
+  '0.0.0.0/8',
+  '127.0.0.0/8',
+  '10.0.0.0/8',
+  '172.16.0.0/12',
+  '192.168.0.0/16',
+  '169.254.0.0/16',
+  '192.0.2.0/24',
+  '198.51.100.0/24',
+  '203.0.113.0/24',
+  '255.255.255.255/32',
+].map(r => utils.IpNet.parse(r))
+
+function isWanCandidate(address: string): boolean {
+  const ip = utils.IpAddress.parse(address)
+  return ip.isIpv4() && !NON_WAN_RANGES.some(r => r.contains(ip))
+}
+
+// Public WAN IPv4 addresses the gateway can egress from — the explicit choices.
+export function wanOptions(gateways: Gateways): readonly string[] {
+  return Object.values(gateways)
+    .flatMap(
+      g => g.ipInfo?.subnets.map(s => utils.IpNet.parse(s).address) ?? [],
+    )
+    .filter(isWanCandidate)
+}
+
+// Mirrors core's default_wan (core/src/tunnel/igd.rs): the first gateway's
+// detected WAN IP if it is a candidate, else its first candidate subnet address.
+export function defaultWanIp(gateways: Gateways): string | null {
+  for (const { ipInfo } of Object.values(gateways)) {
+    if (!ipInfo) continue
+    if (ipInfo.wanIp && isWanCandidate(ipInfo.wanIp)) return ipInfo.wanIp
+    const subnet = ipInfo.subnets
+      .map(s => utils.IpNet.parse(s).address)
+      .find(isWanCandidate)
+    if (subnet) return subnet
+  }
+  return null
+}
+
+export function wanLabel(ip: string | null, defaultIp: string | null): string {
+  if (ip) return ip
+  return defaultIp ? `Default (${defaultIp})` : 'Default'
+}

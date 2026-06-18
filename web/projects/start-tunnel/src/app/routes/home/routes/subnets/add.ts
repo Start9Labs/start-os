@@ -18,6 +18,7 @@ import {
 } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { wanLabel } from 'src/app/routes/home/components/wan'
 import { ApiService } from 'src/app/services/api/api.service'
 
 import { MappedDevice } from '../port-forwards/utils'
@@ -136,6 +137,22 @@ const MODE_LABEL: Record<T.Tunnel.DnsMode, string> = {
         }
       }
 
+      <tui-textfield
+        tuiChevron
+        [tuiTextfieldCleaner]="false"
+        [stringify]="stringifyWan"
+      >
+        <label tuiLabel>WAN IP</label>
+        @if (mobile) {
+          <select tuiSelect formControlName="wanIp" [items]="wanItems"></select>
+        } @else {
+          <input tuiSelect formControlName="wanIp" />
+        }
+        @if (!mobile) {
+          <tui-data-list-wrapper *tuiDropdown [items]="wanItems" />
+        }
+      </tui-textfield>
+
       <footer>
         <button tuiButton type="button" (click)="onSave()">Save</button>
       </footer>
@@ -180,17 +197,25 @@ export class SubnetsAdd {
         s => this.serverControl(s),
       ),
     ),
+    wanIp: this.fb.control<string | null>(this.context.data.wanIp),
   })
 
   protected readonly mode = toSignal(this.form.controls.mode.valueChanges, {
     initialValue: this.form.controls.mode.value,
   })
 
+  protected readonly wanItems: readonly (string | null)[] = [
+    null,
+    ...this.context.data.wanOptions,
+  ]
+
   protected get servers() {
     return this.form.controls.servers
   }
 
   protected readonly modeLabel = (m: T.Tunnel.DnsMode) => MODE_LABEL[m]
+  protected readonly stringifyWan = (ip: string | null) =>
+    wanLabel(ip, this.context.data.defaultWan)
   protected readonly stringifyDevice = ({ ip, name }: MappedDevice) =>
     ip ? `${name} (${ip})` : ''
 
@@ -241,6 +266,13 @@ export class SubnetsAdd {
           servers: mode === 'custom' ? this.servers.getRawValue() : [],
         })
       }
+
+      if (this.form.controls.wanIp.value !== this.context.data.wanIp) {
+        await this.api.setSubnetWan({
+          subnet,
+          wanIp: this.form.controls.wanIp.value,
+        })
+      }
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -285,4 +317,7 @@ interface Data {
   device: MappedDevice | null
   servers: readonly string[]
   devices: readonly MappedDevice[]
+  wanIp: string | null
+  wanOptions: readonly string[]
+  defaultWan: string | null
 }

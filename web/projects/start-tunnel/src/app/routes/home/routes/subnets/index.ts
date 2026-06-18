@@ -1,6 +1,5 @@
 import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { ErrorService } from '@start9labs/shared'
 import { T, utils } from '@start9labs/start-sdk'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiButton, TuiDataList, TuiDropdown } from '@taiga-ui/core'
@@ -12,7 +11,11 @@ import {
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
 import { PlaceholderComponent } from 'src/app/routes/home/components/placeholder'
-import { SET_WAN } from 'src/app/routes/home/components/set-wan'
+import {
+  defaultWanIp,
+  wanLabel,
+  wanOptions,
+} from 'src/app/routes/home/components/wan'
 import { ApiService } from 'src/app/services/api/api.service'
 import { TunnelData } from 'src/app/services/patch-db/data-model'
 
@@ -40,7 +43,7 @@ import { SUBNETS_ADD } from './add'
             <td>{{ subnet.name }}</td>
             <td>{{ subnet.range }}</td>
             <td>{{ subnet.dnsLabel }}</td>
-            <td>{{ subnet.wanIp ?? 'Default' }}</td>
+            <td>{{ wanLabel(subnet.wanIp, defaultWan()) }}</td>
             <td>
               <button
                 tuiIconButton
@@ -62,13 +65,6 @@ import { SUBNETS_ADD } from './add'
                     (click)="onEdit(subnet)"
                   >
                     Edit
-                  </button>
-                  <button
-                    tuiOption
-                    iconStart="@tui.globe"
-                    (click)="onSetWan(subnet)"
-                  >
-                    Set WAN IP
                   </button>
                   <button
                     tuiOption
@@ -108,21 +104,18 @@ export default class Subnets {
   private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly api = inject(ApiService)
   private readonly loading = inject(TuiNotificationMiddleService)
-  private readonly errorService = inject(ErrorService)
   private readonly patch = inject<PatchDB<TunnelData>>(PatchDB)
 
+  protected readonly wanLabel = wanLabel
+
   private readonly wans = toSignal(
-    this.patch.watch$('gateways').pipe(
-      map(g =>
-        Object.values(g)
-          .flatMap(
-            val => val.ipInfo?.subnets.map(s => utils.IpNet.parse(s)) || [],
-          )
-          .filter(s => s.isIpv4() && s.isPublic())
-          .map(s => s.address),
-      ),
-    ),
+    this.patch.watch$('gateways').pipe(map(wanOptions)),
     { initialValue: [] },
+  )
+
+  protected readonly defaultWan = toSignal(
+    this.patch.watch$('gateways').pipe(map(defaultWanIp)),
+    { initialValue: null },
   )
 
   protected readonly subnets = toSignal(
@@ -152,12 +145,15 @@ export default class Subnets {
           device: null,
           servers: [],
           devices: [],
+          wanIp: null,
+          wanOptions: this.wans(),
+          defaultWan: this.defaultWan(),
         },
       })
       .subscribe()
   }
 
-  protected onEdit({ range, name, dns, clients }: MappedSubnet): void {
+  protected onEdit({ range, name, dns, clients, wanIp }: MappedSubnet): void {
     const devices = Object.entries(clients).map(([ip, client]) => ({
       ip,
       name: client.name,
@@ -176,28 +172,12 @@ export default class Subnets {
               : null,
           servers: dns.type === 'custom' ? dns.servers : [],
           devices,
+          wanIp,
+          wanOptions: this.wans(),
+          defaultWan: this.defaultWan(),
         },
       })
       .subscribe()
-  }
-
-  protected onSetWan({ range, wanIp }: MappedSubnet): void {
-    this.dialogs
-      .open<string | null>(SET_WAN, {
-        label: 'Set WAN IP',
-        data: { wanIp, options: this.wans() },
-      })
-      .subscribe(async wanIp => {
-        const loader = this.loading.open('').subscribe()
-
-        try {
-          await this.api.setSubnetWan({ subnet: range, wanIp })
-        } catch (e: any) {
-          this.errorService.handleError(e)
-        } finally {
-          loader.unsubscribe()
-        }
-      })
   }
 
   protected onDelete(index: number): void {

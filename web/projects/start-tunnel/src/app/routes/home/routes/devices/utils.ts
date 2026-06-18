@@ -23,6 +23,8 @@ export interface MappedSubnet {
 export interface DeviceData {
   readonly subnets: Signal<readonly MappedSubnet[]>
   readonly device?: MappedDevice
+  readonly wanOptions: readonly string[]
+  readonly defaultWan: string | null
 }
 
 export function subnetValidator({ value }: AbstractControl<MappedSubnet>) {

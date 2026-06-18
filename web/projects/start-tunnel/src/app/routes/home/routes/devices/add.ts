@@ -8,7 +8,13 @@ import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import { ErrorService } from '@start9labs/shared'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiAutoFocus, tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
-import { TuiButton, TuiDialogContext, TuiError, TuiInput } from '@taiga-ui/core'
+import {
+  TuiButton,
+  TuiCheckbox,
+  TuiDialogContext,
+  TuiError,
+  TuiInput,
+} from '@taiga-ui/core'
 import {
   TuiChevron,
   TuiDataListWrapper,
@@ -17,6 +23,7 @@ import {
 } from '@taiga-ui/kit'
 import { TuiElasticContainer, TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { wanLabel } from 'src/app/routes/home/components/wan'
 import { ApiService } from 'src/app/services/api/api.service'
 
 import { DEVICES_CONFIG } from './config'
@@ -76,6 +83,40 @@ import {
           <tui-error formControlName="ip" />
         }
       }
+
+      <tui-textfield
+        tuiChevron
+        [tuiTextfieldCleaner]="false"
+        [stringify]="stringifyWan"
+      >
+        <label tuiLabel>WAN IP</label>
+        @if (mobile) {
+          <select tuiSelect formControlName="wanIp" [items]="wanItems"></select>
+        } @else {
+          <input tuiSelect formControlName="wanIp" />
+        }
+        @if (!mobile) {
+          <tui-data-list-wrapper *tuiDropdown [items]="wanItems" />
+        }
+      </tui-textfield>
+
+      <label tuiLabel>
+        <input
+          tuiCheckbox
+          type="checkbox"
+          formControlName="allowDnsInjection"
+        />
+        Allow DNS injection
+      </label>
+      <p
+        [style.font-size.rem]="0.8"
+        [style.opacity]="0.7"
+        [style.margin.rem]="0.25"
+      >
+        The device will be able to add and update the DNS records the tunnel
+        serves. Only enable this for devices you trust.
+      </p>
+
       <footer>
         <button tuiButton (click)="onSave()">Save</button>
       </footer>
@@ -85,6 +126,7 @@ import {
     ReactiveFormsModule,
     TuiAutoFocus,
     TuiButton,
+    TuiCheckbox,
     TuiDataListWrapper,
     TuiError,
     TuiForm,
@@ -104,12 +146,14 @@ export class DevicesAdd {
   protected readonly context =
     injectContext<TuiDialogContext<void, DeviceData>>()
 
+  private readonly fb = inject(NonNullableFormBuilder)
+
   private readonly autoSubnet =
     !this.context.data.device && this.context.data.subnets().length === 1
       ? this.context.data.subnets().at(0)
       : undefined
 
-  protected readonly form = inject(NonNullableFormBuilder).group({
+  protected readonly form = this.fb.group({
     name: [this.context.data.device?.name || '', Validators.required],
     subnet: [
       this.context.data.device?.subnet ?? this.autoSubnet,
@@ -122,10 +166,21 @@ export class DevicesAdd {
         ? [Validators.required, ipInSubnetValidator(this.autoSubnet.range)]
         : [],
     ],
+    wanIp: this.fb.control<string | null>(
+      this.context.data.device?.wanIp ?? null,
+    ),
+    allowDnsInjection: [this.context.data.device?.allowDnsInjection ?? false],
   })
+
+  protected readonly wanItems: readonly (string | null)[] = [
+    null,
+    ...this.context.data.wanOptions,
+  ]
 
   protected readonly stringify = ({ range, name }: MappedSubnet) =>
     range ? `${name} (${range})` : ''
+  protected readonly stringifyWan = (ip: string | null) =>
+    wanLabel(ip, this.context.data.defaultWan)
 
   protected onSubnet(subnet: MappedSubnet) {
     this.form.controls.ip.clearValidators()
@@ -152,15 +207,31 @@ export class DevicesAdd {
     }
 
     const loader = this.loading.open('').subscribe()
-    const { ip, name, subnet } = this.form.getRawValue()
+    const { ip, name, subnet, wanIp, allowDnsInjection } =
+      this.form.getRawValue()
     const data = { ip, name, subnet: subnet?.range || '' }
+    const device = this.context.data.device
 
     try {
-      if (this.context.data.device) {
+      if (device) {
         await this.api.editDevice(data)
       } else {
         await this.api.addDevice(data)
+      }
 
+      if (wanIp !== (device?.wanIp ?? null)) {
+        await this.api.setDeviceWan({ subnet: data.subnet, ip, wanIp })
+      }
+
+      if (allowDnsInjection !== (device?.allowDnsInjection ?? false)) {
+        await this.api.setDnsInjection({
+          subnet: data.subnet,
+          ip,
+          enabled: allowDnsInjection,
+        })
+      }
+
+      if (!device) {
         const config = await this.api.showDeviceConfig({
           subnet: data.subnet,
           ip,

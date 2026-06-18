@@ -1,7 +1,6 @@
 import { Component, computed, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ErrorService } from '@start9labs/shared'
-import { utils } from '@start9labs/start-sdk'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiButton, TuiDataList, TuiDropdown } from '@taiga-ui/core'
 import {
@@ -12,7 +11,11 @@ import {
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
 import { PlaceholderComponent } from 'src/app/routes/home/components/placeholder'
-import { SET_WAN } from 'src/app/routes/home/components/set-wan'
+import {
+  defaultWanIp,
+  wanLabel,
+  wanOptions,
+} from 'src/app/routes/home/components/wan'
 import { ApiService } from 'src/app/services/api/api.service'
 import { TunnelData } from 'src/app/services/patch-db/data-model'
 import { DEVICES_ADD } from './add'
@@ -27,6 +30,8 @@ import { MappedDevice } from './utils'
           <th>Name</th>
           <th>Subnet</th>
           <th>LAN IP</th>
+          <th>DNS injection</th>
+          <th>WAN</th>
           <th [style.padding-inline-end.rem]="0.625">
             <button tuiButton size="xs" iconStart="@tui.plus" (click)="onAdd()">
               Add
@@ -40,6 +45,8 @@ import { MappedDevice } from './utils'
             <td>{{ device.name }}</td>
             <td>{{ device.subnet.name }}</td>
             <td>{{ device.ip }}</td>
+            <td>{{ device.allowDnsInjection ? 'Yes' : 'No' }}</td>
+            <td>{{ wanLabel(device.wanIp, defaultWan()) }}</td>
             <td>
               <button
                 tuiIconButton
@@ -60,7 +67,7 @@ import { MappedDevice } from './utils'
                     iconStart="@tui.pencil"
                     (click)="onEdit(device)"
                   >
-                    Rename
+                    Edit
                   </button>
                   <button
                     tuiOption
@@ -68,28 +75,6 @@ import { MappedDevice } from './utils'
                     (click)="onConfig(device)"
                   >
                     View Config
-                  </button>
-                  <button
-                    tuiOption
-                    [iconStart]="
-                      device.allowDnsInjection
-                        ? '@tui.shield-off'
-                        : '@tui.shield'
-                    "
-                    (click)="onSetDnsInjection(device)"
-                  >
-                    {{
-                      device.allowDnsInjection
-                        ? 'Disallow DNS injection'
-                        : 'Allow DNS injection'
-                    }}
-                  </button>
-                  <button
-                    tuiOption
-                    iconStart="@tui.globe"
-                    (click)="onSetWan(device)"
-                  >
-                    Set WAN IP
                   </button>
                   <button
                     tuiOption
@@ -104,7 +89,7 @@ import { MappedDevice } from './utils'
           </tr>
         } @empty {
           <tr>
-            <td colspan="4">
+            <td colspan="6">
               <app-placeholder icon="@tui.laptop">No devices</app-placeholder>
             </td>
           </tr>
@@ -132,18 +117,16 @@ export default class Devices {
   private readonly errorService = inject(ErrorService)
   private readonly patch = inject<PatchDB<TunnelData>>(PatchDB)
 
+  protected readonly wanLabel = wanLabel
+
   private readonly wans = toSignal(
-    this.patch.watch$('gateways').pipe(
-      map(g =>
-        Object.values(g)
-          .flatMap(
-            val => val.ipInfo?.subnets.map(s => utils.IpNet.parse(s)) || [],
-          )
-          .filter(s => s.isIpv4() && s.isPublic())
-          .map(s => s.address),
-      ),
-    ),
+    this.patch.watch$('gateways').pipe(map(wanOptions)),
     { initialValue: [] },
+  )
+
+  protected readonly defaultWan = toSignal(
+    this.patch.watch$('gateways').pipe(map(defaultWanIp)),
+    { initialValue: null },
   )
 
   protected readonly subnets = toSignal(
@@ -176,63 +159,15 @@ export default class Devices {
     ),
   )
 
-  protected onSetDnsInjection({
-    subnet,
-    ip,
-    allowDnsInjection,
-  }: MappedDevice): void {
-    this.dialogs
-      .open(TUI_CONFIRM, {
-        label: allowDnsInjection
-          ? 'Stop allowing DNS records?'
-          : 'Allow DNS records?',
-        data: {
-          content: allowDnsInjection
-            ? 'This device will no longer be able to add DNS records to the tunnel.'
-            : 'The device will be able to add and update the DNS records the tunnel serves. Only do this for devices you trust.',
-        },
-      })
-      .pipe(filter(Boolean))
-      .subscribe(async () => {
-        const loader = this.loading.open('').subscribe()
-        try {
-          await this.api.setDnsInjection({
-            subnet: subnet.range,
-            ip,
-            enabled: !allowDnsInjection,
-          })
-        } catch (e: any) {
-          this.errorService.handleError(e)
-        } finally {
-          loader.unsubscribe()
-        }
-      })
-  }
-
-  protected onSetWan({ subnet, ip, wanIp }: MappedDevice): void {
-    this.dialogs
-      .open<string | null>(SET_WAN, {
-        label: 'Set WAN IP',
-        data: { wanIp, options: this.wans() },
-      })
-      .subscribe(async wanIp => {
-        const loader = this.loading.open('').subscribe()
-
-        try {
-          await this.api.setDeviceWan({ subnet: subnet.range, ip, wanIp })
-        } catch (e: any) {
-          this.errorService.handleError(e)
-        } finally {
-          loader.unsubscribe()
-        }
-      })
-  }
-
   protected onAdd() {
     this.dialogs
       .open(DEVICES_ADD, {
         label: 'Add device',
-        data: { subnets: this.subnets },
+        data: {
+          subnets: this.subnets,
+          wanOptions: this.wans(),
+          defaultWan: this.defaultWan(),
+        },
       })
       .subscribe()
   }
@@ -240,8 +175,13 @@ export default class Devices {
   protected onEdit(device: MappedDevice) {
     this.dialogs
       .open(DEVICES_ADD, {
-        label: 'Rename device',
-        data: { device, subnets: this.subnets },
+        label: 'Edit device',
+        data: {
+          device,
+          subnets: this.subnets,
+          wanOptions: this.wans(),
+          defaultWan: this.defaultWan(),
+        },
       })
       .subscribe()
   }
