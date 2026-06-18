@@ -405,9 +405,19 @@ where
                 Fut: Future + Send + 'static,
             {
                 fn execute(&self, fut: Fut) {
+                    // Run each connection (and hyper's per-stream futures) on its
+                    // own task instead of serializing them all on the runner's
+                    // single poll loop — h2's per-byte framing/flow-control work
+                    // otherwise caps single-stream upload throughput. The handle
+                    // stays in the runner wrapped in NonDetachingJoinHandle, which
+                    // aborts the task on drop, preserving shutdown-cancel.
                     self.queue.peek(|q| {
                         if let Some(q) = q {
-                            q.add_job(fut);
+                            q.add_job(NonDetachingJoinHandle::from(tokio::spawn(
+                                async move {
+                                    fut.await;
+                                },
+                            )));
                         } else {
                             tracing::warn!("job queued after shutdown");
                         }
@@ -456,6 +466,7 @@ where
                 .http2()
                 .timer(TokioTimer::new())
                 .enable_connect_protocol()
+                .adaptive_window(true)
                 .keep_alive_interval(Duration::from_secs(25))
                 .keep_alive_timeout(Duration::from_secs(300));
             let (queue, mut runner) = BackgroundJobQueue::new();
@@ -467,19 +478,22 @@ where
                     for _ in 0..5 {
                         if let Err(e) = async {
                             let (metadata, stream) = acceptor.accept().await?;
-                            queue.add_job(
-                                graceful.watch(
-                                    server
-                                        .serve_connection_with_upgrades(
-                                            TokioIo::new(stream),
-                                            SwappableRouter {
-                                                router: service.clone(),
-                                                metadata,
-                                            },
-                                        )
-                                        .into_owned(),
-                                ),
+                            let conn = graceful.watch(
+                                server
+                                    .serve_connection_with_upgrades(
+                                        TokioIo::new(stream),
+                                        SwappableRouter {
+                                            router: service.clone(),
+                                            metadata,
+                                        },
+                                    )
+                                    .into_owned(),
                             );
+                            queue.add_job(NonDetachingJoinHandle::from(tokio::spawn(
+                                async move {
+                                    let _ = conn.await;
+                                },
+                            )));
 
                             Ok::<_, Error>(())
                         }
