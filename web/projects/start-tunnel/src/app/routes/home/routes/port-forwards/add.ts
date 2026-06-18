@@ -88,9 +88,18 @@ import { MappedDevice, PortForwardsData } from './utils'
       </tui-textfield>
       <tui-error formControlName="internalport" />
       <tui-textfield>
-        <label tuiLabel>SNI hostnames (optional, comma-separated)</label>
-        <input tuiInput formControlName="sni" />
+        <label tuiLabel>Hostname (optional)</label>
+        <input tuiInput formControlName="sni" placeholder="host.example.com" />
       </tui-textfield>
+      <p
+        [style.font-size.rem]="0.8"
+        [style.opacity]="0.7"
+        [style.margin.rem]="0.25"
+      >
+        Only supported for SSL/TLS services — the gateway routes by the TLS SNI,
+        so several hostnames can share one external port. Leave blank for a
+        plain port forward.
+      </p>
       <tui-elastic-container>
         @if (show80) {
           <label tuiLabel>
@@ -163,26 +172,19 @@ export class PortForwardsAdd {
     const { label, externalport, device, internalport, sni, also80 } =
       this.form.getRawValue()
 
-    const hostnames = sni
-      .split(/[\s,]+/)
-      .map(h => h.trim())
-      .filter(Boolean)
+    const hostname = sni.trim()
 
     try {
-      // The external IP is fixed server-side to the target device's WAN.
+      // One hostname per entry; the external IP is fixed server-side to the
+      // target device's WAN.
       await this.api.addForward({
         externalPort: externalport!,
         target: `${device!.ip}:${internalport}`,
         label,
-        sni: hostnames,
+        sni: hostname ? [hostname] : [],
       })
 
-      if (
-        !hostnames.length &&
-        externalport === 443 &&
-        internalport === 443 &&
-        also80
-      ) {
+      if (!hostname && externalport === 443 && internalport === 443 && also80) {
         await this.api.addForward({
           externalPort: 80,
           target: `${device!.ip}:443`,
