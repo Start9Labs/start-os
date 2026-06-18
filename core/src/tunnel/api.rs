@@ -606,7 +606,8 @@ pub async fn set_subnet_wan(
         })
         .await
         .result?;
-    ctx.resync_egress().await
+    ctx.resync_egress().await?;
+    ctx.resync_forward_keys().await
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -646,7 +647,8 @@ pub async fn set_device_wan(
         })
         .await
         .result?;
-    ctx.resync_egress().await
+    ctx.resync_egress().await?;
+    ctx.resync_forward_keys().await
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]

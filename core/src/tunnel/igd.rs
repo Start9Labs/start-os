@@ -362,7 +362,7 @@ async fn assigned_wan_for(ctx: &TunnelContext, peer: Ipv4Addr) -> Option<Ipv4Add
     })
 }
 
-async fn prefix_for(ctx: &TunnelContext, target_ip: &Ipv4Addr) -> u8 {
+pub(super) async fn prefix_for(ctx: &TunnelContext, target_ip: &Ipv4Addr) -> u8 {
     ctx.net_iface
         .peek(|ifaces| {
             ifaces.iter().find_map(|(_, info)| {

@@ -34,7 +34,7 @@ use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
 use crate::tunnel::TUNNEL_DEFAULT_LISTEN;
 use crate::tunnel::api::tunnel_api;
 use crate::net::rfc2136::{DnsInjector, InjectedRecord};
-use crate::tunnel::db::{DnsRecordEntry, DnsRecords, PortForward, TunnelDatabase};
+use crate::tunnel::db::{DnsRecordEntry, DnsRecords, PortForward, PortForwards, TunnelDatabase};
 use crate::tunnel::dns::DnsProxyController;
 use crate::tunnel::migrations::run_migrations;
 use crate::tunnel::wg::{WIREGUARD_INTERFACE_NAME, WgServer};
@@ -400,6 +400,139 @@ impl TunnelContext {
                 nft_rule("postrouting", &comment, true, false, "").await?;
             }
         }
+        Ok(())
+    }
+
+    /// Move existing forwards to follow their target device's WAN. A forward's
+    /// external IP equals its target's WAN, so when a device or subnet's
+    /// assigned WAN changes the forward must be re-keyed from the old external
+    /// IP to the new one. Idempotent: a key that didn't change matches in the
+    /// per-key diffs below and is left untouched.
+    pub async fn resync_forward_keys(&self) -> Result<(), Error> {
+        let old = self.db.peek().await.as_port_forwards().de()?.0;
+
+        let mut want: BTreeMap<SocketAddrV4, PortForward> = BTreeMap::new();
+        for (src, entry) in &old {
+            match entry {
+                PortForward::Dnat {
+                    target,
+                    label,
+                    enabled,
+                    count,
+                } => {
+                    let ip = crate::tunnel::igd::external_ipv4(self, *target.ip())
+                        .await
+                        .unwrap_or(*src.ip());
+                    want.insert(
+                        SocketAddrV4::new(ip, src.port()),
+                        PortForward::Dnat {
+                            target: *target,
+                            label: label.clone(),
+                            enabled: *enabled,
+                            count: *count,
+                        },
+                    );
+                }
+                PortForward::Sni { routes } => {
+                    for (host, route) in routes {
+                        let ip = crate::tunnel::igd::external_ipv4(self, *route.target.ip())
+                            .await
+                            .unwrap_or(*src.ip());
+                        let key = SocketAddrV4::new(ip, src.port());
+                        match want
+                            .entry(key)
+                            .or_insert_with(|| PortForward::Sni {
+                                routes: BTreeMap::new(),
+                            }) {
+                            PortForward::Sni { routes } => {
+                                routes.insert(host.clone(), route.clone());
+                            }
+                            PortForward::Dnat { .. } => {
+                                tracing::warn!(
+                                    "dropping SNI route {host} on {key}: external IP now collides with a DNAT forward"
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let sni_routes = |map: &BTreeMap<SocketAddrV4, PortForward>| {
+            let mut out: BTreeMap<(SocketAddrV4, String), SocketAddrV4> = BTreeMap::new();
+            for (src, entry) in map {
+                if let PortForward::Sni { routes } = entry {
+                    for (host, route) in routes {
+                        out.insert((*src, host.clone()), route.target);
+                    }
+                }
+            }
+            out
+        };
+        let old_sni = sni_routes(&old);
+        let new_sni = sni_routes(&want);
+        for ((src, host), target) in &old_sni {
+            if new_sni.get(&(*src, host.clone())) != Some(target) {
+                self.sni
+                    .unregister(*src.ip(), src.port(), std::slice::from_ref(host), *target);
+            }
+        }
+        for ((src, host), target) in &new_sni {
+            if old_sni.get(&(*src, host.clone())) != Some(target) {
+                if let Err(code) =
+                    self.sni
+                        .register(*src.ip(), src.port(), std::slice::from_ref(host), *target, None)
+                {
+                    tracing::warn!("failed to register SNI route {host} on {src}: code {code}");
+                }
+            }
+        }
+
+        let old_dnat: BTreeSet<SocketAddrV4> = old
+            .iter()
+            .filter_map(|(src, e)| matches!(e, PortForward::Dnat { .. }).then_some(*src))
+            .collect();
+        let new_dnat: BTreeMap<SocketAddrV4, (SocketAddrV4, u16, bool)> = want
+            .iter()
+            .filter_map(|(src, e)| match e {
+                PortForward::Dnat {
+                    target,
+                    enabled,
+                    count,
+                    ..
+                } => Some((*src, (*target, *count, *enabled))),
+                _ => None,
+            })
+            .collect();
+        for src in &old_dnat {
+            if !new_dnat.contains_key(src) {
+                if let Some(rc) = self.active_forwards.mutate(|m| m.remove(src)) {
+                    drop(rc);
+                }
+            }
+        }
+        for (src, (target, count, enabled)) in &new_dnat {
+            if !enabled {
+                continue;
+            }
+            if self.active_forwards.peek(|m| m.contains_key(src)) {
+                continue;
+            }
+            let prefix = crate::tunnel::igd::prefix_for(self, target.ip()).await;
+            let rc = self
+                .forward
+                .add_forward_range(*src, *target, *count, prefix, None)
+                .await?;
+            self.active_forwards.mutate(|m| {
+                m.insert(*src, rc);
+            });
+        }
+        self.forward.gc().await.log_err();
+
+        self.db
+            .mutate(|db| db.as_port_forwards_mut().ser(&PortForwards(want)))
+            .await
+            .result?;
         Ok(())
     }
 }
