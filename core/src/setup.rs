@@ -367,6 +367,12 @@ pub struct SetupInfo {
     pub guid: Option<InternedString>,
     pub attach: bool,
     pub mok_enrolled: bool,
+    /// The whole disk the OS is installed on, recorded by whatever installed it
+    /// (os_install, or init_resize for a pre-installed image). When the device
+    /// is pre-installed the wizard fixes this as the OS drive and asks only for
+    /// a data drive.
+    #[serde(default)]
+    pub os_drive: Option<PathBuf>,
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]

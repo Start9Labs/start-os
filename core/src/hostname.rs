@@ -9,7 +9,7 @@ use ts_rs::TS;
 use crate::context::RpcContext;
 use crate::db::model::public::{RestartReason, ServerInfo};
 use crate::prelude::*;
-use crate::util::io::copy_file;
+use crate::util::io::{copy_file, write_file_atomic};
 use crate::util::Invoke;
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize, ts_rs::TS)]
@@ -210,13 +210,21 @@ pub async fn get_current_hostname() -> Result<InternedString, Error> {
 
 #[instrument(skip_all)]
 pub async fn set_hostname(hostname: &ServerHostname) -> Result<(), Error> {
+    hostname.validate()?;
     let hostname = &***hostname;
-    Command::new("hostnamectl")
-        .arg("--static")
-        .arg("set-hostname")
-        .arg(hostname)
-        .invoke(ErrorKind::ParseSysInfo)
-        .await?;
+    // Set the hostname ourselves rather than via `hostnamectl`: it delegates the
+    // static-file write to sandboxed systemd-hostnamed, which can't copy-up
+    // /etc/hostname from the read-only squashfs lower (EACCES on the Pi kernel).
+    // We already own /etc/hosts and persistence below, so the only thing we'd
+    // lose is hostnamed's D-Bus change signal, whose one consumer (avahi) we
+    // restart explicitly in sync_hostname.
+    write_file_atomic("/etc/hostname", format!("{hostname}\n")).await?;
+    nix::unistd::sethostname(hostname).map_err(|e| {
+        Error::new(
+            eyre!("failed to set live hostname: {e}"),
+            ErrorKind::ParseSysInfo,
+        )
+    })?;
     Command::new("sed")
         .arg("-i")
         .arg(format!(

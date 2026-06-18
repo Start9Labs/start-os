@@ -291,6 +291,22 @@ export default class DrivesPage {
   async ngOnInit() {
     await this.loadDrives()
 
+    // Pre-installed device: fix the OS drive to the disk the OS booted from and
+    // disable it. The user only selects a data drive; the backend provisions
+    // only that drive and leaves the OS untouched.
+    if (this.stateService.osDrive) {
+      this.form.controls.osDrive.setValue({
+        logicalname: this.stateService.osDrive,
+        vendor: null,
+        model: this.stateService.osDrive,
+        partitions: [],
+        capacity: 0,
+        guid: null,
+        filesystem: null,
+      })
+      this.form.controls.osDrive.disable()
+    }
+
     this.form.controls.osDrive.valueChanges.subscribe(drive => {
       if (drive) {
         this.form.controls.osDrive.markAsTouched()
@@ -321,6 +337,30 @@ export default class DrivesPage {
     const osDrive = this.form.controls.osDrive.value
     const dataDrive = this.form.controls.dataDrive.value
     if (!osDrive || !dataDrive) return
+
+    // Pre-installed: OS drive is fixed and never touched; warn only about the
+    // data drive being overwritten (unless we're preserving existing data).
+    if (this.stateService.osDrive) {
+      if (toGuid(dataDrive) && this.preserveData) {
+        this.installOs(false)
+      } else {
+        this.dialogs
+          .openConfirm({
+            label: 'Warning',
+            data: {
+              content:
+                `<p class="g-negative">${this.i18n.transform('Data on this drive will be overwritten.')}</p>` as i18nKey,
+              yes: 'Continue',
+              no: 'Cancel',
+            },
+          })
+          .pipe(filter(Boolean))
+          .subscribe(() => {
+            this.installOs(true)
+          })
+      }
+      return
+    }
 
     const sameDevice = osDrive.logicalname === dataDrive.logicalname
     const dataHasStartOS = !!toGuid(dataDrive)
@@ -417,7 +457,9 @@ export default class DrivesPage {
 
     try {
       const result = await this.api.installOs({
-        osDrive: osDrive.logicalname,
+        // Pre-installed: null OS drive tells the backend to skip the install
+        // and only provision the data drive.
+        osDrive: this.stateService.osDrive ? null : osDrive.logicalname,
         dataDrive: {
           logicalname: dataDrive.logicalname,
           wipe,

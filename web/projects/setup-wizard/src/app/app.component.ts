@@ -43,6 +43,7 @@ export class AppComponent implements OnInit {
           }
           this.stateService.attach = status.attach
           this.stateService.mokEnrolled = status.mokEnrolled
+          this.stateService.osDrive = status.osDrive ?? ''
           await this.router.navigate(['/language'])
           break
 

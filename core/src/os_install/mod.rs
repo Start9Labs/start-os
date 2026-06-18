@@ -112,7 +112,7 @@ async fn get_block_device_size(path: impl AsRef<Path>) -> Result<u64, Error> {
 #[command(rename_all = "kebab-case")]
 pub struct InstallOsParams {
     #[arg(help = "help.arg.os-drive-path")]
-    os_drive: PathBuf,
+    os_drive: Option<PathBuf>,
     #[command(flatten)]
     data_drive: Option<DataDrive>,
 }
@@ -462,73 +462,99 @@ async fn install_os_inner(
         data_drive,
     }: InstallOsParams,
 ) -> Result<SetupInfo, Error> {
-    // Drop any rootfs/config mounts a prior install left pinned, so a retry
-    // doesn't fight itself for the target partition.
-    let prior = ctx.install_rootfs.mutate(|s| s.take());
-    if let Some((rootfs, config)) = prior {
-        if let Err(e) = config.unmount(false).await {
-            tracing::warn!("failed to unmount stale install config bind: {e}");
-        }
-        if let Err(e) = rootfs.unmount().await {
-            tracing::warn!("failed to unmount stale install rootfs: {e}");
-        }
-    }
+    let disks = crate::disk::util::list(&Default::default()).await?;
 
-    let mut disks = crate::disk::util::list(&Default::default()).await?;
-    let disk = disks
-        .iter_mut()
-        .find(|d| &d.logicalname == &os_drive)
-        .ok_or_else(|| {
-            Error::new(
-                eyre!("Unknown disk {}", os_drive.display()),
-                crate::ErrorKind::DiskManagement,
-            )
-        })?;
+    // With an os_drive we install StartOS onto it; without one we're already
+    // booted from the installed OS, so we load the running setup.json and just
+    // provision the data drive into it. `data_part` is the data partition the
+    // installer carved on the OS drive (install path only).
+    let (mut setup_info, data_part) = if let Some(os_drive) = &os_drive {
+        // Drop any rootfs/config mounts a prior install left pinned, so a retry
+        // doesn't fight itself for the target partition.
+        let prior = ctx.install_rootfs.mutate(|s| s.take());
+        if let Some((rootfs, config)) = prior {
+            if let Err(e) = config.unmount(false).await {
+                tracing::warn!("failed to unmount stale install config bind: {e}");
+            }
+            if let Err(e) = rootfs.unmount().await {
+                tracing::warn!("failed to unmount stale install rootfs: {e}");
+            }
+        }
 
-    let protect: Option<PathBuf> = data_drive.as_ref().and_then(|dd| {
-        if dd.wipe {
-            return None;
-        }
-        if disk.guid.as_ref().map_or(false, |g| {
-            g.starts_with("EMBASSY_") || g.starts_with("STARTOS_")
-        }) && disk.logicalname == dd.logicalname
-        {
-            return Some(disk.logicalname.clone());
-        }
-        disk.partitions
+        let disk = disks
             .iter()
-            .find(|p| {
-                p.guid.as_ref().map_or(false, |g| {
-                    g.starts_with("EMBASSY_") || g.starts_with("STARTOS_")
+            .find(|d| &d.logicalname == os_drive)
+            .ok_or_else(|| {
+                Error::new(
+                    eyre!("Unknown disk {}", os_drive.display()),
+                    crate::ErrorKind::DiskManagement,
+                )
+            })?;
+
+        let protect: Option<PathBuf> = data_drive.as_ref().and_then(|dd| {
+            if dd.wipe {
+                return None;
+            }
+            if disk.guid.as_ref().map_or(false, |g| {
+                g.starts_with("EMBASSY_") || g.starts_with("STARTOS_")
+            }) && disk.logicalname == dd.logicalname
+            {
+                return Some(disk.logicalname.clone());
+            }
+            disk.partitions
+                .iter()
+                .find(|p| {
+                    p.guid.as_ref().map_or(false, |g| {
+                        g.starts_with("EMBASSY_") || g.starts_with("STARTOS_")
+                    })
                 })
-            })
-            .map(|p| p.logicalname.clone())
-    });
+                .map(|p| p.logicalname.clone())
+        });
 
-    let use_efi = tokio::fs::metadata("/sys/firmware/efi").await.is_ok();
+        let use_efi = tokio::fs::metadata("/sys/firmware/efi").await.is_ok();
 
-    let InstallOsResult {
-        part_info,
-        rootfs,
-        mok_enrolled,
-    } = install_os_to(
-        "/run/live/medium/live/filesystem.squashfs",
-        &disk.logicalname,
-        disk.capacity,
-        disk.partition_table,
-        protect.as_ref(),
-        crate::ARCH,
-        use_efi,
-    )
-    .await?;
+        let InstallOsResult {
+            part_info,
+            rootfs,
+            mok_enrolled,
+        } = install_os_to(
+            "/run/live/medium/live/filesystem.squashfs",
+            &disk.logicalname,
+            disk.capacity,
+            disk.partition_table,
+            protect.as_ref(),
+            crate::ARCH,
+            use_efi,
+        )
+        .await?;
 
-    let mut setup_info = SetupInfo::default();
-    setup_info.mok_enrolled = mok_enrolled;
+        let config = MountGuard::mount(
+            &Bind::new(rootfs.path().join("config")),
+            "/media/startos/config",
+            ReadWrite,
+        )
+        .await?;
+
+        let mut info = SetupInfo::default();
+        info.mok_enrolled = mok_enrolled;
+        info.os_drive = Some(os_drive.clone());
+        ctx.install_rootfs.replace(Some((rootfs, config)));
+
+        (info, part_info.data)
+    } else {
+        let info = IoFormat::Json.from_slice(
+            tokio::fs::read_to_string("/media/startos/config/setup.json")
+                .await
+                .with_ctx(|_| (ErrorKind::Filesystem, "setup.json"))?
+                .as_bytes(),
+        )?;
+        (info, None)
+    };
 
     if let Some(data_drive) = data_drive {
         let mut logicalname = &*data_drive.logicalname;
-        if logicalname == &os_drive {
-            logicalname = part_info.data.as_deref().ok_or_else(|| {
+        if Some(logicalname) == os_drive.as_deref() {
+            logicalname = data_part.as_deref().ok_or_else(|| {
                 Error::new(
                     eyre!("not enough room on OS drive for data"),
                     ErrorKind::InvalidRequest,
@@ -562,20 +588,11 @@ async fn install_os_inner(
         }
     }
 
-    let config = MountGuard::mount(
-        &Bind::new(rootfs.path().join("config")),
-        "/media/startos/config",
-        ReadWrite,
-    )
-    .await?;
-
     write_file_atomic(
         "/media/startos/config/setup.json",
         IoFormat::JsonPretty.to_vec(&setup_info)?,
     )
     .await?;
-
-    ctx.install_rootfs.replace(Some((rootfs, config)));
 
     Ok(setup_info)
 }
