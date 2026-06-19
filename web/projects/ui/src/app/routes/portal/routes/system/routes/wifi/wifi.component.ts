@@ -98,7 +98,7 @@ import { wifiSpec } from './wifi.const'
             tuiSwitch
             [style.margin-inline-start]="status()?.enabled ? '' : 'auto'"
             [showIcons]="false"
-            [ngModel]="$safeNavigationMigration(status()?.enabled)"
+            [ngModel]="status()?.enabled"
             (ngModelChange)="onToggle($event)"
           />
         }

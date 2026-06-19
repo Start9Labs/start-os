@@ -10,17 +10,8 @@ import { i18nKey, i18nPipe } from '@start9labs/shared'
     @for (key of keys(); track $index) {
       <div tuiCell="m">
         <span tuiTitle>{{ labels()[key] | i18n }}</span>
-        <span
-          tuiTitle
-          [attr.data-unit]="
-            $any($safeNavigationMigration(value()?.[key]))?.unit
-          "
-        >
-          {{
-            $safeNavigationMigration(
-              $any($safeNavigationMigration(value()?.[key]))?.value
-            ) | value
-          }}
+        <span tuiTitle [attr.data-unit]="$any(value()?.[key])?.unit">
+          {{ $any(value()?.[key])?.value | value }}
         </span>
       </div>
     }

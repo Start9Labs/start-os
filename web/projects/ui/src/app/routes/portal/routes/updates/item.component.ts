@@ -72,7 +72,7 @@ import UpdatesComponent from './updates.component'
       </td>
       <td class="desktop">{{ item().gitHash }}</td>
       <td class="desktop">
-        {{ $safeNavigationMigration(item().s9pks[0]?.[1]?.publishedAt) | date }}
+        {{ item().s9pks[0]?.[1]?.publishedAt | date }}
       </td>
       <td>
         <button
@@ -88,9 +88,8 @@ import UpdatesComponent from './updates.component'
             size="xs"
             [max]="100"
             [value]="
-              ($safeNavigationMigration(
-                local().stateInfo.installingInfo?.progress?.overall
-              ) | installingProgress) || 0
+              (local().stateInfo.installingInfo?.progress?.overall
+                | installingProgress) || 0
             "
           />
         } @else if (pending()) {
@@ -133,10 +132,7 @@ import UpdatesComponent from './updates.component'
           <p tuiTitle class="mobile">
             <b>{{ 'Published' | i18n }}</b>
             <span tuiSubtitle>
-              {{
-                $safeNavigationMigration(item().s9pks[0]?.[1]?.publishedAt)
-                  | date
-              }}
+              {{ item().s9pks[0]?.[1]?.publishedAt | date }}
             </span>
           </p>
           <p tuiTitle>
@@ -148,7 +144,7 @@ import UpdatesComponent from './updates.component'
                 iconEnd="@tui.external-link"
                 routerLink="/marketplace"
                 [queryParams]="{
-                  registry: $safeNavigationMigration(parent.current()?.url),
+                  registry: parent.current()?.url,
                   id: item().id,
                   flavor: item().flavor,
                 }"

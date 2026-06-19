@@ -36,14 +36,14 @@ type NavItem = { title: i18nKey; icon: string; link: string }
           [round]="false"
           [style.margin-inline-end.rem]="0.75"
         >
-          <img alt="" [src]="$safeNavigationMigration(service()?.icon)" />
+          <img alt="" [src]="service()?.icon" />
         </span>
         <span tuiFade>{{ manifest()?.title }}</span>
       </div>
       <aside class="g-aside">
         <header tuiCell routerLink="./">
           <span tuiAvatar appearance="action-grayscale" [round]="false">
-            <img alt="" [src]="$safeNavigationMigration(service()?.icon)" />
+            <img alt="" [src]="service()?.icon" />
           </span>
           <span tuiTitle>
             <strong tuiFade>{{ manifest()?.title }}</strong>

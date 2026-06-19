@@ -29,15 +29,15 @@ import { i18nPipe } from '@start9labs/shared'
       </section>
       <section class="g-card">
         <header>CPU</header>
-        <metrics-cpu [value]="$safeNavigationMigration(metrics()?.cpu)" />
+        <metrics-cpu [value]="metrics()?.cpu" />
       </section>
       <section class="g-card">
         <header>{{ 'Memory' | i18n }}</header>
-        <metrics-memory [value]="$safeNavigationMigration(metrics()?.memory)" />
+        <metrics-memory [value]="metrics()?.memory" />
       </section>
       <section class="g-card">
         <header>{{ 'Storage' | i18n }}</header>
-        <metrics-storage [value]="$safeNavigationMigration(metrics()?.disk)" />
+        <metrics-storage [value]="metrics()?.disk" />
       </section>
     </div>
   `,

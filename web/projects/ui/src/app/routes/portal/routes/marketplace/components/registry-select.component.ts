@@ -43,7 +43,7 @@ import { MarketplaceAlertsService } from '../services/alerts.service'
       [(tuiDropdownOpen)]="open"
     >
       <span tuiAvatar appearance="action-grayscale" size="xs">
-        <img [storeIcon]="$safeNavigationMigration(data()?.current?.url)" />
+        <img [storeIcon]="data()?.current?.url" />
       </span>
       <b tuiFade>{{ data()?.current?.name || 'Loading...' }}</b>
       @if (data(); as d) {

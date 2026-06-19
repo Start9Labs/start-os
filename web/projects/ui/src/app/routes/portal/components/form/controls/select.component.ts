@@ -58,9 +58,7 @@ import { HintPipe } from '../pipes/hint.pipe'
                 iconEnd="@tui.arrow-right"
                 tuiFluidTypography
                 [disabled]="disabledItemHandler(item)"
-                [routerLink]="
-                  $safeNavigationMigration(inverted[item]?.slice(1))
-                "
+                [routerLink]="inverted[item]?.slice(1)"
               >
                 {{ item }}
               </a>

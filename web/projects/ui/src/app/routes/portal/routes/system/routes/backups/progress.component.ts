@@ -23,7 +23,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
       }
     </header>
     @for (phase of backupProgress()?.phases; track phase.name) {
-      @let pkg = $safeNavigationMigration(pkgs()?.[phase.name]);
+      @let pkg = pkgs()?.[phase.name];
       @let leaf = phase.progress | leafProgress;
       @let percent = leaf | installingProgress;
       <div tuiCell>

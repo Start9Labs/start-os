@@ -20,7 +20,7 @@ const LABELS: Record<string, i18nKey> = {
   template: `
     <label tuiProgressLabel>
       <tui-progress-circle size="xl" [max]="100" [value]="used()" />
-      {{ $safeNavigationMigration(value()?.percentageUsed?.value) | value }}%
+      {{ value()?.percentageUsed?.value | value }}%
     </label>
     <metrics-data [labels]="labels" [value]="value()" />
   `,

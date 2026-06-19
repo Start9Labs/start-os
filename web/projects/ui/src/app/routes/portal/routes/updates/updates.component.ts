@@ -81,9 +81,7 @@ interface UpdatesData {
           @if (
             (
               data()?.marketplace?.[registry.url]?.packages || []
-              | filterUpdates
-                : $safeNavigationMigration(data()?.localPkgs)
-                : $safeNavigationMigration(data()?.hidden)
+              | filterUpdates: data()?.localPkgs : data()?.hidden
             ).length;
             as length
           ) {
@@ -114,18 +112,13 @@ interface UpdatesData {
             as packages
           ) {
             @if (
-              packages
-                | filterUpdates
-                  : $safeNavigationMigration(data()?.localPkgs)
-                  : $safeNavigationMigration(data()?.hidden);
+              packages | filterUpdates: data()?.localPkgs : data()?.hidden;
               as updates
             ) {
               @for (pkg of updates; track $index) {
                 <updates-item
                   [item]="pkg"
-                  [local]="
-                    $safeNavigationMigration(data()?.localPkgs?.[pkg.id])!
-                  "
+                  [local]="data()?.localPkgs?.[pkg.id]!"
                   [pending]="isPending(pkg)"
                 />
               } @empty {

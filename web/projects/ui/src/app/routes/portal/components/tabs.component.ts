@@ -20,11 +20,7 @@ const FILTER = ['services', 'system', 'marketplace']
 @Component({
   selector: 'app-tabs',
   template: `
-    <nav
-      tuiTabBar
-      [activeItemIndex]="index()"
-      (activeItemIndexChange)="index.set($event)"
-    >
+    <nav tuiTabBar [(activeItemIndex)]="index">
       <a
         tuiTabBarItem
         icon="@tui.layout-grid"

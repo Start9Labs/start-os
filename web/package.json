@@ -79,7 +79,7 @@
     "mime": "^4.0.3",
     "monaco-editor": "^0.33.0",
     "mustache": "^4.2.0",
-    "ng-qrcode": "^21.0.0",
+    "ng-qrcode": "^22.0.0",
     "node-jose": "^2.2.0",
     "patch-db-client": "file:../patch-db/client",
     "pbkdf2": "^3.1.2",
@@ -122,10 +122,6 @@
     },
     "@angular/build": {
       "picomatch": "^4.0.4"
-    },
-    "ng-qrcode": {
-      "@angular/core": "$@angular/core",
-      "@angular/common": "$@angular/common"
     }
   },
   "husky": {
