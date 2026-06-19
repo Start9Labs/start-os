@@ -251,7 +251,7 @@ export class MockApiService extends ApiService {
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   }
 
-  async systemInfo(): Promise<SystemInfoRes> {
+  async systemInfo(_timeout?: number): Promise<SystemInfoRes> {
     await pauseFor(250)
     return { ...this.mockSystemInfo, date: new Date().toISOString() }
   }

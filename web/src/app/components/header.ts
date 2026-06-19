@@ -208,10 +208,12 @@ export class Header {
     await this.actions.run(
       async () => {
         await this.api.systemRestart()
-        // Poll until device goes down — the network error propagates
-        // to ActionService, which opens the generic reconnect dialog
+        // Poll until the device goes down. The 5s per-probe timeout aborts the
+        // wedged request so the drop surfaces as a network error within a probe
+        // interval (propagating to ActionService → the global indicator),
+        // instead of stalling until the 60s RESTART_TIMEOUT_MS race.
         while (true) {
-          await this.api.systemInfo()
+          await this.api.systemInfo(5000)
         }
       },
       {

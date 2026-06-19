@@ -477,7 +477,6 @@ export const ENGLISH: Record<string, number> = {
   'Light': 469,
   'Dark': 470,
   'Saving': 471,
-  'Reconnecting...': 472,
   'Update failed — check device logs': 473,
   'Required': 474,
   'This field is required': 475,
@@ -516,4 +515,7 @@ export const ENGLISH: Record<string, number> = {
   'Client': 508,
   'The new IP address takes effect the next time this device requests one from the router — the router cannot push it to a connected device. The fastest way to apply it is to disconnect and reconnect the device (Wi-Fi or Ethernet) or reboot it; this usually works but is not guaranteed to take effect immediately. Otherwise the device will pick up the new address on its own within up to 12 hours.': 509,
   'Got it': 510,
+  'Trying to reach the router': 511,
+  'Connection restored': 512,
+  'Reconnecting to the new address…': 513,
 }

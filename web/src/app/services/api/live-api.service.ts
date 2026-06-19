@@ -117,8 +117,8 @@ export class LiveApiService extends ApiService {
     return this.rpc.request({ method: 'uci.set', params })
   }
 
-  async systemInfo(): Promise<SystemInfoRes> {
-    return this.rpc.request({ method: 'system.info', params: {} })
+  async systemInfo(timeout?: number): Promise<SystemInfoRes> {
+    return this.rpc.request({ method: 'system.info', params: {}, timeout })
   }
 
   async systemNewerVersions(): Promise<VersionInfo[]> {

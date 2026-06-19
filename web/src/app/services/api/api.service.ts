@@ -14,7 +14,7 @@ export abstract class ApiService {
     params: GetUciReq,
   ): Promise<T>
   abstract setUci<T extends string[]>(params: SetUciReq): Promise<SetUciRes<T>>
-  abstract systemInfo(): Promise<SystemInfoRes>
+  abstract systemInfo(timeout?: number): Promise<SystemInfoRes>
   abstract systemNewerVersions(): Promise<VersionInfo[]>
   abstract systemUpdate(params: SystemUpdateReq): Promise<SystemUpdateRes>
   abstract systemRestart(): Promise<null>

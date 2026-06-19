@@ -472,7 +472,6 @@ export default {
   469: 'Jasny',
   470: 'Ciemny',
   471: 'Zapisywanie',
-  472: 'Ponowne łączenie...',
   473: 'Aktualizacja nie powiodła się — sprawdź dzienniki urządzenia',
   474: 'Wymagane',
   475: 'To pole jest wymagane',
@@ -511,4 +510,7 @@ export default {
   508: 'Klient',
   509: 'Nowy adres IP zacznie obowiązywać przy następnym żądaniu adresu przez to urządzenie od routera — router nie może go wymusić na podłączonym urządzeniu. Najszybszym sposobem na jego zastosowanie jest rozłączenie i ponowne podłączenie urządzenia (Wi-Fi lub Ethernet) albo jego ponowne uruchomienie; zwykle to działa, ale natychmiastowy skutek nie jest gwarantowany. W przeciwnym razie urządzenie samo pobierze nowy adres w ciągu maksymalnie 12 godzin.',
   510: 'Rozumiem',
+  511: 'Próba połączenia z routerem',
+  512: 'Połączenie przywrócone',
+  513: 'Ponowne łączenie z nowym adresem…',
 } satisfies i18n

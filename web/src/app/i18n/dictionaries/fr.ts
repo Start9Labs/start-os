@@ -472,7 +472,6 @@ export default {
   469: 'Clair',
   470: 'Sombre',
   471: 'Enregistrement',
-  472: 'Reconnexion...',
   473: 'Échec de la mise à jour — consultez les journaux de l’appareil',
   474: 'Requis',
   475: 'Ce champ est requis',
@@ -511,4 +510,7 @@ export default {
   508: 'Client',
   509: 'La nouvelle adresse IP prendra effet lorsque cet appareil en demandera une au routeur ; le routeur ne peut pas l’imposer à un appareil connecté. Le moyen le plus rapide de l’appliquer est de déconnecter puis de reconnecter l’appareil (Wi-Fi ou Ethernet) ou de le redémarrer ; cela fonctionne généralement, mais une prise d’effet immédiate n’est pas garantie. Sinon, l’appareil adoptera la nouvelle adresse de lui-même sous 12 heures au maximum.',
   510: 'Compris',
+  511: 'Tentative de connexion au routeur',
+  512: 'Connexion rétablie',
+  513: 'Reconnexion à la nouvelle adresse…',
 } satisfies i18n

@@ -1,43 +1,37 @@
 import { inject, Injectable } from '@angular/core'
 import { TuiNotificationService } from '@taiga-ui/core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
-import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import { firstValueFrom, EMPTY, catchError, Subscription } from 'rxjs'
-import { RECONNECTING_DIALOG } from 'src/app/components/reconnecting-dialog'
-import { ApiService } from 'src/app/services/api/api.service'
 import { pauseFor } from 'src/app/utils/pauseFor'
 import {
+  ConnectionService,
   isNetworkError,
-  NetworkRestartService,
-} from './network-restart.service'
+  OnReconnect,
+} from 'src/app/services/connection.service'
 import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
+// Bound on how long we wait for a restart action to return before assuming the
+// connection dropped. The global indicator (driven by the background pollers)
+// surfaces "Reconnecting" within a poll interval regardless; this only caps how
+// long the success toast is deferred when the action's own response is wedged.
 const RESTART_TIMEOUT_MS = 60_000
-const POLL_INTERVAL_MS = 2000
-const POLL_ATTEMPTS = 3
-// Per-poll timeout so a request stuck on a half-broken connection
-// (e.g. wedged TCP socket whose conntrack was flushed mid-flight)
-// transitions into the reconnecting flow instead of hanging the
-// for-loop indefinitely.
-const POLL_TIMEOUT_MS = 5000
 
 export interface ActionOptions {
   loading: string
   success: string
   fail: string
-  /** Suppress network errors caused by the action restarting network services */
+  /** This action restarts the network; expect a transient disconnection. */
   restart: boolean
-  /** Show reconnecting overlay on network error (defaults to restart value) */
-  reconnect: boolean
+  /** Subtitle for the reconnect indicator (e.g. the SSID to rejoin). */
+  reconnectMessage: string
+  /** What to do once the router is reachable again (default: 'none'). */
+  onReconnect: OnReconnect
 }
 
 @Injectable({ providedIn: 'root' })
 export class ActionService {
   private readonly alerts = inject(TuiNotificationService)
   private readonly notifications = inject(TuiNotificationMiddleService)
-  private readonly dialogs = inject(TuiResponsiveDialogService)
-  private readonly networkRestart = inject(NetworkRestartService)
-  private readonly api = inject(ApiService)
+  private readonly connection = inject(ConnectionService)
   private readonly i18n = inject(i18nPipe)
 
   async run(
@@ -48,29 +42,41 @@ export class ActionService {
       .open(options.loading ?? this.i18n.transform('Saving'))
       .subscribe()
 
+    const disruption = {
+      message: options.reconnectMessage,
+      onReconnect: options.onReconnect,
+    }
+
     try {
       if (options.restart) {
-        this.networkRestart.suppress()
+        // Arm the indicator's context up front so that whichever path observes
+        // the drop — this action or a background poller — shows the right copy.
+        this.connection.expectDisruption(disruption)
       }
 
-      await (options.restart
-        ? Promise.race([
-            action(),
-            pauseFor(RESTART_TIMEOUT_MS).then(() => {
-              throw Object.assign(new Error('Network timeout'), { code: 0 })
-            }),
-          ])
-        : action())
+      try {
+        await (options.restart
+          ? Promise.race([
+              action(),
+              pauseFor(RESTART_TIMEOUT_MS).then(() => {
+                throw Object.assign(new Error('Network timeout'), { code: 0 })
+              }),
+            ])
+          : action())
+      } catch (e: any) {
+        if (!isNetworkError(e)) throw e
 
-      // After success, poll until network drops or confirms stable
-      const reconnect = options.reconnect ?? options.restart
-      if (options.restart && reconnect) {
-        await this.pollUntilSettled(
-          loading,
-          options.loading || this.i18n.transform('Reconnecting...'),
-        )
-      } else if (options.restart) {
-        this.networkRestart.recovered()
+        // Network error: the global indicator owns recovery — never surface a
+        // raw "Unknown Error" toast. For a restart action the write landed
+        // before the drop, so hand the success copy to the indicator and let it
+        // confirm AFTER the router answers again (recover()), rather than toast
+        // success now while still unreachable. An unexpected drop on a
+        // non-restart action is a plain failure.
+        this.connection.reportUnreachable({
+          ...disruption,
+          successMessage: options.restart ? options.success : undefined,
+        })
+        return !!options.restart
       }
 
       if (options.success) {
@@ -81,26 +87,6 @@ export class ActionService {
 
       return true
     } catch (e: any) {
-      if (options.restart && isNetworkError(e)) {
-        this.networkRestart.suppress()
-
-        const reconnect = options.reconnect ?? options.restart
-        if (reconnect) {
-          loading.unsubscribe()
-          await this.waitForReconnect(
-            options.loading || this.i18n.transform('Reconnecting...'),
-          )
-          this.networkRestart.recovered()
-        }
-
-        if (options.success) {
-          this.alerts
-            .open(options.success, { appearance: 'positive' })
-            .subscribe()
-        }
-        return true
-      }
-
       console.error(e)
       this.alerts
         .open(e.message || options.fail || e, { appearance: 'negative' })
@@ -110,44 +96,5 @@ export class ActionService {
     } finally {
       loading.unsubscribe()
     }
-  }
-
-  private async pollUntilSettled(
-    loading: Subscription,
-    message: string,
-  ): Promise<void> {
-    for (let i = 0; i < POLL_ATTEMPTS; i++) {
-      await pauseFor(POLL_INTERVAL_MS)
-      try {
-        await Promise.race([
-          this.api.systemInfo(),
-          pauseFor(POLL_TIMEOUT_MS).then(() => {
-            throw Object.assign(new Error('Poll timeout'), { code: 0 })
-          }),
-        ])
-      } catch (e) {
-        if (isNetworkError(e)) {
-          loading.unsubscribe()
-          await this.waitForReconnect(message)
-          this.networkRestart.recovered()
-          return
-        }
-      }
-    }
-    // Network stayed up through all polls — restart didn't disrupt connectivity
-    this.networkRestart.recovered()
-  }
-
-  private waitForReconnect(data: string): Promise<void> {
-    return firstValueFrom(
-      this.dialogs
-        .open(RECONNECTING_DIALOG, {
-          label: this.i18n.transform('Reconnecting'),
-          closable: false,
-          dismissible: false,
-          data,
-        })
-        .pipe(catchError(() => EMPTY)),
-    ).then(() => {})
   }
 }

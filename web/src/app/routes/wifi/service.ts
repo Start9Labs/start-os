@@ -5,6 +5,7 @@ import {
   WifiPassword,
 } from 'src/app/services/api/api.service'
 import { FormService } from 'src/app/services/form.service'
+import { isNetworkError } from 'src/app/services/connection.service'
 import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 export type { WifiConfig, WifiPassword }
@@ -56,10 +57,23 @@ export class WifiService extends FormService<WifiConfig> {
   }
 
   saveForSsidChange(data: WifiConfig): Promise<boolean> {
-    this.networkRestart.suppress()
+    // The ReconnectDialog owns the reconnect UX (with the explicit "reconnect
+    // to <ssid>" instruction). Suppress the global indicator BEFORE the restart
+    // drops the connection so it doesn't also pop a generic toast.
+    //
+    // Resolve `true` when the save lands, and `false` only for the EXPECTED
+    // network-drop rejection (the SSID restart tearing down our own connection)
+    // — the dialog recovers that via its reconnect poll. A non-network rejection
+    // is a real backend failure (bad config, UCI conflict, restart failed): do
+    // NOT discard it, throw so the dialog can close and surface it instead of
+    // spinning forever.
+    this.connection.suppress()
     return this.api.wifiSet(data).then(
       () => true,
-      () => false,
+      e => {
+        if (isNetworkError(e)) return false
+        throw e
+      },
     )
   }
 

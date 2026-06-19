@@ -74,10 +74,6 @@ export default class Advanced {
         this.actions.run(
           async () => {
             await this.api.systemFactoryReset()
-            // Device is rebooting — poll until it goes down
-            while (true) {
-              await this.api.systemInfo()
-            }
           },
           {
             loading: this.i18n.transform('Resetting device...'),

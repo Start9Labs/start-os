@@ -7,10 +7,7 @@ import {
   VersionInfo,
 } from './api/api.service'
 import { AuthService } from './auth.service'
-import {
-  isNetworkError,
-  NetworkRestartService,
-} from './network-restart.service'
+import { ConnectionService, isNetworkError } from './connection.service'
 import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Injectable({
@@ -20,7 +17,7 @@ export class SystemService {
   private readonly api = inject(ApiService)
   private readonly auth = inject(AuthService)
   private readonly alerts = inject(TuiNotificationService)
-  private readonly networkRestart = inject(NetworkRestartService)
+  private readonly connection = inject(ConnectionService)
   private readonly i18n = inject(i18nPipe)
   private ws: WebSocket | null = null
   private targetVersion = ''
@@ -57,7 +54,7 @@ export class SystemService {
     // Mute background FormService poll errors for the whole update window —
     // the device becomes unreachable during the reboot. Released on every
     // terminal path here and in onUpdateFailed / pollForReconnect.
-    this.networkRestart.suppress()
+    this.connection.suppress()
 
     try {
       const { progress } = await this.api.systemUpdate({
@@ -70,11 +67,11 @@ export class SystemService {
         // No progress channel returned — nothing to stream; clear the
         // updating state so the progress dialog doesn't hang open.
         this.updating.set(false)
-        this.networkRestart.recovered()
+        this.connection.resume()
       }
     } catch (e) {
       this.updating.set(false)
-      this.networkRestart.recovered()
+      this.connection.resume()
       throw e
     }
   }
@@ -126,7 +123,7 @@ export class SystemService {
     // leaving `rebooting` false) lets the progress dialog close without a
     // spurious "Device is restarting…" flash; surface the error as a toast.
     this.updating.set(false)
-    this.networkRestart.recovered()
+    this.connection.resume()
     this.alerts
       .open(this.i18n.transform('Update failed — check device logs'), {
         appearance: 'negative',
@@ -146,7 +143,7 @@ export class SystemService {
         await this.api.systemInfo()
         // Device is reachable again.
         this.rebooting.set(false)
-        this.networkRestart.recovered()
+        this.connection.resume()
         if (wentOffline) {
           // It really rebooted — sysupgrade wiped the session store. Confirm
           // success, then send the user to login rather than waiting for
@@ -172,6 +169,6 @@ export class SystemService {
     }
     // Timed out — user will need to refresh manually
     this.rebooting.set(false)
-    this.networkRestart.recovered()
+    this.connection.resume()
   }
 }

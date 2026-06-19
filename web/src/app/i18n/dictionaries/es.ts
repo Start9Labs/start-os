@@ -472,7 +472,6 @@ export default {
   469: 'Claro',
   470: 'Oscuro',
   471: 'Guardando',
-  472: 'Reconectando...',
   473: 'Error en la actualización: revisa los registros del dispositivo',
   474: 'Obligatorio',
   475: 'Este campo es obligatorio',
@@ -511,4 +510,7 @@ export default {
   508: 'Cliente',
   509: 'La nueva dirección IP se aplicará la próxima vez que este dispositivo solicite una al router; el router no puede enviársela a un dispositivo conectado. La forma más rápida de aplicarla es desconectar y volver a conectar el dispositivo (Wi-Fi o Ethernet) o reiniciarlo; esto suele funcionar, pero no se garantiza que surta efecto de inmediato. De lo contrario, el dispositivo adoptará la nueva dirección por sí solo en un plazo de hasta 12 horas.',
   510: 'Entendido',
+  511: 'Intentando contactar con el router',
+  512: 'Conexión restablecida',
+  513: 'Reconectando a la nueva dirección…',
 } satisfies i18n

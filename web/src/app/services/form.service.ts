@@ -14,23 +14,29 @@ import {
 } from 'rxjs'
 import { ActionService } from 'src/app/services/action.service'
 import {
+  ConnectionService,
   isNetworkError,
-  NetworkRestartService,
-} from 'src/app/services/network-restart.service'
+} from 'src/app/services/connection.service'
 
 export type FormRawValue<T> = T extends { getRawValue(): infer R } ? R : never
 
 export abstract class FormService<T> {
   private readonly load$ = new Subject<void>()
   private readonly alerts = inject(TuiNotificationService)
-  protected readonly networkRestart = inject(NetworkRestartService)
+  protected readonly connection = inject(ConnectionService)
   private readonly value$ = merge(this.load$, timer(0, 5000)).pipe(
     switchMap(() =>
       from(this.load()).pipe(
         catchError(e => {
-          const ignored = isNetworkError(e) && this.networkRestart.isSuppressed
           console.error(e)
-          return ignored || e?.code === 34
+          // Network drops funnel into the single global "Reconnecting"
+          // indicator instead of a per-poll "Unknown Error" toast; auth
+          // failures are handled by the RPC layer (logout).
+          if (isNetworkError(e)) {
+            this.connection.reportUnreachable()
+            return EMPTY
+          }
+          return e?.code === 34
             ? EMPTY
             : this.alerts.open<never>(e?.message || e, {
                 appearance: 'negative',

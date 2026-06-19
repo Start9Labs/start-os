@@ -1,6 +1,6 @@
 import { Injectable, DOCUMENT, inject } from '@angular/core'
 import { HttpClient, HttpResponse } from '@angular/common/http'
-import { firstValueFrom } from 'rxjs'
+import { firstValueFrom, timeout, TimeoutError } from 'rxjs'
 import { HttpErrorResponse } from '@angular/common/http'
 import { InjectionToken } from '@angular/core'
 
@@ -16,7 +16,7 @@ export class HttpService {
   private readonly http = inject(HttpClient)
 
   async request<T>(options: HttpOptions): Promise<HttpResponse<T>> {
-    const { params, body, headers } = options
+    const { params, body, headers, timeout: timeoutMs } = options
 
     if (hasParams(params)) {
       Object.keys(params).forEach(key => {
@@ -26,17 +26,26 @@ export class HttpService {
       })
     }
 
+    const req$ = this.http.post<T>(this.url, body, {
+      observe: 'response',
+      withCredentials: true,
+      params,
+      headers,
+      responseType: 'json',
+    })
+
     try {
+      // A timeout here unsubscribes, aborting the underlying request, so a
+      // wedged connection is dropped rather than awaited to its TCP deadline.
       return await firstValueFrom(
-        this.http.post<T>(this.url, body, {
-          observe: 'response',
-          withCredentials: true,
-          params,
-          headers,
-          responseType: 'json',
-        }),
+        timeoutMs ? req$.pipe(timeout({ each: timeoutMs })) : req$,
       )
     } catch (e: any) {
+      // Surface a timeout as a network error (code 0) so isNetworkError() and
+      // the reconnect flow treat it the same as a dropped connection.
+      if (e instanceof TimeoutError) {
+        throw Object.assign(new Error('Network timeout'), { code: 0 })
+      }
       throw new HttpError(e)
     }
   }
@@ -68,4 +77,6 @@ export type HttpOptions = {
     [param: string]: ParamPrimitive | ParamPrimitive[]
   }
   body?: any
+  /** Abort the request after this many ms, surfaced as a network error. */
+  timeout?: number
 }

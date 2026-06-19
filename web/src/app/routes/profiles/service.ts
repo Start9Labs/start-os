@@ -10,7 +10,7 @@ import {
   SecurityProfile,
 } from 'src/app/services/api/api.service'
 import { FormService } from 'src/app/services/form.service'
-import { isNetworkError } from 'src/app/services/network-restart.service'
+import { isNetworkError } from 'src/app/services/connection.service'
 import { pauseFor } from 'src/app/utils/pauseFor'
 
 const RESTART_TIMEOUT_MS = 60_000
@@ -85,7 +85,13 @@ export class ProfilesService extends FormService<SecurityProfile[]> {
       const loading = this.notifications
         .open(this.i18n.transform('Applying profile settings...'))
         .subscribe()
-      this.networkRestart.suppress()
+      // Suppress the global indicator BEFORE the request: this update restarts
+      // the network and the admin's connection drops mid-flight, so a background
+      // poller would otherwise pop the generic "Reconnecting" toast in the
+      // window before the caller's foreground-nav dialog takes over. On the
+      // expected drop we STAY suppressed (the caller navigates to the new
+      // address and owns the reconnect); any other error means no drop, resume.
+      this.connection.suppress()
       try {
         await Promise.race([
           this.api.profileUpdate(params),
@@ -94,8 +100,10 @@ export class ProfilesService extends FormService<SecurityProfile[]> {
           }),
         ])
       } catch (e: any) {
+        // Network drop is expected; the caller owns the reconnect via foreground
+        // navigation. Signal the admin-IP change to the caller.
         if (isNetworkError(e)) return true
-        this.networkRestart.recovered()
+        this.connection.resume()
         throw e
       } finally {
         loading.unsubscribe()

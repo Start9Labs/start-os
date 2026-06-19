@@ -239,6 +239,10 @@ export default class WifiSettings {
         })
         .pipe(filter(Boolean))
         .subscribe(() => {
+          // The SSID change disconnects every WiFi client; a transient toast
+          // can't carry an instruction the user must act on. Hand off to the
+          // persistent ReconnectDialog, which tells the user to rejoin the new
+          // network and reloads once they have.
           const done = this.service.saveForSsidChange(config)
           this.dialogs
             .open(new PolymorpheusComponent(ReconnectDialog), {

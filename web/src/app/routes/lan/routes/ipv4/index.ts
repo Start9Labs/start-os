@@ -18,13 +18,12 @@ import {
 } from '@taiga-ui/core'
 import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
-import { catchError, EMPTY, firstValueFrom, startWith } from 'rxjs'
+import { firstValueFrom, startWith } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/components/form'
-import { RECONNECTING_DIALOG } from 'src/app/components/reconnecting-dialog'
 import { ApiService } from 'src/app/services/api/api.service'
+import { ConnectionService } from 'src/app/services/connection.service'
 import { provideFormService } from 'src/app/services/form.service'
-import { NetworkRestartService } from 'src/app/services/network-restart.service'
 import { LanIpv4Ip } from './form/ip'
 import { LanIpv4Service } from './service'
 import { LanIpv4Summary } from './summary'
@@ -80,9 +79,9 @@ export default class LanIpv4 {
   protected readonly builder = inject(NonNullableFormBuilder)
   protected readonly service = inject(LanIpv4Service)
   private readonly api = inject(ApiService)
+  private readonly connection = inject(ConnectionService)
   private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly alerts = inject(TuiNotificationService)
-  private readonly networkRestart = inject(NetworkRestartService)
   private readonly window = inject(WA_WINDOW)
   private readonly i18n = inject(i18nPipe)
 
@@ -198,41 +197,26 @@ export default class LanIpv4 {
         }
       }
 
-      if (currentHost === oldIp) {
-        this.dialogs
-          .open(
-            this.i18n.transform(
-              "Your router's IP address has changed. The UI is now available at the new address.",
-            ),
-            {
-              label: this.i18n.transform('IP Address Changed'),
-              dismissible: false,
-              data: this.i18n.transform('Open'),
-            },
-          )
-          .subscribe({
-            complete: () => {
-              this.window.location.href = `http://${newIp}`
-            },
-          })
-      } else {
-        await firstValueFrom(
-          this.dialogs
-            .open(RECONNECTING_DIALOG, {
-              label: this.i18n.transform('Reconnecting'),
-              closable: false,
-              dismissible: false,
-              data: this.i18n.transform('Applying LAN settings...'),
-            })
-            .pipe(catchError(() => EMPTY)),
-        )
-        this.networkRestart.recovered()
-        this.alerts
-          .open(this.i18n.transform('LAN settings applied'), {
-            appearance: 'positive',
-          })
-          .subscribe()
-      }
+      // The router's address is changing, so the current connection WILL drop:
+      // the client must DHCP-renew into the new subnet before the new address is
+      // routable. saveForIpChange() already suppressed the global indicator
+      // (before the drop); hand off to it now to show the sticky "Reconnecting"
+      // toast, poll the destination until it answers, and auto-redirect there.
+      //
+      // Preserve the current scheme/port. On a bare IP the old origin is gone
+      // for good, so target the new IP directly (no DNS dependency; the cert is
+      // reissued for it). On a hostname, reuse the same name — it re-resolves to
+      // the new IP once DHCP renews.
+      const { protocol, port } = this.window.location
+      const suffix = port ? `:${port}` : ''
+      const target =
+        currentHost === oldIp
+          ? `${protocol}//${newIp}${suffix}`
+          : `${protocol}//${currentHost}${suffix}`
+      this.connection.reconnectAt(
+        target,
+        this.i18n.transform('Reconnecting to the new address…'),
+      )
       return
     }
 

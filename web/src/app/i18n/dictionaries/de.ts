@@ -472,7 +472,6 @@ export default {
   469: 'Hell',
   470: 'Dunkel',
   471: 'Wird gespeichert',
-  472: 'Verbindung wird wiederhergestellt...',
   473: 'Update fehlgeschlagen – Geräteprotokolle prüfen',
   474: 'Erforderlich',
   475: 'Dieses Feld ist erforderlich',
@@ -511,4 +510,7 @@ export default {
   508: 'Client',
   509: 'Die neue IP-Adresse wird wirksam, sobald dieses Gerät das nächste Mal eine Adresse vom Router anfordert – der Router kann sie einem verbundenen Gerät nicht aufzwingen. Am schnellsten wird sie übernommen, wenn Sie das Gerät (WLAN oder Ethernet) trennen und neu verbinden oder neu starten; das funktioniert meist, eine sofortige Übernahme ist jedoch nicht garantiert. Andernfalls übernimmt das Gerät die neue Adresse von selbst innerhalb von bis zu 12 Stunden.',
   510: 'Verstanden',
+  511: 'Router wird kontaktiert',
+  512: 'Verbindung wiederhergestellt',
+  513: 'Verbindung zur neuen Adresse wird hergestellt…',
 } satisfies i18n

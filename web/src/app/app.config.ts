@@ -11,7 +11,12 @@ import {
   provideZonelessChangeDetection,
   signal,
 } from '@angular/core'
-import { provideRouter, withRouterConfig } from '@angular/router'
+import {
+  PreloadAllModules,
+  provideRouter,
+  withPreloading,
+  withRouterConfig,
+} from '@angular/router'
 import { tuiSheetDialogOptionsProvider } from '@taiga-ui/addon-mobile'
 import {
   provideTaiga,
@@ -47,7 +52,16 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideZonelessChangeDetection(),
-    provideRouter(routes, withRouterConfig({ onSameUrlNavigation: 'reload' })),
+    // Preload every lazy route chunk in the background once the app boots (while
+    // the connection is healthy), mirroring start-os. This avoids an on-demand
+    // import() during a network restart, which would fail against the dead
+    // connection and get cached as an errored module — leaving that route
+    // permanently un-loadable until a hard refresh.
+    provideRouter(
+      routes,
+      withPreloading(PreloadAllModules),
+      withRouterConfig({ onSameUrlNavigation: 'reload' }),
+    ),
     provideTaiga({ scrollbars: 'native' }),
     tuiIconsProvider(ICONS),
     tuiButtonOptionsProvider({ size: 'm' }),

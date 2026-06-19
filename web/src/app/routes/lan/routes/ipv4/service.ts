@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { FormService } from 'src/app/services/form.service'
 import { ApiService } from 'src/app/services/api/api.service'
-import { isNetworkError } from 'src/app/services/network-restart.service'
+import { isNetworkError } from 'src/app/services/connection.service'
 import { pauseFor } from 'src/app/utils/pauseFor'
 import { buildRouterIp, LanIpv4Form, parseIpToForm } from './utils'
 import { i18nPipe } from 'src/app/i18n/i18n.pipe'
@@ -36,13 +36,21 @@ export class LanIpv4Service extends FormService<LanIpv4Form> {
    * Save LAN IPv4 settings when the IP is changing.
    * Shows a loading notification. Re-throws VPN errors for the caller
    * to handle via a confirmation dialog. Swallows network errors
-   * (expected during the network restart).
+   * (expected during the network restart) — the caller owns the reconnect by
+   * navigating to the new address.
    */
   async saveForIpChange(data: LanIpv4Form, force?: boolean): Promise<void> {
     const loading = this.notifications
       .open(this.i18n.transform('Applying LAN settings...'))
       .subscribe()
-    this.networkRestart.suppress()
+    // Suppress the global indicator BEFORE the request: this set restarts the
+    // network and the connection drops mid-flight, so a background poller would
+    // otherwise pop the generic "Reconnecting" toast in the window before the
+    // caller's foreground-nav dialog takes over. On the expected network drop we
+    // STAY suppressed (the caller navigates to the new IP and owns the
+    // reconnect); any other error means the change was rejected with no drop, so
+    // resume.
+    this.connection.suppress()
     try {
       await Promise.race([
         this.api.lanIpv4Set({ address: buildRouterIp(data.ip), force }),
@@ -52,7 +60,7 @@ export class LanIpv4Service extends FormService<LanIpv4Form> {
       ])
     } catch (e: any) {
       if (isNetworkError(e)) return
-      this.networkRestart.recovered()
+      this.connection.resume()
       throw e
     } finally {
       loading.unsubscribe()

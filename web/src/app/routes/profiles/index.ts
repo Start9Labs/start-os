@@ -19,16 +19,15 @@ import {
 } from '@taiga-ui/core'
 import { TUI_CONFIRM, TuiSkeleton } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
-import { catchError, EMPTY, filter, firstValueFrom } from 'rxjs'
+import { filter, firstValueFrom } from 'rxjs'
 import { Placeholder } from 'src/app/components/placeholder'
-import { RECONNECTING_DIALOG } from 'src/app/components/reconnecting-dialog'
 import { OutboundService } from 'src/app/routes/outbound/service'
 import {
   ApiService,
   ScheduleWindow,
   SecurityProfile,
 } from 'src/app/services/api/api.service'
-import { NetworkRestartService } from 'src/app/services/network-restart.service'
+import { ConnectionService } from 'src/app/services/connection.service'
 import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 import { ADD_PROFILE, ProfileDialogResult } from './dialog'
 import { ProfilesService } from './service'
@@ -164,8 +163,8 @@ class Profiles {
   protected readonly service = inject(ProfilesService)
   protected readonly outboundService = inject(OutboundService)
   private readonly api = inject(ApiService)
+  private readonly connection = inject(ConnectionService)
   private readonly alerts = inject(TuiNotificationService)
-  private readonly networkRestart = inject(NetworkRestartService)
   private readonly window = inject(WA_WINDOW)
   private readonly i18n = inject(i18nPipe)
 
@@ -346,44 +345,29 @@ class Profiles {
           }
 
           if (adminIpChanged) {
-            const newIp = result.gateway_ip
             const currentHost = this.window.location.hostname
 
-            if (currentHost === profile.gateway_ip) {
-              this.dialogs
-                .open(
-                  this.i18n.transform(
-                    "Your router's IP address has changed. The UI is now available at the new address.",
-                  ),
-                  {
-                    label: this.i18n.transform('IP Address Changed'),
-                    dismissible: false,
-                    data: this.i18n.transform('Open'),
-                  },
-                )
-                .subscribe({
-                  complete: () => {
-                    this.window.location.href = `http://${newIp}`
-                  },
-                })
-            } else {
-              await firstValueFrom(
-                this.dialogs
-                  .open(RECONNECTING_DIALOG, {
-                    label: this.i18n.transform('Reconnecting'),
-                    closable: false,
-                    dismissible: false,
-                    data: this.i18n.transform('Applying profile settings...'),
-                  })
-                  .pipe(catchError(() => EMPTY)),
-              )
-              this.networkRestart.recovered()
-              this.alerts
-                .open(this.i18n.transform('Profile updated'), {
-                  appearance: 'positive',
-                })
-                .subscribe()
-            }
+            // adminIpChanged is only true when the LAN-owning profile's gateway
+            // moved, so the admin's own connection WILL drop: the client must
+            // DHCP-renew before the new address is routable. updateProfile()
+            // already suppressed the global indicator (before the drop); hand
+            // off to it now to show the sticky "Reconnecting" toast, poll the
+            // destination until it answers, and auto-redirect there.
+            //
+            // Preserve the current scheme/port. On a bare IP the old origin is
+            // gone for good, so target the new gateway directly (the cert is
+            // reissued for it). On a hostname, reuse the same name — it
+            // re-resolves to the new IP once DHCP renews.
+            const { protocol, port } = this.window.location
+            const suffix = port ? `:${port}` : ''
+            const target =
+              currentHost === profile.gateway_ip
+                ? `${protocol}//${result.gateway_ip}${suffix}`
+                : `${protocol}//${currentHost}${suffix}`
+            this.connection.reconnectAt(
+              target,
+              this.i18n.transform('Reconnecting to the new address…'),
+            )
           }
         } else {
           this.service.createProfile(profileFields, schedule_windows)

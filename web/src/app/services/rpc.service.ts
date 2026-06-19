@@ -10,11 +10,12 @@ export class RpcService {
   private readonly injector = inject(Injector)
 
   async request<T>(options: RPCOptions): Promise<T> {
-    const { method, headers, params } = options
+    const { method, headers, params, timeout } = options
 
     const res = await this.http.request<RPCResponse<T>>({
       headers,
       body: { method, params },
+      timeout,
     })
 
     const body = res.body as RPCResponse<T>

@@ -165,10 +165,8 @@ export default class Backup {
           const text = await res.text()
           throw new Error(text || res.statusText)
         }
-        // Device is rebooting — poll until it goes down
-        while (true) {
-          await this.api.systemInfo()
-        }
+        // Device reboots after restoring; the global ConnectionService
+        // indicator detects the drop and handles the reconnect.
       },
       {
         loading: this.i18n.transform('Restoring backup...'),
