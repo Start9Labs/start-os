@@ -220,7 +220,6 @@ impl TryFrom<ManifestV1> for Manifest {
                 marketing_url: Some(value.marketing_site.unwrap_or_else(|| default_url.clone())),
                 donation_url: value.donation_url,
                 description: value.description,
-                alerts: value.alerts,
                 git_hash: value.git_hash,
                 os_version: value.eos_version,
                 sdk_version: None,

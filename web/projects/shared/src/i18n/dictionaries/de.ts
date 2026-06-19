@@ -167,7 +167,6 @@ export default {
   171: 'Um von',
   172: 'zu installieren, klicken Sie trotzdem auf „Weiter“.',
   173: 'Durch dieses Update funktionieren die folgenden Dienste möglicherweise nicht mehr richtig und könnten abstürzen:',
-  174: 'Warnung',
   175: 'Prozent verwendet',
   176: 'Benutzerspeicher',
   177: 'Kernelspeicher',

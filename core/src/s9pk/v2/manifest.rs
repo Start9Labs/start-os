@@ -444,23 +444,3 @@ impl Description {
         Ok(())
     }
 }
-
-#[derive(Clone, Debug, Default, Deserialize, Serialize, TS, PartialEq)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct Alerts {
-    pub install: Option<LocaleString>,
-    pub uninstall: Option<LocaleString>,
-    pub restore: Option<LocaleString>,
-    pub start: Option<LocaleString>,
-    pub stop: Option<LocaleString>,
-}
-impl Alerts {
-    pub fn localize_for(&mut self, locale: &str) {
-        self.install.as_mut().map(|s| s.localize_for(locale));
-        self.uninstall.as_mut().map(|s| s.localize_for(locale));
-        self.restore.as_mut().map(|s| s.localize_for(locale));
-        self.start.as_mut().map(|s| s.localize_for(locale));
-        self.stop.as_mut().map(|s| s.localize_for(locale));
-    }
-}

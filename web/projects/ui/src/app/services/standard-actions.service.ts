@@ -5,7 +5,6 @@ import {
   ErrorService,
   i18nKey,
   i18nPipe,
-  i18nService,
 } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
@@ -27,7 +26,6 @@ export class StandardActionsService {
   private readonly loader = inject(TuiNotificationMiddleService)
   private readonly router = inject(Router)
   private readonly i18n = inject(i18nPipe)
-  private readonly i18nService = inject(i18nService)
 
   async rebuild(id: string) {
     const loader = this.loader.open('Rebuilding container').subscribe()
@@ -43,7 +41,7 @@ export class StandardActionsService {
   }
 
   async uninstall(
-    { id, title, alerts }: T.Manifest,
+    { id, title }: T.Manifest,
     { force, soft }: { force: boolean; soft: boolean } = {
       force: false,
       soft: false,
@@ -51,9 +49,7 @@ export class StandardActionsService {
   ): Promise<void> {
     let content = soft
       ? ''
-      : alerts.uninstall
-        ? this.i18nService.localize(alerts.uninstall)
-        : `${this.i18n.transform('Uninstalling')} ${title} ${this.i18n.transform('will permanently delete its data.')}`
+      : `${this.i18n.transform('Uninstalling')} ${title} ${this.i18n.transform('will permanently delete its data.')}`
 
     if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
       content = `${content ? `${content} ` : ''}${this.i18n.transform('Services that depend on')} ${title} ${this.i18n.transform('will no longer work properly and may crash.')}`

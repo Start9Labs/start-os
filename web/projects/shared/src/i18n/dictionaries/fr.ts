@@ -167,7 +167,6 @@ export default {
   171: 'Pour installer depuis',
   172: 'quand même, cliquez sur "Continuer".',
   173: 'Suite à cette mise à jour, les services suivants ne fonctionneront plus correctement et pourraient planter',
-  174: 'Alerte',
   175: 'Pourcentage utilisé',
   176: 'Espace utilisateur',
   177: 'Espace noyau',

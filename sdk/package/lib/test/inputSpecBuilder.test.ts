@@ -464,14 +464,6 @@ describe('values', () => {
             },
             images: {},
             volumes: [],
-            alerts: {
-              install: null,
-              update: null,
-              uninstall: null,
-              restore: null,
-              start: null,
-              stop: null,
-            },
             dependencies: {
               'remote-test': {
                 description: '',

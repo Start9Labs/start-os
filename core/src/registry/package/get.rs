@@ -611,7 +611,7 @@ pub async fn cli_download(
 #[test]
 fn check_matching_info_short() {
     use crate::registry::package::index::PackageMetadata;
-    use crate::s9pk::manifest::{Alerts, Description};
+    use crate::s9pk::manifest::Description;
     use crate::util::DataUrl;
 
     let lang_map =
@@ -631,7 +631,6 @@ fn check_matching_info_short() {
             upstream_repo: "https://github.com/example/upstream".parse().unwrap(),
             marketing_url: Some("https://example.com".parse().unwrap()),
             donation_url: None,
-            alerts: Alerts::default(),
             os_version: exver::Version::new([0, 3, 6], []),
             sdk_version: None,
             hardware_acceleration: false,

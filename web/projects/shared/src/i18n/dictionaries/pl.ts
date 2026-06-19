@@ -167,7 +167,6 @@ export default {
   171: 'Aby zainstalować z',
   172: 'mimo to, kliknij „Kontynuuj”.',
   173: 'W wyniku tej aktualizacji następujące serwisy mogą przestać działać poprawnie lub ulec awarii',
-  174: 'Alert',
   175: 'Procent wykorzystania',
   176: 'Przestrzeń użytkownika',
   177: 'Przestrzeń jądra',

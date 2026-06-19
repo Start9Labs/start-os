@@ -166,7 +166,6 @@ export const ENGLISH: Record<string, number> = {
   'To install from': 171,
   'anyway, click "Continue".': 172,
   'As a result of this update, the following services will no longer work properly and may crash': 173,
-  'Alert': 174,
   'Percentage used': 175,
   'User space': 176,
   'Kernel space': 177,
