@@ -1,0 +1,86 @@
+name: Deploy brochure (marketplace.start9.com)
+
+# Builds projects/brochure and deploys it to marketplace.start9.com on the
+# shared VPS (same box as start9.com and docs.start9.com), mirroring those
+# repos' deploy.yml. Triggers only when brochure's build inputs change.
+
+on:
+  push:
+    branches: ["master"]
+    paths:
+      - "web/projects/brochure/**"
+      - "web/projects/shared/**"
+      - "web/projects/marketplace/**"
+      - "web/angular.json"
+      - "web/package.json"
+      - "web/package-lock.json"
+      - "web/tsconfig.json"
+      - "web/tsconfig.lib.json"
+      - "sdk/**"
+      - "patch-db"
+      - ".github/workflows/deploy-brochure.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "deploy-brochure"
+  cancel-in-progress: false
+
+env:
+  NODEJS_VERSION: "24.17.0"
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODEJS_VERSION }}
+          cache: npm
+          cache-dependency-path: "**/package-lock.json"
+
+      # web resolves the SDK via file:../sdk/baseDist, so baseDist must exist
+      # before web's `npm ci` and the brochure build.
+      - name: Build SDK (baseDist)
+        run: |
+          npm --prefix sdk/base ci
+          cd sdk && make baseDist
+
+      # brochure transitively bundles patch-db-client (file:../patch-db/client),
+      # so its dist must be built too.
+      - name: Build patch-db client
+        run: |
+          npm --prefix patch-db/client ci
+          npm --prefix patch-db/client run build
+
+      - name: Install web dependencies
+        run: npm --prefix web ci
+
+      - name: Build brochure
+        run: |
+          npm --prefix web run build:brochure
+          test -f web/dist/raw/brochure/index.html
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.WEBSITE_DEPLOY_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H start9.com >> ~/.ssh/known_hosts
+          cat >> ~/.ssh/config <<EOF
+          Host marketplace-vps
+            HostName start9.com
+            User root
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+          EOF
+
+      - name: Deploy to VPS
+        run: rsync -az --delete web/dist/raw/brochure/ marketplace-vps:/var/www/html/marketplace.start9.com/
