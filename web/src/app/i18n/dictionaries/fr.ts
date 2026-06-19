@@ -508,4 +508,7 @@ export default {
   505: 'La valeur maximale est {max}',
   506: 'Votre préfixe WAN est /{wanPrefix}. Saisissez une valeur supérieure à {wanPrefix} et inférieure à 128.',
   507: 'Saisissez une valeur entre {min} et {max}',
+  508: 'Client',
+  509: 'La nouvelle adresse IP prendra effet lorsque cet appareil en demandera une au routeur ; le routeur ne peut pas l’imposer à un appareil connecté. Le moyen le plus rapide de l’appliquer est de déconnecter puis de reconnecter l’appareil (Wi-Fi ou Ethernet) ou de le redémarrer ; cela fonctionne généralement, mais une prise d’effet immédiate n’est pas garantie. Sinon, l’appareil adoptera la nouvelle adresse de lui-même sous 12 heures au maximum.',
+  510: 'Compris',
 } satisfies i18n

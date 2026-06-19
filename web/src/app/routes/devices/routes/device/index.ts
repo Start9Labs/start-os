@@ -8,6 +8,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { ActivatedRoute, Router, RouterLink } from '@angular/router'
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import {
   TuiButton,
   TuiError,
@@ -151,6 +152,8 @@ export default class DeviceDetail {
   private readonly route = inject(ActivatedRoute)
   private readonly router = inject(Router)
   private readonly api = inject(ApiService)
+  private readonly dialogs = inject(TuiResponsiveDialogService)
+  private readonly i18n = inject(i18nPipe)
 
   readonly service = inject(DevicesService)
   readonly mac = this.route.snapshot.queryParams['mac']
@@ -222,6 +225,13 @@ export default class DeviceDetail {
     if (this.form.invalid) return
 
     const formValue = this.form.getRawValue()
+    // A reservation only reaches the device when it next runs DHCP — the router
+    // can't push it to a connected client. Warn only when we're actually pinning
+    // it to a *different* address; reserving the device's existing address (just
+    // making the current lease static) changes nothing for the device.
+    const ipv4Changed =
+      formValue.ip.ipv4Static && formValue.ip.ipv4 !== (this.data()?.ipv4 ?? '')
+
     const success = await this.service.update(this.mac, {
       name: formValue.name,
       ipv4Static: formValue.ip.ipv4Static,
@@ -230,7 +240,24 @@ export default class DeviceDetail {
       ipv6: formValue.ip.ipv6,
     })
 
-    if (success) this.form.markAsPristine()
+    if (success) {
+      this.form.markAsPristine()
+      if (ipv4Changed) this.showIpChangedDialog()
+    }
+  }
+
+  private showIpChangedDialog() {
+    this.dialogs
+      .open(
+        this.i18n.transform(
+          'The new IP address takes effect the next time this device requests one from the router — the router cannot push it to a connected device. The fastest way to apply it is to disconnect and reconnect the device (Wi-Fi or Ethernet) or reboot it; this usually works but is not guaranteed to take effect immediately. Otherwise the device will pick up the new address on its own within up to 12 hours.',
+        ),
+        {
+          label: this.i18n.transform('IP Address Changed'),
+          data: this.i18n.transform('Got it'),
+        },
+      )
+      .subscribe()
   }
 
   onCancel() {

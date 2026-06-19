@@ -36,6 +36,7 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
   `,
   styles: `
     :host {
+      max-width: 50rem;
       height: calc(100dvh - 11rem);
       display: flex;
       flex-direction: column;

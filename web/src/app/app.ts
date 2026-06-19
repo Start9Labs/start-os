@@ -82,7 +82,7 @@ import { Language } from 'src/app/utils/languages'
 
     tui-scrollbar {
       height: 100%;
-      min-width: calc(100vw - 3rem);
+      min-width: 100%;
 
       ::ng-deep > .t-content {
         height: 100%;
@@ -97,7 +97,7 @@ import { Language } from 'src/app/utils/languages'
       > header[tuiHeader] {
         position: sticky;
         inset-inline-start: 1.5rem;
-        max-width: calc(100vw - 3rem);
+        max-width: 100%;
 
         + tui-tabs {
           flex-shrink: 0;
@@ -110,6 +110,21 @@ import { Language } from 'src/app/utils/languages'
         block-size: 5rem;
         flex-shrink: 0;
       }
+    }
+
+    // On mobile, pin the content to the viewport width so expanding the nav
+    // slides content off-screen instead of reflowing/squishing it. Mirrors
+    // start-os start-tunnel's outlet (desktop min: 100%, mobile: 100vw - 3rem).
+    :host-context(tui-root._mobile) tui-scrollbar {
+      min-width: calc(100vw - 3rem);
+    }
+
+    :host-context(tui-root._mobile)
+      router-outlet
+      + ::ng-deep
+      ng-component
+      > header[tuiHeader] {
+      max-width: calc(100vw - 3rem);
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

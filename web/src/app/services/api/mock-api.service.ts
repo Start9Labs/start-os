@@ -1427,7 +1427,7 @@ export class MockApiService extends ApiService {
         ...c,
         used_by: this.mockProfiles
           .filter(p => p.outbound === c.id)
-          .map(p => p.interface),
+          .map(p => p.fullname),
       })),
     )
   }

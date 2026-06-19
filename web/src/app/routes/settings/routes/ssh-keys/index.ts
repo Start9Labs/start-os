@@ -63,6 +63,10 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
     </table>
   `,
   styles: `
+    :host {
+      max-width: 50rem;
+    }
+
     [tuiButton] {
       float: inline-end;
     }

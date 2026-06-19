@@ -513,4 +513,7 @@ export const ENGLISH: Record<string, number> = {
   'Maximum value is {max}': 505,
   'Your WAN prefix is /{wanPrefix}. Enter a value greater than {wanPrefix} and less than 128.': 506,
   'Enter a value between {min} and {max}': 507,
+  'Client': 508,
+  'The new IP address takes effect the next time this device requests one from the router — the router cannot push it to a connected device. The fastest way to apply it is to disconnect and reconnect the device (Wi-Fi or Ethernet) or reboot it; this usually works but is not guaranteed to take effect immediately. Otherwise the device will pick up the new address on its own within up to 12 hours.': 509,
+  'Got it': 510,
 }

@@ -38,6 +38,14 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
       <label appSummary>
         {{ 'Connection path' | i18n }}
         <span tuiSubtitle>
+          <tui-avatar-labeled [label]="'Client' | i18n">
+            <span
+              tuiAvatar="@tui.monitor-smartphone"
+              size="m"
+              appearance="action"
+            ></span>
+          </tui-avatar-labeled>
+          <tui-icon icon="@tui.arrow-right" />
           @for (step of connectionPath(); track $index; let last = $last) {
             @if (step === 'Internet') {
               <tui-avatar-labeled [label]="'Internet' | i18n">
@@ -66,6 +74,10 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
   styles: `
     tui-avatar {
       margin: 0;
+    }
+
+    [tuiSubtitle]:has(tui-avatar-labeled) {
+      color: var(--tui-text-primary);
     }
   `,
   imports: [
