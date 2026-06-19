@@ -4,4 +4,10 @@ export type SetupInfo = {
   guid: string | null
   attach: boolean
   mokEnrolled: boolean
+  /**
+   * The whole disk the running OS booted from. Set when the device is
+   * pre-installed (setup-after-install), so the wizard fixes it as the OS
+   * drive and asks only for a data drive.
+   */
+  osDrive: string | null
 }

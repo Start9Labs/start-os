@@ -257,6 +257,7 @@ where
 {
     let (client, to) = hyper::client::conn::http2::Builder::new(TokioExecutor::new())
         .timer(TokioTimer::new())
+        .adaptive_window(true)
         .keep_alive_interval(Duration::from_secs(25))
         .keep_alive_timeout(Duration::from_secs(300))
         .handshake(TokioIo::new(to))
@@ -264,6 +265,7 @@ where
     let from = hyper::server::conn::http2::Builder::new(TokioExecutor::new())
         .timer(TokioTimer::new())
         .enable_connect_protocol()
+        .adaptive_window(true)
         .keep_alive_interval(Duration::from_secs(25)) // Add this
         .keep_alive_timeout(Duration::from_secs(300))
         .serve_connection(

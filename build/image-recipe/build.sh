@@ -84,7 +84,7 @@ PLATFORM_CONFIG_EXTRAS=()
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	PLATFORM_CONFIG_EXTRAS+=( --firmware-binary false )
 	PLATFORM_CONFIG_EXTRAS+=( --firmware-chroot false )
-	RPI_KERNEL_VERSION=6.12.47+rpt
+	RPI_KERNEL_VERSION=6.18.33+rpt
 	PLATFORM_CONFIG_EXTRAS+=( --linux-packages linux-image-$RPI_KERNEL_VERSION )
 	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours "rpi-v8 rpi-2712" )
 elif [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
@@ -114,7 +114,7 @@ lb config \
 	-a ${IB_TARGET_ARCH} \
 	${QEMU_ARGS[@]} \
 	--archive-areas "${ARCHIVE_AREAS}" \
-	${PLATFORM_CONFIG_EXTRAS[@]}
+	"${PLATFORM_CONFIG_EXTRAS[@]}"
 
 # Overlays
 
@@ -202,6 +202,30 @@ if [ "$NVIDIA" = 1 ]; then
 		> config/archives/nvidia-container-toolkit.list
 fi
 
+if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
+# Pin the Pi to exactly the versioned +rpt kernels live-build installs. Two
+# things would otherwise outrank them in GRUB's version-sorted default and boot
+# instead: Debian's generic/RT kernel (a newer version), and the unversioned RPT
+# kernel metas (linux-image-rpi-*) which track the latest +rpt release and get
+# pulled transitively. Forbid both so /boot holds only the pinned vendor kernels.
+cat > config/archives/backports.pref <<-EOF
+Package: *nvidia*
+Pin: release n=${IB_SUITE}-backports
+Pin-Priority: 500
+
+Package: linux-image-* linux-headers-*
+Pin: origin "deb.debian.org"
+Pin-Priority: -1
+
+Package: linux-image-* linux-headers-*
+Pin: origin "security.debian.org"
+Pin-Priority: -1
+
+Package: linux-image-rpi-* linux-headers-rpi-*
+Pin: version *
+Pin-Priority: -1
+EOF
+else
 cat > config/archives/backports.pref <<-EOF
 Package: linux-image-*
 Pin: release n=${IB_SUITE}-backports
@@ -215,6 +239,7 @@ Package: *nvidia*
 Pin: release n=${IB_SUITE}-backports
 Pin-Priority: 500
 EOF
+fi
 
 # Hooks
 
@@ -336,7 +361,6 @@ fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
     ln -sf /usr/bin/pi-beep /usr/local/bin/beep
-    sh /boot/firmware/config.sh > /boot/firmware/config.txt
     mkinitramfs -c gzip -o /boot/initrd.img-${RPI_KERNEL_VERSION}-rpi-v8 ${RPI_KERNEL_VERSION}-rpi-v8
     mkinitramfs -c gzip -o /boot/initrd.img-${RPI_KERNEL_VERSION}-rpi-2712 ${RPI_KERNEL_VERSION}-rpi-2712
     cp /usr/lib/u-boot/rpi_arm64/u-boot.bin /boot/firmware/u-boot.bin
@@ -492,6 +516,11 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	rm -rf $BOOT_STAGING
 
 	mkdir $TMPDIR/root/images $TMPDIR/root/config
+
+	# A pre-installed image == post-os_install state, so it needs setup.json (the
+	# SetupInfo marker) or core boots the install wizard instead of setup. It's
+	# written at first boot by init_resize, which knows the runtime OS drive path.
+
 	B3SUM=$(b3sum $prep_results_dir/binary/live/filesystem.squashfs | head -c 16)
 	cp $prep_results_dir/binary/live/filesystem.squashfs $TMPDIR/root/images/$B3SUM.rootfs
 	ln -rsf $TMPDIR/root/images/$B3SUM.rootfs $TMPDIR/root/config/current.rootfs
