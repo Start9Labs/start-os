@@ -85,14 +85,8 @@ export class LiveApiService extends ApiService {
     registryUrl: string,
     options: RPCOptions,
   ): Promise<T> {
-    return this.rpcRequest(
-      {
-        ...options,
-        method: `registry.${options.method}`,
-        params: { registry: registryUrl, ...options.params },
-      },
-      registryUrl,
-    )
+    // Hit the registry's RPC directly; the registry.* namespace + registry param is the StartOS host-proxy convention, absent on this static site.
+    return this.rpcRequest(options, `${new URL('rpc/v0', registryUrl)}`)
   }
 
   private async rpcRequest<T>(
