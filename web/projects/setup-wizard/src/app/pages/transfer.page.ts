@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core'
+import { Component, inject, OnInit, signal } from '@angular/core'
 import { Router } from '@angular/router'
 import {
   DialogService,
@@ -42,7 +42,7 @@ import { StateService } from '../services/state.service'
         </hgroup>
       </header>
 
-      @if (loading) {
+      @if (loading()) {
         <tui-loader />
       } @else {
         <button
@@ -57,7 +57,7 @@ import { StateService } from '../services/state.service'
             *tuiDropdown
             [emptyContent]="'No StartOS data drives found' | i18n"
           >
-            @for (drive of drives; track drive.logicalname) {
+            @for (drive of drives(); track drive.logicalname) {
               <button tuiOption (click)="select(drive)">
                 <span tuiTitle>
                   {{ drive.vendor }} {{ drive.model }}
@@ -90,16 +90,16 @@ export default class TransferPage implements OnInit {
   private readonly errorService = inject(ErrorService)
   private readonly stateService = inject(StateService)
 
-  loading = true
+  readonly loading = signal(true)
   open = false
-  drives: DiskInfo[] = []
+  readonly drives = signal<DiskInfo[]>([])
 
   async ngOnInit() {
     await this.loadDrives()
   }
 
   async refresh() {
-    this.loading = true
+    this.loading.set(true)
     await this.loadDrives()
   }
 
@@ -133,11 +133,11 @@ export default class TransferPage implements OnInit {
     try {
       const allDrives = await this.api.getDisks()
       // Filter to only drives with StartOS data (guid)
-      this.drives = allDrives.filter(toGuid)
+      this.drives.set(allDrives.filter(toGuid))
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
-      this.loading = false
+      this.loading.set(false)
     }
   }
 }

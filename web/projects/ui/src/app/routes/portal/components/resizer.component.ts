@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { Component } from '@angular/core'
 
 @Component({
   selector: 'input[type="range"][appResizer]',
@@ -51,6 +51,5 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ResizerComponent {}

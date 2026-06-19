@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, computed, inject, signal } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { ErrorService, i18nPipe } from '@start9labs/shared'
 import { TuiButton, TuiDialogContext, TuiIcon, TuiLoader } from '@taiga-ui/core'
@@ -292,7 +286,6 @@ export type DomainValidationData = {
       icon: () => '',
     }),
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiButton,
     i18nPipe,

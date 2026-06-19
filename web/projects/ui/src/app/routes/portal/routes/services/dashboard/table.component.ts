@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  input,
-} from '@angular/core'
+import { Component, inject, input } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { T } from '@start9labs/start-sdk'
@@ -76,7 +71,6 @@ import { RouterLink } from '@angular/router'
       </table>
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormsModule,
     TableComponent,

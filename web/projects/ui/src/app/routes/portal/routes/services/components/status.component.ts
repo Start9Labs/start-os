@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  input,
-} from '@angular/core'
+import { Component, computed, input } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
 import { ServiceUptimeComponent } from 'src/app/routes/portal/routes/services/components/uptime.component'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
@@ -100,7 +95,6 @@ import {
     }
   `,
   host: { class: 'g-card' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [i18nPipe, ServiceUptimeComponent],
 })
 export class ServiceStatusComponent {

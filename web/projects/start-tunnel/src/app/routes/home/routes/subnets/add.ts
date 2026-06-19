@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import {
   NonNullableFormBuilder,
@@ -141,7 +141,6 @@ const MODE_LABEL: Record<T.Tunnel.DnsMode, string> = {
       </footer>
     </form>
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
     TuiAutoFocus,

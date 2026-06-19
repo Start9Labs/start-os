@@ -1,13 +1,6 @@
 import { TuiCheckbox } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  input,
-  OnChanges,
-  signal,
-} from '@angular/core'
+import { Component, computed, input, OnChanges, signal } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { i18nPipe } from '@start9labs/shared'
 import { TuiFade, TuiSkeleton } from '@taiga-ui/kit'
@@ -141,7 +134,6 @@ import { T } from '@start9labs/start-sdk'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     FormsModule,

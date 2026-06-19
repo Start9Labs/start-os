@@ -1,6 +1,5 @@
 import { KeyValuePipe } from '@angular/common'
 import {
-  ChangeDetectionStrategy,
   Component,
   Input,
   signal,
@@ -89,7 +88,6 @@ import { FormUnionComponent } from './union.component'
     }
   `,
   encapsulation: ViewEncapsulation.None,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   viewProviders: [
     {
       provide: TUI_DEFAULT_ERROR_MESSAGE,

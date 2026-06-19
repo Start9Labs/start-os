@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core'
+import { Component, input } from '@angular/core'
 
 @Component({
   selector: 'metrics-temperature',
@@ -84,7 +84,6 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core'
   host: {
     '[style.--fill.%]': '100 - value()',
   },
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TemperatureComponent {
   readonly value = input.required<number>()

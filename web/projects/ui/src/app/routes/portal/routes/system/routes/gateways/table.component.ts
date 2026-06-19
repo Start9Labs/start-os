@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
 import { TuiSkeleton } from '@taiga-ui/kit'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
@@ -20,7 +20,6 @@ import { GatewayService } from 'src/app/services/gateway.service'
       }
     </table>
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiSkeleton, i18nPipe, TableComponent, GatewaysItemComponent],
 })
 export class GatewaysTableComponent {

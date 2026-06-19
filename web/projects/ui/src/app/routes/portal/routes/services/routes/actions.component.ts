@@ -1,10 +1,5 @@
 import { KeyValuePipe } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-} from '@angular/core'
+import { Component, computed, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ErrorService, getPkgId, i18nPipe } from '@start9labs/shared'
 import { ISB, T } from '@start9labs/start-sdk'
@@ -79,7 +74,6 @@ import { ServiceActionComponent } from '../components/action.component'
     }
   `,
   host: { class: 'g-subpage' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ServiceActionComponent, TuiCell, KeyValuePipe],
 })
 export default class ServiceActionsRoute {

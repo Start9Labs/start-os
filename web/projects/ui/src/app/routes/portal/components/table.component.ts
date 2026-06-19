@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core'
+import { Component, input } from '@angular/core'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
 import {
   TuiComparator,
@@ -39,7 +39,6 @@ import {
       inputs: ['sorter'],
     },
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [i18nPipe, TuiTable],
 })
 export class TableComponent {

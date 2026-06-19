@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { Component } from '@angular/core'
 import { TuiButton, TuiDialogContext, TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiCopy, TuiSegmented, TuiTextarea } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
@@ -46,7 +46,6 @@ import { QrCodeComponent } from 'ng-qrcode'
       </tui-textfield>
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     QrCodeComponent,
     TuiButton,

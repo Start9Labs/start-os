@@ -1,6 +1,6 @@
 # Web Architecture
 
-Angular 21 + TypeScript workspace using [Taiga UI 5](https://taiga-ui.dev/) component library.
+Angular 22 + TypeScript workspace using [Taiga UI 5](https://taiga-ui.dev/) component library.
 
 ## API Layer (JSON-RPC)
 
@@ -104,5 +104,5 @@ Services often extend `Observable` and expose reactive streams via DI:
 - **`inject()`** function for DI (not constructor injection).
 - **`signal()`** and **`computed()`** for local reactive state.
 - **`toSignal()`** to convert Observables (e.g., PatchDB watches) to signals.
-- **`ChangeDetectionStrategy.OnPush`** on almost all components.
+- **OnPush change detection** is the Angular 22 default, so components are OnPush without an explicit decorator. Components that need eager (CheckAlways) detection opt in with **`ChangeDetectionStrategy.Eager`** (the renamed, non-deprecated form of the old `Default`).
 - **`takeUntilDestroyed(inject(DestroyRef))`** for subscription cleanup.

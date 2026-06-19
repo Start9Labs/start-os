@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  input,
-} from '@angular/core'
+import { Component, computed, inject, input } from '@angular/core'
 import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiButton } from '@taiga-ui/core'
@@ -138,7 +132,6 @@ import { getManifest } from 'src/app/utils/get-package-data'
   host: {
     '[style.opacity]': '!disabled() ? null : "var(--tui-disabled-opacity)"',
   },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButton, TuiAvatar, i18nPipe, TuiFade],
 })
 export class ServiceTaskComponent {

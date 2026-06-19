@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { Component, Input } from '@angular/core'
 import { TuiIcon } from '@taiga-ui/core'
 import { BackupType } from '../types/backup-type'
 
@@ -15,7 +15,6 @@ import { BackupType } from '../types/backup-type'
       align-items: center;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiIcon],
 })
 export class BackupsStatusComponent {

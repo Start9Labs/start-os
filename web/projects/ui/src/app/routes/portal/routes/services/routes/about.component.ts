@@ -1,5 +1,5 @@
 import { TuiCell } from '@taiga-ui/core'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import {
   CopyService,
@@ -49,7 +49,6 @@ import {
     }
   `,
   host: { class: 'g-subpage' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ServiceAdditionalItemComponent, TuiCell, i18nPipe],
 })
 export default class ServiceAboutRoute {

@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  input,
-  ViewEncapsulation,
-} from '@angular/core'
+import { Component, input, ViewEncapsulation } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { i18nPipe } from '@start9labs/shared'
 import { TuiButton, TuiTitle } from '@taiga-ui/core'
@@ -54,7 +49,6 @@ import { TitleDirective } from 'src/app/services/title.service'
     }
   `,
   encapsulation: ViewEncapsulation.None,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButton, TuiTitle, i18nPipe, RouterLink, TitleDirective],
   hostDirectives: [TuiHeader],
 })

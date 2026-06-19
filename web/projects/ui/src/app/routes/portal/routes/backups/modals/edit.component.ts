@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core'
+import { Component, inject, signal } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import { ErrorService } from '@start9labs/shared'
@@ -46,9 +46,9 @@ import { TARGET, TARGET_CREATE } from './target.component'
         Target
         <span
           tuiBadge
-          [appearance]="target()?.[job.targetId]?.type ? 'success' : 'warning'"
+          [appearance]="target()?.[targetId()]?.type ? 'success' : 'warning'"
         >
-          {{ target()?.[job.targetId]?.type || 'Select target' }}
+          {{ target()?.[targetId()]?.type || 'Select target' }}
         </span>
       </button>
       <button
@@ -62,9 +62,9 @@ import { TARGET, TARGET_CREATE } from './target.component'
         Packages
         <span
           tuiBadge
-          [appearance]="job.packageIds.length ? 'success' : 'warning'"
+          [appearance]="packageIds().length ? 'success' : 'warning'"
         >
-          {{ job.packageIds.length + ' selected' }}
+          {{ packageIds().length + ' selected' }}
         </span>
       </button>
       <tui-textfield>
@@ -136,6 +136,9 @@ export class BackupsEditModal {
     from(this.api.getBackupTargets({})).pipe(map(({ saved }) => saved)),
   )
 
+  readonly targetId = signal(this.job.targetId)
+  readonly packageIds = signal(this.job.packageIds)
+
   get job() {
     return this.context.data
   }
@@ -161,12 +164,14 @@ export class BackupsEditModal {
       .open<T.BackupTarget & { id: string }>(TARGET, TARGET_CREATE)
       .subscribe(({ id }) => {
         this.job.targetId = id
+        this.targetId.set(id)
       })
   }
 
   selectPackages() {
     this.dialogs.open<string[]>(BACKUP, BACKUP_OPTIONS).subscribe(id => {
       this.job.packageIds = id
+      this.packageIds.set(id)
     })
   }
 }

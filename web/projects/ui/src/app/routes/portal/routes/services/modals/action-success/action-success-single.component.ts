@@ -1,10 +1,5 @@
 import { CommonModule } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  Input,
-} from '@angular/core'
+import { Component, inject, Input } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { CopyService, i18nPipe } from '@start9labs/shared'
 import { TuiButton, TuiInput } from '@taiga-ui/core'
@@ -72,7 +67,6 @@ import { SingleResult } from './types'
       }
     </ng-template>
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     @use '@taiga-ui/styles/utils' as taiga;
 

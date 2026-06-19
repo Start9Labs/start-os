@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, inject, signal } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import {
   NonNullableFormBuilder,
@@ -76,7 +71,6 @@ import { ApiService } from 'src/app/services/api/api.service'
       match: 'Passwords do not match',
     }),
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
     TuiAutoFocus,

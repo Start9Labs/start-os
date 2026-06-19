@@ -1,5 +1,4 @@
 import {
-  ChangeDetectionStrategy,
   Component,
   EventEmitter,
   forwardRef,
@@ -84,7 +83,6 @@ import { FormGroupComponent } from './group.component'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   hostDirectives: [ControlDirective],
   imports: [
     TuiButton,

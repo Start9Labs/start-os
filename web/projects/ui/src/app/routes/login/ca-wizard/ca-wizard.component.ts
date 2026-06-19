@@ -1,4 +1,4 @@
-import { Component, inject, DOCUMENT } from '@angular/core'
+import { Component, inject, DOCUMENT, signal } from '@angular/core'
 import {
   DocsLinkDirective,
   i18nPipe,
@@ -30,7 +30,7 @@ export class CAWizardComponent {
 
   readonly config = inject(ConfigService)
   readonly rootCaHref = ROOT_CA_DOWNLOAD_HREF
-  caTrusted = false
+  readonly caTrusted = signal(false)
 
   async ngOnInit() {
     await this.testHttps().catch(e =>
@@ -49,7 +49,7 @@ export class CAWizardComponent {
   private async testHttps() {
     const url = `https://${this.document.location.host}${this.relativeUrl}`
     await this.api.echo({ message: 'ping' }, url).then(() => {
-      this.caTrusted = true
+      this.caTrusted.set(true)
     })
   }
 }

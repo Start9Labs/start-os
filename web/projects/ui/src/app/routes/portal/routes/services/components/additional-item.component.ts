@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { Component, Input } from '@angular/core'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
 import { TuiIcon, TuiTitle } from '@taiga-ui/core'
 
@@ -34,7 +34,6 @@ export interface AdditionalItem {
     '[attr.href]':
       'additionalItem.value.startsWith("http") ? additionalItem.value : null',
   },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiIcon, TuiTitle, i18nPipe],
 })
 export class ServiceAdditionalItemComponent {

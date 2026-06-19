@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  input,
-} from '@angular/core'
+import { Component, computed, inject, input } from '@angular/core'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
 import { TuiIcon, TuiLoader } from '@taiga-ui/core'
 import { getProgressText } from 'src/app/routes/portal/routes/services/pipes/install-progress.pipe'
@@ -43,7 +37,6 @@ import {
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiIcon, i18nPipe, TuiLoader],
 })
 export class StatusComponent {

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import {
   getPkgId,
@@ -46,7 +46,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
     }
   `,
   host: { class: 'g-subpage' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     NgDompurifyPipe,
     MarkdownPipe,

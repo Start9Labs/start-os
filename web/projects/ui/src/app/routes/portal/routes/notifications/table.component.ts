@@ -1,13 +1,6 @@
 import { TuiCheckbox } from '@taiga-ui/core'
 import { TuiSkeleton } from '@taiga-ui/kit'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  input,
-  OnChanges,
-  signal,
-} from '@angular/core'
+import { Component, computed, input, OnChanges, signal } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { ServerNotification } from 'src/app/services/api/api.types'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
@@ -87,7 +80,6 @@ import { PlaceholderComponent } from '../../components/placeholder.component'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormsModule,
     TuiCheckbox,

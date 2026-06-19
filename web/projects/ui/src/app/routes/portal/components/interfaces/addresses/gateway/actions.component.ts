@@ -1,11 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  input,
-  model,
-  signal,
-} from '@angular/core'
+import { Component, inject, input, model, signal } from '@angular/core'
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import {
   CopyService,
@@ -225,7 +218,6 @@ import { DomainHealthService } from './domain-health.service'
   `,
   imports: [TuiButton, TuiDropdown, TuiDataList, i18nPipe, TuiInput],
   providers: [tuiButtonOptionsProvider({ appearance: 'icon' })],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GatewayActionsComponent {
   private readonly isMobile = inject(WA_IS_MOBILE)

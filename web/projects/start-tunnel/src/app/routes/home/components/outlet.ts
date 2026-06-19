@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  linkedSignal,
-} from '@angular/core'
+import { Component, inject, linkedSignal } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import {
   NavigationEnd,
@@ -137,7 +132,6 @@ import { UpdateService } from 'src/app/services/update.service'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterOutlet, TuiNavigation, RouterLink, TuiIcon, TuiScrollbar],
 })
 export class Outlet {

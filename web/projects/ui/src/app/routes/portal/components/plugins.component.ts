@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import { TuiAnimated } from '@taiga-ui/cdk'
@@ -85,7 +85,6 @@ import { PluginsService } from 'src/app/services/plugins.service'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule, TuiButton, ResizerComponent, TuiPopup, TuiAnimated],
 })
 export class PluginsComponent {

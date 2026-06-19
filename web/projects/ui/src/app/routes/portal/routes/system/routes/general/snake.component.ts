@@ -1,6 +1,5 @@
 import {
   afterNextRender,
-  ChangeDetectionStrategy,
   Component,
   DestroyRef,
   ElementRef,
@@ -163,7 +162,6 @@ function lerpColor(from: RGB, to: RGB, t: number): string {
       justify-content: space-between;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButton, i18nPipe],
 })
 export class SnakeComponent {

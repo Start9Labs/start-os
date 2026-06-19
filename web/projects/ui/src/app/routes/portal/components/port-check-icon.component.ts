@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core'
+import { Component, input } from '@angular/core'
 import { T } from '@start9labs/start-sdk'
 import { TuiIcon, TuiLoader } from '@taiga-ui/core'
 
@@ -28,7 +28,6 @@ import { TuiIcon, TuiLoader } from '@taiga-ui/core'
       vertical-align: text-bottom;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiIcon, TuiLoader],
 })
 export class PortCheckIconComponent {

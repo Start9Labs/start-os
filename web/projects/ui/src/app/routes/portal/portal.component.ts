@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, inject, signal } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterOutlet } from '@angular/router'
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
@@ -160,7 +155,6 @@ import { HeaderComponent } from './components/header/header.component'
     '[class._plugins]': '!mobile && plugins.enabled()',
     '[style.--plugins]': 'plugins.size() / 100',
   },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterOutlet,
     HeaderComponent,

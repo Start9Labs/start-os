@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  input,
-} from '@angular/core'
+import { Component, computed, inject, input } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiIcon, TuiLoader } from '@taiga-ui/core'
@@ -58,7 +52,6 @@ import { TuiIcon, TuiLoader } from '@taiga-ui/core'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiLoader, TuiIcon],
 })
 export class ServiceHealthCheckComponent {

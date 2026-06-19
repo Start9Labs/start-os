@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { DocsLinkDirective, i18nPipe } from '@start9labs/shared'
 import { TuiButton } from '@taiga-ui/core'
@@ -57,7 +57,6 @@ import { AuthoritiesTableComponent } from './table.component'
       max-width: 64rem;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiButton,
     RouterLink,

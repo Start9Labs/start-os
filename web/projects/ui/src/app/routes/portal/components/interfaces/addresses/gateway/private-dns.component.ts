@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, inject, signal } from '@angular/core'
 import { ErrorService, i18nPipe } from '@start9labs/shared'
 import { utils } from '@start9labs/start-sdk'
 import { TuiButton, TuiDialogContext, TuiIcon, TuiLoader } from '@taiga-ui/core'
@@ -204,7 +199,6 @@ export type PrivateDnsValidationData = {
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiButton,
     i18nPipe,

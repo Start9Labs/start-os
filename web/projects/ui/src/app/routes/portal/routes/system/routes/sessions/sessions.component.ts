@@ -1,10 +1,5 @@
 import { CommonModule } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  viewChild,
-} from '@angular/core'
+import { Component, inject, viewChild } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { ErrorService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
@@ -52,7 +47,6 @@ import { SessionsTableComponent } from './table.component'
       max-width: 80rem;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     TuiButton,

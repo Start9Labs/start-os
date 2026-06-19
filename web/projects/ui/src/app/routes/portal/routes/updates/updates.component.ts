@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, inject, signal } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import {
@@ -232,7 +227,6 @@ interface UpdatesData {
     class: 'g-page',
     '[class._selected]': 'current()',
   },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiCell,
     TuiAvatar,

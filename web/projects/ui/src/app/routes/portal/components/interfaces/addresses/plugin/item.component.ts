@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  input,
-  signal,
-} from '@angular/core'
+import { Component, input, signal } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
 import { TuiButton } from '@taiga-ui/core'
 import {
@@ -90,7 +85,6 @@ import { PluginActionsComponent } from './actions.component'
     }
   `,
   imports: [PluginActionsComponent, TuiButton, i18nPipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PluginItemComponent {
   readonly currentlyMasked = signal(true)

@@ -1,5 +1,4 @@
 import {
-  ChangeDetectionStrategy,
   Component,
   ElementRef,
   inject,
@@ -96,7 +95,6 @@ import { QrCodeComponent } from 'ng-qrcode'
       }
     </ng-template>
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     @use '@taiga-ui/styles/utils' as taiga;
 

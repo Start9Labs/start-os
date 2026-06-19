@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { i18nPipe, LeafProgressPipe } from '@start9labs/shared'
 import { TuiIcon, TuiLoader, TuiTitle, TuiCell } from '@taiga-ui/core'
@@ -84,7 +84,6 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     }
   `,
   host: { class: 'g-card' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiFade,
     TuiCell,

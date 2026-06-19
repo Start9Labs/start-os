@@ -1,11 +1,5 @@
 import { DatePipe } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  input,
-  signal,
-} from '@angular/core'
+import { Component, inject, input, signal } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { MarketplacePkg } from '@start9labs/marketplace'
 import {
@@ -77,7 +71,9 @@ import UpdatesComponent from './updates.component'
         </div>
       </td>
       <td class="desktop">{{ item().gitHash }}</td>
-      <td class="desktop">{{ item().s9pks[0]?.[1]?.publishedAt | date }}</td>
+      <td class="desktop">
+        {{ item().s9pks[0]?.[1]?.publishedAt | date }}
+      </td>
       <td>
         <button
           tuiIconButton
@@ -256,7 +252,6 @@ import UpdatesComponent from './updates.component'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterLink,
     TuiExpand,

@@ -1,11 +1,5 @@
 import { CommonModule } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  input,
-} from '@angular/core'
+import { Component, computed, inject, input } from '@angular/core'
 import { toObservable, toSignal } from '@angular/core/rxjs-interop'
 import { RouterLink } from '@angular/router'
 import { i18nPipe } from '@start9labs/shared'
@@ -71,7 +65,6 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
       </td>
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '[class._new]': '!notificationItem()?.seen',
   },

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { Component, Input } from '@angular/core'
 import { TuiAccordion, TuiFade } from '@taiga-ui/kit'
 import { ActionSuccessMemberComponent } from './action-success-member.component'
 import { GroupResult } from './types'
@@ -33,7 +33,6 @@ import { GroupResult } from './types'
       margin-bottom: 0;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ActionSuccessMemberComponent, TuiAccordion, TuiFade],
 })
 export class ActionSuccessGroupComponent {

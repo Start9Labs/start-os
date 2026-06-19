@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import {
   CopyService,
@@ -80,7 +80,6 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     }
   `,
   styles: '[tuiCell] { padding-inline: 0; white-space: nowrap }',
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiTitle, TuiButton, TuiCell, i18nPipe, TuiFade, TuiHint],
 })
 export class AboutComponent {

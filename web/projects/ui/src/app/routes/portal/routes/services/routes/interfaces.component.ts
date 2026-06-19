@@ -1,10 +1,5 @@
 import { UpperCasePipe } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-} from '@angular/core'
+import { Component, computed, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { getPkgId, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
@@ -66,7 +61,6 @@ import { getInstalledBaseStatus } from 'src/app/services/pkg-status-rendering.se
     }
   `,
   host: { class: 'g-subpage' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [GatewayService],
   imports: [
     TuiAccordion,

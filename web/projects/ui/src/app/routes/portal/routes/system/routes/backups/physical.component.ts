@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  output,
-} from '@angular/core'
+import { Component, inject, output } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { DialogService, i18nPipe } from '@start9labs/shared'
 import { TuiButton } from '@taiga-ui/core'
@@ -94,7 +89,6 @@ import { BackupStatusComponent } from './status.component'
     }
   `,
   host: { class: 'g-card' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiButton,
     PlaceholderComponent,

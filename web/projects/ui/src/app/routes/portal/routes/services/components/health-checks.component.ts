@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core'
+import { Component, input } from '@angular/core'
 import { T } from '@start9labs/start-sdk'
 import { TuiTable } from '@taiga-ui/addon-table'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
@@ -38,7 +38,6 @@ import { i18nPipe } from '@start9labs/shared'
     }
   `,
   host: { class: 'g-card' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ServiceHealthCheckComponent,
     PlaceholderComponent,

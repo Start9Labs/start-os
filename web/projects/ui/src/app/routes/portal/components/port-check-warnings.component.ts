@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core'
+import { Component, input } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 
@@ -30,7 +30,6 @@ import { T } from '@start9labs/start-sdk'
       margin-top: 0.5rem;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [i18nPipe],
 })
 export class PortCheckWarningsComponent {

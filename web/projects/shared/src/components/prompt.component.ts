@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { Component } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { TuiAutoFocus } from '@taiga-ui/cdk'
 import { TuiButton, TuiDialogContext, TuiIcon, TuiInput } from '@taiga-ui/core'
@@ -72,7 +72,6 @@ import { i18nKey } from '../i18n/i18n.providers'
     TuiAutoFocus,
     i18nPipe,
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PromptModal {
   private readonly context =

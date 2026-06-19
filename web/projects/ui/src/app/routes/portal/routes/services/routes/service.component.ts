@@ -1,10 +1,5 @@
 import { CommonModule } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-} from '@angular/core'
+import { Component, computed, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute } from '@angular/router'
 import { isEmptyObject } from '@start9labs/shared'
@@ -86,7 +81,6 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
     }
   `,
   host: { class: 'g-subpage' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     ServiceInstallProgressComponent,

@@ -1,12 +1,5 @@
 import { CommonModule } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  input,
-  signal,
-} from '@angular/core'
+import { Component, computed, inject, input, signal } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { Router } from '@angular/router'
 import {
@@ -102,7 +95,6 @@ import { MarketplaceControlsComponent } from '../components/controls.component'
     tuiHeaderOptionsProvider({ size: 'h6' }),
     tuiCardOptionsProvider({ appearance: 'secondary-grayscale' }),
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     EmptyPipe,

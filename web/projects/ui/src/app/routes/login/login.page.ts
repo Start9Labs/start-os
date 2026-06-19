@@ -1,5 +1,12 @@
 import { CommonModule } from '@angular/common'
-import { Component, DestroyRef, DOCUMENT, inject, Inject } from '@angular/core'
+import {
+  Component,
+  DestroyRef,
+  DOCUMENT,
+  inject,
+  Inject,
+  signal,
+} from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import { Router } from '@angular/router'
@@ -33,8 +40,8 @@ import { ConfigService } from 'src/app/services/config.service'
   providers: [],
 })
 export default class LoginPage {
-  password = ''
-  error: i18nKey | null = null
+  readonly password = signal('')
+  readonly error = signal<i18nKey | null>(null)
 
   constructor(
     private readonly router: Router,
@@ -46,7 +53,7 @@ export default class LoginPage {
   ) {}
 
   async submit() {
-    this.error = null
+    this.error.set(null)
 
     const loader = this.loader
       .open('Logging in')
@@ -55,21 +62,21 @@ export default class LoginPage {
 
     try {
       this.document.cookie = ''
-      if (this.password.length > 64) {
-        this.error = 'Password must be less than 65 characters'
+      if (this.password().length > 64) {
+        this.error.set('Password must be less than 65 characters')
         return
       }
       await this.api.login({
-        password: this.password,
+        password: this.password(),
         ephemeral: window.location.host === 'localhost',
       })
 
-      this.password = ''
+      this.password.set('')
       this.authService.setVerified()
       this.router.navigate([''], { replaceUrl: true })
     } catch (e: any) {
       // code 7 is for incorrect password
-      this.error = e.code === 7 ? 'Invalid password' : (e.message as i18nKey)
+      this.error.set(e.code === 7 ? 'Invalid password' : (e.message as i18nKey))
       loader.unsubscribe()
     }
   }

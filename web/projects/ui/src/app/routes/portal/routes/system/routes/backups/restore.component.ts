@@ -1,5 +1,5 @@
 import { DatePipe, KeyValuePipe } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import {
   DialogService,
   ErrorService,
@@ -57,7 +57,6 @@ import { RECOVER } from './recover.component'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [KeyValuePipe, DatePipe, TuiButton, TableComponent],
 })
 export class BackupRestoreComponent {

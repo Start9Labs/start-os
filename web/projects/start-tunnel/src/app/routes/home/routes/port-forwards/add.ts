@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import {
   NonNullableFormBuilder,
   ReactiveFormsModule,
@@ -120,7 +120,6 @@ import { MappedDevice, PortForwardsData } from './utils'
       </footer>
     </form>
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
     TuiButton,

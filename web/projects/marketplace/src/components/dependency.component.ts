@@ -1,10 +1,5 @@
 import { KeyValue } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  input,
-} from '@angular/core'
+import { Component, inject, input } from '@angular/core'
 import { RouterModule } from '@angular/router'
 import { i18nPipe, i18nService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
@@ -29,7 +24,6 @@ import { MarketplacePkgBase } from '../types'
     </span>
   `,
   hostDirectives: [TuiCell],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterModule, TuiAvatar, i18nPipe, TuiTitle],
 })
 export class MarketplaceDependencyComponent {

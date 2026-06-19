@@ -1,5 +1,5 @@
 import { AsyncPipe } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { i18nPipe } from '@start9labs/shared'
 import { TuiLink, TuiNotification } from '@taiga-ui/core'
@@ -21,7 +21,6 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
       </a>
     </ng-template>
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiNotification, RouterLink, AsyncPipe, i18nPipe, TuiLink],
 })
 export class NotificationsToastComponent {

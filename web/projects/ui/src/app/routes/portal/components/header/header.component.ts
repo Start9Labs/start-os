@@ -1,5 +1,4 @@
 import {
-  ChangeDetectionStrategy,
   Component,
   inject,
   OnInit,
@@ -134,7 +133,6 @@ import { HeaderStatusComponent } from './status.component'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     HeaderStatusComponent,
     HeaderNavigationComponent,

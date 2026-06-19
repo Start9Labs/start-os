@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { ErrorService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
@@ -59,7 +59,6 @@ import { RecoverOption } from '../types/recover-option'
       </footer>
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     FormsModule,

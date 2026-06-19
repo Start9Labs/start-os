@@ -1,4 +1,5 @@
-import { Component, inject, OnInit } from '@angular/core'
+import { Component, inject } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import { verify } from '@start9labs/argon2'
 import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
@@ -12,7 +13,7 @@ import {
 import { TuiBlock, TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
-import { firstValueFrom, map } from 'rxjs'
+import { map, take } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
@@ -32,7 +33,7 @@ interface Package {
 @Component({
   template: `
     <div tuiGroup orientation="vertical" [collapsed]="true">
-      @if (pkgs) {
+      @if (pkgs(); as pkgs) {
         @for (pkg of pkgs; track $index) {
           <label tuiBlock="m">
             <img alt="" [src]="pkg.icon" />
@@ -87,7 +88,7 @@ interface Package {
     i18nPipe,
   ],
 })
-export class BackupsBackupComponent implements OnInit {
+export class BackupsBackupComponent {
   private readonly dialog = inject(DialogService)
   private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
@@ -98,30 +99,28 @@ export class BackupsBackupComponent implements OnInit {
   readonly context = injectContext<BackupContext>()
 
   hasSelection = false
-  pkgs: readonly Package[] | null = null
-
-  async ngOnInit() {
-    this.pkgs = await firstValueFrom(
-      this.patch.watch$('packageData').pipe(
-        map(pkgs =>
-          Object.values(pkgs)
-            .map(pkg => {
-              const { id, title } = getManifest(pkg)
-              return {
-                id,
-                title,
-                icon: pkg.icon,
-                disabled: pkg.stateInfo.state !== 'installed',
-                checked: false,
-              }
-            })
-            .sort((a, b) =>
-              b.title.toLowerCase() > a.title.toLowerCase() ? -1 : 1,
-            ),
-        ),
+  readonly pkgs = toSignal<readonly Package[] | null>(
+    this.patch.watch$('packageData').pipe(
+      take(1),
+      map(pkgs =>
+        Object.values(pkgs)
+          .map(pkg => {
+            const { id, title } = getManifest(pkg)
+            return {
+              id,
+              title,
+              icon: pkg.icon,
+              disabled: pkg.stateInfo.state !== 'installed',
+              checked: false,
+            }
+          })
+          .sort((a, b) =>
+            b.title.toLowerCase() > a.title.toLowerCase() ? -1 : 1,
+          ),
       ),
-    )
-  }
+    ),
+    { initialValue: null },
+  )
 
   async done() {
     const { passwordHash, id } = await getServerInfo(this.patch)
@@ -156,11 +155,11 @@ export class BackupsBackupComponent implements OnInit {
   }
 
   handleChange() {
-    this.hasSelection = !!this.pkgs?.some(p => p.checked)
+    this.hasSelection = !!this.pkgs()?.some(p => p.checked)
   }
 
   toggleSelectAll() {
-    this.pkgs?.forEach(p => (p.checked = !this.hasSelection && !p.disabled))
+    this.pkgs()?.forEach(p => (p.checked = !this.hasSelection && !p.disabled))
     this.hasSelection = !this.hasSelection
   }
 
@@ -189,7 +188,10 @@ export class BackupsBackupComponent implements OnInit {
     oldPassword: string | null = null,
   ) {
     const loader = this.loader.open('Beginning backup').subscribe()
-    const packageIds = this.pkgs?.filter(p => p.checked).map(p => p.id) || []
+    const packageIds =
+      this.pkgs()
+        ?.filter(p => p.checked)
+        .map(p => p.id) || []
     const params = {
       targetId: this.context.data.id,
       packageIds,

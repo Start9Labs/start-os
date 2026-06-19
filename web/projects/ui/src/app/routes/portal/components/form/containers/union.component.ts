@@ -1,12 +1,5 @@
 import { TuiElasticContainer } from '@taiga-ui/layout'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  forwardRef,
-  inject,
-  Input,
-  OnChanges,
-} from '@angular/core'
+import { Component, forwardRef, inject, Input, OnChanges } from '@angular/core'
 import {
   ControlContainer,
   FormGroupName,
@@ -43,7 +36,6 @@ import { FormGroupComponent } from './group.component'
       margin-top: 1rem;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   viewProviders: [
     {
       provide: ControlContainer,

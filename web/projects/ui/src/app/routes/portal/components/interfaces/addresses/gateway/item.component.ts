@@ -1,11 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  input,
-  signal,
-} from '@angular/core'
+import { Component, computed, inject, input, signal } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { ErrorService, i18nPipe } from '@start9labs/shared'
 import { TuiButton, TuiIcon } from '@taiga-ui/core'
@@ -227,7 +220,6 @@ import { DomainHealthService } from './domain-health.service'
     TuiSwitch,
     FormsModule,
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GatewayItemComponent {
   private readonly api = inject(ApiService)

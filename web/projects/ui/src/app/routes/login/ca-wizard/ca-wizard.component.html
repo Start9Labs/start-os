@@ -1,4 +1,4 @@
-@if (!caTrusted) {
+@if (!caTrusted()) {
   <div tuiCardLarge tuiSurface="floating" class="card">
     <tui-icon icon="@tui.lock" [style.font-size.rem]="4" />
     <h1>{{ 'Trust your Root CA' | i18n }}</h1>
@@ -73,7 +73,7 @@
       appearance="flat-grayscale"
       iconEnd="@tui.external-link"
       (click)="launchHttps()"
-      [disabled]="caTrusted"
+      [disabled]="caTrusted()"
     >
       {{ 'Skip' | i18n }}
     </button>

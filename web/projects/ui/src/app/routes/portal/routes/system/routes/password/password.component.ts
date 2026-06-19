@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  viewChild,
-} from '@angular/core'
+import { Component, inject, viewChild } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterLink } from '@angular/router'
 import { verify } from '@start9labs/argon2'
@@ -58,7 +53,6 @@ import { getServerInfo } from 'src/app/utils/get-server-info'
       padding: 4rem 1rem 0;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterLink,
     TuiHeader,

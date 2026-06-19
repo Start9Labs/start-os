@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, computed, inject, signal } from '@angular/core'
 import { ErrorService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiButton, TuiDialogContext } from '@taiga-ui/core'
@@ -179,7 +173,6 @@ export type PortForwardValidationData = {
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiButton,
     i18nPipe,

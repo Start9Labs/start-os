@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import {
   DialogService,
@@ -124,7 +124,6 @@ import { ABOUT } from './about.component'
     }
   `,
   host: { '[class._open]': 'open' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiDropdown,
     TuiDataList,

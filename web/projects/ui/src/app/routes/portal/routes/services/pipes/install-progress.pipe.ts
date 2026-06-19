@@ -6,7 +6,7 @@ import { T } from '@start9labs/start-sdk'
   name: 'installingProgress',
 })
 export class InstallingProgressPipe implements PipeTransform {
-  transform(progress: T.Progress = false): number {
+  transform(progress: T.Progress | undefined = false): number {
     const leaf = leafProgress(progress)
     if (leaf === true) return 100
     if (leaf === false || leaf === null || !leaf.total) return 0

@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  input,
-} from '@angular/core'
+import { Component, computed, input } from '@angular/core'
 import { TuiProgress } from '@taiga-ui/kit'
 import { T } from '@start9labs/start-sdk'
 import { DataComponent } from './data.component'
@@ -36,7 +31,6 @@ const LABELS: Record<string, i18nKey> = {
       width: fit-content;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [DataComponent, TuiProgress, ValuePipe],
 })
 export class MemoryComponent {

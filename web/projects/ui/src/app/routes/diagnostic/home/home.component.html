@@ -1,6 +1,6 @@
-@if (!restarted) {
+@if (!restarted()) {
   <h1 class="title">StartOS - {{ 'Diagnostic Mode' | i18n }}</h1>
-  @if (error) {
+  @if (error(); as error) {
     <h2 class="subtitle">StartOS {{ 'launch error' | i18n }}:</h2>
     <code class="code warning">
       <p>{{ error.problem }}</p>

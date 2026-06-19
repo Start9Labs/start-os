@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  input,
-} from '@angular/core'
+import { Component, inject, input } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
 import { TuiButton } from '@taiga-ui/core'
 import { TuiAvatar } from '@taiga-ui/kit'
@@ -80,7 +75,6 @@ import { PluginItemComponent } from './item.component'
     PluginItemComponent,
     TuiAvatar,
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PluginAddressesComponent {
   private readonly actionService = inject(ActionService)

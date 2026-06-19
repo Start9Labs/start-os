@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  input,
-} from '@angular/core'
+import { Component, computed, input } from '@angular/core'
 import { T } from '@start9labs/start-sdk'
 import { TuiTitle } from '@taiga-ui/core'
 
@@ -25,7 +20,6 @@ interface ActionItem {
       }
     </div>
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiTitle],
   host: {
     '[attr.disabled]': '(!!disabled() || inactive()) || null',

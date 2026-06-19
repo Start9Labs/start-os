@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core'
+import { Component, input } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
 import { TuiCell, TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
@@ -46,7 +46,6 @@ import { MarketplacePkgBase } from '../types'
     </section>
   `,
   styles: ':host { display: contents; }',
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [i18nPipe, TuiCardLarge, TuiHeader, TuiCell, TuiTitle, TuiIcon],
 })
 export class MarketplaceLinksComponent {

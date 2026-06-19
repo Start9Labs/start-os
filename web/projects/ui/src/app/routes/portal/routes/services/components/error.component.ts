@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  Input,
-} from '@angular/core'
+import { Component, inject, Input } from '@angular/core'
 import { DialogService, i18nKey, i18nPipe } from '@start9labs/shared'
 import { TuiButton, TuiIcon } from '@taiga-ui/core'
 import { TuiTooltip } from '@taiga-ui/kit'
@@ -81,7 +76,6 @@ import { getManifest } from 'src/app/utils/get-package-data'
     }
   `,
   host: { class: 'g-card' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButton, TuiIcon, TuiTooltip, i18nPipe],
 })
 export class ServiceErrorComponent {

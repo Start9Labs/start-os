@@ -1,10 +1,5 @@
 import { CommonModule } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  viewChild,
-} from '@angular/core'
+import { Component, inject, viewChild } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import {
   DialogService,
@@ -80,7 +75,6 @@ import { SSHTableComponent } from './table.component'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
     TuiButton,

@@ -1,12 +1,5 @@
 import { KeyValuePipe } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  EventEmitter,
-  inject,
-  Input,
-  Output,
-} from '@angular/core'
+import { Component, EventEmitter, inject, Input, Output } from '@angular/core'
 import {
   TuiDialogOptions,
   TuiDialogService,
@@ -131,7 +124,6 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButton, GetBackupIconPipe, TuiIcon, KeyValuePipe, TuiSkeleton],
 })
 export class BackupsTargetsComponent {

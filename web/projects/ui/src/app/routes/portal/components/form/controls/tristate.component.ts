@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { Component } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
 import { IST } from '@start9labs/start-sdk'
 import { TuiIcon } from '@taiga-ui/core'
@@ -66,7 +66,6 @@ import { HintPipe } from '../pipes/hint.pipe'
     }
   `,
   host: { class: 'g-toggle' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiIcon, TuiTooltip, HintPipe, TuiSegmented, i18nPipe],
 })
 export class FormTriStateComponent extends Control<

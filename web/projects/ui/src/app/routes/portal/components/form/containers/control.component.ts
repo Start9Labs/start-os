@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  Input,
-} from '@angular/core'
+import { Component, inject, Input } from '@angular/core'
 import { ReactiveFormsModule } from '@angular/forms'
 import { DialogService, i18nPipe } from '@start9labs/shared'
 import { IST } from '@start9labs/start-sdk'
@@ -37,7 +32,6 @@ export const ERRORS = [
       <tui-error class="g-secondary" [error]="footnote" />
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
     tuiAsControl(FormControlComponent),
     {

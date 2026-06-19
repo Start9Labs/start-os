@@ -1,5 +1,5 @@
 import { KeyValuePipe } from '@angular/common'
-import { ChangeDetectionStrategy, Component, input } from '@angular/core'
+import { Component, input } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
 import { TuiIcon, TuiTitle, TuiCell } from '@taiga-ui/core'
@@ -78,7 +78,6 @@ import { ToManifestPipe } from '../../../pipes/to-manifest'
     }
   `,
   host: { class: 'g-card' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     KeyValuePipe,
     RouterLink,

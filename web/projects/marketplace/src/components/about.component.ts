@@ -1,11 +1,5 @@
 import { DatePipe } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  input,
-  output,
-} from '@angular/core'
+import { Component, inject, input, output } from '@angular/core'
 import { CopyService, i18nPipe, LocalizePipe } from '@start9labs/shared'
 import { TuiCell, TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
@@ -75,7 +69,6 @@ import { MarketplaceVersionsComponent } from './versions.component'
     </section>
   `,
   styles: ':host { display: contents; }',
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     MarketplaceVersionsComponent,
     DatePipe,

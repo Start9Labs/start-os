@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { getPkgId } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { LogsComponent } from 'src/app/routes/portal/components/logs/logs.component'
@@ -7,7 +7,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
   template: '<logs [fetchLogs]="fetch" [followLogs]="follow" [context]="id" />',
-  changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     :host {
       overflow: hidden;

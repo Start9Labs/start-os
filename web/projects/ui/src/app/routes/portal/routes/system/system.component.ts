@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterModule } from '@angular/router'
 import { i18nPipe } from '@start9labs/shared'
@@ -102,7 +102,6 @@ import { SYSTEM_MENU } from './system.const'
     }
   `,
   host: { class: 'g-page' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterModule,
     TuiCell,

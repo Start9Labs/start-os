@@ -11,12 +11,12 @@
           tuiInput
           type="password"
           [ngModelOptions]="{ standalone: true }"
-          [(ngModel)]="password"
-          (ngModelChange)="error = null"
+          [ngModel]="password()"
+          (ngModelChange)="password.set($event); error.set(null)"
         />
         <tui-icon tuiPassword />
       </tui-textfield>
-      <tui-error class="error" [error]="error || null" />
+      <tui-error class="error" [error]="error() || null" />
       <button tuiButton class="button">{{ 'Login' | i18n }}</button>
     </form>
   </div>

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, Input } from '@angular/core'
+import { Component, input, Input } from '@angular/core'
 import { TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar } from '@taiga-ui/kit'
 
@@ -18,7 +18,6 @@ import { StoreIconDirective } from './store-icon.directive'
       <ng-content />
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [StoreIconDirective, TuiIcon, TuiTitle, TuiAvatar],
 })
 export class MarketplaceRegistryComponent {
