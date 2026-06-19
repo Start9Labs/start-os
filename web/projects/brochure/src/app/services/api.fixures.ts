@@ -132,13 +132,6 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
           satisfies: [],
           dependencyMetadata: {},
           donationUrl: null,
-          alerts: {
-            install: 'test',
-            uninstall: 'test',
-            start: 'test',
-            stop: 'test',
-            restore: 'test',
-          },
           s9pks: [
             [
               { arch: null, device: [], ram: null },
@@ -176,13 +169,6 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
           satisfies: [],
           dependencyMetadata: {},
           donationUrl: null,
-          alerts: {
-            install: 'test',
-            uninstall: 'test',
-            start: 'test',
-            stop: 'test',
-            restore: 'test',
-          },
           s9pks: [
             [
               { arch: null, device: [], ram: null },
@@ -233,13 +219,6 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
             'btc-rpc-proxy': ProxyDep,
           },
           donationUrl: null,
-          alerts: {
-            install: 'test',
-            uninstall: 'test',
-            start: 'test',
-            stop: 'test',
-            restore: 'test',
-          },
           s9pks: [
             [
               { arch: null, device: [], ram: null },
@@ -289,13 +268,6 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
             bitcoind: BitcoinDep,
           },
           donationUrl: null,
-          alerts: {
-            install: 'test',
-            uninstall: 'test',
-            start: 'test',
-            stop: 'test',
-            restore: 'test',
-          },
           s9pks: [
             [
               { arch: null, device: [], ram: null },
@@ -332,13 +304,6 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
             bitcoind: BitcoinDep,
           },
           donationUrl: null,
-          alerts: {
-            install: 'test',
-            uninstall: 'test',
-            start: 'test',
-            stop: 'test',
-            restore: 'test',
-          },
           s9pks: [
             [
               { arch: null, device: [], ram: null },

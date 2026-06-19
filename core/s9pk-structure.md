@@ -54,7 +54,6 @@ The package manifest contains all metadata:
 | `description` | object | Short and long descriptions (localized) |
 | `images` | object | Image configurations by image ID |
 | `volumes` | string[] | Volume IDs for persistent data |
-| `alerts` | object | User alerts for lifecycle events |
 | `dependencies` | object | Package dependencies |
 | `hardwareRequirements` | object | Hardware requirements (arch, RAM, devices) |
 | `hardwareAcceleration` | boolean | Whether package uses hardware acceleration |

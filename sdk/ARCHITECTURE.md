@@ -31,7 +31,7 @@ The base package is a self-contained library of types, interfaces, and low-level
 
 ### OS Bindings (`base/lib/osBindings/`)
 
-~325 auto-generated TypeScript files defining every type exchanged between the SDK and the StartOS runtime. These cover the full surface area of the system: manifests, actions, health checks, service interfaces, bind parameters, dependency requirements, alerts, SSL, domains, SMTP, networking, images, and more.
+~325 auto-generated TypeScript files defining every type exchanged between the SDK and the StartOS runtime. These cover the full surface area of the system: manifests, actions, health checks, service interfaces, bind parameters, dependency requirements, SSL, domains, SMTP, networking, images, and more.
 
 All bindings are re-exported through `base/lib/osBindings/index.ts`.
 

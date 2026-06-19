@@ -85,20 +85,6 @@ export type SDKManifest = {
    */
   readonly volumes: string[]
 
-  readonly alerts?: {
-    /** An warning alert requiring user confirmation before proceeding with initial installation of this service. */
-    readonly install?: T.LocaleString | null
-    /** An warning alert requiring user confirmation before updating this service. */
-    readonly update?: T.LocaleString | null
-    /** An warning alert requiring user confirmation before uninstalling this service. */
-    readonly uninstall?: T.LocaleString | null
-    /** An warning alert requiring user confirmation before restoring this service from backup. */
-    readonly restore?: T.LocaleString | null
-    /** An warning alert requiring user confirmation before starting this service. */
-    readonly start?: T.LocaleString | null
-    /** An warning alert requiring user confirmation before stopping this service. */
-    readonly stop?: T.LocaleString | null
-  }
   /**
    * @description A mapping of service dependencies to be displayed to users when viewing the Marketplace
    * @property {string} description - An explanation of why this service is a dependency.

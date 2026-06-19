@@ -167,7 +167,6 @@ export default {
   171: 'Para instalar desde',
   172: 'de todos modos, haz clic en "Continuar".',
   173: 'Como resultado de esta actualización, los siguientes servicios dejarán de funcionar correctamente y pueden fallar',
-  174: 'Alerta',
   175: 'Porcentaje utilizado',
   176: 'Espacio de usuario',
   177: 'Espacio del kernel',

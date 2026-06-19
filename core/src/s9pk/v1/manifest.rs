@@ -10,7 +10,7 @@ use url::Url;
 pub use crate::PackageId;
 use crate::prelude::*;
 use crate::s9pk::git_hash::GitHash;
-use crate::s9pk::manifest::{Alerts, Description};
+use crate::s9pk::manifest::Description;
 use crate::util::serde::{Duration, IoFormat, Regex};
 use crate::{ActionId, HealthCheckId, ImageId, VolumeId};
 
@@ -35,8 +35,6 @@ pub struct Manifest {
     pub support_site: Option<Url>,
     pub marketing_site: Option<Url>,
     pub donation_url: Option<Url>,
-    #[serde(default)]
-    pub alerts: Alerts,
     pub main: PackageProcedure,
     pub health_checks: HealthChecks,
     pub config: Option<ConfigActions>,

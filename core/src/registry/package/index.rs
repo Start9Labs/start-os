@@ -18,7 +18,7 @@ use crate::rpc_continuations::Guid;
 use crate::s9pk::S9pk;
 use crate::s9pk::git_hash::GitHash;
 use crate::s9pk::manifest::{
-    Alerts, Description, HardwareRequirements, LocaleString, current_version,
+    Description, HardwareRequirements, LocaleString, current_version,
 };
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::service::effects::plugin::PluginId;
@@ -96,8 +96,6 @@ pub struct PackageMetadata {
     pub marketing_url: Option<Url>,
     #[ts(type = "string | null")]
     pub donation_url: Option<Url>,
-    #[serde(default)]
-    pub alerts: Alerts,
     #[serde(default = "current_version")]
     #[ts(type = "string")]
     pub os_version: Version,
@@ -282,9 +280,6 @@ impl Model<PackageVersionInfo> {
             }
 
             if let Some(locale) = device_info.os.language.as_deref() {
-                self.as_metadata_mut()
-                    .as_alerts_mut()
-                    .mutate(|a| Ok(a.localize_for(locale)))?;
                 self.as_dependency_metadata_mut()
                     .as_entries_mut()?
                     .into_iter()

@@ -27,7 +27,7 @@ export function setupManifest<
 /**
  * Build the final publishable manifest by combining the SDK manifest definition
  * with version graph metadata, OS version, SDK version, and computed fields
- * (migration ranges, hardware requirements, alerts, etc.).
+ * (migration ranges, hardware requirements, etc.).
  *
  * @param versions - The service's VersionGraph, used to extract the current version, release notes, and migration ranges
  * @param manifest - The SDK manifest definition (from `setupManifest`)
@@ -73,14 +73,6 @@ export function buildManifest<
     canMigrateTo: versions.canMigrateTo().toString(),
     canMigrateFrom: versions.canMigrateFrom().toString(),
     images,
-    alerts: {
-      install: manifest.alerts?.install || null,
-      update: manifest.alerts?.update || null,
-      uninstall: manifest.alerts?.uninstall || null,
-      restore: manifest.alerts?.restore || null,
-      start: manifest.alerts?.start || null,
-      stop: manifest.alerts?.stop || null,
-    },
     hardwareRequirements: {
       device: manifest.hardwareRequirements?.device || [],
       ram: manifest.hardwareRequirements?.ram || null,

@@ -27,14 +27,11 @@ export class ControlsService {
   private readonly i18n = inject(i18nPipe)
   private readonly i18nService = inject(i18nService)
 
-  async start({ title, alerts, id }: T.Manifest, unmet: boolean) {
+  async start({ title, id }: T.Manifest, unmet: boolean) {
     const deps =
       `${title} ${this.i18n.transform('has unmet dependencies. It will not work as expected.')}` as i18nKey
 
-    if (
-      (unmet && !(await this.alert(deps))) ||
-      (alerts.start && !(await this.alert(alerts.start)))
-    ) {
+    if (unmet && !(await this.alert(deps))) {
       return
     }
 
@@ -49,12 +46,11 @@ export class ControlsService {
     }
   }
 
-  async stop({ id, title, alerts }: T.Manifest) {
-    const depMessage = `${this.i18n.transform('Services that depend on')} ${title} ${this.i18n.transform('will no longer work properly and may crash.')}`
-    let content = alerts.stop ? this.i18nService.localize(alerts.stop) : ''
+  async stop({ id, title }: T.Manifest) {
+    let content = ''
 
     if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
-      content = content ? `${content}.\n\n${depMessage}` : depMessage
+      content = `${this.i18n.transform('Services that depend on')} ${title} ${this.i18n.transform('will no longer work properly and may crash.')}`
     }
 
     defer(() =>

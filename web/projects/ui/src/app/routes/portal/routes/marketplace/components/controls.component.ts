@@ -8,7 +8,6 @@ import {
   Exver,
   ExverComparesPipe,
   i18nPipe,
-  i18nService,
   sameUrl,
 } from '@start9labs/shared'
 import { TuiButton } from '@taiga-ui/core'
@@ -25,7 +24,7 @@ import { hasCurrentDeps } from 'src/app/utils/has-deps'
 
 import { MarketplaceAlertsService } from '../services/alerts.service'
 
-type KEYS = 'id' | 'version' | 'alerts' | 'flavor' | 'satisfies'
+type KEYS = 'id' | 'version' | 'flavor' | 'satisfies'
 
 @Component({
   selector: 'marketplace-controls',
@@ -109,7 +108,6 @@ export class MarketplaceControlsComponent {
   private readonly router = inject(Router)
   private readonly marketplace = inject(MarketplaceService)
   private readonly api = inject(ApiService)
-  private readonly i18n = inject(i18nService)
 
   readonly pkg = input.required<Pick<MarketplacePkg, KEYS>>()
 
@@ -136,13 +134,7 @@ export class MarketplaceControlsComponent {
     const originalUrl = localPkg?.registry || null
 
     if (!localPkg) {
-      if (
-        await this.alerts.alertInstall(
-          this.i18n.localize(this.pkg().alerts.install || ''),
-        )
-      ) {
-        this.installOrUpload(currentUrl)
-      }
+      this.installOrUpload(currentUrl)
       return
     }
 

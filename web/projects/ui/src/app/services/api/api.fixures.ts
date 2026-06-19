@@ -235,14 +235,6 @@ export namespace Mock {
     upstreamRepo: 'https://github.com/bitcoin/bitcoin',
     marketingUrl: 'https://bitcoin.org',
     donationUrl: 'https://start9.com',
-    alerts: {
-      install: 'Bitcoin can take over a week to sync.',
-      uninstall:
-        'Chain state will be lost, as will any funds stored on your Bitcoin Core waller that have not been backed up.',
-      restore: null,
-      start: 'Starting Bitcoin is good for your health.',
-      stop: null,
-    },
     osVersion: '0.2.12',
     sdkVersion: '0.4.0',
     dependencies: {},
@@ -284,14 +276,6 @@ export namespace Mock {
     upstreamRepo: 'https://github.com/lightningnetwork/lnd',
     marketingUrl: 'https://lightning.engineering/',
     donationUrl: null,
-    alerts: {
-      install: null,
-      uninstall: null,
-      restore:
-        'If this is a duplicate instance of the same LND node, you may loose your funds.',
-      start: 'Starting LND is good for your health.',
-      stop: null,
-    },
     osVersion: '0.2.12',
     sdkVersion: '0.4.0',
     dependencies: {
@@ -345,13 +329,6 @@ export namespace Mock {
     upstreamRepo: 'https://gitlab.torproject.org/tpo/core/tor',
     marketingUrl: 'https://www.torproject.org',
     donationUrl: null,
-    alerts: {
-      install: null,
-      uninstall: null,
-      restore: null,
-      start: null,
-      stop: null,
-    },
     osVersion: '0.2.12',
     sdkVersion: '0.4.0',
     dependencies: {},
@@ -393,13 +370,6 @@ export namespace Mock {
     upstreamRepo: 'https://github.com/Kixunil/btc-rpc-proxy',
     marketingUrl: '',
     donationUrl: 'https://start9.com',
-    alerts: {
-      install: 'Testing install alert',
-      uninstall: null,
-      restore: null,
-      start: null,
-      stop: null,
-    },
     osVersion: '0.2.12',
     sdkVersion: '0.4.0',
     dependencies: {
@@ -465,13 +435,6 @@ export namespace Mock {
             satisfies: [],
             dependencyMetadata: {},
             donationUrl: null,
-            alerts: {
-              install: 'test',
-              uninstall: 'test',
-              start: 'test',
-              stop: 'test',
-              restore: 'test',
-            },
             s9pks: [
               [
                 { arch: null, device: [], ram: null },
@@ -509,13 +472,6 @@ export namespace Mock {
             satisfies: [],
             dependencyMetadata: {},
             donationUrl: null,
-            alerts: {
-              install: 'test',
-              uninstall: 'test',
-              start: 'test',
-              stop: 'test',
-              restore: 'test',
-            },
             s9pks: [
               [
                 { arch: null, device: [], ram: null },
@@ -563,13 +519,6 @@ export namespace Mock {
             satisfies: [],
             dependencyMetadata: {},
             donationUrl: null,
-            alerts: {
-              install: 'test',
-              uninstall: 'test',
-              start: 'test',
-              stop: 'test',
-              restore: 'test',
-            },
             s9pks: [
               [
                 { arch: null, device: [], ram: null },
@@ -607,13 +556,6 @@ export namespace Mock {
             satisfies: [],
             dependencyMetadata: {},
             donationUrl: null,
-            alerts: {
-              install: 'test',
-              uninstall: 'test',
-              start: 'test',
-              stop: 'test',
-              restore: 'test',
-            },
             s9pks: [
               [
                 { arch: null, device: [], ram: null },
@@ -666,13 +608,6 @@ export namespace Mock {
               'btc-rpc-proxy': ProxyDep,
             },
             donationUrl: null,
-            alerts: {
-              install: 'test',
-              uninstall: 'test',
-              start: 'test',
-              stop: 'test',
-              restore: 'test',
-            },
             s9pks: [
               [
                 { arch: null, device: [], ram: null },
@@ -723,13 +658,6 @@ export namespace Mock {
               'btc-rpc-proxy': ProxyDep,
             },
             donationUrl: null,
-            alerts: {
-              install: 'test',
-              uninstall: 'test',
-              start: 'test',
-              stop: 'test',
-              restore: 'test',
-            },
             s9pks: [
               [
                 { arch: null, device: [], ram: null },
@@ -781,13 +709,6 @@ export namespace Mock {
               bitcoind: BitcoinDep,
             },
             donationUrl: null,
-            alerts: {
-              install: 'test',
-              uninstall: 'test',
-              start: 'test',
-              stop: 'test',
-              restore: 'test',
-            },
             s9pks: [
               [
                 { arch: null, device: [], ram: null },
@@ -897,13 +818,6 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
           satisfies: [],
           dependencyMetadata: {},
           donationUrl: null,
-          alerts: {
-            install: 'test',
-            uninstall: 'test',
-            start: 'test',
-            stop: 'test',
-            restore: 'test',
-          },
           s9pks: [
             [
               { arch: null, device: [], ram: null },
@@ -941,13 +855,6 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
           satisfies: [],
           dependencyMetadata: {},
           donationUrl: null,
-          alerts: {
-            install: 'test',
-            uninstall: 'test',
-            start: 'test',
-            stop: 'test',
-            restore: 'test',
-          },
           s9pks: [
             [
               { arch: null, device: [], ram: null },
@@ -998,13 +905,6 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
             'btc-rpc-proxy': ProxyDep,
           },
           donationUrl: null,
-          alerts: {
-            install: 'test',
-            uninstall: 'test',
-            start: 'test',
-            stop: 'test',
-            restore: 'test',
-          },
           s9pks: [
             [
               { arch: null, device: [], ram: null },
@@ -1054,13 +954,6 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
             bitcoind: BitcoinDep,
           },
           donationUrl: null,
-          alerts: {
-            install: 'test',
-            uninstall: 'test',
-            start: 'test',
-            stop: 'test',
-            restore: 'test',
-          },
           s9pks: [
             [
               { arch: null, device: [], ram: null },
@@ -1097,13 +990,6 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
             bitcoind: BitcoinDep,
           },
           donationUrl: null,
-          alerts: {
-            install: 'test',
-            uninstall: 'test',
-            start: 'test',
-            stop: 'test',
-            restore: 'test',
-          },
           s9pks: [
             [
               { arch: null, device: [], ram: null },

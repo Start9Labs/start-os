@@ -77,27 +77,6 @@ export class MarketplaceAlertsService {
         .subscribe(response => resolve(response))
     })
   }
-
-  async alertInstall(content: string): Promise<boolean> {
-    return (
-      !content ||
-      (!!content &&
-        new Promise(resolve => {
-          this.dialog
-            .openConfirm({
-              label: 'Alert',
-              size: 's',
-              data: {
-                content: content as i18nKey,
-                yes: 'Install',
-                no: 'Cancel',
-              },
-            })
-            .pipe(defaultIfEmpty(false))
-            .subscribe(response => resolve(response))
-        }))
-    )
-  }
 }
 
 // The official Start9 registry needs no warning; every other registry carries

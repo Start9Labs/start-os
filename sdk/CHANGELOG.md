@@ -38,6 +38,7 @@
 ### Removed
 
 - **Breaking — `nestedRuntime` manifest flag removed**, with no compatibility alias. It conflated two unrelated device grants (`/dev/fuse` for fuse-overlayfs storage and `/dev/net/tun` for kernel tun interfaces). Replace with `userspaceFilesystems` (nested OCI runtimes) and/or `virtualNetworking` (kernel tun interfaces). Packages must republish: a host updating StartOS parses an old `nestedRuntime` field as absent, so both new flags default to `false`
+- **Breaking — package `alerts` manifest field removed**, with no compatibility alias. Packages can no longer define `install` / `update` / `uninstall` / `restore` / `start` / `stop` alert messages (the confirmation prompts StartOS showed before those lifecycle actions). Drop the `alerts` block from `setupManifest`; a host updating StartOS parses any leftover `alerts` field as absent and StartOS no longer surfaces these prompts. Built-in confirmations for destructive actions (uninstalling, stopping a service with active dependents) are unaffected
 - `SubContainerOwned`, `SubContainerRc`, `SubContainer.rc()`, `SubContainer.isOwned()` — folded into the unified `SubContainerEager` / `SubContainerLazy` with hold/release lifecycle
 - `Daemon.subcontainerRc()`, `Daemon.markManaged()`, `Daemon.sharesSubcontainerWith()` — superseded by `daemon.subcontainer` (public readonly) and the hold-count model
 - `destroySubcontainer` option on `Daemon.term` / `HealthDaemon.term` — `Daemons` calls `subcontainer.destroy()` for each unique subc on shutdown, and the hold-count decides actual timing
