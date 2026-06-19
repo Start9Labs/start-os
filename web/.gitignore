@@ -30,4 +30,5 @@ npm-debug.log*
 /node_modules
 
 config.json
+!projects/brochure/config.json
 proxy.conf.json
