@@ -52,9 +52,16 @@ import { FormGroupComponent } from './group.component'
 })
 export class FormUnionComponent implements OnChanges {
   @Input({ required: true })
-  spec!: IST.ValueSpecUnion & { others?: Record<string, any> }
+  spec!: IST.ValueSpecUnion
 
   selectSpec!: IST.ValueSpecSelect
+
+  // Per-instance memory of values entered in not-currently-selected variants,
+  // so switching away and back restores them. This MUST be instance state, not
+  // stashed on `spec`: a list renders every row with the SAME variant spec
+  // object, so writing to `spec.others` leaks one row's variant values into
+  // another row when you switch into that variant.
+  private readonly others: Record<string, any> = {}
 
   private readonly form = inject(FormGroupName)
   private readonly formService = inject(FormService)
@@ -63,16 +70,14 @@ export class FormUnionComponent implements OnChanges {
     return this.form.value.selection
   }
 
-  // OTHER?
   onUnion(union: string) {
-    this.spec.others = this.spec.others || {}
-    this.spec.others[this.union] = this.form.control.controls['value']?.value
+    this.others[this.union] = this.form.control.controls['value']?.value
     this.form.control.setControl(
       'value',
       this.formService.getFormGroup(
         union ? this.spec.variants[union]?.spec || {} : {},
         [],
-        this.spec.others[union],
+        this.others[union],
       ),
       { emitEvent: false },
     )
