@@ -237,6 +237,7 @@ zbus = "5.1.1"
 
 [dev-dependencies]
 clap_mangen = "0.2.33"
+tempfile = "3.8"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 procfs = "0.18.0"

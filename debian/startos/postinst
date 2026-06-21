@@ -20,7 +20,7 @@ fi
 update-initramfs -u -k all
 
 if [ -f /etc/default/grub ]; then
-	sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX=/c\GRUB_CMDLINE_LINUX="boot=startos console=ttyS0,115200n8 console=tty0"' /etc/default/grub
+	sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX=/c\GRUB_CMDLINE_LINUX="boot=startos console=ttyS0,115200n8 console=tty0 nvme_core.default_ps_max_latency_us=0"' /etc/default/grub
 	sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX_DEFAULT=/c\GRUB_CMDLINE_LINUX_DEFAULT=""' /etc/default/grub
 	sed -i '/\(^\|#\)GRUB_DISTRIBUTOR=/c\GRUB_DISTRIBUTOR="StartOS v$(cat /usr/lib/startos/VERSION.txt)"' /etc/default/grub
 	# Set a GRUB variable, replacing if it exists (even commented) or appending if not
@@ -240,6 +240,23 @@ fuse
 tun
 EOF
 rm -f /etc/modules-load.d/startos-fuse.conf
+
+# NVMe hardware quirk: disable Host Memory Buffer (HMB) for DRAM-less NVMe
+# drives. DRAM-less drives (e.g. Samsung 990 EVO Plus) rely on HMB — host RAM
+# used as the drive's write cache. On some firmware revisions, HMB and power-
+# state transitions interact badly, wedging the controller under sustained
+# writes (Bitcoin IBD, large backups). The kernel then reports checksum errors
+# on btrfs and remounts read-only. Combined with the APST disable on the
+# kernel cmdline (nvme_core.default_ps_max_latency_us=0), this prevents the
+# class of controller-reset bugs documented in LP#1950042 and Start9 #2387.
+# Performance cost is small: ~10-20% on random small IO, negligible on the
+# sequential-write workloads that trigger the bug.
+cat > /etc/modprobe.d/startos-nvme-quirks.conf <<EOF
+# StartOS: disable NVMe Host Memory Buffer to prevent controller resets on
+# DRAM-less drives (Samsung 990 EVO Plus and similar).
+# See: https://bugs.launchpad.net/bugs/1950042
+options nvme max_host_mem_size_mb=0
+EOF
 
 if ! getent group | grep '^startos:'; then
 	groupadd startos

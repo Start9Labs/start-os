@@ -426,6 +426,13 @@ pub async fn init(
         run_script("/media/startos/config/postinit.sh", progress).await;
     }
 
+    // Verify NVMe workarounds (APST / HMB) if NVMe drives are present.
+    // Best-effort: errors during verification should not block boot.
+    if let Err(e) = crate::system::nvme::check_nvme_quirks().await {
+        tracing::warn!("Failed to verify NVMe workarounds: {e}");
+        tracing::debug!("{e:?}");
+    }
+
     tracing::info!("{}", t!("init.system-initialized"));
 
     Ok(InitResult {

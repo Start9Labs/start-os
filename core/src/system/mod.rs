@@ -1,3 +1,5 @@
+pub mod nvme;
+
 use std::collections::BTreeSet;
 use std::fmt;
 use std::time::Duration;
