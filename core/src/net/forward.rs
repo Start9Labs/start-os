@@ -36,6 +36,12 @@ fn is_restricted(port: u16) -> bool {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ForwardRequirements {
     pub public_gateways: BTreeSet<GatewayId>,
+    /// Gateways whose upstream router we ask to forward this port (PCP/NAT-PMP/
+    /// UPnP). A subset of `public_gateways`: only gateways the service is
+    /// publicly *named* on (a public domain) or the operator explicitly opted
+    /// in. Bare auto-detected WAN-IP exposure is NOT auto-mapped — it's left to
+    /// a manual forward — so the box never probes, e.g., a private LAN router.
+    pub map_gateways: BTreeSet<GatewayId>,
     pub private_ips: BTreeSet<IpAddr>,
     pub secure: bool,
 }
@@ -44,8 +50,8 @@ impl std::fmt::Display for ForwardRequirements {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "ForwardRequirements {{ public: {:?}, private: {:?}, secure: {} }}",
-            self.public_gateways, self.private_ips, self.secure
+            "ForwardRequirements {{ public: {:?}, map: {:?}, private: {:?}, secure: {} }}",
+            self.public_gateways, self.map_gateways, self.private_ips, self.secure
         )
     }
 }
@@ -668,7 +674,12 @@ impl InterfaceForwardEntry {
                             };
 
                             keep.insert(addr);
-                            if public {
+                            // Only ask this gateway's upstream router to forward
+                            // (PCP/UPnP) when the service is publicly named on it
+                            // or the operator opted in — not for every public
+                            // interface. The DNAT rule below is still installed
+                            // for LAN/WAN reachability regardless.
+                            if reqs.map_gateways.contains(gw_id) {
                                 want.entry((ip, self.external))
                                     .or_insert_with(|| (self.count, candidate_gateways(info)));
                             }
