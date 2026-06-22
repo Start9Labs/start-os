@@ -550,7 +550,8 @@ impl NetServiceData {
                 }
             }
         }
-        ctrl.vhost.sync_hostname_mappings(hostname_maps);
+        ctrl.vhost
+            .sync_hostname_mappings((self.id.clone(), id.clone()), hostname_maps);
 
         let all = binds
             .vhosts

@@ -47,8 +47,11 @@ const PCP_TIMEOUTS: TimeoutConfig = TimeoutConfig {
     max_retry_timeout: Some(Duration::from_secs(1)),
 };
 
-/// (local interface IP we map from, external port).
-type MappingKey = (Ipv4Addr, u16);
+/// (local interface IP we map from, external port, optional SNI hostname). The
+/// hostname is part of the mapping's identity: many hostnames share one external
+/// port via the gateway's SNI demux, each an independent mapping with its own
+/// lease, so adding or removing one hostname never tears down the others.
+type MappingKey = (Ipv4Addr, u16, Option<String>);
 
 /// Candidate PCP/NAT-PMP servers for a gateway interface: the NM default
 /// gateway (router) plus each subnet's `.1` (covers a StartTunnel, whose server
@@ -79,14 +82,11 @@ pub fn candidate_gateways(info: &NetworkInterfaceInfo) -> Vec<Ipv4Addr> {
 struct Spec {
     internal_port: u16,
     gateways: Vec<Ipv4Addr>,
-    /// FQDNs to bind via the PCP HOSTNAME option (SNI-demultiplexed mappings).
-    /// When non-empty the mapping is PCP-only — no NAT-PMP/UPnP fallback, since
-    /// the gateway demuxes inbound TLS by SNI to share one external port.
-    hostnames: Vec<String>,
     /// Number of contiguous ports to map via the PCP PORT_SET option (RFC 7753);
     /// `1` is an ordinary single-port mapping. When `> 1` the mapping is
     /// PCP-only and is skipped entirely on gateways that don't grant the full
-    /// range (UPnP/NAT-PMP can't map ranges).
+    /// range (UPnP/NAT-PMP can't map ranges). Always `1` for a HOSTNAME mapping
+    /// (the hostname lives in the key).
     count: u16,
 }
 
@@ -103,11 +103,12 @@ enum Command {
     Remove {
         key: MappingKey,
     },
-    /// Query the gateway-assigned external IP for an active mapping (used to
-    /// confirm reachability without a remote echo service). `None` if not
-    /// mapped or the external IP is unknown.
+    /// Query the gateway-assigned external IP for any active mapping on
+    /// `(local_ip, external_port)` (used to confirm reachability without a
+    /// remote echo service). `None` if not mapped or the external IP is unknown.
     ExternalIp {
-        key: MappingKey,
+        local_ip: Ipv4Addr,
+        external_port: u16,
         resp: oneshot::Sender<Option<IpAddr>>,
     },
 }
@@ -131,12 +132,15 @@ impl PortMapController {
                     cmd = recv.recv() => match cmd {
                         Some(Command::Ensure { key, spec }) => state.ensure(key, spec).await,
                         Some(Command::Remove { key }) => state.remove(key).await,
-                        Some(Command::ExternalIp { key, resp }) => {
-                            let ip = match state.active.get(&key) {
-                                Some(Active::Pcp(m)) => m.external_ip(),
-                                Some(Active::Upnp { external_ip }) => external_ip.map(IpAddr::V4),
-                                None => None,
-                            };
+                        Some(Command::ExternalIp { local_ip, external_port, resp }) => {
+                            let ip = state
+                                .active
+                                .iter()
+                                .find(|(k, _)| k.0 == local_ip && k.1 == external_port)
+                                .and_then(|(_, a)| match a {
+                                    Active::Pcp(m) => m.external_ip(),
+                                    Active::Upnp { external_ip } => external_ip.map(IpAddr::V4),
+                                });
                             let _ = resp.send(ip);
                         }
                         None => break,
@@ -155,21 +159,22 @@ impl PortMapController {
         internal_port: u16,
         gateways: Vec<Ipv4Addr>,
     ) {
-        self.send_ensure(local_ip, external_port, internal_port, gateways, Vec::new(), 1);
+        self.send_ensure(local_ip, external_port, internal_port, gateways, None, 1);
     }
 
-    /// Like [`ensure`](Self::ensure) but binds the given FQDNs via the PCP
-    /// HOSTNAME option so the gateway SNI-demultiplexes this external port.
-    /// PCP-only (no NAT-PMP/UPnP fallback).
-    pub fn ensure_hostnames(
+    /// Like [`ensure`](Self::ensure) but binds a single FQDN via the PCP HOSTNAME
+    /// option so the gateway SNI-demultiplexes this external port. The hostname
+    /// is part of the mapping identity, so each one is an independent mapping
+    /// sharing the port. PCP-only (no NAT-PMP/UPnP fallback).
+    pub fn ensure_hostname(
         &self,
         local_ip: Ipv4Addr,
         external_port: u16,
         internal_port: u16,
         gateways: Vec<Ipv4Addr>,
-        hostnames: Vec<String>,
+        hostname: String,
     ) {
-        self.send_ensure(local_ip, external_port, internal_port, gateways, hostnames, 1);
+        self.send_ensure(local_ip, external_port, internal_port, gateways, Some(hostname), 1);
     }
 
     /// Map `count` contiguous ports starting at `external_port` via the PCP
@@ -183,7 +188,7 @@ impl PortMapController {
         count: u16,
         gateways: Vec<Ipv4Addr>,
     ) {
-        self.send_ensure(local_ip, external_port, internal_port, gateways, Vec::new(), count);
+        self.send_ensure(local_ip, external_port, internal_port, gateways, None, count);
     }
 
     fn send_ensure(
@@ -192,16 +197,15 @@ impl PortMapController {
         external_port: u16,
         internal_port: u16,
         gateways: Vec<Ipv4Addr>,
-        hostnames: Vec<String>,
+        hostname: Option<String>,
         count: u16,
     ) {
         self.req
             .send(Command::Ensure {
-                key: (local_ip, external_port),
+                key: (local_ip, external_port, hostname),
                 spec: Spec {
                     internal_port,
                     gateways,
-                    hostnames,
                     count,
                 },
             })
@@ -211,7 +215,17 @@ impl PortMapController {
     pub fn remove(&self, local_ip: Ipv4Addr, external_port: u16) {
         self.req
             .send(Command::Remove {
-                key: (local_ip, external_port),
+                key: (local_ip, external_port, None),
+            })
+            .ok();
+    }
+
+    /// Remove the SNI HOSTNAME mapping for `hostname` on
+    /// `(local_ip, external_port)`, leaving any other hostnames on that port.
+    pub fn remove_hostname(&self, local_ip: Ipv4Addr, external_port: u16, hostname: String) {
+        self.req
+            .send(Command::Remove {
+                key: (local_ip, external_port, Some(hostname)),
             })
             .ok();
     }
@@ -228,7 +242,8 @@ impl PortMapController {
         let (resp, rx) = oneshot::channel();
         self.req
             .send(Command::ExternalIp {
-                key: (local_ip, external_port),
+                local_ip,
+                external_port,
                 resp,
             })
             .ok()?;
@@ -257,10 +272,9 @@ impl State {
         let changed = self.desired.get(&key).map_or(true, |s| {
             s.internal_port != spec.internal_port
                 || s.gateways != spec.gateways
-                || s.hostnames != spec.hostnames
                 || s.count != spec.count
         });
-        self.desired.insert(key, spec);
+        self.desired.insert(key.clone(), spec);
         // (Re)apply on a genuine spec change, or to retry a mapping that isn't
         // active yet (a failed first apply at boot, or one the gateway dropped)
         // — but rate-limit that retry to RETRY_INTERVAL per key so a reconcile
@@ -272,7 +286,7 @@ impl State {
                 .get(&key)
                 .map_or(true, |t| t.elapsed() >= RETRY_INTERVAL);
         if changed || stale {
-            self.teardown(key).await;
+            self.teardown(key.clone()).await;
             self.apply(key).await;
         }
     }
@@ -284,19 +298,19 @@ impl State {
     }
 
     async fn refresh(&mut self) {
-        for key in self.desired.keys().copied().collect::<Vec<_>>() {
+        for key in self.desired.keys().cloned().collect::<Vec<_>>() {
             match self.active.get_mut(&key) {
                 Some(Active::Pcp(m)) => {
                     if let Err(e) = m.renew().await {
                         tracing::debug!("PCP/NAT-PMP renew for {key:?} failed, re-mapping: {e}");
-                        self.teardown(key).await;
+                        self.teardown(key.clone()).await;
                         self.apply(key).await;
                     }
                 }
                 // UPnP has no lease to renew, but a gateway reboot may have
                 // dropped it; re-assert. `None` retries a prior failure.
                 Some(Active::Upnp { .. }) | None => {
-                    self.teardown(key).await;
+                    self.teardown(key.clone()).await;
                     self.apply(key).await;
                 }
             }
@@ -314,7 +328,7 @@ impl State {
                 }
             }
             Some(Active::Upnp { .. }) => {
-                let (local_ip, external_port) = key;
+                let (local_ip, external_port, _) = key;
                 if let Some(gw) = self.gateway_for(local_ip).await {
                     upnp::remove_port(gw, external_port).await.log_err();
                 }
@@ -330,8 +344,8 @@ impl State {
         // Stamp before attempting so a permanently-failing mapping is
         // rate-limited (not just successful ones) — both ensure() and refresh()
         // reach here.
-        self.last_attempt.insert(key, Instant::now());
-        let (local_ip, external_port) = key;
+        self.last_attempt.insert(key.clone(), Instant::now());
+        let (local_ip, external_port, hostname) = (key.0, key.1, key.2.clone());
         let (Some(ext), Some(intl)) = (
             NonZeroU16::new(external_port),
             NonZeroU16::new(spec.internal_port),
@@ -339,17 +353,15 @@ impl State {
             return;
         };
 
-        // Hostname (SNI-demux) mappings carry HOSTNAME options and are PCP-only:
-        // NAT-PMP/UPnP can't demultiplex by SNI, so there is no fallback.
-        if !spec.hostnames.is_empty() {
-            let options: Vec<pcp::PcpOption> = spec
-                .hostnames
-                .iter()
-                .map(|h| pcp::PcpOption {
-                    code: OPTION_HOSTNAME,
-                    data: h.as_bytes().to_vec(),
-                })
-                .collect();
+        // A HOSTNAME (SNI-demux) mapping: the hostname is part of the identity,
+        // so this is one independent PCP-only mapping (NAT-PMP/UPnP can't demux
+        // by SNI, so there is no fallback). Other hostnames on the same external
+        // port are separate mappings and are untouched.
+        if let Some(hostname) = &hostname {
+            let options = [pcp::PcpOption {
+                code: OPTION_HOSTNAME,
+                data: hostname.as_bytes().to_vec(),
+            }];
             for gw in &spec.gateways {
                 match pcp::port_mapping(
                     pcp::BaseMapRequest::new(IpAddr::V4(*gw), IpAddr::V4(local_ip), InternetProtocol::Tcp, intl),
@@ -366,9 +378,8 @@ impl State {
                 {
                     Ok(m) if m.external_port() == ext => {
                         tracing::debug!(
-                            "PCP HOSTNAME mapped {external_port}->{local_ip}:{} {:?} via {gw}",
+                            "PCP HOSTNAME mapped {external_port}->{local_ip}:{} {hostname} via {gw}",
                             spec.internal_port,
-                            spec.hostnames
                         );
                         self.active.insert(key, Active::Pcp(m));
                         return;
@@ -517,5 +528,45 @@ impl State {
             }
         }
         self.upnp_cache.get(&local_ip).map(|(g, _)| g)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn spec() -> Spec {
+        // No gateways: apply() iterates an empty candidate list and does no
+        // network I/O, so these tests exercise the keying/identity logic only.
+        Spec {
+            internal_port: 443,
+            gateways: Vec::new(),
+            count: 1,
+        }
+    }
+
+    // The hostname is part of a mapping's identity: distinct hostnames on the
+    // same external port are independent mappings, and removing one (or adding a
+    // plain non-SNI mapping) never clobbers the others.
+    #[tokio::test]
+    async fn distinct_hostnames_share_a_port_without_clobbering() {
+        let ip = Ipv4Addr::new(10, 59, 0, 2);
+        let a: MappingKey = (ip, 443, Some("a.example.com".into()));
+        let b: MappingKey = (ip, 443, Some("b.example.com".into()));
+        let plain: MappingKey = (ip, 443, None);
+
+        let mut state = State::default();
+        state.ensure(a.clone(), spec()).await;
+        state.ensure(b.clone(), spec()).await;
+        assert!(state.desired.contains_key(&a));
+        assert!(state.desired.contains_key(&b), "adding b clobbered a's siblings");
+
+        state.ensure(plain.clone(), spec()).await;
+        assert_eq!(state.desired.len(), 3, "plain mapping is a distinct identity");
+
+        state.remove(a.clone()).await;
+        assert!(!state.desired.contains_key(&a));
+        assert!(state.desired.contains_key(&b), "removing a dropped b");
+        assert!(state.desired.contains_key(&plain));
     }
 }

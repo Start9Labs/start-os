@@ -52,7 +52,12 @@ use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::ReadWriter;
 use crate::util::serde::{HandlerExtSerde, MaybeUtf8String, display_serializable};
 use crate::util::sync::{SyncMutex, Watch};
-use crate::{GatewayId, ResultExt};
+use crate::{GatewayId, HostId, PackageId, ResultExt};
+
+/// Identifies which service+host contributed a set of SNI hostname mappings, so
+/// each can be reconciled independently — a service only ever adds or removes
+/// *its own* hostnames on a shared external port, never another's.
+type HostMapOwner = (Option<PackageId>, HostId);
 
 #[derive(Debug, Clone, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
@@ -257,7 +262,10 @@ pub struct VHostController {
     servers: SyncMutex<BTreeMap<u16, VHostServer<VHostBindListener>>>,
     passthrough_handles: SyncMutex<BTreeMap<(InternedString, u16), PassthroughHandle>>,
     port_map: PortMapController,
-    hostname_mappings: SyncMutex<BTreeSet<(Ipv4Addr, u16)>>,
+    /// Per-owner set of `(ext_ip, ext_port, hostname)` SNI routes this controller
+    /// has asked the port-mapper to maintain. Keyed by owner so one service's
+    /// reconcile only adds/removes its own hostnames on a shared port.
+    hostname_mappings: SyncMutex<BTreeMap<HostMapOwner, BTreeSet<(Ipv4Addr, u16, String)>>>,
 }
 impl VHostController {
     pub fn new(
@@ -279,7 +287,7 @@ impl VHostController {
             servers: SyncMutex::new(BTreeMap::new()),
             passthrough_handles: SyncMutex::new(BTreeMap::new()),
             port_map,
-            hostname_mappings: SyncMutex::new(BTreeSet::new()),
+            hostname_mappings: SyncMutex::new(BTreeMap::new()),
         };
         for pt in passthroughs {
             if let Err(e) = controller.add_passthrough(
@@ -423,33 +431,44 @@ impl VHostController {
         })
     }
 
-    /// Reconcile best-effort PCP HOSTNAME port mappings for public domain
-    /// vhosts. `desired` maps `(box IP to map from, external port)` to
-    /// `(internal port, candidate gateways, FQDNs)`. Only public vhosts
-    /// contribute — the gateway demultiplexes the shared external port by the
-    /// TLS SNI to each bound internal host. Like the rest of the port-map layer
-    /// this is best-effort: a gateway that can't honor it just leaves the user
-    /// on a manual forward.
+    /// Reconcile best-effort PCP HOSTNAME port mappings for `owner`'s public
+    /// domain vhosts. `desired` maps `(box IP to map from, external port)` to
+    /// `(internal port, candidate gateways, FQDNs)`. Each hostname is mapped
+    /// independently — the gateway treats the hostname as part of the mapping's
+    /// identity and demultiplexes the shared external port by TLS SNI — so one
+    /// service adding or removing a hostname never disturbs another service's
+    /// hostnames on the same port. Like the rest of the port-map layer this is
+    /// best-effort: a gateway that can't honor it just leaves the user on a
+    /// manual forward.
     pub fn sync_hostname_mappings(
         &self,
+        owner: HostMapOwner,
         desired: BTreeMap<(Ipv4Addr, u16), (u16, Vec<Ipv4Addr>, Vec<String>)>,
     ) {
-        self.hostname_mappings.mutate(|active| {
-            for key in active.iter() {
-                if !desired.contains_key(key) {
-                    self.port_map.remove(key.0, key.1);
-                }
+        let want: BTreeSet<(Ipv4Addr, u16, String)> = desired
+            .iter()
+            .flat_map(|((ip, port), (_, _, hostnames))| {
+                hostnames.iter().map(move |h| (*ip, *port, h.clone()))
+            })
+            .collect();
+        let had = self
+            .hostname_mappings
+            .peek(|owners| owners.get(&owner).cloned().unwrap_or_default());
+        for (ip, port, hostname) in had.difference(&want) {
+            self.port_map.remove_hostname(*ip, *port, hostname.clone());
+        }
+        for ((ip, port), (internal, gateways, hostnames)) in &desired {
+            for hostname in hostnames {
+                self.port_map
+                    .ensure_hostname(*ip, *port, *internal, gateways.clone(), hostname.clone());
             }
-            for (key, (internal, gateways, hostnames)) in &desired {
-                self.port_map.ensure_hostnames(
-                    key.0,
-                    key.1,
-                    *internal,
-                    gateways.clone(),
-                    hostnames.clone(),
-                );
+        }
+        self.hostname_mappings.mutate(|owners| {
+            if want.is_empty() {
+                owners.remove(&owner);
+            } else {
+                owners.insert(owner, want);
             }
-            *active = desired.keys().copied().collect();
         });
     }
 }
