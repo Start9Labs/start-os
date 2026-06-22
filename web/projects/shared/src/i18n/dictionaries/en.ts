@@ -783,4 +783,5 @@ export const ENGLISH: Record<string, number> = {
   'Option 2': 870,
   'Choose a different drive for this backup.': 871,
   'OK': 872,
+  'Save this registry': 874,
 }

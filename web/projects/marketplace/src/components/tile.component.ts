@@ -1,14 +1,22 @@
-import { Component, computed, inject, input } from '@angular/core'
+import {
+  Component,
+  computed,
+  contentChild,
+  inject,
+  input,
+  TemplateRef,
+} from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, Router } from '@angular/router'
-import { MarketplacePkg } from '@start9labs/marketplace'
 import { i18nPipe, LocalizePipe } from '@start9labs/shared'
 import { TuiAutoFocus } from '@taiga-ui/cdk'
 import { TuiButtonX, TuiCell, TuiPopup, TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar, TuiDrawer } from '@taiga-ui/kit'
 import { TuiCardLarge, tuiCardOptionsProvider } from '@taiga-ui/layout'
 import { debounceTime } from 'rxjs'
-import { MarketplacePreviewComponent } from '../modals/preview.component'
+
+import { MarketplacePkg } from '../types'
+import { MarketplacePreviewComponent } from './preview.component'
 
 @Component({
   selector: 'button[marketplaceTile], a[marketplaceTile]',
@@ -31,7 +39,7 @@ import { MarketplacePreviewComponent } from '../modals/preview.component'
       [overlay]="true"
       (click.self)="toggle(false)"
     >
-      <marketplace-preview [pkgId]="pkg().id">
+      <marketplace-preview [pkgId]="pkg().id" [controls]="controls() ?? null">
         <button
           tuiAutoFocus
           tuiButtonX
@@ -91,6 +99,12 @@ export class MarketplaceTileComponent {
   )
 
   readonly pkg = input.required<MarketplacePkg>({ alias: 'marketplaceTile' })
+
+  /** Optional action-button template (install/update), projected by the
+   * consumer and forwarded to the preview. Omitted by the brochure. */
+  readonly controls =
+    contentChild<TemplateRef<{ $implicit: MarketplacePkg }>>(TemplateRef)
+
   readonly open = computed(
     () =>
       this.params()?.get('id') === this.pkg()?.id &&

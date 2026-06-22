@@ -782,4 +782,5 @@ export default {
   871: 'Choisissez un autre disque pour cette sauvegarde.',
   872: 'OK',
   873: 'Nouveau format de sauvegarde',
+  874: 'Enregistrer cette bibliothèque',
 } satisfies i18n

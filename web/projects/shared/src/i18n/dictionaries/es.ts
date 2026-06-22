@@ -782,4 +782,5 @@ export default {
   871: 'Elige otra unidad para esta copia de seguridad.',
   872: 'OK',
   873: 'Nuevo formato de copia de seguridad',
+  874: 'Guardar este registro',
 } satisfies i18n

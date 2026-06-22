@@ -1,15 +1,14 @@
 import { CommonModule } from '@angular/common'
-import { Component, computed, inject, input, signal } from '@angular/core'
+import {
+  Component,
+  computed,
+  inject,
+  input,
+  signal,
+  TemplateRef,
+} from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { Router } from '@angular/router'
-import {
-  MarketplaceAboutComponent,
-  MarketplaceDependenciesComponent,
-  MarketplaceFlavorsComponent,
-  MarketplaceLinksComponent,
-  MarketplacePkg,
-  MarketplaceReleaseNotesComponent,
-} from '@start9labs/marketplace'
 import {
   DialogService,
   EmptyPipe,
@@ -35,8 +34,14 @@ import {
   take,
   tap,
 } from 'rxjs'
-import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { MarketplaceControlsComponent } from '../components/controls.component'
+
+import { AbstractMarketplaceService } from '../services/abstract-marketplace.service'
+import { MarketplacePkg } from '../types'
+import { MarketplaceAboutComponent } from './about.component'
+import { MarketplaceDependenciesComponent } from './dependencies.component'
+import { MarketplaceFlavorsComponent } from './flavors.component'
+import { MarketplaceLinksComponent } from './links.component'
+import { MarketplaceReleaseNotesComponent } from './release-notes.component'
 
 @Component({
   selector: 'marketplace-preview',
@@ -59,7 +64,11 @@ import { MarketplaceControlsComponent } from '../components/controls.component'
         <span tuiTitle tuiFade>{{ pkg.title }}</span>
         <span tuiAccessories><ng-content /></span>
       </header>
-      <marketplace-controls [pkg]="pkg" />
+      @if (controls(); as controls) {
+        <ng-container
+          *ngTemplateOutlet="controls; context: { $implicit: pkg }"
+        />
+      }
       <marketplace-about
         [pkg]="pkg"
         [versions]="versions$ | async"
@@ -108,7 +117,6 @@ import { MarketplaceControlsComponent } from '../components/controls.component'
     MarketplaceLinksComponent,
     MarketplaceFlavorsComponent,
     MarketplaceAboutComponent,
-    MarketplaceControlsComponent,
     MarketplaceReleaseNotesComponent,
     i18nPipe,
   ],
@@ -117,9 +125,15 @@ export class MarketplacePreviewComponent {
   private readonly dialog = inject(DialogService)
   private readonly exver = inject(Exver)
   private readonly router = inject(Router)
-  private readonly marketplaceService = inject(MarketplaceService)
+  private readonly marketplaceService = inject(AbstractMarketplaceService)
 
   readonly pkgId = input.required<string>()
+
+  /** Action buttons for the resolved package (install/update), rendered with
+   * the resolved `MarketplacePkg` as `$implicit`. The brochure omits it. */
+  readonly controls = input<TemplateRef<{ $implicit: MarketplacePkg }> | null>(
+    null,
+  )
 
   private readonly params$ = this.router.routerState.root.queryParamMap.pipe(
     take(1),
@@ -220,7 +234,9 @@ export class MarketplacePreviewComponent {
         size: 'l',
         data: this.pkg$.pipe(
           filter(Boolean),
-          switchMap(pkg => this.marketplaceService.fetchStatic$(pkg)),
+          switchMap(pkg =>
+            this.marketplaceService.fetchStatic$(pkg, 'LICENSE.md'),
+          ),
         ),
       })
       .subscribe()

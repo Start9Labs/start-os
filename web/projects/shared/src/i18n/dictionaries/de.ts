@@ -782,4 +782,5 @@ export default {
   871: 'Wählen Sie ein anderes Laufwerk für dieses Backup.',
   872: 'OK',
   873: 'Neues Backup-Format',
+  874: 'Dieses Register speichern',
 } satisfies i18n

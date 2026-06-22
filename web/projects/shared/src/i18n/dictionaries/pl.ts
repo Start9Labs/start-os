@@ -782,4 +782,5 @@ export default {
   871: 'Wybierz inny dysk dla tej kopii zapasowej.',
   872: 'OK',
   873: 'Nowy format kopii zapasowej',
+  874: 'Zapisz ten katalog',
 } satisfies i18n

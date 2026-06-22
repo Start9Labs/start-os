@@ -37,17 +37,14 @@ import { StoreDataWithUrl } from '../types'
 
 const ICONS: Record<string, string> = {
   all: '@tui.layout-grid',
+  ai: '@tui.cpu',
   bitcoin: '@tui.bitcoin',
-  messaging: '@tui.message-circle',
-  communications: '@tui.message-circle',
-  data: '@tui.file-text',
-  'developer tools': '@tui.table-split',
-  featured: '@tui.star',
-  lightning: '@tui.zap',
+  crypto: '@tui.coins',
+  finance: '@tui.chart-line',
   media: '@tui.circle-play',
   networking: '@tui.globe',
+  productivity: '@tui.briefcase',
   social: '@tui.users',
-  ai: '@tui.cpu',
 }
 
 @Component({
