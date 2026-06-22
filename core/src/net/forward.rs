@@ -669,8 +669,14 @@ impl InterfaceForwardEntry {
 
                             keep.insert(addr);
                             if public {
-                                want.entry((ip, self.external))
-                                    .or_insert_with(|| (self.count, candidate_gateways(info)));
+                                want.entry((ip, self.external)).or_insert_with(|| {
+                                    let gws = candidate_gateways(info);
+                                    tracing::debug!(
+                                        "auto-port-mapping {ip}:{} on gateway {gw_id} via {gws:?} (reqs {reqs})",
+                                        self.external,
+                                    );
+                                    (self.count, gws)
+                                });
                             }
                             let fwd_rc = port_forward
                                 .add_forward_range(

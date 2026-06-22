@@ -394,7 +394,9 @@ impl State {
                     Ok(m) => {
                         let _ = m.try_drop().await;
                     }
-                    Err(e) => tracing::debug!("PCP HOSTNAME map via {gw} failed: {e}"),
+                    Err(e) => tracing::debug!(
+                        "PCP HOSTNAME map {local_ip}:{external_port} {hostname} via {gw} failed: {e}"
+                    ),
                 }
             }
             return;
@@ -446,14 +448,16 @@ impl State {
                             return;
                         }
                         tracing::debug!(
-                            "gateway {gw} granted {granted}/{want} PORT_SET ports; skipping range"
+                            "gateway {gw} granted {granted}/{want} PORT_SET ports for {local_ip}:{external_port}; skipping range"
                         );
                         let _ = m.try_drop().await;
                     }
                     Ok(m) => {
                         let _ = m.try_drop().await;
                     }
-                    Err(e) => tracing::debug!("PCP PORT_SET map via {gw} failed: {e}"),
+                    Err(e) => tracing::debug!(
+                        "PCP PORT_SET map {local_ip}:{external_port} via {gw} failed: {e}"
+                    ),
                 }
             }
             return;
@@ -487,7 +491,9 @@ impl State {
                 Ok(m) => {
                     let _ = m.try_drop().await;
                 }
-                Err(e) => tracing::debug!("PCP/NAT-PMP map via {gw} failed: {e}"),
+                Err(e) => {
+                    tracing::debug!("PCP/NAT-PMP map {local_ip}:{external_port} via {gw} failed: {e}")
+                }
             }
         }
 
@@ -499,7 +505,7 @@ impl State {
                     true
                 }
                 Err(e) => {
-                    tracing::debug!("UPnP map failed: {e}");
+                    tracing::debug!("UPnP map {local_ip}:{external_port} failed: {e}");
                     false
                 }
             },

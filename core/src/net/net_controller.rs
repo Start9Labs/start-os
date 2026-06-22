@@ -346,6 +346,16 @@ impl NetServiceData {
                     .flat_map(|a| a.metadata.gateways())
                     .cloned()
                     .collect();
+                // Declare which address makes each gateway public, so a stray
+                // auto-port-map can be traced back to the exposure driving it.
+                for a in enabled_addresses.iter().filter(|a| a.public) {
+                    tracing::debug!(
+                        "port {external}: public address {} (ip={}) on gateway(s) {:?}",
+                        a.hostname,
+                        a.metadata.is_ip(),
+                        a.metadata.gateways().collect::<Vec<_>>(),
+                    );
+                }
                 let fwd_private: BTreeSet<IpAddr> = enabled_addresses
                     .iter()
                     .filter(|a| !a.public)
