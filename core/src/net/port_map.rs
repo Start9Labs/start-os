@@ -65,8 +65,15 @@ pub fn candidate_gateways(info: &NetworkInterfaceInfo) -> Vec<Ipv4Addr> {
     };
     if let Some(ip_info) = &info.ip_info {
         for ip in &ip_info.lan_ip {
+            // Only a gateway that lives on one of this interface's own subnets
+            // can port-forward for it. NetworkManager may report a default-route
+            // gateway that belongs to a *different* interface (e.g. the LAN
+            // router inherited by a WireGuard link), which must not be probed —
+            // that's what made a tunnel-bound forward try the LAN router.
             if let IpAddr::V4(v4) = ip {
-                push(*v4);
+                if ip_info.subnets.iter().any(|s| s.contains(ip)) {
+                    push(*v4);
+                }
             }
         }
         for subnet in &ip_info.subnets {

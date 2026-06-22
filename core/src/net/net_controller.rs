@@ -346,17 +346,6 @@ impl NetServiceData {
                     .flat_map(|a| a.metadata.gateways())
                     .cloned()
                     .collect();
-                // Only auto-port-map gateways the service is publicly *named* on
-                // (a public domain). A bare auto-detected WAN-IP address must not
-                // make the box probe its gateway's router (e.g. a private LAN
-                // router that doesn't speak PCP/UPnP) — that exposure is the
-                // operator's manual-forward decision.
-                let fwd_map_gateways: BTreeSet<GatewayId> = enabled_addresses
-                    .iter()
-                    .filter(|a| a.public && !a.metadata.is_ip())
-                    .flat_map(|a| a.metadata.gateways())
-                    .cloned()
-                    .collect();
                 let fwd_private: BTreeSet<IpAddr> = enabled_addresses
                     .iter()
                     .filter(|a| !a.public)
@@ -371,7 +360,6 @@ impl NetServiceData {
                         1,
                         ForwardRequirements {
                             public_gateways: fwd_public,
-                            map_gateways: fwd_map_gateways,
                             private_ips: fwd_private,
                             secure: bind.options.secure.is_some(),
                         },
@@ -471,10 +459,6 @@ impl NetServiceData {
                         SocketAddrV4::new(self.ip, internal_start),
                         range.number_of_ports,
                         ForwardRequirements {
-                            // Ranges carry an explicit per-gateway Public choice,
-                            // so auto-port-map exactly the gateways the operator
-                            // opted into.
-                            map_gateways: public_gateways.clone(),
                             public_gateways,
                             private_ips,
                             secure: true,
