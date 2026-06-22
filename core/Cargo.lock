@@ -257,7 +257,7 @@ dependencies = [
 [[package]]
 name = "async-acme"
 version = "0.6.0"
-source = "git+https://github.com/Start9Labs/async-acme.git?rev=6da895b89227ac14e39ff8470c415b054ee62e9c#6da895b89227ac14e39ff8470c415b054ee62e9c"
+source = "git+https://github.com/Start9Labs/async-acme.git?rev=4f71d55304e77650bbbedd33fe0acb5d26d3883f#4f71d55304e77650bbbedd33fe0acb5d26d3883f"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -2304,6 +2304,10 @@ dependencies = [
  "hyper",
  "log",
  "serde",
+ "serde_json",
+ "serde_qs",
+ "serde_urlencoded",
+ "tokio",
  "tokio-rustls",
  "webpki-roots 0.26.11",
 ]
@@ -5976,6 +5980,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_qs"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd34f36fe4c5ba9654417139a9b3a20d2e1de6012ee678ad14d240c22c78d8d6"
+dependencies = [
+ "percent-encoding",
+ "serde",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "serde_repr"
 version = "0.1.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8105,7 +8120,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.48.0",
 ]
 
 [[package]]
