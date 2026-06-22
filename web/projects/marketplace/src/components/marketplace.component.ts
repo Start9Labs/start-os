@@ -41,10 +41,13 @@ const ICONS: Record<string, string> = {
   ai: '@tui.cpu',
   bitcoin: '@tui.bitcoin',
   crypto: '@tui.coins',
+  'developer-tools': '@tui.code',
   finance: '@tui.chart-line',
+  'files-and-productivity': '@tui.briefcase',
+  'home-and-automation': '@tui.home',
   media: '@tui.circle-play',
   networking: '@tui.globe',
-  productivity: '@tui.briefcase',
+  nostr: '@tui.feather',
   social: '@tui.users',
 }
 

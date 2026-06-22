@@ -214,8 +214,8 @@ export namespace Mock {
       networking: {
         name: 'Networking',
       },
-      productivity: {
-        name: 'Productivity',
+      'files-and-productivity': {
+        name: 'Files and Productivity',
       },
       social: {
         name: 'Social',
