@@ -3,6 +3,7 @@ import {
   Component,
   computed,
   contentChild,
+  effect,
   inject,
   input,
   model,
@@ -73,6 +74,9 @@ const ICONS: Record<string, string> = {
           {{ cat.value.name ? (cat.value.name | localize) : cat.key }}
         </button>
       }
+      <div class="actions">
+        <ng-content select="[actions]" />
+      </div>
       <footer>
         <button
           tuiAsideItem
@@ -162,6 +166,12 @@ const ICONS: Record<string, string> = {
       }
     }
 
+    .actions {
+      display: grid;
+      gap: 0.5rem;
+      margin-block-start: 0.5rem;
+    }
+
     .content {
       flex: 1;
       min-width: 0;
@@ -228,9 +238,20 @@ export class MarketplaceComponent {
   protected readonly icons = ICONS
   protected readonly asIs = () => 0
   protected readonly open = signal(!inject(WA_IS_MOBILE))
-  protected readonly categories = computed(
-    () => this.registry()?.info?.categories,
-  )
+  // Only categories that have at least one package are shown; 'all' is the
+  // always-present pseudo-category injected by each app's service.
+  protected readonly categories = computed(() => {
+    const info = this.registry()?.info?.categories
+    if (!info) return undefined
+
+    const used = new Set(
+      (this.registry()?.packages || []).flatMap(p => p.categories || []),
+    )
+
+    return Object.fromEntries(
+      Object.entries(info).filter(([key]) => key === 'all' || used.has(key)),
+    )
+  })
 
   protected readonly name = computed(
     (c = this.category()) => this.registry()?.info?.categories?.[c]?.name || c,
@@ -249,6 +270,17 @@ export class MarketplaceComponent {
     a: { name: '' },
     b: { name: '' },
     c: { name: '' },
+  }
+
+  constructor() {
+    // If the selected category gets hidden (no packages in the current
+    // registry), fall back to 'all' so the grid isn't stuck empty.
+    effect(() => {
+      const cats = this.categories()
+      if (cats && this.category() !== 'all' && !cats[this.category()]) {
+        this.category.set('all')
+      }
+    })
   }
 
   protected get sortLabel(): string {

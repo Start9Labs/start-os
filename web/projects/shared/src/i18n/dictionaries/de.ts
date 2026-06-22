@@ -783,4 +783,5 @@ export default {
   872: 'OK',
   873: 'Neues Backup-Format',
   874: 'Dieses Register speichern',
+  875: 'Einen Dienst paketieren',
 } satisfies i18n

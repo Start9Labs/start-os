@@ -9,6 +9,7 @@ import {
   MarketplaceTileComponent,
 } from '@start9labs/marketplace'
 import { i18nPipe } from '@start9labs/shared'
+import { TuiButton } from '@taiga-ui/core'
 import { tap } from 'rxjs'
 import { ConfigService } from 'src/app/services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
@@ -26,6 +27,17 @@ import { MarketplaceControlsComponent } from './components/controls.component'
       [(query)]="query"
     >
       <marketplace-registry-select />
+      <a
+        actions
+        tuiButton
+        appearance="primary"
+        iconStart="@tui.package"
+        target="_blank"
+        rel="noreferrer"
+        href="https://docs.start9.com/packaging/"
+      >
+        {{ 'Package a service' | i18n }}
+      </a>
       <ng-template let-pkg>
         <button type="button" [marketplaceTile]="pkg">
           <ng-template let-resolved>
@@ -43,12 +55,19 @@ import { MarketplaceControlsComponent } from './components/controls.component'
       padding: 1px;
       background: #1c1d26;
     }
+
+    [tuiButton] {
+      justify-content: flex-start;
+      gap: 0.625rem;
+      font-weight: bold;
+    }
   `,
   imports: [
     CommonModule,
     FormsModule,
     TitleDirective,
     i18nPipe,
+    TuiButton,
     MarketplaceComponent,
     MarketplaceControlsComponent,
     MarketplaceRegistrySelectComponent,

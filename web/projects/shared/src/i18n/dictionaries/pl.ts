@@ -783,4 +783,5 @@ export default {
   872: 'OK',
   873: 'Nowy format kopii zapasowej',
   874: 'Zapisz ten katalog',
+  875: 'Spakuj usługę',
 } satisfies i18n

@@ -783,4 +783,5 @@ export default {
   872: 'OK',
   873: 'Nuevo formato de copia de seguridad',
   874: 'Guardar este registro',
+  875: 'Empaquetar un servicio',
 } satisfies i18n

@@ -783,4 +783,5 @@ export default {
   872: 'OK',
   873: 'Nouveau format de sauvegarde',
   874: 'Enregistrer cette bibliothèque',
+  875: 'Empaqueter un service',
 } satisfies i18n

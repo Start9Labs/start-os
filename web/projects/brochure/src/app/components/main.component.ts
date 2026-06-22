@@ -30,6 +30,7 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
     >
       <marketplace-registry-select />
       <a
+        actions
         tuiButton
         iconStart="@tui.shopping-cart"
         appearance="outline"
@@ -37,7 +38,19 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
         rel="noreferrer"
         href="https://store.start9.com"
       >
-        Get a Start9 Server
+        Get a Start9 server
+      </a>
+      <a
+        actions
+        tuiButton
+        iconStart="@tui.package"
+        appearance="outline"
+        [style.color]="'var(--tui-status-warning)'"
+        target="_blank"
+        rel="noreferrer"
+        href="https://docs.start9.com/packaging/"
+      >
+        Package a service
       </a>
       <ng-template let-pkg>
         <button type="button" [marketplaceTile]="pkg"></button>
@@ -53,7 +66,6 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
       }
 
       [tuiButton] {
-        order: 1;
         justify-content: flex-start;
         gap: 0.625rem;
         font-weight: bold;
