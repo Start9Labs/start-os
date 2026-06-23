@@ -13,6 +13,8 @@ import {
   TuiCheckbox,
   TuiDialogContext,
   TuiError,
+  TuiHint,
+  TuiIcon,
   TuiInput,
 } from '@taiga-ui/core'
 import {
@@ -103,16 +105,13 @@ import {
       <label tuiLabel>
         <input tuiCheckbox type="checkbox" formControlName="autoconfig" />
         Enable Gateway Autoconfiguration (Recommended for StartOS)
+        <tui-icon
+          icon="@tui.info"
+          [tuiHint]="autoconfigHint"
+          [style.cursor]="'help'"
+          [style.font-size.rem]="0.9"
+        />
       </label>
-      <p
-        [style.font-size.rem]="0.8"
-        [style.opacity]="0.7"
-        [style.margin.rem]="0.25"
-      >
-        The device will be able to configure the gateway on its own behalf —
-        adding and updating the DNS records the tunnel serves and requesting
-        port forwards (via PCP). Only enable this for devices you trust.
-      </p>
 
       <footer>
         <button tuiButton (click)="onSave()">Save</button>
@@ -127,6 +126,8 @@ import {
     TuiDataListWrapper,
     TuiError,
     TuiForm,
+    TuiHint,
+    TuiIcon,
     TuiSelect,
     TuiInput,
     TuiChevron,
@@ -166,8 +167,18 @@ export class DevicesAdd {
     wanIp: this.fb.control<string | null>(
       this.context.data.device?.wanIp ?? null,
     ),
-    autoconfig: [this.context.data.device?.allowDnsInjection ?? false],
+    autoconfig: [
+      !!(
+        this.context.data.device?.allowDnsInjection &&
+        this.context.data.device?.allowAutoPortForward
+      ),
+    ],
   })
+
+  // Shown as a tuiHint on the autoconfig checkbox so it reads as attached to
+  // that field rather than floating in the modal.
+  protected readonly autoconfigHint =
+    'The device can configure the gateway on its own behalf — adding/updating the DNS records the tunnel serves and requesting port forwards (via PCP). Only enable for devices you trust.'
 
   protected readonly wanItems: readonly (string | null)[] = [
     null,
@@ -219,8 +230,12 @@ export class DevicesAdd {
         await this.api.setDeviceWan({ subnet: data.subnet, ip, wanIp })
       }
 
-      // One "Gateway Autoconfiguration" checkbox drives both per-device flags.
-      if (autoconfig !== (device?.allowDnsInjection ?? false)) {
+      // One "Gateway Autoconfiguration" checkbox drives both per-device flags;
+      // it's "on" only when both are on.
+      if (
+        autoconfig !==
+        !!(device?.allowDnsInjection && device?.allowAutoPortForward)
+      ) {
         await this.api.setDnsInjection({
           subnet: data.subnet,
           ip,

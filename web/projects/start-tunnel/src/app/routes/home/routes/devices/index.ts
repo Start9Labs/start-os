@@ -45,7 +45,13 @@ import { MappedDevice } from './utils'
             <td>{{ device.name }}</td>
             <td>{{ device.subnet.name }}</td>
             <td>{{ device.ip }}</td>
-            <td>{{ device.allowDnsInjection ? 'Yes' : 'No' }}</td>
+            <td>
+              {{
+                device.allowDnsInjection && device.allowAutoPortForward
+                  ? 'Yes'
+                  : 'No'
+              }}
+            </td>
             <td>{{ wanLabel(device.wanIp, defaultWan()) }}</td>
             <td>
               <button
@@ -145,7 +151,7 @@ export default class Devices {
   protected readonly devices = computed(() =>
     this.subnets()?.flatMap(subnet =>
       Object.entries(subnet.clients).map(
-        ([ip, { name, allowDnsInjection, wanIp }]) => ({
+        ([ip, { name, allowDnsInjection, allowAutoPortForward, wanIp }]) => ({
           subnet: {
             name: subnet.name,
             range: subnet.range,
@@ -153,6 +159,7 @@ export default class Devices {
           ip,
           name,
           allowDnsInjection,
+          allowAutoPortForward,
           wanIp,
         }),
       ),
