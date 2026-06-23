@@ -2,7 +2,7 @@
 v: 3
 title: PCP Hostname Extension for SNI-Demultiplexed Port Mappings
 abbrev: PCP Hostname Extension
-docname: draft-mcclelland-pcp-hostname-00
+docname: draft-start9-pcp-hostname-00
 category: std
 submissiontype: IETF
 consensus: true
