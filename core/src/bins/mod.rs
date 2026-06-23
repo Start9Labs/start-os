@@ -159,6 +159,11 @@ impl MultiExecutable {
             backtrace_on_stack_overflow::enable()
         };
 
+        // ring = rustls process-default provider; the dual-provider build can't auto-pick one.
+        tokio_rustls::rustls::crypto::ring::default_provider()
+            .install_default()
+            .ok();
+
         set_locale_from_env();
 
         let mut popped = Vec::with_capacity(2);
