@@ -25,7 +25,6 @@ use tokio::net::{TcpSocket, TcpStream};
 use tokio::process::Command;
 use tokio::sync::OnceCell;
 
-use crate::net::forward::START9_BRIDGE_IFACE;
 use crate::net::utils::default_keepalive;
 use crate::prelude::*;
 use crate::util::Invoke;
@@ -109,21 +108,8 @@ pub async fn ensure_divert_infra() -> Result<(), Error> {
             .await?;
     }
 
-    // Spoofed-source egress and locally-diverted replies take asymmetric paths;
-    // loosen reverse-path filtering so the kernel does not drop them.
-    for key in [
-        "net.ipv4.conf.all.rp_filter".to_owned(),
-        format!("net.ipv4.conf.{START9_BRIDGE_IFACE}.rp_filter"),
-    ] {
-        if let Err(e) = Command::new("sysctl")
-            .arg("-w")
-            .arg(format!("{key}=2"))
-            .invoke(ErrorKind::Network)
-            .await
-        {
-            tracing::debug!("rp_filter loosen {key}: {e}");
-        }
-    }
-
+    // NOTE: strict reverse-path filtering (rp_filter=1) on the egress interface
+    // may drop the asymmetric diverted replies. If VM testing shows drops, loosen
+    // that one interface to 2 (never `all`, never 0) — not done preemptively.
     Ok(())
 }
