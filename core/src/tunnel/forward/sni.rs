@@ -1,14 +1,14 @@
 //! SNI demultiplexer for the PCP HOSTNAME extension: a per-port TCP listener
 //! reads the TLS ClientHello, selects a binding (exact → wildcard → fallback),
 //! and splices to the internal host. TLS is never terminated; the ClientHello
-//! bytes are forwarded verbatim.
+//! bytes are forwarded verbatim. The internal leg is opened from the client's
+//! own source address (source-address preservation, RFC §4.6) via
+//! [`crate::net::transparent`].
 //!
-//! Not yet implemented: source-address preservation (RFC §4.6, `IP_TRANSPARENT`)
-//! — the internal leg uses the tunnel's own address. QUIC (§4.5) and wildcards
-//! beyond a single leading `*` label are out of scope.
+//! QUIC (§4.5) and wildcards beyond a single leading `*` label are out of scope.
 
 use std::collections::BTreeMap;
-use std::net::{Ipv4Addr, SocketAddrV4};
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -215,21 +215,25 @@ async fn run_listener(
     key: PortKey,
     ports: Arc<SyncMutex<BTreeMap<PortKey, PortBindings>>>,
 ) -> Result<(), Error> {
+    if let Err(e) = crate::net::transparent::ensure_divert_infra().await {
+        tracing::warn!("SNI demux reply-path divert setup failed (source preservation may be degraded): {e}");
+    }
     let listener = TcpListener::bind(SocketAddrV4::new(key.0, key.1))
         .await
         .with_kind(ErrorKind::Network)?;
     tracing::info!("SNI demux listening on {}:{}", key.0, key.1);
     loop {
-        let (conn, _) = listener.accept().await.with_kind(ErrorKind::Network)?;
+        let (conn, peer) = listener.accept().await.with_kind(ErrorKind::Network)?;
         let ports = ports.clone();
         tokio::spawn(async move {
-            handle_conn(conn, key, ports).await;
+            handle_conn(conn, peer, key, ports).await;
         });
     }
 }
 
 async fn handle_conn(
     mut conn: TcpStream,
+    peer: SocketAddr,
     key: PortKey,
     ports: Arc<SyncMutex<BTreeMap<PortKey, PortBindings>>>,
 ) {
@@ -256,7 +260,11 @@ async fn handle_conn(
     let Some(target) = target else {
         return; // no match and no fallback: close
     };
-    let Ok(mut upstream) = TcpStream::connect(target).await else {
+    let SocketAddr::V4(peer) = peer else {
+        return; // IPv4-only listener; should not occur
+    };
+    // Open the internal leg from the client's own source address (RFC §4.6).
+    let Ok(mut upstream) = crate::net::transparent::transparent_connect(peer, target).await else {
         return;
     };
     if upstream.write_all(&buf).await.is_err() {

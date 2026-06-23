@@ -976,6 +976,10 @@ async fn reconcile_mangle_rules(policy_ifaces: &BTreeMap<GatewayId, u32>) -> Res
     script.push_str(
         "add rule ip startos mangle_output meta mark 0x00000000 meta mark set ct mark comment \"restore-mark\"\n",
     );
+    // Tag transparent-egress flows (non-local source = spoofed client) on their
+    // conntrack entry so the reply is diverted back into the proxy socket
+    // (net::transparent). Meta mark stays 0, so the egress leg routes normally.
+    script.push_str(&crate::net::transparent::divert_save_rule());
     for (iface, table_id) in policy_ifaces {
         script.push_str(&format!(
             "add rule ip startos mangle_prerouting iifname \"{iface}\" ct state new ct mark set {table_id} comment \"mark-{iface}\"\n",

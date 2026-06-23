@@ -835,12 +835,26 @@ where
         &'a self,
         mut prev: ServerConfig,
         hello: &'a ClientHello<'a>,
-        _: &'a <A as Accept>::Metadata,
+        metadata: &'a <A as Accept>::Metadata,
     ) -> Option<(ServerConfig, Self::PreprocessRes)> {
-        let tcp_stream = TcpStream::connect(self.addr)
-            .await
-            .with_ctx(|_| (ErrorKind::Network, self.addr))
-            .log_err()?;
+        let peer = extract::<TcpMetadata, _>(metadata).map(|m| m.peer_addr);
+        let tcp_stream = match (self.passthrough, peer, self.addr) {
+            // Passthrough (service handles its own TLS): open the internal leg
+            // from the client's own source address so the backend sees the real
+            // peer (RFC §4.6). Non-passthrough/terminating targets keep the plain
+            // connect — they don't preserve source IP.
+            (true, Some(SocketAddr::V4(client)), SocketAddr::V4(target)) => {
+                crate::net::transparent::ensure_divert_infra_once().await;
+                crate::net::transparent::transparent_connect(client, target)
+                    .await
+                    .with_ctx(|_| (ErrorKind::Network, self.addr))
+                    .log_err()?
+            }
+            _ => TcpStream::connect(self.addr)
+                .await
+                .with_ctx(|_| (ErrorKind::Network, self.addr))
+                .log_err()?,
+        };
         if let Err(e) = socket2::SockRef::from(&tcp_stream)
             .set_tcp_keepalive(&crate::net::utils::default_keepalive())
         {

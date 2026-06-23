@@ -16,6 +16,7 @@ pub mod socks;
 pub mod ssl;
 pub mod static_server;
 pub mod tls;
+pub mod transparent;
 pub mod tunnel;
 pub mod utils;
 pub mod vhost;
