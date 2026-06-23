@@ -5,16 +5,14 @@
 //! with the *client's* source address via `IP_TRANSPARENT`, so the backend sees
 //! the real peer rather than this host. Backend→client replies (addressed to the
 //! client, transiting this host as the backend's gateway) are diverted back into
-//! the proxy socket by policy routing keyed on a conntrack mark.
+//! the proxy socket by policy routing.
 //!
 //! Datapath (all in `table ip startos` / iproute2):
 //! - egress socket: `IP_TRANSPARENT`, bound to the client's `(ip, port)`.
-//! - `mangle_output` `divert-save`: tag the locally-originated egress flow (its
-//!   source is non-local — the spoofed client) with [`DIVERT_MARK`] on the
-//!   *conntrack* entry only. Meta mark stays 0, so the outbound leg still routes
-//!   to the backend via the main table.
-//! - `mangle_prerouting` `restore-mark` (already installed by the gateway
-//!   reconcile) copies the ct mark onto the reply packets' meta mark.
+//! - `mangle_prerouting` `sni-divert`: an inbound packet matching a local
+//!   `IP_TRANSPARENT` socket (i.e. a reply to such an egress) is marked with
+//!   [`DIVERT_MARK`]. Only the inbound/reply direction is touched, so the
+//!   proxy's own egress packets route to the backend normally.
 //! - `ip rule fwmark DIVERT_MARK lookup DIVERT_TABLE priority 49` + `ip route add
 //!   local 0.0.0.0/0 dev lo table DIVERT_TABLE`: deliver the marked replies
 //!   locally, into the transparent socket.
@@ -29,20 +27,23 @@ use crate::net::utils::default_keepalive;
 use crate::prelude::*;
 use crate::util::Invoke;
 
-/// Conntrack/firewall mark for transparent-egress reply diversion. Outside the
-/// gateway's per-interface `1000 + ifindex` mark space and its priority-50 rule.
+/// Firewall mark for transparent-egress reply diversion. Outside the gateway's
+/// per-interface `1000 + ifindex` mark space and its priority-50 rule.
 pub const DIVERT_MARK: u32 = 0x0054_0001;
 /// Dedicated routing table holding the local-delivery default for diverted
 /// replies. Outside the gateway's `1000 + ifindex` table space.
 pub const DIVERT_TABLE: u32 = 1344;
 
-/// `mangle_output` rule that tags the transparent-egress flow on its conntrack
-/// entry (matched by its non-local source address — the spoofed client). Spliced
-/// into the gateway's `reconcile_mangle_rules` so it survives that chain's flush.
-/// Sets only the ct mark; the outbound leg keeps meta mark 0 and routes normally.
-pub fn divert_save_rule() -> String {
+/// `mangle_prerouting` rule that marks inbound packets belonging to a local
+/// `IP_TRANSPARENT` (SNI-demux) socket — the replies to a source-preserving
+/// egress connection — so the priority-49 `ip rule` diverts them to the local
+/// table and they reach the proxy socket instead of being forwarded back out.
+/// Touches only the reply direction (the egress leg is in `output`, not here),
+/// so it cannot misroute the proxy's own outbound packets. Spliced into the
+/// gateway mangle reconcile so it survives that chain's flush.
+pub fn divert_mark_rule() -> String {
     format!(
-        "add rule ip startos mangle_output meta l4proto tcp fib saddr type != local ct state new ct mark set {DIVERT_MARK:#010x} comment \"divert-save\"\n"
+        "add rule ip startos mangle_prerouting meta l4proto tcp socket transparent 1 meta mark set {DIVERT_MARK:#010x} comment \"sni-divert\"\n"
     )
 }
 
@@ -79,8 +80,7 @@ pub async fn ensure_divert_infra_once() {
 }
 
 /// Install the iproute2 half of the reply-path divert (idempotent). The nft half
-/// (`divert-save`, plus the existing `restore-mark`) lives in the gateway mangle
-/// reconcile. Safe to call repeatedly.
+/// (`sni-divert`) lives in the gateway mangle reconcile. Safe to call repeatedly.
 pub async fn ensure_divert_infra() -> Result<(), Error> {
     let table = DIVERT_TABLE.to_string();
 
@@ -108,8 +108,8 @@ pub async fn ensure_divert_infra() -> Result<(), Error> {
             .await?;
     }
 
-    // NOTE: strict reverse-path filtering (rp_filter=1) on the egress interface
-    // may drop the asymmetric diverted replies. If VM testing shows drops, loosen
-    // that one interface to 2 (never `all`, never 0) — not done preemptively.
+    // rp_filter needs no loosening: a diverted reply's source is the backend,
+    // routable via its own ingress interface, so even strict RPF (1) accepts it
+    // (verified in a netns harness under both strict and loose).
     Ok(())
 }
