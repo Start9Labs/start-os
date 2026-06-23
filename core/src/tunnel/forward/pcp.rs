@@ -147,10 +147,17 @@ impl GatewayBackend for TunnelContext {
                                 }
                             }
                             for h in &hostnames_owned {
-                                routes.insert(
-                                    h.clone(),
-                                    SniRoute { target, label: None, enabled: true },
-                                );
+                                // A renewal must not clobber a user's edits, so
+                                // keep any existing label/enabled; a brand-new
+                                // route gets a default label marking it PCP-added.
+                                let (label, enabled) = match routes.get(h) {
+                                    Some(r) => (
+                                        r.label.clone().or_else(|| Some("PCP".into())),
+                                        r.enabled,
+                                    ),
+                                    None => (Some("PCP".into()), true),
+                                };
+                                routes.insert(h.clone(), SniRoute { target, label, enabled });
                             }
                             Ok(())
                         }

@@ -15,6 +15,8 @@ import {
   TuiCheckbox,
   TuiDialogContext,
   TuiError,
+  TuiHint,
+  TuiIcon,
   TuiInput,
   TuiNumberFormat,
 } from '@taiga-ui/core'
@@ -88,18 +90,17 @@ import { MappedDevice, PortForwardsData } from './utils'
       </tui-textfield>
       <tui-error formControlName="internalport" />
       <tui-textfield>
-        <label tuiLabel>Hostname (optional)</label>
+        <label tuiLabel>
+          Hostname (optional)
+          <tui-icon
+            icon="@tui.info"
+            [tuiHint]="hostnameHint"
+            [style.cursor]="'help'"
+            [style.font-size.rem]="0.9"
+          />
+        </label>
         <input tuiInput formControlName="sni" placeholder="host.example.com" />
       </tui-textfield>
-      <p
-        [style.font-size.rem]="0.8"
-        [style.opacity]="0.7"
-        [style.margin.rem]="0.25"
-      >
-        Only supported for SSL/TLS services — the gateway routes by the TLS SNI,
-        so several hostnames can share one external port. Leave blank for a
-        plain port forward.
-      </p>
       <tui-elastic-container>
         @if (show80) {
           <label tuiLabel>
@@ -129,6 +130,8 @@ import { MappedDevice, PortForwardsData } from './utils'
     TuiCheckbox,
     TuiValueChanges,
     TuiElasticContainer,
+    TuiHint,
+    TuiIcon,
     TuiInput,
   ],
 })
@@ -138,6 +141,9 @@ export class PortForwardsAdd {
   private readonly errorService = inject(ErrorService)
 
   show80 = false
+
+  protected readonly hostnameHint =
+    'Only supported for SSL/TLS services — the gateway routes by the TLS SNI, so several hostnames can share one external port. Leave blank for a plain port forward.'
 
   protected readonly mobile = inject(WA_IS_MOBILE)
   protected readonly context =

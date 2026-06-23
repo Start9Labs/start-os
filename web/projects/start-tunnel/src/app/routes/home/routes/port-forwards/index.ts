@@ -36,7 +36,7 @@ import { mapForwards, MappedDevice, MappedForward } from './utils'
           <th>Label</th>
           <th>External IP</th>
           <th>External Port</th>
-          <th>SNI</th>
+          <th>Hostname</th>
           <th>Device</th>
           <th>Internal Port</th>
           <th>Protocol</th>

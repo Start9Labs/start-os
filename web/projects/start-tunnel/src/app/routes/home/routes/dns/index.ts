@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  Signal,
+} from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ErrorService } from '@start9labs/shared'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
@@ -9,8 +14,9 @@ import {
   TuiSkeleton,
 } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
-import { filter } from 'rxjs'
+import { filter, map } from 'rxjs'
 import { PlaceholderComponent } from 'src/app/routes/home/components/placeholder'
+import { MappedDevice } from 'src/app/routes/home/routes/port-forwards/utils'
 import { ApiService } from 'src/app/services/api/api.service'
 import { TunnelData } from 'src/app/services/patch-db/data-model'
 
@@ -98,8 +104,26 @@ export default class Dns {
 
   protected readonly records = toSignal(this.patch.watch$('dnsRecords'))
 
+  private readonly devices: Signal<MappedDevice[]> = toSignal(
+    this.patch
+      .watch$('wg', 'subnets')
+      .pipe(
+        map(subnets =>
+          Object.values(subnets).flatMap(({ clients }) =>
+            Object.entries(clients).map(([ip, { name }]) => ({ ip, name })),
+          ),
+        ),
+      ),
+    { initialValue: [] },
+  )
+
   protected onAdd(): void {
-    this.dialogs.open(DNS_ADD, { label: 'Add DNS record' }).subscribe()
+    this.dialogs
+      .open(DNS_ADD, {
+        label: 'Add DNS record',
+        data: { devices: this.devices },
+      })
+      .subscribe()
   }
 
   protected onDelete(record: { name: string; type: string }): void {
