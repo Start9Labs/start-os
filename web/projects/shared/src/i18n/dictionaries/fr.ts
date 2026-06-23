@@ -53,7 +53,6 @@ export default {
   53: 'Score',
   54: 'Meilleur score',
   55: 'Enregistrer et quitter',
-  56: 'Ajouter cette page aux favoris',
   57: 'Arrêt initié',
   58: 'Ajouter',
   59: 'OK',
@@ -451,8 +450,7 @@ export default {
   476: 'Connexion en cours',
   477: 'Le mot de passe doit comporter moins de 65 caractères',
   478: 'Mot de passe invalide',
-  479: 'Téléchargez et faites confiance à votre certificat racine pour établir une connexion sécurisée (HTTPS). Vous devrez répéter cette opération sur chaque appareil utilisé pour vous connecter à votre serveur.',
-  480: 'Enregistrez cette page pour y accéder plus tard. Vous pouvez aussi retrouver cette adresse dans le fichier téléchargé à la fin de la configuration initiale.',
+  479: 'Téléchargez et faites confiance à votre certificat racine pour établir une connexion sécurisée (HTTPS).',
   481: 'Vous avez donné votre confiance au certificat racine avec succès et pouvez maintenant vous connecter en toute sécurité.',
   482: 'Votre serveur utilise son certificat racine pour générer des certificats SSL/TLS pour lui-même et les services installés. Ces certificats servent ensuite à chiffrer le trafic réseau avec vos appareils clients.',
   483: 'Suivez les instructions pour votre système d’exploitation. En donnant votre confiance au certificat racine, votre appareil pourra vérifier l’authenticité des communications chiffrées avec votre serveur.',
@@ -786,4 +784,5 @@ export default {
   875: 'Empaqueter un service',
   876: 'Obtenez un serveur Start9',
   877: 'Impossible de joindre la bibliothèque',
+  878: 'Vous devrez répéter cette opération sur chaque appareil utilisé pour vous connecter à votre serveur.',
 } satisfies i18n

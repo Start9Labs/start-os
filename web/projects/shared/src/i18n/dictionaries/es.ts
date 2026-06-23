@@ -53,7 +53,6 @@ export default {
   53: 'Puntuación',
   54: 'Puntuación máxima',
   55: 'Guardar y salir',
-  56: 'Marcar esta página',
   57: 'Iniciando apagado',
   58: 'Agregar',
   59: 'Ok',
@@ -451,8 +450,7 @@ export default {
   476: 'Iniciando sesión',
   477: 'La contraseña debe tener menos de 65 caracteres',
   478: 'Contraseña inválida',
-  479: 'Descarga y confía en tu Autoridad Certificadora raíz para establecer una conexión segura (HTTPS). Tendrás que repetir esto en cada dispositivo que uses para conectarte a tu servidor.',
-  480: 'Guarda esta página para poder acceder más tarde. También puedes encontrar esta dirección en el archivo descargado al final de la configuración inicial.',
+  479: 'Descarga y confía en tu Autoridad Certificadora raíz para establecer una conexión segura (HTTPS).',
   481: 'Has confiado exitosamente en tu CA raíz y ahora puedes iniciar sesión de forma segura.',
   482: 'Tu servidor usa su CA raíz para generar certificados SSL/TLS para sí mismo y los servicios instalados. Estos certificados se utilizan para cifrar el tráfico de red con tus dispositivos cliente.',
   483: 'Sigue las instrucciones para tu sistema operativo. Al confiar en tu CA raíz, tu dispositivo puede verificar la autenticidad de las comunicaciones cifradas con tu servidor.',
@@ -786,4 +784,5 @@ export default {
   875: 'Empaquetar un servicio',
   876: 'Consigue un servidor Start9',
   877: 'No se pudo acceder al registro',
+  878: 'Tendrás que repetir esto en cada dispositivo que uses para conectarte a tu servidor.',
 } satisfies i18n

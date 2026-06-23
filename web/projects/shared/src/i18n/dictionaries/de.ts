@@ -53,7 +53,6 @@ export default {
   53: 'Punktzahl',
   54: 'Bestpunktzahl',
   55: 'Speichern und beenden',
-  56: 'Diese Seite als Lesezeichen speichern',
   57: 'Herunterfahren wird eingeleitet',
   58: 'Hinzufügen',
   59: 'Ok',
@@ -451,8 +450,7 @@ export default {
   476: 'Anmeldung läuft',
   477: 'Passwort darf nicht länger als 64 Zeichen sein',
   478: 'Ungültiges Passwort',
-  479: 'Laden Sie Ihre Root-Zertifizierungsstelle herunter und vertrauen Sie ihr, um eine sichere (HTTPS-)Verbindung herzustellen. Dies müssen Sie auf jedem Gerät wiederholen, mit dem Sie eine Verbindung zum Server herstellen.',
-  480: 'Speichern Sie diese Seite, damit Sie später darauf zugreifen können. Sie finden diese Adresse auch in der Datei, die am Ende der Erstinstallation heruntergeladen wurde.',
+  479: 'Laden Sie Ihre Root-Zertifizierungsstelle herunter und vertrauen Sie ihr, um eine sichere (HTTPS-)Verbindung herzustellen.',
   481: 'Sie haben Ihrer Root-Zertifizierungsstelle erfolgreich vertraut und können sich jetzt sicher anmelden.',
   482: 'Ihr Server verwendet seine Root-Zertifizierungsstelle, um SSL/TLS-Zertifikate für sich selbst und installierte Dienste zu erstellen. Diese Zertifikate werden verwendet, um die Netzwerkverbindung mit Ihren Geräten zu verschlüsseln.',
   483: 'Befolgen Sie die Anweisungen für Ihr Betriebssystem. Wenn Sie Ihrer Root-Zertifizierungsstelle vertrauen, kann Ihr Gerät die Echtheit der verschlüsselten Kommunikation mit Ihrem Server überprüfen.',
@@ -786,4 +784,5 @@ export default {
   875: 'Einen Dienst paketieren',
   876: 'Einen Start9-Server holen',
   877: 'Register konnte nicht erreicht werden',
+  878: 'Dies müssen Sie auf jedem Gerät wiederholen, mit dem Sie eine Verbindung zum Server herstellen.',
 } satisfies i18n

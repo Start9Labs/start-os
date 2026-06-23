@@ -52,7 +52,6 @@ export const ENGLISH: Record<string, number> = {
   'Score': 53,
   'High score': 54,
   'Save and quit': 55,
-  'Bookmark this page': 56,
   'Beginning shutdown': 57,
   'Add': 58,
   'Ok': 59,
@@ -450,8 +449,7 @@ export const ENGLISH: Record<string, number> = {
   'Logging in': 476,
   'Password must be less than 65 characters': 477,
   'Invalid password': 478,
-  'Download and trust your Root Certificate Authority to establish a secure (HTTPS) connection. You will need to repeat this on every device you use to connect to your server.': 479,
-  'Save this page so you can access it later. You can also find this address in the file downloaded at the end of initial setup.': 480,
+  'Download and trust your Root Certificate Authority to establish a secure (HTTPS) connection.': 479,
   'You have successfully trusted your Root CA and may now log in securely.': 481,
   'Your server uses its Root CA to generate SSL/TLS certificates for itself and installed services. These certificates are then used to encrypt network traffic with your client devices.': 482,
   'Follow instructions for your OS. By trusting your Root CA, your device can verify the authenticity of encrypted communications with your server.': 483,
@@ -787,4 +785,5 @@ export const ENGLISH: Record<string, number> = {
   'Package a service': 875,
   'Get a Start9 server': 876,
   'Could not reach registry': 877,
+  'You will need to repeat this on every device you use to connect to your server.': 878,
 }
