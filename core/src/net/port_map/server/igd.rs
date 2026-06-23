@@ -1,14 +1,8 @@
 //! Reusable server-side UPnP IGD (WANIPConnection) protocol layer.
 //!
-//! The SSDP/SOAP codec and the three control actions (`GetExternalIPAddress`,
-//! `AddPortMapping`/`AddAnyPortMapping`, `DeletePortMapping`) live here so both
-//! the StartTunnel gateway and the StartWRT router can answer UPnP IGD requests
-//! with the same logic, each supplying its own transport (the SSDP socket + the
-//! HTTP control server) and forward backend via [`GatewayBackend`].
-//!
-//! Security model mirrors PCP: a peer can only forward to **itself** — the
-//! `NewInternalClient` in the SOAP body is ignored and the mapping target is
-//! forced to the requesting peer's own address by the caller.
+//! Security model mirrors PCP: a peer can only forward to itself — the SOAP
+//! body's `NewInternalClient` is ignored and the target is forced to the
+//! requesting peer's own address.
 
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::sync::Arc;
@@ -20,8 +14,7 @@ use crate::net::port_map::server::GatewayBackend;
 
 pub const SSDP_MULTICAST: Ipv4Addr = Ipv4Addr::new(239, 255, 255, 250);
 pub const SSDP_PORT: u16 = 1900;
-/// HTTP port that serves the device description, SCPD, and the SOAP control
-/// endpoint.
+/// HTTP port serving the device description, SCPD, and SOAP control endpoint.
 pub const IGD_HTTP_PORT: u16 = 49001;
 pub const WANIP_SERVICE: &str = "urn:schemas-upnp-org:service:WANIPConnection:1";
 pub const IGD_DEVICE: &str = "urn:schemas-upnp-org:device:InternetGatewayDevice:1";
@@ -30,9 +23,8 @@ pub const ROOT_DESC_PATH: &str = "/rootDesc.xml";
 pub const SCPD_PATH: &str = "/WANIPCn.xml";
 pub const CONTROL_PATH: &str = "/ctl/IPConn";
 
-/// Minimal WANIPConnection SCPD exposing the three actions this IGD implements.
-/// IGD clients (e.g. igd-next) read `actionList` to learn each action's input
-/// argument names before issuing a request.
+/// Minimal WANIPConnection SCPD. Clients (e.g. igd-next) read its `actionList`
+/// to learn each action's input argument names before issuing a request.
 pub const SCPD: &str = include_str!("igd_xml/scpd.xml");
 
 /// Format a 16-byte slice as a stable, well-formed UUID/UDN string.
@@ -41,8 +33,8 @@ pub fn format_uuid(bytes: &[u8]) -> String {
     for (i, slot) in b.iter_mut().enumerate() {
         *slot = bytes.get(i).copied().unwrap_or(0);
     }
-    // RFC 4122 variant/version bits aren't load-bearing here; we only need a
-    // stable, well-formed UDN derived from the server's identity.
+    // We only need a stable, well-formed UDN, so the RFC 4122 variant/version
+    // bits are left unset.
     format!(
         "{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
         b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8], b[9], b[10], b[11], b[12], b[13], b[14], b[15]
@@ -172,9 +164,7 @@ pub async fn serve_static(body: Arc<str>, content_type: &'static str) -> Respons
         .into_response()
 }
 
-/// Dispatch a SOAP control request from `peer` to the matching IGD action,
-/// using `backend` for the forward dataplane + identity. The transport supplies
-/// the already-extracted peer IP, request headers, and body.
+/// Dispatch a SOAP control request from `peer` to the matching IGD action.
 pub async fn handle_control<B: GatewayBackend + ?Sized>(
     backend: &B,
     peer: Ipv4Addr,
@@ -248,8 +238,7 @@ async fn delete_mapping<B: GatewayBackend + ?Sized>(
     };
     let source = SocketAddrV4::new(source_ip, external_port);
 
-    // Identifies the mapping by external port and only removes it if owned by
-    // this peer, so a peer can't delete (or probe for) another's mapping.
+    // Owner-scoped so a peer can't delete (or probe for) another's mapping.
     if backend.remove_forward_by_source(source, peer).await {
         ok("DeletePortMapping", "")
     } else {

@@ -1,17 +1,15 @@
 //! Shared server-side RFC 2136 (DNS UPDATE) handling, used by both StartTunnel
 //! (in this crate) and StartWRT's `startwrt-ctrld` (which imports this crate).
 //!
-//! [`DnsInjector`] is an in-memory store of injected DNS records plus the
-//! policy plug-ins each gateway supplies: an authorizer (does this source IP's
-//! per-device "allow DNS injection" toggle permit it?) and an `on_change` hook
-//! (persist the records — to PatchDb on the tunnel, to an addn-hosts file on
-//! StartWRT). [`InjectingHandler`] wraps any forwarding `RequestHandler` with
-//! it: a `Query` for an injected name is answered locally, an authorized
-//! `Update` mutates the store, and everything else is forwarded unchanged.
+//! [`DnsInjector`] is an in-memory store of injected DNS records plus per-gateway
+//! policy plug-ins: an authorizer (does this source IP's "allow DNS injection"
+//! toggle permit it?) and an `on_change` hook (persist the records — to PatchDb
+//! on the tunnel, an addn-hosts file on StartWRT). [`InjectingHandler`] wraps a
+//! forwarding `RequestHandler`: an injected-name `Query` is answered locally, an
+//! authorized `Update` mutates the store, everything else is forwarded unchanged.
 //!
-//! Authorization is by **source IP only** (no TSIG): a device is trusted to
-//! inject or it isn't. Manual CRUD via [`DnsInjector::upsert`] /
-//! [`DnsInjector::delete`] bypasses the authorizer (it's an admin action).
+//! Authorization is by **source IP only** (no TSIG). Manual CRUD via
+//! [`DnsInjector::upsert`] / [`DnsInjector::delete`] bypasses the authorizer.
 
 use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -36,13 +34,13 @@ pub struct InjectedRecord {
     pub rtype: RecordType,
     pub rdata: RData,
     pub ttl: u32,
-    /// The device IP that injected this (empty/unspecified for manual entries).
+    /// Device IP that injected this; unspecified for manual entries.
     pub source: IpAddr,
 }
 
 impl InjectedRecord {
-    /// Render to the (name, type, value, ttl, source) text form gateways
-    /// persist and show. `source` is `None` for a manual record.
+    /// Render to the text form gateways persist and show; `source` is `None`
+    /// for a manual record.
     pub fn to_parts(&self) -> (String, String, String, u32, Option<IpAddr>) {
         let source = if self.source.is_unspecified() {
             None
@@ -58,8 +56,8 @@ impl InjectedRecord {
         )
     }
 
-    /// Parse the text form back into a record. `source` is the injecting
-    /// device (use `Ipv4Addr::UNSPECIFIED` for a manual record).
+    /// Parse the text form back into a record; pass `Ipv4Addr::UNSPECIFIED`
+    /// as `source` for a manual record.
     pub fn from_parts(
         name: &str,
         rtype: &str,
@@ -131,7 +129,7 @@ impl DnsInjector {
         })
     }
 
-    /// Every injected record, in a stable order.
+    /// Every injected record, in stable order.
     pub fn list(&self) -> Vec<InjectedRecord> {
         self.records
             .peek(|m| m.values().flatten().cloned().collect())
@@ -238,8 +236,8 @@ impl DnsInjector {
 }
 
 /// Wraps a forwarding `Catalog` with injected-record answering and authorized
-/// RFC 2136 UPDATE handling. Both gateways forward non-injected queries through
-/// a `Catalog` (a `ForwardZoneHandler` pointed at their upstream / dnsmasq).
+/// RFC 2136 UPDATE handling. Non-injected queries fall through to the `Catalog`
+/// (a `ForwardZoneHandler` pointed at upstream / dnsmasq).
 pub struct InjectingHandler {
     injector: Arc<DnsInjector>,
     forwarder: Catalog,
@@ -278,9 +276,8 @@ impl RequestHandler for InjectingHandler {
     ) -> ResponseInfo {
         match request.metadata.op_code {
             OpCode::Update => {
-                // The update RRs live in the authority section; re-decode the
-                // raw message to read them (MessageRequest only exposes the
-                // query/zone section).
+                // Re-decode the raw message: MessageRequest hides the authority
+                // section where the update RRs live.
                 let code = match hickory_server::proto::op::Message::from_vec(request.as_slice()) {
                     Ok(msg) => self.injector.apply_update(request.src().ip(), &msg.authorities),
                     Err(_) => ResponseCode::FormErr,

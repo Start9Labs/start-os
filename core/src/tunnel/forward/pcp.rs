@@ -1,11 +1,10 @@
-//! Server-side PCP for StartTunnel: the WireGuard-bound socket + serve loop,
-//! plus the [`GatewayBackend`] impl that maps PCP forwards onto nftables +
-//! PatchDb. The protocol core (RFC 6887 + the HOSTNAME and PORT_SET extensions)
-//! is shared in [`crate::net::port_map::server`].
+//! Server-side PCP for StartTunnel: the WireGuard-bound socket + serve loop and
+//! the [`GatewayBackend`] impl mapping PCP forwards onto nftables + PatchDb. The
+//! protocol core (RFC 6887 + HOSTNAME/PORT_SET extensions) lives in
+//! [`crate::net::port_map::server`].
 //!
 //! The socket is `SO_BINDTODEVICE`-bound to the WireGuard interface, so the PCP
-//! server is never reachable from the VPS's public interface, and only
-//! configured peers are honored.
+//! server is never reachable from the VPS's public interface.
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddrV4};
 use std::sync::Arc;
@@ -66,9 +65,8 @@ async fn serve(ctx: &TunnelContext, started: Instant) -> Result<(), Error> {
     }
 }
 
-/// Maps the shared PCP server's forward operations onto the tunnel's nftables
-/// forwards + PatchDb. A peer can only forward to its own tunnel IP (enforced by
-/// the caller passing `target = peer`).
+/// Maps PCP forward operations onto the tunnel's nftables forwards + PatchDb. A
+/// peer can only forward to its own tunnel IP (caller passes `target = peer`).
 #[async_trait::async_trait]
 impl GatewayBackend for TunnelContext {
     async fn add_forward(
@@ -127,10 +125,9 @@ impl GatewayBackend for TunnelContext {
         hostnames: &[String],
         _lifetime: Option<u32>,
     ) -> Result<(), u8> {
-        // Persist first so the DB is the source of truth: reject a DNAT-occupied
-        // port or a hostname already owned by a different target BEFORE touching
-        // the dataplane. Registering first risked a rollback (on a transient DB
-        // error during a client's refresh) tearing down a still-valid binding.
+        // Persist first (DB is source of truth): reject a DNAT-occupied port or a
+        // foreign-owned hostname before touching the dataplane. Registering first
+        // risked a rollback on a transient DB error tearing down a valid binding.
         let hostnames_owned = hostnames.to_vec();
         let persisted = self
             .db
@@ -171,8 +168,8 @@ impl GatewayBackend for TunnelContext {
         if persisted.is_err() {
             return Err(crate::net::port_map::pcp::hostname::RESULT_HOSTNAME_TAKEN);
         }
-        // Mirror into the dataplane (the DB already validated ownership). On the
-        // unexpected register failure, undo the DB routes we just added.
+        // Mirror into the dataplane; on the unexpected register failure undo the
+        // DB routes we just added.
         if self
             .sni()
             .register(*source.ip(), source.port(), hostnames, target, None)
@@ -208,9 +205,8 @@ impl GatewayBackend for TunnelContext {
     }
 }
 
-/// Remove the peer's forward to `(peer, internal_port)`, if any. PCP identifies
-/// a mapping by (protocol, internal port, client); we forward both protocols on
-/// one entry, so match by target.
+/// Remove the peer's forward to `(peer, internal_port)`, if any. We forward both
+/// protocols on one entry, so match by target rather than PCP's (proto, port, client).
 async fn remove_peer_forward(ctx: &TunnelContext, peer: Ipv4Addr, internal_port: u16) {
     let target = SocketAddrV4::new(peer, internal_port);
     let source = ctx

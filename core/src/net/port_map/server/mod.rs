@@ -1,13 +1,8 @@
 //! Reusable server-side PCP (RFC 6887 + the HOSTNAME and PORT_SET extensions).
 //!
-//! The protocol core lives here so both the StartTunnel gateway and the
-//! StartWRT router can answer PCP MAP requests with the same logic while each
-//! supplies its own I/O (sockets) and forward backend (nftables for the tunnel,
-//! UCI firewall redirects for the router) through [`GatewayBackend`].
-//!
-//! Security model: a MAP creates a mapping for the *requesting* host — the
-//! target is forced to the source (peer) address, so a peer can only forward to
-//! itself. Authorization is delegated to the backend ([`GatewayBackend::is_known_client`]).
+//! Security model: a MAP forces the target to the *requesting* peer's own
+//! address, so a peer can only forward to itself; authorization is delegated to
+//! [`GatewayBackend::is_known_client`].
 
 pub mod igd;
 
@@ -52,8 +47,8 @@ const MAX_PORT_SET: u16 = 1024;
 pub trait GatewayBackend: Send + Sync {
     /// Create or refresh a forward of `count` contiguous ports from `source`
     /// (the external address) to `target`, on behalf of `peer`. `Err(code)` is
-    /// the UPnP/IGD error code for the failure (e.g. 718 ConflictInMappingEntry,
-    /// 501 Action Failed); the PCP server maps any error to NO_RESOURCES.
+    /// the UPnP/IGD error code (e.g. 718 ConflictInMappingEntry); PCP maps any
+    /// error to NO_RESOURCES.
     async fn add_forward(
         &self,
         source: SocketAddrV4,
@@ -66,10 +61,10 @@ pub trait GatewayBackend: Send + Sync {
     /// identifies a mapping by its target).
     async fn remove_forward(&self, peer: Ipv4Addr, internal_port: u16);
 
-    /// Remove the forward at external address `source` if it is owned by `peer`
-    /// (UPnP IGD identifies a mapping by its external port). Returns whether a
-    /// peer-owned forward was removed — `false` means "no such mapping", which
-    /// the IGD server reports without revealing other peers' mappings.
+    /// Remove the forward at external address `source` if owned by `peer` (UPnP
+    /// IGD identifies a mapping by its external port). Returns whether a
+    /// peer-owned forward was removed; `false` means "no such mapping", reported
+    /// without revealing other peers' mappings.
     async fn remove_forward_by_source(&self, source: SocketAddrV4, peer: Ipv4Addr) -> bool;
 
     /// The external (WAN) IPv4 the gateway routes `peer`'s egress out of, or
@@ -84,8 +79,8 @@ pub trait GatewayBackend: Send + Sync {
 
     /// Register SNI-demuxed hostname routes on `source` (the shared external
     /// address) to `target`, owned by `target`. `lifetime` is `None` for a
-    /// permanent (DB-backed) binding. Default: dataplane-only (the tunnel
-    /// overrides this to also persist the routes).
+    /// permanent (DB-backed) binding. Default impl is dataplane-only; the tunnel
+    /// overrides it to also persist the routes.
     async fn add_sni_forward(
         &self,
         source: SocketAddrV4,
@@ -110,8 +105,8 @@ fn ipv4_mapped(ip: Ipv4Addr) -> [u8; 16] {
     out
 }
 
-/// A bare header-only response carrying just a result code (used for
-/// version/opcode errors before the request body is trusted).
+/// Header-only result-code response, for version/opcode errors raised before
+/// the request body is trusted.
 fn error_response(opcode: u8, result: u8, epoch: u32) -> Vec<u8> {
     let mut r = vec![0u8; HEADER_LEN];
     r[0] = PCP_VERSION;
@@ -137,7 +132,6 @@ fn map_response(
     r[3] = result;
     r[4..8].copy_from_slice(&lifetime.to_be_bytes());
     r[8..12].copy_from_slice(&epoch.to_be_bytes());
-    // Echo the 12-byte mapping nonce and the protocol from the request.
     r[24..36].copy_from_slice(&req[24..36]);
     r[36] = req[36];
     r[40..42].copy_from_slice(&internal_port.to_be_bytes());
@@ -146,9 +140,8 @@ fn map_response(
     r
 }
 
-/// A MAP response that echoes back the granted HOSTNAME options (RFC echoes
-/// successfully-processed options). The base response is 32-bit aligned, so the
-/// appended options stay aligned.
+/// A MAP response echoing the granted HOSTNAME options. The base response is
+/// 32-bit aligned, so the appended options stay aligned.
 fn map_response_with_hostnames(
     result: u8,
     req: &[u8],
@@ -175,8 +168,7 @@ fn map_response_with_hostnames(
 }
 
 /// A MAP response echoing the granted PORT_SET (RFC 7753): the opcode's
-/// external port is the first port of the granted range and the option carries
-/// the granted size.
+/// external port is the first port of the range; the option carries its size.
 fn map_response_with_port_set(
     result: u8,
     req: &[u8],
@@ -219,7 +211,6 @@ pub async fn handle<B: GatewayBackend + ?Sized>(
         return None;
     }
     let opcode = req[1] & 0x7f;
-    // Ignore responses (R bit set) and only handle requests.
     if req[1] & RESPONSE_BIT != 0 {
         return None;
     }
@@ -233,7 +224,6 @@ pub async fn handle<B: GatewayBackend + ?Sized>(
         return Some(error_response(opcode, MALFORMED_REQUEST, epoch));
     }
 
-    // Peer authorization: only a configured client may map.
     if !backend.is_known_client(peer).await {
         return Some(map_response(NOT_AUTHORIZED, req, 0, 0, Ipv4Addr::UNSPECIFIED, 0, epoch));
     }
@@ -271,9 +261,8 @@ pub async fn handle<B: GatewayBackend + ?Sized>(
         ));
     }
 
-    // PCP HOSTNAME extension: if the request carries HOSTNAME option(s), this is
-    // a SNI-demultiplexed binding on a shared external port — handled by the SNI
-    // demux dataplane, not a forward.
+    // HOSTNAME options mean a SNI-demuxed binding on a shared external port,
+    // handled by the SNI demux dataplane rather than a forward.
     let hostnames = match parse_hostname_options(req.get(MAP_REQUEST_LEN..).unwrap_or(&[])) {
         Ok(h) => h,
         Err(()) => {
@@ -300,8 +289,7 @@ pub async fn handle<B: GatewayBackend + ?Sized>(
                 epoch,
             ));
         }
-        // The route is owned by the requesting peer's own address; the response
-        // echoes the request's nonce verbatim via `map_response`.
+        // Force the route target to the requesting peer's own address.
         let target = SocketAddrV4::new(peer, internal_port);
         if lifetime == 0 {
             backend

@@ -1,15 +1,14 @@
 //! Best-effort automatic port mapping on a public address's upstream gateway.
 //!
-//! Prioritizes PCP (RFC 6887), falling back to NAT-PMP, then UPnP IGD — the
-//! same code path covers a home router and a StartTunnel gateway (which speaks
-//! PCP over WireGuard, see [`crate::tunnel::forward::pcp`]). PCP/NAT-PMP are handled by
-//! the `crab_nat` crate; UPnP by [`crate::net::port_map::upnp`].
+//! Tries PCP (RFC 6887), then NAT-PMP, then UPnP IGD — one code path for a home
+//! router and a StartTunnel gateway (PCP over WireGuard, see
+//! [`crate::tunnel::forward::pcp`]). PCP/NAT-PMP via `crab_nat`, UPnP via
+//! [`crate::net::port_map::upnp`].
 //!
-//! Everything here is best-effort: a gateway that supports none of these (or
-//! has them disabled) just means the user falls back to a manual port forward,
-//! so failures are logged, never surfaced to the (nftables) forward reconcile.
-//! `ensure`/`remove` are fire-and-forget sends so a slow or absent gateway
-//! never blocks the forward path.
+//! All best-effort: failures are logged, never surfaced to the nftables forward
+//! reconcile, so a gateway with none of these just falls back to a manual
+//! forward. `ensure`/`remove` are fire-and-forget sends so a slow or absent
+//! gateway never blocks the forward path.
 
 use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr};
@@ -31,26 +30,23 @@ use crate::prelude::*;
 /// Re-assert/renew every desired mapping on this cadence (well under the PCP
 /// lease, and enough to recover a UPnP mapping lost to a gateway reboot).
 const REFRESH_INTERVAL: Duration = Duration::from_secs(180);
-/// On-demand retry floor for a desired-but-not-active mapping: an ensure() for a
-/// mapping whose last apply failed retries at most this often, so a reconcile
-/// burst can't busy-loop slow applies, while boot / tunnel-restart races recover
-/// in seconds instead of waiting for the 180s refresh.
+/// Retry floor for a desired-but-not-active mapping, so a reconcile burst can't
+/// busy-loop a failing apply yet boot/tunnel-restart races still recover in
+/// seconds rather than waiting for the 180s refresh.
 const RETRY_INTERVAL: Duration = Duration::from_secs(15);
 const GATEWAY_CACHE_TTL: Duration = Duration::from_secs(600);
 const PCP_LIFETIME_SECONDS: u32 = 3600;
-/// Keep PCP/NAT-PMP attempts snappy: a gateway that doesn't speak them should
-/// fail fast so we move on to UPnP, rather than the crate's multi-minute RFC
-/// backoff.
+/// Fail fast onto UPnP instead of the crate's multi-minute RFC backoff when a
+/// gateway doesn't speak PCP/NAT-PMP.
 const PCP_TIMEOUTS: TimeoutConfig = TimeoutConfig {
     initial_timeout: Duration::from_millis(250),
     max_retries: 1,
     max_retry_timeout: Some(Duration::from_secs(1)),
 };
 
-/// (local interface IP we map from, external port, optional SNI hostname). The
-/// hostname is part of the mapping's identity: many hostnames share one external
-/// port via the gateway's SNI demux, each an independent mapping with its own
-/// lease, so adding or removing one hostname never tears down the others.
+/// (local IP, external port, optional SNI hostname). Hostname is part of the
+/// identity: many hostnames share one external port via gateway SNI demux, each
+/// an independent mapping, so adding/removing one never tears down the others.
 type MappingKey = (Ipv4Addr, u16, Option<String>);
 
 /// Candidate PCP/NAT-PMP servers for a gateway interface: the NM default
@@ -65,11 +61,9 @@ pub fn candidate_gateways(info: &NetworkInterfaceInfo) -> Vec<Ipv4Addr> {
     };
     if let Some(ip_info) = &info.ip_info {
         for ip in &ip_info.lan_ip {
-            // Only a gateway that lives on one of this interface's own subnets
-            // can port-forward for it. NetworkManager may report a default-route
-            // gateway that belongs to a *different* interface (e.g. the LAN
-            // router inherited by a WireGuard link), which must not be probed —
-            // that's what made a tunnel-bound forward try the LAN router.
+            // Only a gateway on one of this interface's own subnets can forward
+            // for it; NM may report a default-route gateway belonging to another
+            // interface (e.g. the LAN router inherited by a WireGuard link).
             if let IpAddr::V4(v4) = ip {
                 if ip_info.subnets.iter().any(|s| s.contains(ip)) {
                     push(*v4);
@@ -89,11 +83,9 @@ pub fn candidate_gateways(info: &NetworkInterfaceInfo) -> Vec<Ipv4Addr> {
 struct Spec {
     internal_port: u16,
     gateways: Vec<Ipv4Addr>,
-    /// Number of contiguous ports to map via the PCP PORT_SET option (RFC 7753);
-    /// `1` is an ordinary single-port mapping. When `> 1` the mapping is
-    /// PCP-only and is skipped entirely on gateways that don't grant the full
-    /// range (UPnP/NAT-PMP can't map ranges). Always `1` for a HOSTNAME mapping
-    /// (the hostname lives in the key).
+    /// Contiguous ports to map via PCP PORT_SET (RFC 7753); `1` is single-port.
+    /// `> 1` is PCP-only and skipped where the gateway won't grant the full
+    /// range (UPnP/NAT-PMP can't map ranges). Always `1` for HOSTNAME mappings.
     count: u16,
 }
 
@@ -110,9 +102,9 @@ enum Command {
     Remove {
         key: MappingKey,
     },
-    /// Query the gateway-assigned external IP for any active mapping on
-    /// `(local_ip, external_port)` (used to confirm reachability without a
-    /// remote echo service). `None` if not mapped or the external IP is unknown.
+    /// Gateway-assigned external IP for an active mapping on
+    /// `(local_ip, external_port)`, to confirm reachability without a remote
+    /// echo. `None` if not mapped or the external IP is unknown.
     ExternalIp {
         local_ip: Ipv4Addr,
         external_port: u16,
@@ -128,8 +120,8 @@ pub struct PortMapController {
 impl PortMapController {
     pub fn new() -> Self {
         let (req, mut recv) = mpsc::unbounded_channel::<Command>();
-        // Detached daemon: plain `tokio::spawn` does not abort on handle drop;
-        // the loop exits once every clone is dropped (all senders gone).
+        // Detached: `tokio::spawn` won't abort on drop; loop exits when all
+        // senders are gone.
         tokio::spawn(async move {
             let mut state = State::default();
             let mut refresh = interval(REFRESH_INTERVAL);
@@ -169,10 +161,9 @@ impl PortMapController {
         self.send_ensure(local_ip, external_port, internal_port, gateways, None, 1);
     }
 
-    /// Like [`ensure`](Self::ensure) but binds a single FQDN via the PCP HOSTNAME
-    /// option so the gateway SNI-demultiplexes this external port. The hostname
-    /// is part of the mapping identity, so each one is an independent mapping
-    /// sharing the port. PCP-only (no NAT-PMP/UPnP fallback).
+    /// Like [`ensure`](Self::ensure) but binds one FQDN via PCP HOSTNAME so the
+    /// gateway SNI-demuxes this external port. PCP-only; each hostname is an
+    /// independent mapping sharing the port.
     pub fn ensure_hostname(
         &self,
         local_ip: Ipv4Addr,
@@ -237,10 +228,9 @@ impl PortMapController {
             .ok();
     }
 
-    /// The gateway-assigned external IP if an automatic mapping is currently
-    /// active for `(local_ip, external_port)`, else `None`. A `Some` result
-    /// means the port was forwarded automatically (PCP/NAT-PMP/UPnP), so a
-    /// remote reachability check can be skipped.
+    /// Gateway-assigned external IP if a mapping is active for
+    /// `(local_ip, external_port)`, else `None`. `Some` means the port was
+    /// forwarded automatically, so a remote reachability check can be skipped.
     pub async fn mapped_external_ip(
         &self,
         local_ip: Ipv4Addr,
@@ -282,11 +272,9 @@ impl State {
                 || s.count != spec.count
         });
         self.desired.insert(key.clone(), spec);
-        // (Re)apply on a genuine spec change, or to retry a mapping that isn't
-        // active yet (a failed first apply at boot, or one the gateway dropped)
-        // — but rate-limit that retry to RETRY_INTERVAL per key so a reconcile
-        // burst can't busy-loop a mapping the gateway can't satisfy. `apply`
-        // stamps `last_attempt`; the 180s refresh is the slow safety net.
+        // Reapply on a spec change, or to retry a not-yet-active mapping — but
+        // rate-limited to RETRY_INTERVAL per key so a reconcile burst can't
+        // busy-loop one the gateway can't satisfy.
         let stale = !self.active.contains_key(&key)
             && self
                 .last_attempt
@@ -314,8 +302,8 @@ impl State {
                         self.apply(key).await;
                     }
                 }
-                // UPnP has no lease to renew, but a gateway reboot may have
-                // dropped it; re-assert. `None` retries a prior failure.
+                // UPnP has no lease; re-assert in case a gateway reboot dropped
+                // it. `None` retries a prior failure.
                 Some(Active::Upnp { .. }) | None => {
                     self.teardown(key.clone()).await;
                     self.apply(key).await;
@@ -348,9 +336,8 @@ impl State {
         let Some(spec) = self.desired.get(&key).cloned() else {
             return;
         };
-        // Stamp before attempting so a permanently-failing mapping is
-        // rate-limited (not just successful ones) — both ensure() and refresh()
-        // reach here.
+        // Stamp before attempting so a permanently-failing mapping is also
+        // rate-limited, not just successful ones.
         self.last_attempt.insert(key.clone(), Instant::now());
         let (local_ip, external_port, hostname) = (key.0, key.1, key.2.clone());
         let (Some(ext), Some(intl)) = (
@@ -360,10 +347,8 @@ impl State {
             return;
         };
 
-        // A HOSTNAME (SNI-demux) mapping: the hostname is part of the identity,
-        // so this is one independent PCP-only mapping (NAT-PMP/UPnP can't demux
-        // by SNI, so there is no fallback). Other hostnames on the same external
-        // port are separate mappings and are untouched.
+        // HOSTNAME (SNI-demux) mapping: PCP-only, since NAT-PMP/UPnP can't demux
+        // by SNI. Other hostnames on the same port are separate mappings.
         if let Some(hostname) = &hostname {
             let options = [pcp::PcpOption {
                 code: OPTION_HOSTNAME,
@@ -402,11 +387,9 @@ impl State {
             return;
         }
 
-        // Range mappings carry the PCP PORT_SET option (RFC 7753) and are
-        // PCP-only: UPnP/NAT-PMP can't map ranges. A gateway that doesn't
-        // support PORT_SET silently maps a single port, which we detect (the
-        // granted size is missing or short) and skip rather than forward a
-        // partial range.
+        // Range mapping via PCP PORT_SET (RFC 7753), PCP-only. A gateway lacking
+        // PORT_SET silently maps a single port; detect the missing/short grant
+        // and skip rather than forward a partial range.
         if spec.count > 1 {
             let want = spec.count;
             let option = pcp::PcpOption {
@@ -512,9 +495,8 @@ impl State {
             None => false,
         };
         if added {
-            // Best-effort external IP so a reachability check can short-circuit
-            // (a local IGD query, not a remote echo service). Private/CGNAT
-            // results are discarded by `get_external_ipv4`.
+            // Best-effort external IP (local IGD query) so a reachability check
+            // can short-circuit; `get_external_ipv4` discards private/CGNAT.
             let external_ip = upnp::get_external_ipv4(local_ip).await.ok().flatten();
             self.active.insert(key, Active::Upnp { external_ip });
         } else {
@@ -549,8 +531,8 @@ mod tests {
     use super::*;
 
     fn spec() -> Spec {
-        // No gateways: apply() iterates an empty candidate list and does no
-        // network I/O, so these tests exercise the keying/identity logic only.
+        // No gateways: apply() does no network I/O, so these tests exercise the
+        // keying/identity logic only.
         Spec {
             internal_port: 443,
             gateways: Vec::new(),
@@ -558,9 +540,8 @@ mod tests {
         }
     }
 
-    // The hostname is part of a mapping's identity: distinct hostnames on the
-    // same external port are independent mappings, and removing one (or adding a
-    // plain non-SNI mapping) never clobbers the others.
+    // Distinct hostnames on the same external port are independent mappings;
+    // removing one (or adding a plain mapping) never clobbers the others.
     #[tokio::test]
     async fn distinct_hostnames_share_a_port_without_clobbering() {
         let ip = Ipv4Addr::new(10, 59, 0, 2);

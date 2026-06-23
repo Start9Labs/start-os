@@ -1,8 +1,7 @@
-//! UPnP IGD client helpers — the fallback port-mapping protocol behind PCP /
-//! NAT-PMP (see [`crate::net::port_map`]). Discovery is bound to the local
-//! address on the gateway interface, so the SSDP M-SEARCH leaves via that
-//! gateway; this covers a home router (a real IGD) and a StartTunnel gateway
-//! (which implements an IGD over WireGuard, see [`crate::tunnel::forward::igd`]).
+//! UPnP IGD client helpers — the fallback behind PCP/NAT-PMP (see
+//! [`crate::net::port_map`]). Discovery binds to the gateway interface's local
+//! address so the SSDP M-SEARCH leaves via that gateway, covering a home router
+//! and a StartTunnel IGD over WireGuard (see [`crate::tunnel::forward::igd`]).
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
@@ -78,9 +77,9 @@ pub async fn remove_port(gateway: &Gateway<Tokio>, external_port: u16) -> Result
     }
 }
 
-/// A WAN address worth reporting: a real, routable public IPv4. A gateway
-/// behind CGNAT (or double NAT) reports a private external IP, which is useless
-/// for clearnet, so reject it and let the caller fall back to an echoip probe.
+/// Whether `ip` is a routable public IPv4 worth reporting. A gateway behind
+/// CGNAT/double-NAT reports a private external IP, useless for clearnet, so the
+/// caller falls back to an echoip probe.
 pub(crate) fn is_wan_candidate(ip: Ipv4Addr) -> bool {
     !(ip.is_unspecified()
         || ip.is_loopback()
@@ -91,17 +90,13 @@ pub(crate) fn is_wan_candidate(ip: Ipv4Addr) -> bool {
         || ip.octets()[0] == 0)
 }
 
-/// Ask the IGD reachable from `local_ip` for its external IPv4 (UPnP
-/// `GetExternalIPAddress`). `Ok(None)` means the gateway answered but with no
-/// usable public address — in particular, a private/CGNAT external IP is
-/// discarded so the caller falls back to an echoip query (which sees the real
-/// public IP from outside the NAT).
+/// External IPv4 of the IGD reachable from `local_ip` (UPnP
+/// `GetExternalIPAddress`). `Ok(None)` means no usable public address — a
+/// private/CGNAT result is discarded so the caller falls back to an echoip query.
 pub async fn get_external_ipv4(local_ip: Ipv4Addr) -> Result<Option<Ipv4Addr>, Error> {
     let gateway = discover(local_ip).await?;
     match tokio::time::timeout(CONTROL_TIMEOUT, gateway.get_external_ip()).await {
         Ok(Ok(IpAddr::V4(ip))) if is_wan_candidate(ip) => Ok(Some(ip)),
-        // A non-public (private/CGNAT) external IP is discarded so the caller
-        // falls back to an echoip query.
         Ok(Ok(_)) => Ok(None),
         Ok(Err(e)) => Err(Error::new(
             eyre!("UPnP GetExternalIPAddress failed: {e}"),

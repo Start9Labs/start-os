@@ -1,17 +1,11 @@
-//! Server-side UPnP IGD for StartTunnel, offered to connected WireGuard peers.
+//! Server-side UPnP IGD for StartTunnel. The tunnel answers UPnP IGD requests
+//! over the WireGuard interface, so a client's UPnP code path
+//! ([`crate::net::port_map::upnp`]) is identical behind a router and a tunnel.
 //!
-//! A StartOS client behind a StartTunnel gateway opens its public ports the
-//! same way it would behind a home router: UPnP IGD (`GetExternalIPAddress` /
-//! `AddPortMapping` / `DeletePortMapping`). This module makes the tunnel answer
-//! those requests over the WireGuard interface, so the client's UPnP code path
-//! (see [`crate::net::port_map::upnp`]) is identical for a router and a tunnel.
-//!
-//! Secure mode: the IGD is reachable **only** over the WireGuard interface
-//! (sockets are `SO_BINDTODEVICE`-bound to it) and only honors requests from a
-//! configured peer. Crucially, a peer can only forward to **itself** — the
-//! `NewInternalClient` in the SOAP body is ignored and the mapping target is
-//! forced to the requesting peer's own tunnel IP. So, unlike classic UPnP, a
-//! peer cannot open a port to any other host.
+//! The IGD is reachable only over WireGuard (`SO_BINDTODEVICE`-bound sockets) and
+//! only honors configured peers. Unlike classic UPnP, a peer can only forward to
+//! **itself**: the SOAP `NewInternalClient` is ignored and the target is forced
+//! to the requesting peer's own tunnel IP.
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 #[cfg(target_os = "linux")]
@@ -57,10 +51,6 @@ async fn device_uuid(ctx: &TunnelContext) -> Result<String, Error> {
     let key = ctx.db.peek().await.as_wg().as_key().de()?.verifying_key();
     Ok(format_uuid(key.0.as_bytes()))
 }
-
-// ---------------------------------------------------------------------------
-// SSDP discovery responder
-// ---------------------------------------------------------------------------
 
 async fn ssdp_server(ctx: TunnelContext, uuid: String) {
     loop {
@@ -136,10 +126,6 @@ pub(super) async fn subnet_gateway_for(ctx: &TunnelContext, peer: Ipv4Addr) -> O
     })
 }
 
-// ---------------------------------------------------------------------------
-// HTTP: device description, SCPD, SOAP control
-// ---------------------------------------------------------------------------
-
 async fn http_server(ctx: TunnelContext, root_desc: Arc<str>) {
     let app = Router::new()
         .route(ROOT_DESC_PATH, get(move || serve_static(root_desc.clone(), "text/xml")))
@@ -182,16 +168,14 @@ fn igd_http_listener() -> Result<TcpListener, Error> {
     TcpListener::from_std(socket.into()).with_kind(ErrorKind::Network)
 }
 
-/// `SO_BINDTODEVICE` to the WireGuard interface so the socket only ever sees
-/// tunnel traffic — never the VPS's public interface. This is what keeps the
-/// IGD private to authenticated peers. The tunnel server only runs on Linux;
-/// the stub below keeps the `core` lib compiling for the other CI targets
+/// `SO_BINDTODEVICE` to the WireGuard interface so the socket never sees the
+/// VPS's public interface — this is what keeps the IGD private to peers. The
+/// non-linux stub below only exists to compile `core` on other CI targets
 /// (apple-darwin lacks `SO_BINDTODEVICE`) and is never reached at runtime.
 #[cfg(target_os = "linux")]
 pub(super) fn bind_to_wireguard(socket: &Socket) -> Result<(), Error> {
     let name = WIREGUARD_INTERFACE_NAME.as_bytes();
-    // SAFETY: valid fd from `socket`; `name` is a valid byte slice and `len` is
-    // its length; SO_BINDTODEVICE copies the bytes.
+    // SAFETY: fd from `socket`; `name`/`len` describe a valid slice that SO_BINDTODEVICE copies.
     let ret = unsafe {
         libc::setsockopt(
             socket.as_raw_fd(),
@@ -242,9 +226,8 @@ pub(super) async fn apply_peer_forward(
     apply_peer_forward_range(ctx, source, target, 1, peer, "UPnP").await
 }
 
-/// Like [`apply_peer_forward`] but forwards `count` contiguous ports starting at
-/// `source.port()`/`target.port()` (a PCP PORT_SET range). `protocol_label` is
-/// the human label prefix recorded in the DB (e.g. "UPnP" or "PCP").
+/// Like [`apply_peer_forward`] but forwards `count` contiguous ports (a PCP
+/// PORT_SET range). `protocol_label` prefixes the DB label (e.g. "UPnP", "PCP").
 pub(super) async fn apply_peer_forward_range(
     ctx: &TunnelContext,
     source: SocketAddrV4,
@@ -264,8 +247,8 @@ pub(super) async fn apply_peer_forward_range(
             return Err(718); // ConflictInMappingEntry
         }
         Some(PortForward::Dnat { .. }) => {
-            // Idempotent re-assert (the client refreshes periodically): make
-            // sure the nft forward is actually installed, then we're done.
+            // Idempotent re-assert from the client's periodic refresh: ensure the
+            // nft forward is actually installed.
             let active = ctx.active_forwards.mutate(|m| m.contains_key(&source));
             if !active {
                 let prefix = prefix_for(ctx, target.ip()).await;
@@ -320,15 +303,14 @@ pub(super) async fn is_known_client(ctx: &TunnelContext, peer: Ipv4Addr) -> bool
     subnet_gateway_for(ctx, peer).await.is_some()
 }
 
-/// The external (WAN) IPv4 `peer`'s egress is routed out of: the assigned WAN
-/// for its subnet/device if any, else the gateway's default WAN.
+/// The WAN IPv4 `peer`'s egress uses: its assigned WAN if pinned, else the
+/// gateway's default WAN.
 pub(in crate::tunnel) async fn external_ipv4(ctx: &TunnelContext, peer: Ipv4Addr) -> Option<Ipv4Addr> {
     assigned_wan_for(ctx, peer).await.or_else(|| default_wan(ctx))
 }
 
-/// The first usable WAN candidate across the gateway's non-loopback, non-wg
-/// interfaces. This is the egress used when neither the peer's device nor its
-/// subnet pins a `wan_ip`.
+/// First usable WAN candidate across the gateway's non-loopback, non-wg
+/// interfaces — the egress when no `wan_ip` is pinned for the peer or its subnet.
 fn default_wan(ctx: &TunnelContext) -> Option<Ipv4Addr> {
     ctx.net_iface.peek(|ifaces| {
         ifaces.iter().find_map(|(id, info)| {
@@ -352,8 +334,7 @@ fn default_wan(ctx: &TunnelContext) -> Option<Ipv4Addr> {
     })
 }
 
-/// The WAN IP pinned for `peer` — its device override if set, else its subnet's
-/// `wan_ip`. `None` if `peer` isn't a configured client or nothing is pinned.
+/// The WAN IP pinned for `peer`: its device override, else its subnet's `wan_ip`.
 async fn assigned_wan_for(ctx: &TunnelContext, peer: Ipv4Addr) -> Option<Ipv4Addr> {
     let subnets = ctx.db.peek().await.as_wg().as_subnets().de().ok()?;
     subnets.0.values().find_map(|cfg| {

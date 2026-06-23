@@ -1,28 +1,22 @@
-//! PCP `HOSTNAME` option (RFC 6887 extension — "PCP Hostname Extension for
-//! SNI-Demultiplexed Port Mappings"). Lets an internal host associate FQDNs
-//! with a MAP request so a gateway can demultiplex inbound TLS on a shared
-//! external port (e.g. 443) by the SNI in the ClientHello.
+//! PCP `HOSTNAME` option (RFC 6887 extension): associates FQDNs with a MAP
+//! request so a gateway can SNI-demultiplex inbound TLS on a shared external
+//! port (e.g. 443) by the ClientHello SNI.
 //!
-//! The option code and the two new result codes are not yet IANA-assigned, so
-//! we use values from the PCP **Private Use** ranges (Options 224-254, Result
-//! Codes 192-254 per the IANA PCP Parameters registry). The StartTunnel PCP
-//! server parses and echoes these options; the StartOS client emits them by
-//! attaching a `crab_nat::pcp::PcpOption { code: OPTION_HOSTNAME, data }` to a
-//! MAP request (see the `crab_nat` fork's custom-option support).
+//! The code and result codes are not IANA-assigned, so we use the PCP Private
+//! Use ranges (Options 224-254, Result Codes 192-254). Shared by the
+//! StartTunnel PCP server (parses/echoes) and the StartOS client (emits via
+//! `crab_nat::pcp::PcpOption`).
 
 /// HOSTNAME option code (optional-to-process Private Use range).
 pub const OPTION_HOSTNAME: u8 = 224;
 
-/// Result code: the requested hostname is already bound on this external
-/// address+port by another client (short-lifetime error). Private Use range.
+/// Hostname already bound on this external address+port (short-lifetime error).
 pub const RESULT_HOSTNAME_TAKEN: u8 = 192;
-/// Result code: the HOSTNAME option requests an unsupported feature (e.g. a
-/// wildcard, or UDP without QUIC demux) — long-lifetime error. Private Use.
+/// HOSTNAME requests an unsupported feature (long-lifetime error).
 pub const RESULT_UNSUPP_HOSTNAME: u8 = 193;
 
-/// A hostname is valid as an SNI demux key: 1-255 octets, ASCII, dot-separated
-/// labels of `[A-Za-z0-9-]` (a leading `*` label allowed for wildcards), no
-/// leading/trailing dot, no empty labels.
+/// Valid as an SNI demux key: 1-255 octets, ASCII labels of `[A-Za-z0-9-]`
+/// (leading `*` label allowed), no leading/trailing dot, no empty labels.
 pub fn validate_hostname(name: &str) -> bool {
     if name.is_empty() || name.len() > 255 || name.starts_with('.') || name.ends_with('.') {
         return false;
@@ -36,8 +30,7 @@ pub fn validate_hostname(name: &str) -> bool {
     })
 }
 
-/// Append a HOSTNAME option to a PCP message buffer (RFC 6887 §7.3 option
-/// format: code, reserved, length, data, zero-padded to a 32-bit boundary).
+/// Append a HOSTNAME option (RFC 6887 §7.3 framing, zero-padded to 32 bits).
 /// `buf` MUST already be 32-bit aligned (true after the fixed opcode payload).
 pub fn encode_hostname_option(buf: &mut Vec<u8>, hostname: &str) {
     let data = hostname.as_bytes();
@@ -50,11 +43,9 @@ pub fn encode_hostname_option(buf: &mut Vec<u8>, hostname: &str) {
     }
 }
 
-/// Parse the option area that follows a PCP opcode's fixed payload, returning
-/// the (lowercased) hostnames carried by HOSTNAME options. Other optional
-/// options are skipped. `Err` on a malformed option (truncated, or a HOSTNAME
-/// whose value fails [`validate_hostname`]) so the caller can reply
-/// MALFORMED_OPTION.
+/// Lowercased hostnames carried by HOSTNAME options in a PCP opcode's option
+/// area; other options skipped. `Err` on a truncated or invalid option so the
+/// caller can reply MALFORMED_OPTION.
 pub fn parse_hostname_options(mut tail: &[u8]) -> Result<Vec<String>, ()> {
     let mut names = Vec::new();
     while tail.len() >= 4 {

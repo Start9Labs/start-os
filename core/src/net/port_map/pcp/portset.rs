@@ -1,13 +1,10 @@
-//! PCP PORT_SET option (RFC 7753 — "PCP Extension for Port-Set Allocation").
-//! Lets a single MAP request map a contiguous block of external ports. The
-//! option code is in the optional-to-process range, so a PCP server that does
-//! not implement it silently treats the request as a single-port MAP — the
-//! StartOS client detects the missing echoed option and skips range forwarding
-//! on such gateways.
+//! PCP PORT_SET option (RFC 7753): maps a contiguous block of external ports in
+//! one MAP request. The code is optional-to-process, so a server lacking it
+//! silently treats the request as single-port — the StartOS client detects the
+//! missing echoed option and skips range forwarding there.
 //!
-//! Shared by the StartTunnel PCP server (parses requests, echoes responses) and
-//! the StartOS client (emits via the crab_nat `PcpOption` carrier and reads the
-//! echo back off the response).
+//! Shared by the StartTunnel PCP server (parses/echoes) and the StartOS client
+//! (emits via crab_nat `PcpOption`, reads the echo off the response).
 
 /// PORT_SET option code (RFC 7753 §3, optional-to-process range).
 pub const OPTION_PORT_SET: u8 = 130;
@@ -15,17 +12,17 @@ pub const OPTION_PORT_SET: u8 = 130;
 /// A parsed PORT_SET option (RFC 7753 §3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PortSet {
-    /// Number of contiguous ports (MUST NOT be zero per the RFC).
+    /// Contiguous port count (MUST NOT be zero per the RFC).
     pub size: u16,
-    /// First internal port; in a request MUST equal the MAP opcode internal port.
+    /// In a request, MUST equal the MAP opcode internal port.
     pub first_internal_port: u16,
-    /// Request that the external port set preserve the parity of the internal port.
+    /// Request that the external set preserve the internal port's parity.
     pub parity: bool,
 }
 
 impl PortSet {
-    /// The 5-byte PORT_SET payload: size (BE u16), first internal port (BE u16),
-    /// then a byte whose low bit is the parity flag (upper 7 bits reserved).
+    /// 5-byte payload: size (BE u16), first internal port (BE u16), then a byte
+    /// whose low bit is parity (upper 7 reserved).
     pub fn to_payload(&self) -> Vec<u8> {
         let mut d = Vec::with_capacity(5);
         d.extend_from_slice(&self.size.to_be_bytes());
@@ -47,9 +44,8 @@ impl PortSet {
     }
 }
 
-/// Append a fully-framed PORT_SET option (RFC 6887 §7.3 framing: code,
-/// reserved, length, payload, zero-padded to 32 bits). Used by the server to
-/// echo the granted set in a MAP response.
+/// Append a framed PORT_SET option (RFC 6887 §7.3, zero-padded to 32 bits).
+/// Used by the server to echo the granted set in a MAP response.
 pub fn encode_port_set_option(buf: &mut Vec<u8>, ps: &PortSet) {
     let data = ps.to_payload();
     buf.push(OPTION_PORT_SET);
@@ -61,9 +57,8 @@ pub fn encode_port_set_option(buf: &mut Vec<u8>, ps: &PortSet) {
     }
 }
 
-/// Parse the first PORT_SET option from the framed option area that follows a
-/// PCP opcode's fixed payload (server request parsing). `Err` on a truncated
-/// or malformed PORT_SET option so the caller can reply MALFORMED_OPTION.
+/// First PORT_SET option in a PCP opcode's option area. `Err` on a truncated or
+/// malformed option so the caller can reply MALFORMED_OPTION.
 pub fn parse_port_set_options(mut tail: &[u8]) -> Result<Option<PortSet>, ()> {
     while tail.len() >= 4 {
         let code = tail[0];

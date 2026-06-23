@@ -243,9 +243,8 @@ pub struct SetDnsInjectionParams {
     enabled: bool,
 }
 
-/// Allow or deny a device to inject DNS records via RFC 2136. Off by default —
-/// only trusted devices, since an allowed device can add records the whole
-/// tunnel resolves.
+/// Allow/deny a device to inject DNS records via RFC 2136. Off by default: an
+/// allowed device can add records the whole tunnel resolves, so trust only.
 pub async fn set_dns_injection(
     ctx: TunnelContext,
     SetDnsInjectionParams {
@@ -427,8 +426,7 @@ pub async fn add_subnet(
         })
         .await
         .result?;
-    // `sync_network` runs `resync_egress`, which installs this subnet's
-    // postrouting masquerade rule (and any per-device override).
+    // sync_network → resync_egress installs this subnet's postrouting rule.
     ctx.sync_network(&server).await?;
 
     Ok(())
@@ -476,8 +474,8 @@ pub async fn remove_subnet(
     Ok(())
 }
 
-/// Which upstream a subnet's DNS proxy forwards to. Companion fields on
-/// [`SetSubnetDnsParams`] supply the data for the `Device`/`Custom` modes.
+/// Which upstream a subnet's DNS proxy forwards to. `Device`/`Custom` draw
+/// their data from companion fields on [`SetSubnetDnsParams`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, TS, ValueEnum)]
 #[serde(rename_all = "camelCase")]
 pub enum DnsMode {
@@ -502,7 +500,7 @@ pub struct SetSubnetDnsParams {
     servers: Vec<String>,
 }
 
-/// Parse a custom DNS upstream entry: a bare IP (port defaults to 53) or `ip:port`.
+/// Parse a DNS upstream; a bare IP defaults to port 53.
 fn parse_dns_server(s: &str) -> Result<SocketAddr, Error> {
     if let Ok(ip) = s.parse::<IpAddr>() {
         return Ok(SocketAddr::new(ip, 53));
@@ -572,9 +570,8 @@ pub async fn set_subnet_dns(
         .await
         .result?;
 
-    // The DNS line in client configs always points at the subnet's `.1`, so the
-    // WireGuard config is unchanged by a mode switch — only the proxy's upstreams
-    // change. No `server.sync()` / wg-quick bounce needed.
+    // Client configs always point DNS at the subnet's `.1`, so a mode switch
+    // only changes the proxy's upstreams — no `server.sync()` / wg-quick bounce.
     ctx.dns_proxy.sync(&server, ctx.dns_injector.clone()).await
 }
 
@@ -589,8 +586,8 @@ pub struct SetSubnetWanParams {
     wan_ip: Option<Ipv4Addr>,
 }
 
-/// Pin the WAN IP a subnet's egress is SNATed to, or `null` to fall back to the
-/// default masquerade. Per-device overrides still take precedence.
+/// Pin the WAN IP a subnet's egress SNATs to; `null` falls back to masquerade.
+/// Per-device overrides still take precedence.
 pub async fn set_subnet_wan(
     ctx: TunnelContext,
     SetSubnetWanParams { subnet, wan_ip }: SetSubnetWanParams,
@@ -623,8 +620,8 @@ pub struct SetDeviceWanParams {
     wan_ip: Option<Ipv4Addr>,
 }
 
-/// Pin the WAN IP a single device's egress is SNATed to, overriding its
-/// subnet's `wan_ip`. `null` falls back to the subnet rule / default masquerade.
+/// Pin the WAN IP a device's egress SNATs to, overriding its subnet's `wan_ip`.
+/// `null` falls back to the subnet rule / masquerade.
 pub async fn set_device_wan(
     ctx: TunnelContext,
     SetDeviceWanParams {
@@ -840,9 +837,8 @@ pub async fn show_config(
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct AddPortForwardParams {
-    /// External (WAN) port to forward. The external IP is fixed to the target
-    /// device's assigned WAN: a forward's inbound IP must equal the device's
-    /// egress WAN so return traffic is symmetric.
+    /// External (WAN) port to forward. The external IP is fixed to the target's
+    /// WAN so return traffic stays symmetric.
     external_port: u16,
     #[ts(type = "string")]
     target: SocketAddrV4,
@@ -1059,8 +1055,7 @@ pub struct SetPortForwardEnabledParams {
     hostname: Option<String>,
 }
 
-/// What the db.mutate selected: a DNAT forward (its target) or an SNI route
-/// (its hostname + target), so the dataplane action runs after the mutate.
+/// Carries what the db.mutate selected so the dataplane action runs after it.
 enum ForwardToggle {
     Dnat(SocketAddrV4),
     Sni { hostname: String, target: SocketAddrV4 },

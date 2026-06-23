@@ -86,8 +86,7 @@ fn allowed_injectors(server: &WgServer) -> BTreeSet<IpAddr> {
     out
 }
 
-/// Seed the injector from the persisted records (dropping any that no longer
-/// parse).
+/// Seed the injector from persisted records, dropping any that no longer parse.
 fn seed_records(records: &DnsRecords) -> Vec<InjectedRecord> {
     records
         .0
@@ -126,14 +125,12 @@ pub struct TunnelContextSeed {
     pub dns_proxy: DnsProxyController,
     pub sni: Arc<crate::tunnel::forward::sni::SniDemux>,
     pub dns_injector: Arc<DnsInjector>,
-    /// WireGuard client IPs whose `allow_dns_injection` toggle is on; the DNS
-    /// injector's authorizer reads this so a toggle change takes effect without
-    /// rebuilding the injector.
+    /// Injector authorizer reads this live, so a toggle change takes effect
+    /// without rebuilding the injector.
     pub dns_allowed: Arc<SyncMutex<BTreeSet<IpAddr>>>,
     pub active_forwards: SyncMutex<BTreeMap<SocketAddrV4, Arc<()>>>,
-    /// Serializes `resync_egress` so a concurrent reconcile can't prune a
-    /// device SNAT rule another call just installed (read-DB → install → prune
-    /// is not otherwise atomic).
+    /// Serializes `resync_egress`; its read-DB → install → prune isn't atomic,
+    /// so a concurrent reconcile could prune a rule another call just installed.
     pub egress_lock: tokio::sync::Mutex<()>,
     pub shutdown: Sender<Option<bool>>,
 }
@@ -187,10 +184,9 @@ impl TunnelContext {
             &format!("iifname \"{WIREGUARD_INTERFACE_NAME}\" ct state new accept"),
         )
         .await?;
-        // Clamp TCP MSS on forwarded SYNs to the WireGuard path MTU so large
-        // TLS ClientHellos (desktop Firefox/Chromium with X25519MLKEM768
-        // post-quantum key shares) don't get silently dropped after
-        // encapsulation. See start-os#3261.
+        // Clamp forwarded-SYN MSS to the WireGuard path MTU, else large TLS
+        // ClientHellos (post-quantum key shares) get dropped after encapsulation.
+        // See start-os#3261.
         nft_rule(
             "mangle_forward",
             "wg-mss-clamp",
@@ -300,9 +296,8 @@ impl TunnelContext {
 
         ctx.resync_egress().await?;
 
-        // Serve PCP (preferred) and a UPnP IGD (fallback) to connected peers
-        // over the WireGuard interface so StartOS clients can open their public
-        // ports automatically.
+        // PCP (preferred) + UPnP IGD (fallback) let connected clients open their
+        // public ports automatically.
         tokio::spawn(crate::tunnel::forward::pcp::run(ctx.clone()));
         tokio::spawn(crate::tunnel::forward::igd::run(ctx.clone()));
 
@@ -327,10 +322,9 @@ impl TunnelContext {
         self.forward.gc().await
     }
 
-    /// Apply a WireGuard config change to the live tunnel: re-render and reload the
-    /// wg interface, then rebind the per-subnet DNS proxies (which bind to the
-    /// interface addresses `wg-quick up` just (re)created — so this must run after
-    /// `server.sync()`).
+    /// Reload the wg interface, then rebind the per-subnet DNS proxies. The
+    /// proxies bind to the addresses `wg-quick up` (re)creates, so the rebind
+    /// must follow `server.sync()`.
     pub async fn sync_network(&self, server: &WgServer) -> Result<(), Error> {
         server.sync().await?;
         self.dns_allowed.mutate(|s| *s = allowed_injectors(server));
@@ -338,13 +332,10 @@ impl TunnelContext {
         self.resync_egress().await
     }
 
-    /// Reconcile the per-subnet (and per-device override) egress NAT rules in
-    /// `postrouting`. A subnet with no assigned `wan_ip` keeps plain
-    /// `masquerade`; one with a `wan_ip` is SNATed to that address. A device with
-    /// its own `wan_ip` gets a higher-priority `/32` rule that wins over its
-    /// subnet's rule. Comment tags are stable per (subnet/device, iface) so each
-    /// re-run replaces in place — a subnet reverting `wan_ip` to `None` swaps its
-    /// snat rule back to masquerade rather than leaving a stale duplicate.
+    /// Reconcile per-subnet and per-device egress NAT rules in `postrouting`:
+    /// `wan_ip` SNATs, else masquerade; a device `/32` rule outranks its subnet.
+    /// Comment tags are stable per (subnet/device, iface) so each re-run replaces
+    /// in place rather than leaving stale duplicates.
     pub async fn resync_egress(&self) -> Result<(), Error> {
         let _guard = self.egress_lock.lock().await;
         let ifaces: Vec<GatewayId> = self.net_iface.peek(|i| {
@@ -393,8 +384,7 @@ impl TunnelContext {
                 }
             }
         }
-        // Prune device-override rules whose device was removed or had its
-        // `wan_ip` cleared since the last reconcile.
+        // Prune device-override rules whose device was removed or cleared its `wan_ip`.
         for comment in nft_comments_with_prefix("postrouting", "tunnel-snat-dev-").await {
             if !want_dev.contains(&comment) {
                 nft_rule("postrouting", &comment, true, false, "").await?;
@@ -403,11 +393,9 @@ impl TunnelContext {
         Ok(())
     }
 
-    /// Move existing forwards to follow their target device's WAN. A forward's
-    /// external IP equals its target's WAN, so when a device or subnet's
-    /// assigned WAN changes the forward must be re-keyed from the old external
-    /// IP to the new one. Idempotent: a key that didn't change matches in the
-    /// per-key diffs below and is left untouched.
+    /// Re-key forwards to follow their target's WAN. A forward's external IP
+    /// equals its target's WAN, so a WAN change must re-key it old IP → new IP.
+    /// Idempotent: unchanged keys match in the per-key diffs and are left alone.
     pub async fn resync_forward_keys(&self) -> Result<(), Error> {
         let old = self.db.peek().await.as_port_forwards().de()?.0;
 

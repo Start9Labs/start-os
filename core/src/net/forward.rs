@@ -70,7 +70,7 @@ impl AvailablePorts {
             ErrorKind::Network,
         ))
     }
-    /// Try to allocate a specific port. Returns Some(port) if available, None if taken/restricted.
+    /// Allocate a specific port; `None` if taken or restricted.
     pub fn try_alloc(&mut self, port: u16, ssl: bool) -> Option<u16> {
         if is_restricted(port) || self.0.contains_key(&port) {
             return None;
@@ -79,10 +79,9 @@ impl AvailablePorts {
         Some(port)
     }
 
-    /// Try to allocate `count` contiguous non-ssl ports starting at `start`.
-    /// All ports in `[start, start + count)` must be free and non-restricted;
-    /// otherwise nothing is allocated and `Err` is returned describing the
-    /// first offending port.
+    /// Allocate `count` contiguous non-ssl ports from `start`. All-or-nothing:
+    /// if any port is taken or restricted, allocates none and `Err`s on the
+    /// first offender.
     pub fn try_alloc_range(&mut self, start: u16, count: u16) -> Result<(), Error> {
         if count == 0 {
             return Err(Error::new(
@@ -120,7 +119,6 @@ impl AvailablePorts {
         self.0.insert(port, ssl);
     }
 
-    /// Returns whether a given allocated port is SSL.
     pub fn is_ssl(&self, port: u16) -> bool {
         self.0.get(&port).copied().unwrap_or(false)
     }
@@ -164,10 +162,9 @@ pub fn forward_api<C: Context>() -> ParentHandler<C> {
 struct ForwardMapping {
     source: SocketAddrV4,
     target: SocketAddrV4,
-    /// Number of contiguous ports forwarded starting at `source.port()` /
-    /// `target.port()`. `1` is a single-port forward; values > 1 produce a
-    /// single nft rule covering the whole range (port-preserving when the two
-    /// bases are equal, otherwise an offset verdict map).
+    /// Contiguous ports forwarded from `source.port()` / `target.port()`. `> 1`
+    /// becomes one nft rule for the range (port-preserving when the bases match,
+    /// else an offset verdict map).
     count: u16,
     target_prefix: u8,
     src_filter: Option<IpNet>,
@@ -201,7 +198,6 @@ impl PortForwardState {
                     return Ok(rc);
                 }
             } else {
-                // Different target, count, or src_filter, need to remove old and add new
                 if let Some(mapping) = self.mappings.remove(&source) {
                     unforward(
                         mapping.source,
@@ -307,16 +303,14 @@ pub struct PortForwardController {
     _thread: NonDetachingJoinHandle<()>,
 }
 
-/// Native nftables table that owns all of StartOS's packet-filter / NAT rules
-/// (forwarding, base forward policy, policy-routing marks, tunnel). Coexists
-/// with lxc-net / wg-quick, which keep their own iptables-nft rules in separate
-/// tables on the shared nf_tables datapath.
+/// Native nftables table owning all of StartOS's packet-filter / NAT rules.
+/// Coexists with lxc-net / wg-quick, which keep their own iptables-nft rules in
+/// separate tables on the shared nf_tables datapath.
 pub const NFT_TABLE: &str = "startos";
 
-/// Ensure `table ip startos` and its base chains exist. Idempotent: nft's `add
-/// table`/`add chain` are no-ops when the object already exists. The forward
-/// chain defaults to `drop` (replacing `iptables -P FORWARD DROP`); ACCEPT
-/// rules are added into it by callers and the forward-port script.
+/// Ensure `table ip startos` and its base chains exist. Idempotent (nft's `add
+/// table`/`add chain` are no-ops if present). The forward chain defaults to
+/// `drop` (replacing `iptables -P FORWARD DROP`); callers add ACCEPT rules.
 pub async fn nft_ensure_base() -> Result<(), Error> {
     Command::new("nft")
         .arg(include_str!("startos-base.nft"))
@@ -349,9 +343,8 @@ async fn nft_rules_with_comment(chain: &str, comment: &str) -> Vec<(u32, String)
         .collect()
 }
 
-/// Comment tags currently present in `chain` of `table ip startos` that begin
-/// with `prefix`. Used to find and prune orphaned per-device/per-subnet rules
-/// whose owning entity no longer exists.
+/// Comment tags in `chain` of `table ip startos` beginning with `prefix`. Used
+/// to prune orphaned per-device/per-subnet rules whose owner no longer exists.
 pub(crate) async fn nft_comments_with_prefix(chain: &str, prefix: &str) -> Vec<String> {
     let out = Command::new("nft")
         .arg("-a")
@@ -374,19 +367,15 @@ pub(crate) async fn nft_comments_with_prefix(chain: &str, prefix: &str) -> Vec<S
 }
 
 /// Idempotently install (or, with `undo`, remove) the rule tagged `comment` in
-/// `chain` of `table ip startos`. The reconcile is applied as a single atomic
-/// nft transaction — every prior rule with this comment is deleted and the new
-/// rule added in one invocation — and is a no-op when the chain already holds
-/// exactly the desired rule. `prepend` inserts at the top of the chain (needed
-/// for the mark-restore rule, which must run before the per-interface set-mark
-/// rules).
+/// `chain` of `table ip startos`, via one atomic nft transaction that drops
+/// every prior copy of this comment and adds the desired rule. No-op when the
+/// chain already holds exactly that rule. `prepend` inserts at the chain top
+/// (needed for the mark-restore rule, which must precede the set-mark rules).
 ///
-/// Lock-free under concurrency: the only way the transaction can fail is a
-/// stale handle — another reconcile of the *same* comment deleted/replaced the
-/// rule between our list and our delete. That race is benign (nft commits
-/// atomically, so the other writer's rule is already in place) and only arises
-/// for callers without a single-writer guarantee (e.g. the tunnel masq rules);
-/// we warn, re-read, and retry, converging via the no-op check above.
+/// Lock-free: the only failure is a stale handle — a concurrent reconcile of
+/// the *same* comment replaced the rule between our list and delete. Benign (nft
+/// commits atomically), so we warn, re-read, and retry to convergence. Only
+/// arises for callers without a single-writer guarantee (e.g. tunnel masq).
 pub async fn nft_rule(
     chain: &str,
     comment: &str,
@@ -412,9 +401,8 @@ pub async fn nft_rule(
             }
         }
 
-        // Single atomic transaction: drop every prior copy, then add the
-        // desired rule. Convergent from any starting state (0, 1, or N stale
-        // copies), with no window where the rule is missing or duplicated.
+        // Drop every prior copy, then add the desired rule, in one transaction:
+        // no window where the rule is missing or duplicated.
         let mut script = String::new();
         for (handle, _) in &existing {
             writeln!(script, "delete rule ip startos {chain} handle {handle}").unwrap();
@@ -437,9 +425,8 @@ pub async fn nft_rule(
             .await
         {
             Ok(_) => return Ok(()),
-            // Stale handle: a concurrent reconcile of this comment won the race.
-            // Re-read and retry; the no-op check above usually returns on the
-            // next pass. Any other error is real and surfaces immediately.
+            // Stale handle: a concurrent reconcile won the race; re-read and
+            // retry. Any other error is real and surfaces immediately.
             Err(e) if e.source.to_string().contains("No such file or directory") => {
                 tracing::warn!(
                     "nft_rule {chain}/{comment}: stale handle on attempt {attempt}/{MAX_ATTEMPTS}"
@@ -530,9 +517,8 @@ impl PortForwardController {
     }
 
     /// Like [`add_forward`] but covers `count` contiguous ports per protocol
-    /// (TCP + UDP) starting at `source.port()` / `target.port()`. The two
-    /// bases may differ; the forward maps the source range onto the target
-    /// range by offset.
+    /// (TCP + UDP) from `source.port()` / `target.port()`, mapped by offset
+    /// (the two bases may differ).
     pub async fn add_forward_range(
         &self,
         source: SocketAddrV4,
@@ -578,9 +564,8 @@ impl PortForwardController {
 struct InterfaceForwardRequest {
     external: u16,
     target: SocketAddrV4,
-    /// Number of contiguous ports starting at `external` / `target.port()`.
-    /// `1` is a single-port forward; values > 1 cover a contiguous range
-    /// (port-preserving when the bases are equal, else an offset map).
+    /// Contiguous ports from `external` / `target.port()` (port-preserving when
+    /// the bases are equal, else an offset map).
     count: u16,
     target_prefix: u8,
     reqs: ForwardRequirements,
@@ -590,17 +575,14 @@ struct InterfaceForwardRequest {
 #[derive(Clone)]
 struct InterfaceForwardEntry {
     external: u16,
-    /// `count` is shared across all targets keyed off the same `external`
-    /// start port — `AvailablePorts` prevents overlapping allocations, so a
-    /// range and a single-port forward can never coexist at the same start.
+    /// Shared across all targets at this `external` start — `AvailablePorts`
+    /// prevents overlap, so a range and a single-port forward can't coexist here.
     count: u16,
     targets: BTreeMap<ForwardRequirements, (SocketAddrV4, u8, Weak<()>)>,
-    // Maps source SocketAddr -> strong reference for the forward created in PortForwardController
     forwards: BTreeMap<SocketAddrV4, Arc<()>>,
-    // (local interface IP, external port) pairs for which we've asked the
-    // upstream gateway (via PCP/NAT-PMP/UPnP) to forward to this host. Tracked
-    // so the mapping is withdrawn when the forward is no longer required. A
-    // range contributes one entry per port (capped, see MAX_AUTO_MAP_PORTS).
+    // (local IP, external port) pairs we've asked the upstream gateway (via
+    // PCP/NAT-PMP/UPnP) to forward here. Tracked so the mapping is withdrawn
+    // when the forward is dropped; a range contributes one entry per port.
     mapped: BTreeSet<(Ipv4Addr, u16)>,
 }
 
@@ -631,14 +613,11 @@ impl InterfaceForwardEntry {
         pmap: &PortMapController,
     ) -> Result<(), Error> {
         let mut keep = BTreeSet::<SocketAddrV4>::new();
-        // (local IP, external start port) -> (port count, candidate upstream
-        // gateways) whose port-control protocol should forward that port (range)
-        // to us. Only public-gateway forwards (the WAN-facing ones) need a port
-        // opened upstream; private-subnet forwards are already directly
-        // reachable. A range of `count > 1` is mapped in one request via the PCP
-        // PORT_SET option (RFC 7753) and is skipped on gateways that don't
-        // support it — UPnP/NAT-PMP can't map ranges, so those are left for the
-        // operator to forward manually.
+        // (local IP, external start) -> (port count, candidate upstream gateways)
+        // to open upstream. Only public (WAN-facing) forwards need this; private
+        // subnets are already reachable. A `count > 1` range is one PCP PORT_SET
+        // request (RFC 7753), skipped on gateways without it (UPnP/NAT-PMP can't
+        // map ranges — those are left for the operator).
         let mut want = BTreeMap::<(Ipv4Addr, u16), (u16, Vec<Ipv4Addr>)>::new();
 
         for (gw_id, info) in ip_info.iter() {
@@ -695,10 +674,9 @@ impl InterfaceForwardEntry {
             }
         }
 
-        // Remove forwards that should no longer exist (drops the strong references)
+        // Dropping the strong refs lets PortForwardController gc the rules.
         self.forwards.retain(|addr, _| keep.contains(addr));
 
-        // Reconcile the best-effort upstream port mappings against the desired set.
         for (ip, port) in self.mapped.iter().filter(|key| !want.contains_key(key)) {
             pmap.remove(*ip, *port);
         }
@@ -735,14 +713,10 @@ impl InterfaceForwardEntry {
             ));
         }
         if count != self.count {
-            // The count changed because the range was resized, or a single-port
-            // forward and a range swapped at this external start (AvailablePorts
-            // freed the old allocation and handed the same start port back).
-            // The old count no longer applies: adopt the new one and rebuild
-            // this entry's forwards from scratch so the underlying iptables
-            // rules (whose chain name encodes the count) are reconciled cleanly.
-            // `state` entries are never evicted, so without this a count change
-            // at a reused external port would be a hard error until restart.
+            // A resize, or a single-port forward and a range swapped at this
+            // reused start port. The nft chain name encodes the count, so rebuild
+            // from scratch; `state` entries are never evicted, so otherwise a
+            // count change here would be a hard error until restart.
             self.count = count;
             self.targets.clear();
             self.forwards.clear();
@@ -935,9 +909,9 @@ impl InterfacePortForwardController {
             .await
     }
 
-    /// Add a `count`-port contiguous forward starting at `external` /
-    /// `target.port()`. `count == 1` is equivalent to [`add`]. For `count >
-    /// 1` the external and target bases may differ (offset-mapped).
+    /// Add a `count`-port contiguous forward from `external` / `target.port()`.
+    /// `count == 1` equals [`add`]; for `count > 1` the bases may differ
+    /// (offset-mapped).
     pub async fn add_range(
         &self,
         external: u16,

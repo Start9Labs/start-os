@@ -73,8 +73,8 @@ impl TunnelDatabase {
 
 impl Model<TunnelDatabase> {
     /// Prune forwards whose target is no longer a known client. Returns the
-    /// surviving sources, plus the SNI routes that were dropped (so the caller
-    /// can unregister them from the in-memory demux dataplane).
+    /// surviving sources and the dropped SNI routes, which the caller must
+    /// unregister from the in-memory demux dataplane.
     pub fn gc_forwards(
         &mut self,
     ) -> Result<(BTreeSet<SocketAddrV4>, Vec<(SocketAddrV4, String, SocketAddrV4)>), Error> {
@@ -147,7 +147,7 @@ fn sni_and_dnat_persistence_round_trip() {
     let dnat_back: PortForward = serde_json::from_value(dnat_json).unwrap();
     assert!(matches!(dnat_back, PortForward::Dnat { count: 1, .. }));
 
-    // Step 2: legacy entry with NO `kind` field, run through the m_01 migration.
+    // Legacy entry with no `kind` field, run through the m_01 migration.
     let mut legacy: imbl_value::Value = imbl_value::json!({
         "portForwards": {
             "1.2.3.4:443": {
@@ -168,7 +168,7 @@ fn sni_and_dnat_persistence_round_trip() {
         "migrated legacy entry should be Dnat, got {migrated:?}"
     );
 
-    // Step 3: whole PortForwards map mixing a migrated dnat and a new sni entry.
+    // Whole PortForwards map mixing a migrated dnat and a new sni entry.
     let mixed = serde_json::json!({
         "1.2.3.4:443": {
             "kind": "dnat",
@@ -230,9 +230,8 @@ fn export_bindings_tunnel_db() {
     SetPasswordParams::export_all_to("bindings/tunnel").unwrap();
 }
 
-/// One external-port forward: either a standard nftables DNAT, or an
-/// SNI-demultiplexed shared port (multiple hostname routes to backend targets).
-/// The two are mutually exclusive for a given external address.
+/// One external-port forward: an nftables DNAT or an SNI-demultiplexed shared
+/// port. Mutually exclusive for a given external address.
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum PortForward {
@@ -241,8 +240,7 @@ pub enum PortForward {
         label: Option<String>,
         #[serde(default = "default_true")]
         enabled: bool,
-        /// Contiguous ports forwarded from the source (a PCP PORT_SET range);
-        /// `1` for a single-port forward.
+        /// Contiguous ports forwarded (a PCP PORT_SET range); `1` for single-port.
         #[serde(default = "default_one")]
         count: u16,
     },
@@ -270,9 +268,8 @@ fn default_one() -> u16 {
     1
 }
 
-/// A DNS record served by the tunnel — either injected by a device via RFC 2136
-/// or added manually. `value` is the rdata rendered as text (an IP for A/AAAA,
-/// a name for CNAME, the string for TXT).
+/// A DNS record served by the tunnel (injected via RFC 2136 or added manually).
+/// `value` is the rdata as text: an IP for A/AAAA, a name for CNAME, etc.
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct DnsRecordEntry {

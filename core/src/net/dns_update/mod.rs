@@ -1,14 +1,11 @@
 //! Best-effort RFC 2136 (DNS UPDATE) client. When a private domain is enabled
-//! on a gateway, push an `A` record (`domain -> this host's IP on that
-//! gateway's subnet`) to the gateway's DNS server so other LAN devices can
-//! resolve it; withdraw it when the domain is disabled/deleted.
+//! on a gateway, push an `A` record to the gateway's DNS server so other LAN
+//! devices can resolve it; withdraw it when the domain is disabled.
 //!
-//! The gateway authorizes updates by source IP (a per-device "allow DNS
-//! injection" toggle on StartTunnel / StartWRT), so updates are sent unsigned
-//! and bound to our address on that gateway. Everything is best-effort: a
-//! gateway that doesn't accept RFC 2136 just means the domain only resolves on
-//! StartOS's own resolver, as before. Mirrors the `add`/`gc` shape of
-//! [`crate::net::dns`] and reconciles like [`crate::net::forward`].
+//! The gateway authorizes by source IP (a per-device "allow DNS injection"
+//! toggle on StartTunnel / StartWRT), so updates are sent unsigned and bound to
+//! our address on that gateway. A gateway that doesn't accept RFC 2136 just
+//! means the domain only resolves on StartOS's own resolver, as before.
 
 pub mod rfc2136;
 
@@ -38,7 +35,7 @@ const QUERY_TIMEOUT: Duration = Duration::from_secs(2);
 /// Re-assert desired records so they survive a gateway DNS restart.
 const REFRESH_INTERVAL: Duration = Duration::from_secs(180);
 
-/// (DNS server to update, our address on that subnet -> the A record value/source).
+/// (DNS server to update, our address on that subnet / the A record value).
 type Target = (Ipv4Addr, Ipv4Addr);
 
 enum Command {
@@ -62,9 +59,8 @@ impl DnsUpdateController {
     pub fn new(mut net_iface: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>) -> Self {
         let (req, mut recv) = mpsc::unbounded_channel::<Command>();
         tokio::spawn(async move {
-            // fqdn -> gateways it should be published on.
             let mut desired: BTreeMap<InternedString, BTreeSet<GatewayId>> = BTreeMap::new();
-            // fqdn -> targets currently published (so we can withdraw stale ones).
+            // Currently-published targets, kept so we can withdraw stale ones.
             let mut active: BTreeMap<InternedString, BTreeSet<Target>> = BTreeMap::new();
             let mut ifaces = net_iface.read_and_mark_seen();
             let mut refresh = interval(REFRESH_INTERVAL);
@@ -94,7 +90,6 @@ impl DnsUpdateController {
                         }
                     }
                     _ = refresh.tick() => {
-                        // Re-assert everything (cheap, idempotent at the server).
                         for (fqdn, targets) in &active {
                             if let Ok(name) = fqdn_to_name(fqdn) {
                                 for (server, ip) in targets {
@@ -120,9 +115,9 @@ impl DnsUpdateController {
     }
 }
 
-/// The (resolver, our-ip) pairs for a private domain on one gateway: for each
-/// of our IPv4 subnets, the record points at our address on that subnet and is
-/// sent to that subnet's resolver (its NM gateway / `.1`).
+/// The (resolver, our-ip) pairs for a private domain on one gateway: one per
+/// IPv4 subnet, pointing at our address there and sent to that subnet's
+/// resolver (its NM gateway / `.1`).
 fn targets_for(info: &NetworkInterfaceInfo) -> Vec<Target> {
     let Some(ip_info) = &info.ip_info else {
         return Vec::new();
@@ -183,8 +178,8 @@ fn fqdn_to_name(fqdn: &str) -> Result<Name, Error> {
     Ok(name)
 }
 
-/// RFC 2136 updates use the query section as the zone; the parent of the FQDN
-/// is a valid zone origin (and our own servers don't enforce it strictly).
+/// Zone for an RFC 2136 update: the FQDN's parent is a valid origin, and our
+/// own servers don't enforce it strictly.
 fn zone_of(fqdn: &Name) -> Name {
     let base = fqdn.base_name();
     if base.is_root() {

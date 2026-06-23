@@ -1,13 +1,11 @@
-//! SNI demultiplexer for the PCP HOSTNAME extension. A demultiplexed external
-//! port (one holding ≥1 hostname binding) is fronted by a TCP listener that
-//! reads the TLS ClientHello, extracts `server_name`, selects the matching
-//! binding (exact → wildcard → fallback), and splices the connection to the
-//! bound internal host. The gateway never terminates TLS — it forwards the
-//! ClientHello bytes verbatim.
+//! SNI demultiplexer for the PCP HOSTNAME extension: a per-port TCP listener
+//! reads the TLS ClientHello, selects a binding (exact → wildcard → fallback),
+//! and splices to the internal host. TLS is never terminated; the ClientHello
+//! bytes are forwarded verbatim.
 //!
-//! Source-address preservation (RFC §4.6, `IP_TRANSPARENT`) is not yet done:
-//! the internal leg uses the tunnel's own address. QUIC (§4.5) and wildcards
-//! beyond a single leading `*` label are out of scope for now.
+//! Not yet implemented: source-address preservation (RFC §4.6, `IP_TRANSPARENT`)
+//! — the internal leg uses the tunnel's own address. QUIC (§4.5) and wildcards
+//! beyond a single leading `*` label are out of scope.
 
 use std::collections::BTreeMap;
 use std::net::{Ipv4Addr, SocketAddrV4};
@@ -23,7 +21,7 @@ use crate::prelude::*;
 use crate::util::future::NonDetachingJoinHandle;
 use crate::util::sync::SyncMutex;
 
-/// (external IP, external port) — a demultiplexed port.
+/// (external IP, external port).
 type PortKey = (Ipv4Addr, u16);
 
 const CLIENTHELLO_CAP: usize = 16384;
@@ -38,9 +36,8 @@ struct Binding {
 
 #[derive(Default)]
 struct PortBindings {
-    /// hostname (lowercase) -> binding. A `*.suffix` key is a wildcard.
+    /// hostname (lowercase) -> binding; a `*.suffix` key is a wildcard.
     hostnames: BTreeMap<String, Binding>,
-    /// The conventional (no-HOSTNAME) mapping holder, if any.
     fallback: Option<SocketAddrV4>,
 }
 
@@ -67,9 +64,8 @@ impl PortBindings {
     }
 }
 
-/// Notified `(ext_port, active)` when a demultiplexed port's listener starts
-/// (`true`) or stops (`false`), so a gateway can open/close inbound access to it
-/// (e.g. a StartWRT firewall ACCEPT rule). The tunnel needs no such hook.
+/// Called `(ext_port, active)` when a port's listener starts/stops, so a gateway
+/// can open/close inbound access (e.g. a StartWRT firewall ACCEPT rule).
 type OnChange = Box<dyn Fn(u16, bool) + Send + Sync>;
 
 pub struct SniDemux {
@@ -83,8 +79,7 @@ impl SniDemux {
         Self::build(None)
     }
 
-    /// Like [`new`](Self::new) but invokes `on_change(ext_port, active)` whenever
-    /// a port's listener is created or torn down.
+    /// Like [`new`](Self::new) but invokes `on_change` on listener create/teardown.
     pub fn with_on_change(on_change: impl Fn(u16, bool) + Send + Sync + 'static) -> Arc<Self> {
         Self::build(Some(Box::new(on_change)))
     }
@@ -106,10 +101,9 @@ impl SniDemux {
         this
     }
 
-    /// Register hostname bindings for `(ext_ip, ext_port) -> target`. Returns
-    /// `Err(RESULT_HOSTNAME_TAKEN)` if any name is held by a different target (no
-    /// bindings are then created; the same target reclaims). Ensures the port's
-    /// listener is running.
+    /// Register hostname bindings for `(ext_ip, ext_port) -> target` and ensure
+    /// the listener runs. `Err(RESULT_HOSTNAME_TAKEN)` if any name is held by a
+    /// different target — all-or-nothing; the same target reclaims.
     pub fn register(
         self: &Arc<Self>,
         ext_ip: Ipv4Addr,
@@ -249,8 +243,7 @@ async fn handle_conn(
                 if let Some(name) = extract_sni(&buf) {
                     break Some(name);
                 }
-                // A complete-but-SNI-less ClientHello, non-TLS bytes, or the
-                // cap: stop reading and route by fallback.
+                // Complete-but-SNI-less, non-TLS, or capped: stop and use fallback.
                 if record_complete(&buf) || buf.len() >= CLIENTHELLO_CAP {
                     break extract_sni(&buf);
                 }
@@ -306,7 +299,7 @@ fn extract_sni(buf: &[u8]) -> Option<String> {
         let elen = u16::from_be_bytes([exts[e + 2], exts[e + 3]]) as usize;
         let edata = exts.get(e + 4..e + 4 + elen)?;
         if etype == 0 {
-            // server_name extension: list_len(2), entries of type(1) len(2) name.
+            // server_name: list_len(2), then entries of type(1) len(2) name.
             let list_len = u16::from_be_bytes([*edata.first()?, *edata.get(1)?]) as usize;
             let list = edata.get(2..2 + list_len)?;
             let mut q = 0;
