@@ -5,9 +5,10 @@ export type SetupInfo = {
   attach: boolean
   mokEnrolled: boolean
   /**
-   * The whole disk the running OS booted from. Set when the device is
-   * pre-installed (setup-after-install), so the wizard fixes it as the OS
-   * drive and asks only for a data drive.
+   * The whole disk the OS is installed on, recorded by whatever installed it
+   * (os_install, or init_resize for a pre-installed image). When the device
+   * is pre-installed the wizard fixes this as the OS drive and asks only for
+   * a data drive.
    */
   osDrive: string | null
 }
