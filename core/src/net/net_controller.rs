@@ -478,6 +478,37 @@ impl NetServiceData {
             }
         }
 
+        // Best-effort HTTP→HTTPS redirect: when something is publicly exposed on
+        // 443, also map external 80 → the host's 443 so plain http:// auto-
+        // redirects to https. Plain forward, no hostname. Upstream PCP/UPnP is
+        // best-effort and only debug-logs on failure, so port 80 already held by
+        // another server on the network is harmless. Skipped if 80 is in use.
+        if !forwards.contains_key(&80) {
+            let mut redirect_gateways: BTreeSet<GatewayId> = BTreeSet::new();
+            if let Some((_, _, reqs)) = forwards.get(&443) {
+                redirect_gateways.extend(reqs.public_gateways.iter().cloned());
+            }
+            for ((_, port), target) in &vhosts {
+                if *port == 443 {
+                    redirect_gateways.extend(target.public.iter().cloned());
+                }
+            }
+            if !redirect_gateways.is_empty() {
+                forwards.insert(
+                    80,
+                    (
+                        SocketAddrV4::new(self.ip, 443),
+                        1,
+                        ForwardRequirements {
+                            public_gateways: redirect_gateways,
+                            private_ips: BTreeSet::new(),
+                            secure: true,
+                        },
+                    ),
+                );
+            }
+        }
+
         // ── Phase 3: Reconcile ──
         let all = binds
             .forwards
