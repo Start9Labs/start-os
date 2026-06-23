@@ -299,8 +299,17 @@ pub(super) async fn current_forward(ctx: &TunnelContext, source: SocketAddrV4) -
         .and_then(|pf| pf.0.get(&source).cloned())
 }
 
+/// Whether `peer` may auto-configure the gateway — the per-device "Gateway
+/// Autoconfiguration" toggle (`allow_dns_injection`). Gates PCP/IGD port
+/// forwarding as well as DNS injection, so an untrusted client can do neither.
 pub(super) async fn is_known_client(ctx: &TunnelContext, peer: Ipv4Addr) -> bool {
-    subnet_gateway_for(ctx, peer).await.is_some()
+    let Ok(subnets) = ctx.db.peek().await.as_wg().as_subnets().de() else {
+        return false;
+    };
+    subnets
+        .0
+        .values()
+        .any(|cfg| cfg.clients.0.get(&peer).is_some_and(|c| c.allow_dns_injection))
 }
 
 /// The WAN IPv4 `peer`'s egress uses: its assigned WAN if pinned, else the

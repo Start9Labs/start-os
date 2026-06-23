@@ -106,15 +106,16 @@ import {
           type="checkbox"
           formControlName="allowDnsInjection"
         />
-        Allow DNS injection
+        Enable Gateway Autoconfiguration (Recommended for StartOS)
       </label>
       <p
         [style.font-size.rem]="0.8"
         [style.opacity]="0.7"
         [style.margin.rem]="0.25"
       >
-        The device will be able to add and update the DNS records the tunnel
-        serves. Only enable this for devices you trust.
+        The device will be able to configure the gateway on its own behalf —
+        adding and updating the DNS records the tunnel serves and requesting
+        port forwards (via PCP). Only enable this for devices you trust.
       </p>
 
       <footer>

@@ -30,7 +30,7 @@ import { MappedDevice } from './utils'
           <th>Name</th>
           <th>Subnet</th>
           <th>LAN IP</th>
-          <th>DNS injection</th>
+          <th>Autoconfig</th>
           <th>WAN</th>
           <th [style.padding-inline-end.rem]="0.625">
             <button tuiButton size="xs" iconStart="@tui.plus" (click)="onAdd()">
