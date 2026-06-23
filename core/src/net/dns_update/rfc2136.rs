@@ -181,6 +181,12 @@ impl DnsInjector {
         })
     }
 
+    /// Whether any record (of any type) exists for `name`; distinguishes an
+    /// authoritative NODATA from a name we don't serve.
+    fn contains_name(&self, name: &LowerName) -> bool {
+        self.records.peek(|m| m.contains_key(name))
+    }
+
     /// Apply an UPDATE's records (RFC 2136 §2.5) from `src`, after authorizing.
     fn apply_update(&self, src: IpAddr, updates: &[Record]) -> ResponseCode {
         if !(self.authorize)(src) {
@@ -292,12 +298,18 @@ impl RequestHandler for InjectingHandler {
                     .unwrap_or_else(|_| fallback_info(header))
             }
             OpCode::Query => {
-                let answers = request
-                    .request_info()
-                    .ok()
+                let req = request.request_info().ok();
+                let answers = req
+                    .as_ref()
                     .map(|req| self.injector.lookup(req.query.name(), req.query.query_type()))
                     .unwrap_or_default();
-                if answers.is_empty() {
+                // Authoritative for any injected name: serve records or NODATA.
+                // Forwarding a held name's missing-type query lets upstream NXDOMAIN
+                // poison it (RFC 8020) — e.g. an AAAA probe for an A-only domain.
+                let known = req
+                    .as_ref()
+                    .is_some_and(|req| self.injector.contains_name(req.query.name()));
+                if answers.is_empty() && !known {
                     return self.forwarder.handle_request::<R, T>(request, response_handle).await;
                 }
                 let header = header_with_code(request, ResponseCode::NoError);
@@ -311,5 +323,44 @@ impl RequestHandler for InjectingHandler {
             }
             _ => self.forwarder.handle_request::<R, T>(request, response_handle).await,
         }
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn injector() -> Arc<DnsInjector> {
+        DnsInjector::new(Vec::new(), |_| true, |_| {})
+    }
+
+    fn fqdn(s: &str) -> LowerName {
+        let mut n = Name::from_utf8(s).unwrap();
+        n.set_fqdn(true);
+        LowerName::from(&n)
+    }
+
+    /// An A-only injected name must answer NODATA (not forward) for an AAAA
+    /// query: the name is held, so `contains_name` is true even though the
+    /// queried type is absent. Forwarding would let upstream NXDOMAIN poison it.
+    #[test]
+    fn held_name_is_nodata_not_forwarded() {
+        let inj = injector();
+        inj.upsert(
+            InjectedRecord::from_parts(
+                "scrunge.goop",
+                "A",
+                "10.59.0.2",
+                300,
+                IpAddr::V4(Ipv4Addr::UNSPECIFIED),
+            )
+            .unwrap(),
+        );
+        let q = fqdn("scrunge.goop");
+        assert_eq!(inj.lookup(&q, RecordType::A).len(), 1, "A query resolves");
+        assert!(inj.lookup(&q, RecordType::AAAA).is_empty(), "no AAAA record");
+        assert!(inj.contains_name(&q), "held name -> handler answers NODATA");
+        assert!(!inj.contains_name(&fqdn("nope.goop")), "unknown name -> handler forwards");
     }
 }
