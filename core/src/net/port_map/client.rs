@@ -391,11 +391,11 @@ impl State {
         // PORT_SET silently maps a single port; detect the missing/short grant
         // and skip rather than forward a partial range.
         if spec.count > 1 {
-            let want = spec.count;
+            let range_size = spec.count;
             let option = pcp::PcpOption {
                 code: OPTION_PORT_SET,
                 data: PortSet {
-                    size: want,
+                    size: range_size,
                     first_internal_port: spec.internal_port,
                     parity: false,
                 }
@@ -422,16 +422,16 @@ impl State {
                             .find(|o| o.code == OPTION_PORT_SET)
                             .and_then(|o| PortSet::from_payload(&o.data))
                             .map_or(1, |ps| ps.size);
-                        if granted >= want {
+                        if granted >= range_size {
                             tracing::debug!(
-                                "PCP PORT_SET mapped {external_port}+{want}->{local_ip}:{} via {gw}",
+                                "PCP PORT_SET mapped {external_port}+{range_size}->{local_ip}:{} via {gw}",
                                 spec.internal_port
                             );
                             self.active.insert(key, Active::Pcp(m));
                             return;
                         }
                         tracing::debug!(
-                            "gateway {gw} granted {granted}/{want} PORT_SET ports for {local_ip}:{external_port}; skipping range"
+                            "gateway {gw} granted {granted}/{range_size} PORT_SET ports for {local_ip}:{external_port}; skipping range"
                         );
                         let _ = m.try_drop().await;
                     }

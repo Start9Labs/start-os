@@ -278,52 +278,24 @@ fn record_complete(buf: &[u8]) -> bool {
     buf.len() >= 5 && buf.len() >= 5 + u16::from_be_bytes([buf[3], buf[4]]) as usize
 }
 
-/// Extract the (lowercased) SNI host_name from a buffered TLS ClientHello, or
-/// `None` if absent / not yet complete / not TLS.
+/// Extract the (lowercased) SNI host_name from a buffered TLS ClientHello via
+/// rustls, or `None` if absent / not yet complete / not TLS. The ClientHello is
+/// only parsed, never answered — `buf` is still forwarded verbatim to the peer.
 fn extract_sni(buf: &[u8]) -> Option<String> {
-    if buf.len() < 5 || buf[0] != 0x16 {
-        return None; // not a TLS handshake record
-    }
-    let rec_len = u16::from_be_bytes([buf[3], buf[4]]) as usize;
-    let hs = buf.get(5..5 + rec_len)?;
-    if *hs.first()? != 0x01 {
-        return None; // not a ClientHello
-    }
-    let hs_len = u32::from_be_bytes([0, hs[1], hs[2], hs[3]]) as usize;
-    let body = hs.get(4..4 + hs_len)?;
-    let mut p = 2 + 32; // client_version + random
-    let sid = *body.get(p)? as usize;
-    p += 1 + sid;
-    let cs = u16::from_be_bytes([*body.get(p)?, *body.get(p + 1)?]) as usize;
-    p += 2 + cs;
-    let comp = *body.get(p)? as usize;
-    p += 1 + comp;
-    let ext_len = u16::from_be_bytes([*body.get(p)?, *body.get(p + 1)?]) as usize;
-    p += 2;
-    let exts = body.get(p..p + ext_len)?;
-    let mut e = 0;
-    while e + 4 <= exts.len() {
-        let etype = u16::from_be_bytes([exts[e], exts[e + 1]]);
-        let elen = u16::from_be_bytes([exts[e + 2], exts[e + 3]]) as usize;
-        let edata = exts.get(e + 4..e + 4 + elen)?;
-        if etype == 0 {
-            // server_name: list_len(2), then entries of type(1) len(2) name.
-            let list_len = u16::from_be_bytes([*edata.first()?, *edata.get(1)?]) as usize;
-            let list = edata.get(2..2 + list_len)?;
-            let mut q = 0;
-            while q + 3 <= list.len() {
-                let ntype = list[q];
-                let nlen = u16::from_be_bytes([list[q + 1], list[q + 2]]) as usize;
-                let name = list.get(q + 3..q + 3 + nlen)?;
-                if ntype == 0 {
-                    return std::str::from_utf8(name).ok().map(|s| s.to_ascii_lowercase());
-                }
-                q += 3 + nlen;
-            }
+    let mut acceptor = tokio_rustls::rustls::server::Acceptor::default();
+    let mut cursor = std::io::Cursor::new(buf);
+    while let Ok(n) = acceptor.read_tls(&mut cursor) {
+        if n == 0 {
+            break;
         }
-        e += 4 + elen;
     }
-    None
+    match acceptor.accept() {
+        Ok(Some(accepted)) => accepted
+            .client_hello()
+            .server_name()
+            .map(|s| s.to_ascii_lowercase()),
+        _ => None,
+    }
 }
 
 impl Default for SniDemux {
@@ -340,48 +312,30 @@ impl Default for SniDemux {
 mod tests {
     use super::*;
 
-    fn client_hello_with_sni(name: &str) -> Vec<u8> {
-        // Minimal ClientHello carrying only a server_name extension.
-        let mut ext = Vec::new();
-        let mut sni = Vec::new();
-        sni.push(0u8); // name type host_name
-        sni.extend_from_slice(&(name.len() as u16).to_be_bytes());
-        sni.extend_from_slice(name.as_bytes());
-        let mut sni_list = Vec::new();
-        sni_list.extend_from_slice(&(sni.len() as u16).to_be_bytes());
-        sni_list.extend_from_slice(&sni);
-        ext.extend_from_slice(&0u16.to_be_bytes()); // ext type 0
-        ext.extend_from_slice(&(sni_list.len() as u16).to_be_bytes());
-        ext.extend_from_slice(&sni_list);
+    /// A real ClientHello produced by rustls, carrying `sni` in the SNI
+    /// extension — so the parser is exercised against genuine wire bytes.
+    fn real_client_hello(sni: &str) -> Vec<u8> {
+        use tokio_rustls::rustls::pki_types::ServerName;
+        use tokio_rustls::rustls::{ClientConfig, ClientConnection, RootCertStore};
 
-        let mut body = Vec::new();
-        body.extend_from_slice(&[0x03, 0x03]); // version
-        body.extend_from_slice(&[0u8; 32]); // random
-        body.push(0); // session id len
-        body.extend_from_slice(&2u16.to_be_bytes()); // cipher suites len
-        body.extend_from_slice(&[0x13, 0x01]);
-        body.push(1); // compression len
-        body.push(0);
-        body.extend_from_slice(&(ext.len() as u16).to_be_bytes());
-        body.extend_from_slice(&ext);
-
-        let mut hs = Vec::new();
-        hs.push(0x01); // ClientHello
-        let l = body.len();
-        hs.extend_from_slice(&[(l >> 16) as u8, (l >> 8) as u8, l as u8]);
-        hs.extend_from_slice(&body);
-
-        let mut rec = Vec::new();
-        rec.push(0x16); // handshake
-        rec.extend_from_slice(&[0x03, 0x01]);
-        rec.extend_from_slice(&(hs.len() as u16).to_be_bytes());
-        rec.extend_from_slice(&hs);
-        rec
+        let provider = std::sync::Arc::new(tokio_rustls::rustls::crypto::ring::default_provider());
+        let config = ClientConfig::builder_with_provider(provider)
+            .with_safe_default_protocol_versions()
+            .unwrap()
+            .with_root_certificates(RootCertStore::empty())
+            .with_no_client_auth();
+        let name = ServerName::try_from(sni.to_owned()).unwrap();
+        let mut conn = ClientConnection::new(std::sync::Arc::new(config), name).unwrap();
+        let mut buf = Vec::new();
+        while conn.wants_write() {
+            conn.write_tls(&mut buf).unwrap();
+        }
+        buf
     }
 
     #[test]
     fn parses_sni() {
-        let hello = client_hello_with_sni("Git.Example.Com");
+        let hello = real_client_hello("git.example.com");
         assert_eq!(extract_sni(&hello).as_deref(), Some("git.example.com"));
     }
 

@@ -6,6 +6,7 @@
 
 pub mod igd;
 
+use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::sync::Arc;
 
@@ -43,36 +44,39 @@ const PROTO_TCP: u8 = 6;
 const MAX_PORT_SET: u16 = 1024;
 
 /// Per-gateway I/O and forward backend for the shared PCP server.
-#[async_trait::async_trait]
 pub trait GatewayBackend: Send + Sync {
     /// Create or refresh a forward of `count` contiguous ports from `source`
     /// (the external address) to `target`, on behalf of `peer`. `Err(code)` is
     /// the UPnP/IGD error code (e.g. 718 ConflictInMappingEntry); PCP maps any
     /// error to NO_RESOURCES.
-    async fn add_forward(
+    fn add_forward(
         &self,
         source: SocketAddrV4,
         target: SocketAddrV4,
         count: u16,
         peer: Ipv4Addr,
-    ) -> Result<(), u16>;
+    ) -> impl Future<Output = Result<(), u16>> + Send;
 
     /// Remove the peer's forward to `(peer, internal_port)`, if any (PCP
     /// identifies a mapping by its target).
-    async fn remove_forward(&self, peer: Ipv4Addr, internal_port: u16);
+    fn remove_forward(&self, peer: Ipv4Addr, internal_port: u16) -> impl Future<Output = ()> + Send;
 
     /// Remove the forward at external address `source` if owned by `peer` (UPnP
     /// IGD identifies a mapping by its external port). Returns whether a
     /// peer-owned forward was removed; `false` means "no such mapping", reported
     /// without revealing other peers' mappings.
-    async fn remove_forward_by_source(&self, source: SocketAddrV4, peer: Ipv4Addr) -> bool;
+    fn remove_forward_by_source(
+        &self,
+        source: SocketAddrV4,
+        peer: Ipv4Addr,
+    ) -> impl Future<Output = bool> + Send;
 
     /// The external (WAN) IPv4 the gateway routes `peer`'s egress out of, or
     /// `None` if unknown.
-    async fn external_ipv4(&self, peer: Ipv4Addr) -> Option<Ipv4Addr>;
+    fn external_ipv4(&self, peer: Ipv4Addr) -> impl Future<Output = Option<Ipv4Addr>> + Send;
 
     /// Whether `peer` is a client this gateway will create mappings for.
-    async fn is_known_client(&self, peer: Ipv4Addr) -> bool;
+    fn is_known_client(&self, peer: Ipv4Addr) -> impl Future<Output = bool> + Send;
 
     /// The SNI demultiplexer used for HOSTNAME-bound shared-port mappings.
     fn sni(&self) -> &Arc<SniDemux>;
@@ -81,19 +85,30 @@ pub trait GatewayBackend: Send + Sync {
     /// address) to `target`, owned by `target`. `lifetime` is `None` for a
     /// permanent (DB-backed) binding. Default impl is dataplane-only; the tunnel
     /// overrides it to also persist the routes.
-    async fn add_sni_forward(
+    fn add_sni_forward(
         &self,
         source: SocketAddrV4,
         target: SocketAddrV4,
         hostnames: &[String],
         lifetime: Option<u32>,
-    ) -> Result<(), u8> {
-        self.sni().register(*source.ip(), source.port(), hostnames, target, lifetime)
+    ) -> impl Future<Output = Result<(), u8>> + Send {
+        async move {
+            self.sni()
+                .register(*source.ip(), source.port(), hostnames, target, lifetime)
+        }
     }
 
     /// Remove the SNI routes for `hostnames` on `source` owned by `target`.
-    async fn remove_sni_forward(&self, source: SocketAddrV4, target: SocketAddrV4, hostnames: &[String]) {
-        self.sni().unregister(*source.ip(), source.port(), hostnames, target);
+    fn remove_sni_forward(
+        &self,
+        source: SocketAddrV4,
+        target: SocketAddrV4,
+        hostnames: &[String],
+    ) -> impl Future<Output = ()> + Send {
+        async move {
+            self.sni()
+                .unregister(*source.ip(), source.port(), hostnames, target);
+        }
     }
 }
 

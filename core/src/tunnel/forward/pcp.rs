@@ -67,7 +67,6 @@ async fn serve(ctx: &TunnelContext, started: Instant) -> Result<(), Error> {
 
 /// Maps PCP forward operations onto the tunnel's nftables forwards + PatchDb. A
 /// peer can only forward to its own tunnel IP (caller passes `target = peer`).
-#[async_trait::async_trait]
 impl GatewayBackend for TunnelContext {
     async fn add_forward(
         &self,
