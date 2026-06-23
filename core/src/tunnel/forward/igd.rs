@@ -221,19 +221,18 @@ pub(super) async fn apply_peer_forward(
     ctx: &TunnelContext,
     source: SocketAddrV4,
     target: SocketAddrV4,
-    peer: Ipv4Addr,
 ) -> Result<(), u16> {
-    apply_peer_forward_range(ctx, source, target, 1, peer, "UPnP").await
+    apply_peer_forward_range(ctx, source, target, 1, "UPnP").await
 }
 
 /// Like [`apply_peer_forward`] but forwards `count` contiguous ports (a PCP
-/// PORT_SET range). `protocol_label` prefixes the DB label (e.g. "UPnP", "PCP").
+/// PORT_SET range). `protocol_label` is the DB label (e.g. "UPnP", "PCP"); the
+/// requesting device is already shown by the forward's target.
 pub(super) async fn apply_peer_forward_range(
     ctx: &TunnelContext,
     source: SocketAddrV4,
     target: SocketAddrV4,
     count: u16,
-    peer: Ipv4Addr,
     protocol_label: &str,
 ) -> Result<(), u16> {
     match current_forward(ctx, source).await {
@@ -277,7 +276,7 @@ pub(super) async fn apply_peer_forward_range(
     });
     let entry = PortForward::Dnat {
         target,
-        label: Some(format!("{protocol_label} ({peer})")),
+        label: Some(protocol_label.to_string()),
         enabled: true,
         count,
     };

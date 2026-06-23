@@ -73,9 +73,9 @@ impl GatewayBackend for TunnelContext {
         source: SocketAddrV4,
         target: SocketAddrV4,
         count: u16,
-        peer: Ipv4Addr,
+        _peer: Ipv4Addr,
     ) -> Result<(), u16> {
-        apply_peer_forward_range(self, source, target, count, peer, "PCP").await
+        apply_peer_forward_range(self, source, target, count, "PCP").await
     }
 
     async fn remove_forward(&self, peer: Ipv4Addr, internal_port: u16) {
