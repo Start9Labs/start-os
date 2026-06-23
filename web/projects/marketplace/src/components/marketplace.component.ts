@@ -3,7 +3,6 @@ import {
   Component,
   computed,
   contentChild,
-  effect,
   inject,
   input,
   model,
@@ -69,7 +68,7 @@ const ICONS: Record<string, string> = {
           [tuiSkeleton]="!categories()"
           [iconStart]="icons[cat.key.toLowerCase()] || '@tui.box'"
           [disabled]="!categories()"
-          [class._active]="cat.key === category()"
+          [class._active]="cat.key === effectiveCategory()"
           tuiAsideItem
           type="button"
           (click)="onCategory(cat.key)"
@@ -256,15 +255,24 @@ export class MarketplaceComponent {
     )
   })
 
+  // The selected category may be absent from the current registry (e.g. after
+  // switching registries); fall back to 'all' so the grid is never stuck empty.
+  protected readonly effectiveCategory = computed(() => {
+    const cats = this.categories()
+    const cat = this.category()
+    return cats && cat !== 'all' && !cats[cat] ? 'all' : cat
+  })
+
   protected readonly name = computed(
-    (c = this.category()) => this.registry()?.info?.categories?.[c]?.name || c,
+    (c = this.effectiveCategory()) =>
+      this.registry()?.info?.categories?.[c]?.name || c,
   )
 
   protected readonly packages = computed(() =>
     filterPackages(
       this.registry()?.packages || [],
       this.query(),
-      this.category(),
+      this.effectiveCategory(),
       this.sort(),
     ),
   )
@@ -273,17 +281,6 @@ export class MarketplaceComponent {
     a: { name: '' },
     b: { name: '' },
     c: { name: '' },
-  }
-
-  constructor() {
-    // If the selected category gets hidden (no packages in the current
-    // registry), fall back to 'all' so the grid isn't stuck empty.
-    effect(() => {
-      const cats = this.categories()
-      if (cats && this.category() !== 'all' && !cats[this.category()]) {
-        this.category.set('all')
-      }
-    })
   }
 
   protected get sortLabel(): string {

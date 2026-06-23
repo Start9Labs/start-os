@@ -784,4 +784,6 @@ export default {
   873: 'Nuevo formato de copia de seguridad',
   874: 'Guardar este registro',
   875: 'Empaquetar un servicio',
+  876: 'Consigue un servidor Start9',
+  877: 'No se pudo acceder al registro',
 } satisfies i18n

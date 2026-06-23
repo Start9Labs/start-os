@@ -785,4 +785,6 @@ export const ENGLISH: Record<string, number> = {
   'OK': 872,
   'Save this registry': 874,
   'Package a service': 875,
+  'Get a Start9 server': 876,
+  'Could not reach registry': 877,
 }

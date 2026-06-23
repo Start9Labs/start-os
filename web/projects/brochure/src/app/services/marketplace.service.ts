@@ -7,7 +7,7 @@ import {
   StoreDataWithUrl,
   StoreIdentity,
 } from '@start9labs/marketplace'
-import { defaultRegistries, Exver, sameUrl } from '@start9labs/shared'
+import { defaultRegistries, Exver, i18nPipe, sameUrl } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import {
   BehaviorSubject,
@@ -44,6 +44,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
   private readonly api = inject(ApiService)
   private readonly exver = inject(Exver)
   private readonly storage = inject(WA_LOCAL_STORAGE)
+  private readonly i18n = inject(i18nPipe)
 
   // Emits the url of a registry that failed to load (unreachable / CORS).
   readonly registryError$ = new Subject<string>()
@@ -121,7 +122,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
     if (
       (await firstValueFrom(this.registries$)).some(r => sameUrl(r.url, url))
     ) {
-      throw new Error('Registry already added')
+      throw new Error(this.i18n.transform('Registry already added'))
     }
 
     // validates the registry is reachable and provides a display name

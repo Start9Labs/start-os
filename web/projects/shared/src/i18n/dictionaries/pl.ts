@@ -784,4 +784,6 @@ export default {
   873: 'Nowy format kopii zapasowej',
   874: 'Zapisz ten katalog',
   875: 'Spakuj usługę',
+  876: 'Zdobądź serwer Start9',
+  877: 'Nie można połączyć z katalogiem',
 } satisfies i18n

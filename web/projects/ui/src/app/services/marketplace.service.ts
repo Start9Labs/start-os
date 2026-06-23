@@ -147,7 +147,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
 
   fetchStatic$(
     pkg: MarketplacePkg,
-    path: 'LICENSE.md' | 'instructions.md' = 'LICENSE.md',
+    path: 'LICENSE.md' | 'instructions.md',
   ): Observable<string> {
     const registryAsset = pkg.s9pks[0]?.[1]
 
@@ -297,7 +297,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
     // load falls back to the default rather than the deleted one.
     const selected = this.storage.get<string>('selectedRegistry')
     if (selected && sameUrl(selected, url)) {
-      this.storage.set('selectedRegistry', '')
+      this.storage.set('selectedRegistry', null)
     }
   }
 

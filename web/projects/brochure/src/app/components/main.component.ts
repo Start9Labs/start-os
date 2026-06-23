@@ -15,6 +15,7 @@ import {
   defaultRegistries,
   DialogService,
   i18nKey,
+  i18nPipe,
   sameUrl,
 } from '@start9labs/shared'
 import { TuiButton } from '@taiga-ui/core'
@@ -38,7 +39,7 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
         rel="noreferrer"
         href="https://store.start9.com"
       >
-        Get a Start9 server
+        {{ 'Get a Start9 server' | i18n }}
       </a>
       <a
         actions
@@ -50,7 +51,7 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
         rel="noreferrer"
         href="https://docs.start9.com/packaging/"
       >
-        Package a service
+        {{ 'Package a service' | i18n }}
       </a>
       <ng-template let-pkg>
         <button type="button" [marketplaceTile]="pkg"></button>
@@ -78,6 +79,7 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
     MarketplaceTileComponent,
     MarketplaceRegistrySelectComponent,
     TuiButton,
+    i18nPipe,
   ],
 })
 export class MainComponent {
@@ -85,6 +87,7 @@ export class MainComponent {
   private readonly route = inject(ActivatedRoute)
   private readonly service = inject(MarketplaceService)
   private readonly dialog = inject(DialogService)
+  private readonly i18n = inject(i18nPipe)
 
   protected readonly category = signal('all')
   protected readonly query = signal('')
@@ -119,9 +122,10 @@ export class MainComponent {
     // failed registry is the one requested in the URL.
     this.service.registryError$.pipe(takeUntilDestroyed()).subscribe(url => {
       this.dialog
-        .openAlert(`Could not reach registry: ${url}` as i18nKey, {
-          label: 'Error',
-        })
+        .openAlert(
+          `${this.i18n.transform('Could not reach registry')}: ${url}` as i18nKey,
+          { label: 'Error' },
+        )
         .subscribe()
 
       const current = this.route.snapshot.queryParamMap.get('registry')

@@ -784,4 +784,6 @@ export default {
   873: 'Neues Backup-Format',
   874: 'Dieses Register speichern',
   875: 'Einen Dienst paketieren',
+  876: 'Einen Start9-Server holen',
+  877: 'Register konnte nicht erreicht werden',
 } satisfies i18n

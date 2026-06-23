@@ -784,4 +784,6 @@ export default {
   873: 'Nouveau format de sauvegarde',
   874: 'Enregistrer cette bibliothèque',
   875: 'Empaqueter un service',
+  876: 'Obtenez un serveur Start9',
+  877: 'Impossible de joindre la bibliothèque',
 } satisfies i18n
