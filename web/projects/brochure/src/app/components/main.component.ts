@@ -8,6 +8,7 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, Router } from '@angular/router'
 import {
   MarketplaceComponent,
+  MarketplacePackageLinkComponent,
   MarketplaceRegistrySelectComponent,
   MarketplaceTileComponent,
 } from '@start9labs/marketplace'
@@ -34,25 +35,14 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
         actions
         tuiButton
         iconStart="@tui.shopping-cart"
-        appearance="outline"
+        appearance="primary-success"
         target="_blank"
         rel="noreferrer"
         href="https://store.start9.com"
       >
         {{ 'Get a Start9 server' | i18n }}
       </a>
-      <a
-        actions
-        tuiButton
-        iconStart="@tui.package"
-        appearance="outline"
-        [style.color]="'var(--tui-status-warning)'"
-        target="_blank"
-        rel="noreferrer"
-        href="https://docs.start9.com/packaging/"
-      >
-        {{ 'Package a service' | i18n }}
-      </a>
+      <marketplace-package-link actions />
       <ng-template let-pkg>
         <button type="button" [marketplaceTile]="pkg"></button>
       </ng-template>
@@ -76,6 +66,7 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     MarketplaceComponent,
+    MarketplacePackageLinkComponent,
     MarketplaceTileComponent,
     MarketplaceRegistrySelectComponent,
     TuiButton,
