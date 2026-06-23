@@ -40,7 +40,8 @@ pub const DIVERT_TABLE: u32 = 1344;
 /// table and they reach the proxy socket instead of being forwarded back out.
 /// Touches only the reply direction (the egress leg is in `output`, not here),
 /// so it cannot misroute the proxy's own outbound packets. Spliced into the
-/// gateway mangle reconcile so it survives that chain's flush.
+/// gateway mangle reconcile so it survives that chain's flush; on hosts without
+/// that reconcile (e.g. the tunnel) [`ensure_divert_infra`] adds it directly.
 pub fn divert_mark_rule() -> String {
     format!(
         "add rule ip startos mangle_prerouting meta l4proto tcp socket transparent 1 meta mark set {DIVERT_MARK:#010x} comment \"sni-divert\"\n"
@@ -79,8 +80,10 @@ pub async fn ensure_divert_infra_once() {
         .await;
 }
 
-/// Install the iproute2 half of the reply-path divert (idempotent). The nft half
-/// (`sni-divert`) lives in the gateway mangle reconcile. Safe to call repeatedly.
+/// Install the reply-path divert (idempotent): the iproute2 half (rule + table)
+/// always, plus the nft `sni-divert` mark rule when absent — so hosts that run the
+/// SNI demux but not the gateway mangle reconcile (e.g. the tunnel) still mark and
+/// divert replies. Safe to call repeatedly.
 pub async fn ensure_divert_infra() -> Result<(), Error> {
     let table = DIVERT_TABLE.to_string();
 
@@ -103,6 +106,25 @@ pub async fn ensure_divert_infra() -> Result<(), Error> {
             .args([
                 "rule", "add", "fwmark", &format!("{DIVERT_MARK:#x}"), "lookup", &table,
                 "priority", "49",
+            ])
+            .invoke(ErrorKind::Network)
+            .await?;
+    }
+
+    // nft `sni-divert` mark rule. The gateway reconcile owns (and re-adds) it on
+    // hosts that run it; install it directly where nothing else does (the tunnel),
+    // skipping if already present so we never duplicate or fight the reconcile.
+    let chain = Command::new("nft")
+        .args(["list", "chain", "ip", "startos", "mangle_prerouting"])
+        .invoke(ErrorKind::Network)
+        .await
+        .unwrap_or_default();
+    if !String::from_utf8_lossy(&chain).contains("sni-divert") {
+        Command::new("nft")
+            .args([
+                "add", "rule", "ip", "startos", "mangle_prerouting", "meta", "l4proto",
+                "tcp", "socket", "transparent", "1", "meta", "mark", "set",
+                &format!("{DIVERT_MARK:#010x}"), "comment", "sni-divert",
             ])
             .invoke(ErrorKind::Network)
             .await?;
