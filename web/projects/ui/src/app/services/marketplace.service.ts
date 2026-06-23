@@ -1,12 +1,13 @@
 import { inject, Injectable } from '@angular/core'
 import {
+  AbstractMarketplaceService,
   GetPackageRes,
   Marketplace,
   MarketplacePkg,
   StoreDataWithUrl,
   StoreIdentity,
 } from '@start9labs/marketplace'
-import { defaultRegistries, Exver, sameUrl } from '@start9labs/shared'
+import { defaultRegistries, Exver, i18nPipe, sameUrl } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { PatchDB } from 'patch-db-client'
 import {
@@ -15,6 +16,7 @@ import {
   combineLatest,
   distinctUntilChanged,
   filter,
+  firstValueFrom,
   from,
   map,
   mergeMap,
@@ -30,16 +32,19 @@ import {
 } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { StorageService } from 'src/app/services/storage.service'
 
 const { start9, community } = defaultRegistries
 
 @Injectable({
   providedIn: 'root',
 })
-export class MarketplaceService {
+export class MarketplaceService extends AbstractMarketplaceService {
   private readonly api = inject(ApiService)
   private readonly patch: PatchDB<DataModel> = inject(PatchDB)
   private readonly exver = inject(Exver)
+  private readonly storage = inject(StorageService)
+  private readonly i18n = inject(i18nPipe)
 
   readonly registries$: Observable<StoreIdentity[]> = this.patch
     .watch$('ui', 'registries')
@@ -140,7 +145,10 @@ export class MarketplaceService {
     )
   }
 
-  fetchStatic$(pkg: MarketplacePkg): Observable<string> {
+  fetchStatic$(
+    pkg: MarketplacePkg,
+    path: 'LICENSE.md' | 'instructions.md',
+  ): Observable<string> {
     const registryAsset = pkg.s9pks[0]?.[1]
 
     if (!registryAsset) {
@@ -149,7 +157,7 @@ export class MarketplaceService {
 
     const urls =
       registryAsset.urls.map(
-        u => `/s9pk/proxy/${encodeURIComponent(u)}/LICENSE.md`,
+        u => `/s9pk/proxy/${encodeURIComponent(u)}/${path}`,
       ) || []
 
     return from(
@@ -256,6 +264,41 @@ export class MarketplaceService {
     }
 
     await this.api.installPackage(params)
+  }
+
+  async connect(url: string): Promise<void> {
+    this.currentRegistryUrl$.next(url)
+    this.storage.set('selectedRegistry', url)
+  }
+
+  async add(rawUrl: string): Promise<string> {
+    const url = new URL(rawUrl).origin + '/'
+    const existing = await firstValueFrom(this.registries$)
+
+    if (existing.some(r => sameUrl(r.url, url))) {
+      throw new Error(this.i18n.transform('Registry already added'))
+    }
+
+    // validates the registry is reachable and provides a display name
+    const { name } = await firstValueFrom(this.fetchInfo$(url))
+    await this.api.setDbValue<string | null>(['registries', url], name)
+
+    return url
+  }
+
+  async delete(url: string): Promise<void> {
+    const raw = await firstValueFrom(this.patch.watch$('ui', 'registries'))
+    const filtered: Record<string, string | null> = Object.fromEntries(
+      Object.entries(raw).filter(([key]) => !sameUrl(key, url)),
+    )
+    await this.api.setDbValue(['registries'], filtered)
+
+    // If the deleted registry was the persisted selection, clear it so the next
+    // load falls back to the default rather than the deleted one.
+    const selected = this.storage.get<string>('selectedRegistry')
+    if (selected && sameUrl(selected, url)) {
+      this.storage.set('selectedRegistry', null)
+    }
   }
 
   private async updateRegistryName(

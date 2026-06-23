@@ -56,3 +56,30 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+// Global utility classes the shared @start9labs/marketplace lib relies on.
+// They live here (loaded by every host) rather than in a single app's
+// stylesheet so the lib's components render identically across the OS UI and
+// the public brochure.
+.g-title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  text-transform: uppercase;
+  font-weight: bold;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  margin: 2rem 0 1rem;
+  color: var(--tui-text-secondary);
+}
+
+.g-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.g-positive {
+  color: var(--tui-status-positive) !important;
+}

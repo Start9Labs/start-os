@@ -20,6 +20,7 @@ export class MockApiService extends ApiService {
   async getRegistryPackage(
     _registryUrl: string,
     id: string,
+    _targetVersion: string | null,
   ): Promise<GetPackageRes> {
     await this.pauseFor(1000)
     return Mock.RegistryPackages[id]!

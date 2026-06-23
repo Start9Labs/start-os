@@ -3,7 +3,12 @@ import { Component, inject, signal } from '@angular/core'
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import { ActivatedRoute, Router } from '@angular/router'
-import { MarketplaceComponent } from '@start9labs/marketplace'
+import {
+  MarketplaceComponent,
+  MarketplacePackageLinkComponent,
+  MarketplaceRegistrySelectComponent,
+  MarketplaceTileComponent,
+} from '@start9labs/marketplace'
 import { i18nPipe } from '@start9labs/shared'
 import { tap } from 'rxjs'
 import { ConfigService } from 'src/app/services/config.service'
@@ -11,8 +16,7 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { StorageService } from 'src/app/services/storage.service'
 import { TitleDirective } from 'src/app/services/title.service'
 
-import { MarketplaceRegistrySelectComponent } from './components/registry-select.component'
-import { MarketplaceTileComponent } from './components/tile.component'
+import { MarketplaceControlsComponent } from './components/controls.component'
 
 @Component({
   template: `
@@ -23,8 +27,13 @@ import { MarketplaceTileComponent } from './components/tile.component'
       [(query)]="query"
     >
       <marketplace-registry-select />
+      <marketplace-package-link actions />
       <ng-template let-pkg>
-        <button type="button" [marketplaceTile]="pkg"></button>
+        <button type="button" [marketplaceTile]="pkg">
+          <ng-template let-resolved>
+            <marketplace-controls [pkg]="resolved" />
+          </ng-template>
+        </button>
       </ng-template>
     </marketplace>
   `,
@@ -43,6 +52,8 @@ import { MarketplaceTileComponent } from './components/tile.component'
     TitleDirective,
     i18nPipe,
     MarketplaceComponent,
+    MarketplaceControlsComponent,
+    MarketplacePackageLinkComponent,
     MarketplaceRegistrySelectComponent,
     MarketplaceTileComponent,
   ],

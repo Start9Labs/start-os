@@ -17,23 +17,29 @@ export namespace Mock {
     name: 'Start9 Registry',
     icon: REGISTRY_ICON,
     categories: {
+      ai: {
+        name: 'AI',
+      },
       bitcoin: {
         name: 'Bitcoin',
       },
-      featured: {
-        name: 'Featured',
+      crypto: {
+        name: 'Crypto',
       },
-      lightning: {
-        name: 'Lightning',
+      finance: {
+        name: 'Finance',
       },
-      communications: {
-        name: 'Communications',
+      media: {
+        name: 'Media',
       },
-      data: {
-        name: 'Data',
+      networking: {
+        name: 'Networking',
       },
-      ai: {
-        name: 'AI',
+      'files-and-productivity': {
+        name: 'Files and Productivity',
+      },
+      social: {
+        name: 'Social',
       },
     },
   }
@@ -188,7 +194,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
           plugins: [],
         },
       },
-      categories: ['bitcoin', 'featured'],
+      categories: ['bitcoin'],
       otherVersions: {
         '26.1.0:0.1.0': {
           releaseNotes: 'Even better support for Bitcoin and wallets!',
@@ -238,7 +244,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
           plugins: [],
         },
       },
-      categories: ['lightning'],
+      categories: ['bitcoin', 'finance'],
       otherVersions: {
         '0.17.5:0': {
           releaseNotes: 'Upstream release to 0.17.5',
@@ -323,7 +329,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
           plugins: [],
         },
       },
-      categories: ['bitcoin'],
+      categories: ['bitcoin', 'networking'],
       otherVersions: {
         '0.3.2.7:0': {
           releaseNotes: 'Upstream release and minor fixes.',

@@ -1,6 +1,7 @@
 {
   "name": "@start9labs/marketplace",
-  "version": "0.3.36",
+  "version": "0.0.0",
+  "description": "Internal, source-consumed StartOS marketplace UI library — apps resolve it via tsconfig paths, not the ng-packagr build. Private and unpublished; the ng-packagr target exists only for optional npm extraction.",
   "private": true,
   "peerDependencies": {
     "@angular/common": ">=22.0.0",
@@ -8,7 +9,7 @@
     "@angular/forms": ">=22.0.0",
     "@angular/router": ">=22.0.0",
     "@ng-web-apis/platform": ">=5.0.0",
-    "@start9labs/shared": ">=0.3.16",
+    "@start9labs/shared": "*",
     "@start9labs/start-sdk": ">=1.5.3",
     "@taiga-ui/cdk": ">=5.0.0",
     "@taiga-ui/core": ">=5.0.0",

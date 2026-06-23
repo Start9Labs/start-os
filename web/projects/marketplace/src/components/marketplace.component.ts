@@ -37,17 +37,17 @@ import { StoreDataWithUrl } from '../types'
 
 const ICONS: Record<string, string> = {
   all: '@tui.layout-grid',
+  ai: '@tui.cpu',
   bitcoin: '@tui.bitcoin',
-  messaging: '@tui.message-circle',
-  communications: '@tui.message-circle',
-  data: '@tui.file-text',
-  'developer tools': '@tui.table-split',
-  featured: '@tui.star',
-  lightning: '@tui.zap',
+  crypto: '@tui.coins',
+  'developer-tools': '@tui.code',
+  finance: '@tui.chart-line',
+  'files-and-productivity': '@tui.briefcase',
+  'home-and-automation': '@tui.home',
   media: '@tui.circle-play',
   networking: '@tui.globe',
+  nostr: '@tui.feather',
   social: '@tui.users',
-  ai: '@tui.cpu',
 }
 
 @Component({
@@ -68,7 +68,7 @@ const ICONS: Record<string, string> = {
           [tuiSkeleton]="!categories()"
           [iconStart]="icons[cat.key.toLowerCase()] || '@tui.box'"
           [disabled]="!categories()"
-          [class._active]="cat.key === category()"
+          [class._active]="cat.key === effectiveCategory()"
           tuiAsideItem
           type="button"
           (click)="onCategory(cat.key)"
@@ -76,6 +76,9 @@ const ICONS: Record<string, string> = {
           {{ cat.value.name ? (cat.value.name | localize) : cat.key }}
         </button>
       }
+      <div class="actions">
+        <ng-content select="[actions]" />
+      </div>
       <footer>
         <button
           tuiAsideItem
@@ -165,6 +168,12 @@ const ICONS: Record<string, string> = {
       }
     }
 
+    .actions {
+      display: grid;
+      gap: 0.5rem;
+      margin-block-start: 0.5rem;
+    }
+
     .content {
       flex: 1;
       min-width: 0;
@@ -231,19 +240,39 @@ export class MarketplaceComponent {
   protected readonly icons = ICONS
   protected readonly asIs = () => 0
   protected readonly open = signal(!inject(WA_IS_MOBILE))
-  protected readonly categories = computed(
-    () => this.registry()?.info?.categories,
-  )
+  // Only categories that have at least one package are shown; 'all' is the
+  // always-present pseudo-category injected by each app's service.
+  protected readonly categories = computed(() => {
+    const info = this.registry()?.info?.categories
+    if (!info) return undefined
+
+    const used = new Set(
+      (this.registry()?.packages || []).flatMap(p => p.categories || []),
+    )
+
+    return Object.fromEntries(
+      Object.entries(info).filter(([key]) => key === 'all' || used.has(key)),
+    )
+  })
+
+  // The selected category may be absent from the current registry (e.g. after
+  // switching registries); fall back to 'all' so the grid is never stuck empty.
+  protected readonly effectiveCategory = computed(() => {
+    const cats = this.categories()
+    const cat = this.category()
+    return cats && cat !== 'all' && !cats[cat] ? 'all' : cat
+  })
 
   protected readonly name = computed(
-    (c = this.category()) => this.registry()?.info?.categories?.[c]?.name || c,
+    (c = this.effectiveCategory()) =>
+      this.registry()?.info?.categories?.[c]?.name || c,
   )
 
   protected readonly packages = computed(() =>
     filterPackages(
       this.registry()?.packages || [],
       this.query(),
-      this.category(),
+      this.effectiveCategory(),
       this.sort(),
     ),
   )
