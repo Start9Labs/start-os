@@ -102,6 +102,12 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'device.set-dns-injection', params })
   }
 
+  async setAutoPortForward(
+    params: T.Tunnel.SetAutoPortForwardParams,
+  ): Promise<null> {
+    return this.rpcRequest({ method: 'device.set-auto-port-forward', params })
+  }
+
   async setDeviceWan(params: T.Tunnel.SetDeviceWanParams): Promise<null> {
     return this.rpcRequest({ method: 'device.set-wan', params })
   }

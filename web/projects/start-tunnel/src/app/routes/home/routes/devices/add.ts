@@ -101,11 +101,7 @@ import {
       </tui-textfield>
 
       <label tuiLabel>
-        <input
-          tuiCheckbox
-          type="checkbox"
-          formControlName="allowDnsInjection"
-        />
+        <input tuiCheckbox type="checkbox" formControlName="autoconfig" />
         Enable Gateway Autoconfiguration (Recommended for StartOS)
       </label>
       <p
@@ -170,7 +166,7 @@ export class DevicesAdd {
     wanIp: this.fb.control<string | null>(
       this.context.data.device?.wanIp ?? null,
     ),
-    allowDnsInjection: [this.context.data.device?.allowDnsInjection ?? false],
+    autoconfig: [this.context.data.device?.allowDnsInjection ?? false],
   })
 
   protected readonly wanItems: readonly (string | null)[] = [
@@ -208,8 +204,7 @@ export class DevicesAdd {
     }
 
     const loader = this.loading.open('').subscribe()
-    const { ip, name, subnet, wanIp, allowDnsInjection } =
-      this.form.getRawValue()
+    const { ip, name, subnet, wanIp, autoconfig } = this.form.getRawValue()
     const data = { ip, name, subnet: subnet?.range || '' }
     const device = this.context.data.device
 
@@ -224,11 +219,17 @@ export class DevicesAdd {
         await this.api.setDeviceWan({ subnet: data.subnet, ip, wanIp })
       }
 
-      if (allowDnsInjection !== (device?.allowDnsInjection ?? false)) {
+      // One "Gateway Autoconfiguration" checkbox drives both per-device flags.
+      if (autoconfig !== (device?.allowDnsInjection ?? false)) {
         await this.api.setDnsInjection({
           subnet: data.subnet,
           ip,
-          enabled: allowDnsInjection,
+          enabled: autoconfig,
+        })
+        await this.api.setAutoPortForward({
+          subnet: data.subnet,
+          ip,
+          enabled: autoconfig,
         })
       }
 

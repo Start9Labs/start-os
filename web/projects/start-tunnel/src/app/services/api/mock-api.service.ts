@@ -168,6 +168,7 @@ export class MockApiService extends ApiService {
           key: '',
           psk: '',
           allowDnsInjection: false,
+          allowAutoPortForward: false,
           wanIp: null,
         },
       },
@@ -219,6 +220,23 @@ export class MockApiService extends ApiService {
       {
         op: PatchOp.REPLACE,
         path: `/wg/subnets/${replaceSlashes(params.subnet)}/clients/${params.ip}/allowDnsInjection`,
+        value: params.enabled,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async setAutoPortForward(
+    params: T.Tunnel.SetAutoPortForwardParams,
+  ): Promise<null> {
+    await pauseFor(1000)
+
+    const patch: ReplaceOperation<boolean>[] = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/wg/subnets/${replaceSlashes(params.subnet)}/clients/${params.ip}/allowAutoPortForward`,
         value: params.enabled,
       },
     ]

@@ -12,6 +12,13 @@ export type WgConfig = {
    */
   allowDnsInjection: boolean
   /**
+   * Whether this device may auto-create port forwards via PCP/IGD. Off by
+   * default — paired with `allow_dns_injection` under one "Gateway
+   * Autoconfiguration" toggle, but tracked separately so each capability is
+   * gated on its own.
+   */
+  allowAutoPortForward: boolean
+  /**
    * SNAT this device's egress to this WAN IP, overriding the subnet's
    * `wan_ip` / the default masquerade. `None` falls back to the subnet rule.
    */

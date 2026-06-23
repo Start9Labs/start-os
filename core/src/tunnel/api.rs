@@ -222,6 +222,14 @@ pub fn device_api<C: Context>() -> ParentHandler<C> {
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
+            "set-auto-port-forward",
+            from_fn_async(set_auto_port_forward)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("about.allow-or-deny-device-auto-port-forward")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
             "set-wan",
             from_fn_async(set_device_wan)
                 .with_metadata("sync_db", Value::Bool(true))
@@ -274,6 +282,46 @@ pub async fn set_dns_injection(
             s.remove(&IpAddr::V4(ip));
         }
     });
+    Ok(())
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[serde(rename_all = "camelCase")]
+pub struct SetAutoPortForwardParams {
+    #[ts(type = "string")]
+    subnet: Ipv4Net,
+    #[ts(type = "string")]
+    ip: Ipv4Addr,
+    #[arg(long)]
+    enabled: bool,
+}
+
+/// Allow/deny a device to auto-create port forwards via PCP/IGD. Off by
+/// default; paired with DNS injection under the gateway-autoconfig toggle.
+/// `is_known_client` reads this live, so no cache to update here.
+pub async fn set_auto_port_forward(
+    ctx: TunnelContext,
+    SetAutoPortForwardParams {
+        subnet,
+        ip,
+        enabled,
+    }: SetAutoPortForwardParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_wg_mut()
+                .as_subnets_mut()
+                .as_idx_mut(&subnet)
+                .or_not_found(&subnet)?
+                .as_clients_mut()
+                .as_idx_mut(&ip)
+                .or_not_found(&ip)?
+                .as_allow_auto_port_forward_mut()
+                .ser(&enabled)
+        })
+        .await
+        .result?;
     Ok(())
 }
 

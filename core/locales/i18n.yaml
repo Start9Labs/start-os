@@ -6324,6 +6324,13 @@ about.allow-or-deny-device-dns-injection:
   fr_FR: "Autoriser ou refuser à un appareil d'injecter des enregistrements DNS"
   pl_PL: "Zezwól lub odmów urządzeniu wstrzykiwania rekordów DNS"
 
+about.allow-or-deny-device-auto-port-forward:
+  en_US: "Allow or deny a device to auto-create port forwards"
+  de_DE: "Einem Gerät das automatische Erstellen von Portweiterleitungen erlauben oder verweigern"
+  es_ES: "Permitir o denegar que un dispositivo cree reenvíos de puertos automáticamente"
+  fr_FR: "Autoriser ou refuser à un appareil de créer automatiquement des redirections de ports"
+  pl_PL: "Zezwól lub odmów urządzeniu automatycznego tworzenia przekierowań portów"
+
 about.list-injected-dns-records:
   en_US: "List injected DNS records"
   de_DE: "Eingefügte DNS-Einträge auflisten"

@@ -18,6 +18,7 @@ export const mockTunnelData: TunnelData = {
             key: '',
             psk: '',
             allowDnsInjection: true,
+            allowAutoPortForward: true,
             wanIp: null,
           },
           '10.59.0.3': {
@@ -25,6 +26,7 @@ export const mockTunnelData: TunnelData = {
             key: '',
             psk: '',
             allowDnsInjection: false,
+            allowAutoPortForward: false,
             wanIp: null,
           },
           '10.59.0.4': {
@@ -32,6 +34,7 @@ export const mockTunnelData: TunnelData = {
             key: '',
             psk: '',
             allowDnsInjection: false,
+            allowAutoPortForward: false,
             wanIp: null,
           },
         },

@@ -220,6 +220,7 @@ fn export_bindings_tunnel_db() {
     UpdatePortForwardLabelParams::export_all_to("bindings/tunnel").unwrap();
     SetPortForwardEnabledParams::export_all_to("bindings/tunnel").unwrap();
     SetDnsInjectionParams::export_all_to("bindings/tunnel").unwrap();
+    SetAutoPortForwardParams::export_all_to("bindings/tunnel").unwrap();
     SetSubnetWanParams::export_all_to("bindings/tunnel").unwrap();
     SetDeviceWanParams::export_all_to("bindings/tunnel").unwrap();
     AddDnsRecordParams::export_all_to("bindings/tunnel").unwrap();

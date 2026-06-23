@@ -2,9 +2,8 @@
 
 export type AddPortForwardParams = {
   /**
-   * External (WAN) port to forward. The external IP is fixed to the target
-   * device's assigned WAN: a forward's inbound IP must equal the device's
-   * egress WAN so return traffic is symmetric.
+   * External (WAN) port to forward. The external IP is fixed to the target's
+   * WAN so return traffic stays symmetric.
    */
   externalPort: number
   target: string

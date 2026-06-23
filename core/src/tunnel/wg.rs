@@ -196,6 +196,12 @@ pub struct WgConfig {
     /// the tunnel's DNS for every peer to resolve).
     #[serde(default)]
     pub allow_dns_injection: bool,
+    /// Whether this device may auto-create port forwards via PCP/IGD. Off by
+    /// default — paired with `allow_dns_injection` under one "Gateway
+    /// Autoconfiguration" toggle, but tracked separately so each capability is
+    /// gated on its own.
+    #[serde(default)]
+    pub allow_auto_port_forward: bool,
     /// SNAT this device's egress to this WAN IP, overriding the subnet's
     /// `wan_ip` / the default masquerade. `None` falls back to the subnet rule.
     #[serde(default)]
@@ -209,6 +215,7 @@ impl WgConfig {
             key: Base64(WgKey::generate()),
             psk: Base64(rand::random()),
             allow_dns_injection: false,
+            allow_auto_port_forward: false,
             wan_ip: None,
         }
     }

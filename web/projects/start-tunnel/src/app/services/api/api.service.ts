@@ -36,6 +36,9 @@ export abstract class ApiService {
   abstract setDnsInjection(
     params: T.Tunnel.SetDnsInjectionParams,
   ): Promise<null> // device.set-dns-injection
+  abstract setAutoPortForward(
+    params: T.Tunnel.SetAutoPortForwardParams,
+  ): Promise<null> // device.set-auto-port-forward
   abstract setDeviceWan(params: T.Tunnel.SetDeviceWanParams): Promise<null> // device.set-wan
   // dns
   abstract addDnsRecord(params: T.Tunnel.AddDnsRecordParams): Promise<null> // dns.add

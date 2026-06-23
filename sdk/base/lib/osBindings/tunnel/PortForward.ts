@@ -2,9 +2,8 @@
 import type { SniRoute } from './SniRoute'
 
 /**
- * One external-port forward: either a standard nftables DNAT, or an
- * SNI-demultiplexed shared port (multiple hostname routes to backend targets).
- * The two are mutually exclusive for a given external address.
+ * One external-port forward: an nftables DNAT or an SNI-demultiplexed shared
+ * port. Mutually exclusive for a given external address.
  */
 export type PortForward =
   | {
@@ -13,8 +12,7 @@ export type PortForward =
       label: string | null
       enabled: boolean
       /**
-       * Contiguous ports forwarded from the source (a PCP PORT_SET range);
-       * `1` for a single-port forward.
+       * Contiguous ports forwarded (a PCP PORT_SET range); `1` for single-port.
        */
       count: number
     }
