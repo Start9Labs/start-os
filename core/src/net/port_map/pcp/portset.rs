@@ -47,30 +47,17 @@ impl PortSet {
 /// Append a framed PORT_SET option (RFC 6887 §7.3, zero-padded to 32 bits).
 /// Used by the server to echo the granted set in a MAP response.
 pub fn encode_port_set_option(buf: &mut Vec<u8>, ps: &PortSet) {
-    let data = ps.to_payload();
-    buf.push(OPTION_PORT_SET);
-    buf.push(0); // reserved
-    buf.extend_from_slice(&(data.len() as u16).to_be_bytes());
-    buf.extend_from_slice(&data);
-    while !buf.len().is_multiple_of(4) {
-        buf.push(0);
-    }
+    super::encode_pcp_option(buf, OPTION_PORT_SET, &ps.to_payload());
 }
 
 /// First PORT_SET option in a PCP opcode's option area. `Err` on a truncated or
 /// malformed option so the caller can reply MALFORMED_OPTION.
-pub fn parse_port_set_options(mut tail: &[u8]) -> Result<Option<PortSet>, ()> {
-    while tail.len() >= 4 {
-        let code = tail[0];
-        let len = u16::from_be_bytes([tail[2], tail[3]]) as usize;
-        if 4 + len > tail.len() {
-            return Err(());
-        }
+pub fn parse_port_set_options(tail: &[u8]) -> Result<Option<PortSet>, ()> {
+    for opt in super::pcp_options(tail) {
+        let (code, value) = opt?;
         if code == OPTION_PORT_SET {
-            return PortSet::from_payload(&tail[4..4 + len]).ok_or(()).map(Some);
+            return PortSet::from_payload(value).ok_or(()).map(Some);
         }
-        let end = (4 + len + 3) & !3;
-        tail = &tail[end.min(tail.len())..];
     }
     Ok(None)
 }

@@ -319,9 +319,8 @@ pub async fn nft_ensure_base() -> Result<(), Error> {
     Ok(())
 }
 
-/// Rules in `chain` tagged with `comment`, as `(handle, body)` where `body` is
-/// the rule text preceding the `comment "..."` token.
-async fn nft_rules_with_comment(chain: &str, comment: &str) -> Vec<(u32, String)> {
+/// `nft -a list chain ip startos <chain>` output, empty on error.
+async fn nft_list_chain(chain: &str) -> String {
     let out = Command::new("nft")
         .arg("-a")
         .arg("list")
@@ -332,8 +331,15 @@ async fn nft_rules_with_comment(chain: &str, comment: &str) -> Vec<(u32, String)
         .invoke(ErrorKind::Network)
         .await
         .unwrap_or_default();
+    String::from_utf8_lossy(&out).into_owned()
+}
+
+/// Rules in `chain` tagged with `comment`, as `(handle, body)` where `body` is
+/// the rule text preceding the `comment "..."` token.
+async fn nft_rules_with_comment(chain: &str, comment: &str) -> Vec<(u32, String)> {
     let needle = format!("comment \"{comment}\"");
-    String::from_utf8_lossy(&out)
+    nft_list_chain(chain)
+        .await
         .lines()
         .filter_map(|line| {
             let handle = line.rsplit_once("# handle ")?.1.trim().parse::<u32>().ok()?;
@@ -346,17 +352,8 @@ async fn nft_rules_with_comment(chain: &str, comment: &str) -> Vec<(u32, String)
 /// Comment tags in `chain` of `table ip startos` beginning with `prefix`. Used
 /// to prune orphaned per-device/per-subnet rules whose owner no longer exists.
 pub(crate) async fn nft_comments_with_prefix(chain: &str, prefix: &str) -> Vec<String> {
-    let out = Command::new("nft")
-        .arg("-a")
-        .arg("list")
-        .arg("chain")
-        .arg("ip")
-        .arg("startos")
-        .arg(chain)
-        .invoke(ErrorKind::Network)
+    nft_list_chain(chain)
         .await
-        .unwrap_or_default();
-    String::from_utf8_lossy(&out)
         .lines()
         .filter_map(|line| {
             let after = line.split_once("comment \"")?.1;

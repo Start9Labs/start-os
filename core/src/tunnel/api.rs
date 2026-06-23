@@ -878,21 +878,7 @@ pub async fn add_forward(
         return Ok(());
     }
 
-    let prefix = ctx
-        .net_iface
-        .peek(|i| {
-            i.iter()
-                .find_map(|(_, i)| {
-                    i.ip_info.as_ref().and_then(|i| {
-                        i.subnets
-                            .iter()
-                            .find(|s| s.contains(&IpAddr::from(*target.ip())))
-                    })
-                })
-                .cloned()
-        })
-        .map(|s| s.prefix_len())
-        .unwrap_or(32);
+    let prefix = crate::tunnel::forward::igd::prefix_for(&ctx, target.ip()).await;
     let rc = ctx
         .forward
         .add_forward(source, target, prefix, None)
@@ -1114,21 +1100,7 @@ pub async fn set_forward_enabled(
     match toggle {
         ForwardToggle::Dnat(target) => {
             if enabled {
-                let prefix = ctx
-                    .net_iface
-                    .peek(|i| {
-                        i.iter()
-                            .find_map(|(_, i)| {
-                                i.ip_info.as_ref().and_then(|i| {
-                                    i.subnets
-                                        .iter()
-                                        .find(|s| s.contains(&IpAddr::from(*target.ip())))
-                                })
-                            })
-                            .cloned()
-                    })
-                    .map(|s| s.prefix_len())
-                    .unwrap_or(32);
+                let prefix = crate::tunnel::forward::igd::prefix_for(&ctx, target.ip()).await;
                 let rc = ctx
                     .forward
                     .add_forward(source, target, prefix, None)

@@ -33,38 +33,23 @@ pub fn validate_hostname(name: &str) -> bool {
 /// Append a HOSTNAME option (RFC 6887 §7.3 framing, zero-padded to 32 bits).
 /// `buf` MUST already be 32-bit aligned (true after the fixed opcode payload).
 pub fn encode_hostname_option(buf: &mut Vec<u8>, hostname: &str) {
-    let data = hostname.as_bytes();
-    buf.push(OPTION_HOSTNAME);
-    buf.push(0); // reserved
-    buf.extend_from_slice(&(data.len() as u16).to_be_bytes());
-    buf.extend_from_slice(data);
-    while buf.len() % 4 != 0 {
-        buf.push(0);
-    }
+    super::encode_pcp_option(buf, OPTION_HOSTNAME, hostname.as_bytes());
 }
 
 /// Lowercased hostnames carried by HOSTNAME options in a PCP opcode's option
 /// area; other options skipped. `Err` on a truncated or invalid option so the
 /// caller can reply MALFORMED_OPTION.
-pub fn parse_hostname_options(mut tail: &[u8]) -> Result<Vec<String>, ()> {
+pub fn parse_hostname_options(tail: &[u8]) -> Result<Vec<String>, ()> {
     let mut names = Vec::new();
-    while tail.len() >= 4 {
-        let code = tail[0];
-        let len = u16::from_be_bytes([tail[2], tail[3]]) as usize;
-        let padded = (len + 3) & !3;
-        let end = 4 + padded;
-        if 4 + len > tail.len() {
-            return Err(());
-        }
+    for opt in super::pcp_options(tail) {
+        let (code, value) = opt?;
         if code == OPTION_HOSTNAME {
-            let value = std::str::from_utf8(&tail[4..4 + len]).map_err(|_| ())?;
+            let value = std::str::from_utf8(value).map_err(|_| ())?;
             if !validate_hostname(value) {
                 return Err(());
             }
             names.push(value.to_ascii_lowercase());
         }
-        // A trailing option may omit final padding; clamp to the buffer.
-        tail = &tail[end.min(tail.len())..];
     }
     Ok(names)
 }
