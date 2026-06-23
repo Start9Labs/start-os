@@ -15,7 +15,7 @@ use tokio::net::{TcpListener, UdpSocket};
 use crate::net::dns::{
     DNS_RESPONSE_BUFFER_SIZE, forward_name_server, name_server_socket_addr, parse_resolv_conf,
 };
-use crate::net::rfc2136::{DnsInjector, InjectingHandler};
+use crate::net::dns_update::rfc2136::{DnsInjector, InjectingHandler};
 use crate::prelude::*;
 use crate::tunnel::wg::{DnsConfig, WgServer};
 use crate::util::future::NonDetachingJoinHandle;

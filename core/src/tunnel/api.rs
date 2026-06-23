@@ -12,10 +12,10 @@ use ts_rs::TS;
 use crate::context::CliContext;
 use crate::db::model::public::NetworkInterfaceType;
 use crate::net::forward::nft_rule;
-use crate::net::rfc2136::InjectedRecord;
+use crate::net::dns_update::rfc2136::InjectedRecord;
 use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
-use crate::net::pcp_server::GatewayBackend;
+use crate::net::port_map::server::GatewayBackend;
 use crate::tunnel::db::{DnsRecordEntry, PortForward};
 use crate::tunnel::wg::{
     DnsConfig, WIREGUARD_INTERFACE_NAME, WgConfig, WgSubnetClients, WgSubnetConfig,

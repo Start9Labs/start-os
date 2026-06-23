@@ -18,7 +18,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt, copy_bidirectional};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::time::timeout;
 
-use crate::net::pcp_hostname::RESULT_HOSTNAME_TAKEN;
+use crate::net::port_map::pcp::hostname::RESULT_HOSTNAME_TAKEN;
 use crate::prelude::*;
 use crate::util::future::NonDetachingJoinHandle;
 use crate::util::sync::SyncMutex;

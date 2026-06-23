@@ -1,7 +1,7 @@
 //! Server-side PCP for StartTunnel: the WireGuard-bound socket + serve loop,
 //! plus the [`GatewayBackend`] impl that maps PCP forwards onto nftables +
 //! PatchDb. The protocol core (RFC 6887 + the HOSTNAME and PORT_SET extensions)
-//! is shared in [`crate::net::pcp_server`].
+//! is shared in [`crate::net::port_map::server`].
 //!
 //! The socket is `SO_BINDTODEVICE`-bound to the WireGuard interface, so the PCP
 //! server is never reachable from the VPS's public interface, and only
@@ -14,14 +14,14 @@ use std::time::{Duration, Instant};
 use socket2::{Domain, Protocol, SockAddr, Socket, Type};
 use tokio::net::UdpSocket;
 
-use crate::net::pcp_server::{GatewayBackend, PCP_PORT, handle};
+use crate::net::port_map::server::{GatewayBackend, PCP_PORT, handle};
 use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
 use crate::tunnel::db::PortForward;
-use crate::tunnel::igd::{
+use crate::tunnel::forward::igd::{
     apply_peer_forward_range, bind_to_wireguard, external_ipv4, is_known_client,
 };
-use crate::tunnel::sni::SniDemux;
+use crate::tunnel::forward::sni::SniDemux;
 use crate::tunnel::wg::WIREGUARD_INTERFACE_NAME;
 
 /// Run the PCP server for the life of the tunnel, self-restarting on error.
@@ -86,7 +86,7 @@ impl GatewayBackend for TunnelContext {
     }
 
     async fn remove_forward_by_source(&self, source: SocketAddrV4, peer: Ipv4Addr) -> bool {
-        let owned = crate::tunnel::igd::current_forward(self, source)
+        let owned = crate::tunnel::forward::igd::current_forward(self, source)
             .await
             .is_some_and(|e| matches!(e, PortForward::Dnat { target, .. } if *target.ip() == peer));
         if !owned {
@@ -169,7 +169,7 @@ impl GatewayBackend for TunnelContext {
             .await
             .result;
         if persisted.is_err() {
-            return Err(crate::net::pcp_hostname::RESULT_HOSTNAME_TAKEN);
+            return Err(crate::net::port_map::pcp::hostname::RESULT_HOSTNAME_TAKEN);
         }
         // Mirror into the dataplane (the DB already validated ownership). On the
         // unexpected register failure, undo the DB routes we just added.
@@ -179,7 +179,7 @@ impl GatewayBackend for TunnelContext {
             .is_err()
         {
             self.remove_sni_forward(source, target, hostnames).await;
-            return Err(crate::net::pcp_hostname::RESULT_HOSTNAME_TAKEN);
+            return Err(crate::net::port_map::pcp::hostname::RESULT_HOSTNAME_TAKEN);
         }
         Ok(())
     }

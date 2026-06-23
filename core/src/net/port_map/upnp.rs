@@ -2,7 +2,7 @@
 //! NAT-PMP (see [`crate::net::port_map`]). Discovery is bound to the local
 //! address on the gateway interface, so the SSDP M-SEARCH leaves via that
 //! gateway; this covers a home router (a real IGD) and a StartTunnel gateway
-//! (which implements an IGD over WireGuard, see [`crate::tunnel::igd`]).
+//! (which implements an IGD over WireGuard, see [`crate::tunnel::forward::igd`]).
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;

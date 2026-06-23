@@ -4,7 +4,7 @@
 //! same way it would behind a home router: UPnP IGD (`GetExternalIPAddress` /
 //! `AddPortMapping` / `DeletePortMapping`). This module makes the tunnel answer
 //! those requests over the WireGuard interface, so the client's UPnP code path
-//! (see [`crate::net::upnp`]) is identical for a router and a tunnel.
+//! (see [`crate::net::port_map::upnp`]) is identical for a router and a tunnel.
 //!
 //! Secure mode: the IGD is reachable **only** over the WireGuard interface
 //! (sockets are `SO_BINDTODEVICE`-bound to it) and only honors requests from a
@@ -29,7 +29,7 @@ use socket2::{Domain, InterfaceIndexOrAddress, Protocol, SockAddr, Socket, Type}
 use tokio::net::{TcpListener, UdpSocket};
 
 use crate::db::model::public::NetworkInterfaceType;
-use crate::net::igd_server::{
+use crate::net::port_map::server::igd::{
     CONTROL_PATH, IGD_HTTP_PORT, ROOT_DESC_PATH, SCPD, SCPD_PATH, SSDP_MULTICAST, SSDP_PORT,
     format_uuid, handle_control, header_value, render_root_desc, serve_static, ssdp_response,
     st_matches,
@@ -322,7 +322,7 @@ pub(super) async fn is_known_client(ctx: &TunnelContext, peer: Ipv4Addr) -> bool
 
 /// The external (WAN) IPv4 `peer`'s egress is routed out of: the assigned WAN
 /// for its subnet/device if any, else the gateway's default WAN.
-pub(super) async fn external_ipv4(ctx: &TunnelContext, peer: Ipv4Addr) -> Option<Ipv4Addr> {
+pub(in crate::tunnel) async fn external_ipv4(ctx: &TunnelContext, peer: Ipv4Addr) -> Option<Ipv4Addr> {
     assigned_wan_for(ctx, peer).await.or_else(|| default_wan(ctx))
 }
 
@@ -341,10 +341,10 @@ fn default_wan(ctx: &TunnelContext) -> Option<Ipv4Addr> {
             }
             ip_info
                 .wan_ip
-                .filter(|v4| crate::net::upnp::is_wan_candidate(*v4))
+                .filter(|v4| crate::net::port_map::upnp::is_wan_candidate(*v4))
                 .or_else(|| {
                     ip_info.subnets.iter().find_map(|s| match s.addr() {
-                        IpAddr::V4(v4) if crate::net::upnp::is_wan_candidate(v4) => Some(v4),
+                        IpAddr::V4(v4) if crate::net::port_map::upnp::is_wan_candidate(v4) => Some(v4),
                         _ => None,
                     })
                 })
@@ -362,7 +362,7 @@ async fn assigned_wan_for(ctx: &TunnelContext, peer: Ipv4Addr) -> Option<Ipv4Add
     })
 }
 
-pub(super) async fn prefix_for(ctx: &TunnelContext, target_ip: &Ipv4Addr) -> u8 {
+pub(in crate::tunnel) async fn prefix_for(ctx: &TunnelContext, target_ip: &Ipv4Addr) -> u8 {
     ctx.net_iface
         .peek(|ifaces| {
             ifaces.iter().find_map(|(_, info)| {

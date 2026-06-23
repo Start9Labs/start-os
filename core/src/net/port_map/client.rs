@@ -2,8 +2,8 @@
 //!
 //! Prioritizes PCP (RFC 6887), falling back to NAT-PMP, then UPnP IGD — the
 //! same code path covers a home router and a StartTunnel gateway (which speaks
-//! PCP over WireGuard, see [`crate::tunnel::pcp`]). PCP/NAT-PMP are handled by
-//! the `crab_nat` crate; UPnP by [`crate::net::upnp`].
+//! PCP over WireGuard, see [`crate::tunnel::forward::pcp`]). PCP/NAT-PMP are handled by
+//! the `crab_nat` crate; UPnP by [`crate::net::port_map::upnp`].
 //!
 //! Everything here is best-effort: a gateway that supports none of these (or
 //! has them disabled) just means the user falls back to a manual port forward,
@@ -23,9 +23,9 @@ use tokio::sync::{mpsc, oneshot};
 use tokio::time::{Instant, interval};
 
 use crate::db::model::public::NetworkInterfaceInfo;
-use crate::net::pcp_hostname::OPTION_HOSTNAME;
-use crate::net::pcp_portset::{OPTION_PORT_SET, PortSet};
-use crate::net::upnp;
+use crate::net::port_map::pcp::hostname::OPTION_HOSTNAME;
+use crate::net::port_map::pcp::portset::{OPTION_PORT_SET, PortSet};
+use crate::net::port_map::upnp;
 use crate::prelude::*;
 
 /// Re-assert/renew every desired mapping on this cadence (well under the PCP

@@ -1401,7 +1401,7 @@ async fn poll_ip_info(
 
     // Ask the gateway's own UPnP IGD first. This works for a home router and
     // for a StartTunnel gateway, which answers GetExternalIPAddress over the
-    // WireGuard link (see crate::tunnel::igd). Rate-limited like echoip below,
+    // WireGuard link (see crate::tunnel::forward::igd). Rate-limited like echoip below,
     // keyed by a sentinel URL in the shared rate-limit map.
     if let Some(local_ipv4) = local_ipv4.filter(|_| forwardable) {
         let upnp_probe_key = upnp_probe_key();
@@ -1410,7 +1410,7 @@ async fn poll_ip_info(
             .map_or(true, |i| i.elapsed() > Duration::from_secs(300))
         {
             echoip_ratelimit_state.insert(upnp_probe_key, Instant::now());
-            match crate::net::upnp::get_external_ipv4(local_ipv4).await {
+            match crate::net::port_map::upnp::get_external_ipv4(local_ipv4).await {
                 Ok(Some(ip)) => wan_ip = Some(ip),
                 Ok(None) => (),
                 Err(e) => tracing::debug!("UPnP WAN IP probe on {iface} failed: {e}"),

@@ -33,7 +33,7 @@ use crate::prelude::*;
 use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
 use crate::tunnel::TUNNEL_DEFAULT_LISTEN;
 use crate::tunnel::api::tunnel_api;
-use crate::net::rfc2136::{DnsInjector, InjectedRecord};
+use crate::net::dns_update::rfc2136::{DnsInjector, InjectedRecord};
 use crate::tunnel::db::{DnsRecordEntry, DnsRecords, PortForward, PortForwards, TunnelDatabase};
 use crate::tunnel::dns::DnsProxyController;
 use crate::tunnel::migrations::run_migrations;
@@ -124,7 +124,7 @@ pub struct TunnelContextSeed {
     pub net_iface: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
     pub forward: PortForwardController,
     pub dns_proxy: DnsProxyController,
-    pub sni: Arc<crate::tunnel::sni::SniDemux>,
+    pub sni: Arc<crate::tunnel::forward::sni::SniDemux>,
     pub dns_injector: Arc<DnsInjector>,
     /// WireGuard client IPs whose `allow_dns_injection` toggle is on; the DNS
     /// injector's authorizer reads this so a toggle change takes effect without
@@ -226,7 +226,7 @@ impl TunnelContext {
         wg.sync().await?;
         dns_proxy.sync(&wg, dns_injector.clone()).await?;
 
-        let sni = crate::tunnel::sni::SniDemux::new();
+        let sni = crate::tunnel::forward::sni::SniDemux::new();
         let mut active_forwards = BTreeMap::new();
         for (from, entry) in peek.as_port_forwards().de()?.0 {
             match entry {
@@ -303,8 +303,8 @@ impl TunnelContext {
         // Serve PCP (preferred) and a UPnP IGD (fallback) to connected peers
         // over the WireGuard interface so StartOS clients can open their public
         // ports automatically.
-        tokio::spawn(crate::tunnel::pcp::run(ctx.clone()));
-        tokio::spawn(crate::tunnel::igd::run(ctx.clone()));
+        tokio::spawn(crate::tunnel::forward::pcp::run(ctx.clone()));
+        tokio::spawn(crate::tunnel::forward::igd::run(ctx.clone()));
 
         Ok(ctx)
     }
@@ -420,7 +420,7 @@ impl TunnelContext {
                     enabled,
                     count,
                 } => {
-                    let ip = crate::tunnel::igd::external_ipv4(self, *target.ip())
+                    let ip = crate::tunnel::forward::igd::external_ipv4(self, *target.ip())
                         .await
                         .unwrap_or(*src.ip());
                     want.insert(
@@ -435,7 +435,7 @@ impl TunnelContext {
                 }
                 PortForward::Sni { routes } => {
                     for (host, route) in routes {
-                        let ip = crate::tunnel::igd::external_ipv4(self, *route.target.ip())
+                        let ip = crate::tunnel::forward::igd::external_ipv4(self, *route.target.ip())
                             .await
                             .unwrap_or(*src.ip());
                         let key = SocketAddrV4::new(ip, src.port());
@@ -518,7 +518,7 @@ impl TunnelContext {
             if self.active_forwards.peek(|m| m.contains_key(src)) {
                 continue;
             }
-            let prefix = crate::tunnel::igd::prefix_for(self, target.ip()).await;
+            let prefix = crate::tunnel::forward::igd::prefix_for(self, target.ip()).await;
             let rc = self
                 .forward
                 .add_forward_range(*src, *target, *count, prefix, None)

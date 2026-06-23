@@ -9,14 +9,16 @@
 //! target is forced to the source (peer) address, so a peer can only forward to
 //! itself. Authorization is delegated to the backend ([`GatewayBackend::is_known_client`]).
 
+pub mod igd;
+
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::sync::Arc;
 
-use crate::net::pcp_hostname::{
+use crate::net::port_map::pcp::hostname::{
     RESULT_UNSUPP_HOSTNAME, encode_hostname_option, parse_hostname_options,
 };
-use crate::net::pcp_portset::{PortSet, encode_port_set_option, parse_port_set_options};
-use crate::tunnel::sni::SniDemux;
+use crate::net::port_map::pcp::portset::{PortSet, encode_port_set_option, parse_port_set_options};
+use crate::tunnel::forward::sni::SniDemux;
 
 /// Standard PCP server port (RFC 6887).
 pub const PCP_PORT: u16 = 5351;

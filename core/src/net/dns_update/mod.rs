@@ -10,6 +10,8 @@
 //! StartOS's own resolver, as before. Mirrors the `add`/`gc` shape of
 //! [`crate::net::dns`] and reconciles like [`crate::net::forward`].
 
+pub mod rfc2136;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::time::Duration;
