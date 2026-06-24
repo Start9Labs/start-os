@@ -83,3 +83,23 @@ a {
 .g-positive {
   color: var(--tui-status-positive) !important;
 }
+
+.g-warning {
+  color: var(--tui-status-warning) !important;
+}
+
+.g-negative.g-negative {
+  color: var(--tui-status-negative) !important;
+}
+
+.g-info {
+  color: var(--tui-status-info) !important;
+}
+
+.g-primary {
+  color: var(--tui-text-primary) !important;
+}
+
+.g-secondary {
+  color: var(--tui-text-secondary) !important;
+}

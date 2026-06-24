@@ -1,11 +1,23 @@
 import { CommonModule } from '@angular/common'
-import { Component, DOCUMENT, Inject, signal } from '@angular/core'
+import {
+  Component,
+  DOCUMENT,
+  inject,
+  linkedSignal,
+  signal,
+} from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { Router } from '@angular/router'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
-import { TuiButton, TuiError, TuiIcon, TuiInput } from '@taiga-ui/core'
+import {
+  TuiButton,
+  TuiError,
+  TuiIcon,
+  TuiInput,
+  TuiTitle,
+} from '@taiga-ui/core'
 import { TuiButtonLoading, TuiPassword } from '@taiga-ui/kit'
-import { TuiCardLarge } from '@taiga-ui/layout'
+import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
 import { CAWizardComponent } from 'src/app/routes/login/ca-wizard.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from 'src/app/services/auth.service'
@@ -16,23 +28,24 @@ import { ConfigService } from 'src/app/services/config.service'
   template: `
     @if (config.isSecureContext()) {
       <!-- Secure context -->
-      <div tuiCardLarge class="card">
-        <img alt="StartOS Icon" class="logo" src="assets/img/icon.png" />
-        <h1 class="header">{{ 'Login to StartOS' | i18n }}</h1>
-        <form (submit)="submit()">
+      <div tuiCardLarge>
+        <img alt="StartOS Icon" src="assets/img/icon.png" />
+        <header tuiHeader="h4">
+          <h1 tuiTitle>{{ 'Login to StartOS' | i18n }}</h1>
+        </header>
+        <form tuiForm (submit)="submit()" [tuiTextfieldCleaner]="false">
           <tui-textfield iconStart="@tui.key">
             <label tuiLabel>{{ 'Password' | i18n }}</label>
             <input
               tuiInput
               type="password"
               [ngModelOptions]="{ standalone: true }"
-              [ngModel]="password()"
-              (ngModelChange)="password.set($event); error.set(null)"
+              [(ngModel)]="password"
             />
             <tui-icon tuiPassword />
           </tui-textfield>
-          <tui-error class="error" [error]="error() || null" />
-          <button tuiButton class="button" [loading]="loading()">
+          <tui-error [error]="error() || null" />
+          <button tuiButton size="m" [loading]="loading()">
             {{ 'Login' | i18n }}
           </button>
         </form>
@@ -43,40 +56,31 @@ import { ConfigService } from 'src/app/services/config.service'
     }
   `,
   styles: `
-    @use '@taiga-ui/styles/utils' as taiga;
+    :host {
+      padding: 1rem;
+      margin: auto;
+      display: grid;
+      place-items: center;
+      max-width: max(70%, 40rem);
+      min-height: 100dvh;
 
-    .card {
-      @include taiga.center-all();
+      [tuiTitle],
+      [tuiButton] {
+        min-width: 50%;
+        border-radius: 10rem;
+        margin: auto;
+      }
+    }
+
+    [tuiCardLarge] {
       overflow: visible;
-      align-items: center;
-      width: max(33%, 20rem);
+      width: max(33%, 22rem);
       background: var(--start9-base-1);
-      box-shadow: var(--tui-shadow-small);
     }
 
-    .logo {
-      @include taiga.center-left();
-      top: -17%;
+    img {
       width: 6rem;
-    }
-
-    .header {
-      margin: 2rem 0 1rem;
-      text-align: center;
-      font-size: 2rem;
-    }
-
-    .error {
-      min-height: 2.5rem;
-    }
-
-    .button {
-      // The card's text-align:center doesn't reach the form, so center the
-      // fixed-width button with auto margins (needs block-level vs Taiga's inline-flex).
-      display: flex;
-      width: 10rem;
-      border-radius: 10rem;
-      margin: 0 auto 1rem;
+      margin: -5rem auto -0.5rem;
     }
   `,
   imports: [
@@ -91,20 +95,25 @@ import { ConfigService } from 'src/app/services/config.service'
     TuiPassword,
     TuiError,
     i18nPipe,
+    TuiHeader,
+    TuiTitle,
+    TuiForm,
   ],
 })
 export default class LoginPage {
-  readonly password = signal('')
-  readonly error = signal<i18nKey | null>(null)
-  readonly loading = signal(false)
+  private readonly router = inject(Router)
+  private readonly authService = inject(AuthService)
+  private readonly api = inject(ApiService)
 
-  constructor(
-    private readonly router: Router,
-    private readonly authService: AuthService,
-    private readonly api: ApiService,
-    public readonly config: ConfigService,
-    @Inject(DOCUMENT) public readonly document: Document,
-  ) {}
+  protected readonly config = inject(ConfigService)
+  protected readonly document = inject(DOCUMENT)
+
+  readonly password = signal('')
+  readonly loading = signal(false)
+  readonly error = linkedSignal<string, i18nKey | null>({
+    source: () => this.password(),
+    computation: () => null,
+  })
 
   async submit() {
     this.error.set(null)

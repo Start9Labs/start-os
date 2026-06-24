@@ -27,9 +27,9 @@ import { MarketplaceControlsComponent } from './components/controls.component'
       [(query)]="query"
     >
       <marketplace-registry-select />
-      <marketplace-package-link actions />
+      <a marketplacePackageLink actions></a>
       <ng-template let-pkg>
-        <button type="button" [marketplaceTile]="pkg">
+        <button [marketplaceTile]="pkg">
           <ng-template let-resolved>
             <marketplace-controls [pkg]="resolved" />
           </ng-template>

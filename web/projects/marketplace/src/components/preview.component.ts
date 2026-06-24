@@ -64,11 +64,9 @@ import { MarketplaceReleaseNotesComponent } from './release-notes.component'
         <span tuiTitle tuiFade>{{ pkg.title }}</span>
         <span tuiAccessories><ng-content /></span>
       </header>
-      @if (controls(); as controls) {
-        <ng-container
-          *ngTemplateOutlet="controls; context: { $implicit: pkg }"
-        />
-      }
+      <ng-container
+        *ngTemplateOutlet="controls(); context: { $implicit: pkg }"
+      />
       <marketplace-about
         [pkg]="pkg"
         [versions]="versions$ | async"
@@ -131,9 +129,7 @@ export class MarketplacePreviewComponent {
 
   /** Action buttons for the resolved package (install/update), rendered with
    * the resolved `MarketplacePkg` as `$implicit`. The brochure omits it. */
-  readonly controls = input<TemplateRef<{ $implicit: MarketplacePkg }> | null>(
-    null,
-  )
+  readonly controls = input<TemplateRef<{ $implicit: MarketplacePkg }>>()
 
   private readonly params$ = this.router.routerState.root.queryParamMap.pipe(
     take(1),

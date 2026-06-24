@@ -7,6 +7,7 @@ import {
 import { WaMutationObserver } from '@ng-web-apis/mutation-observer'
 import { i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
+import { tuiProvide } from '@taiga-ui/cdk'
 import { TuiButton, TuiLoader, TuiScrollbar } from '@taiga-ui/core'
 import { NgDompurifyPipe } from '@taiga-ui/dompurify'
 import { BehaviorSubject } from 'rxjs'
@@ -32,7 +33,7 @@ import { LogsPipe } from './logs.pipe'
     LogsPipe,
     i18nPipe,
   ],
-  providers: [{ provide: WA_INTERSECTION_ROOT, useExisting: ElementRef }],
+  providers: [tuiProvide(WA_INTERSECTION_ROOT, ElementRef)],
 })
 export class LogsComponent {
   @ViewChild('bottom')

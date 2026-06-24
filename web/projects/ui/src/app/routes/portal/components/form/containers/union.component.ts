@@ -1,4 +1,3 @@
-import { TuiElasticContainer } from '@taiga-ui/layout'
 import { Component, forwardRef, inject, Input, OnChanges } from '@angular/core'
 import {
   ControlContainer,
@@ -6,7 +5,8 @@ import {
   ReactiveFormsModule,
 } from '@angular/forms'
 import { IST } from '@start9labs/start-sdk'
-import { TuiValueChanges } from '@taiga-ui/cdk'
+import { tuiProvide, TuiValueChanges } from '@taiga-ui/cdk'
+import { TuiElasticContainer } from '@taiga-ui/layout'
 import { FormService } from 'src/app/services/form.service'
 import { FormControlComponent } from './control.component'
 import { FormGroupComponent } from './group.component'
@@ -36,12 +36,7 @@ import { FormGroupComponent } from './group.component'
       margin-top: 1rem;
     }
   `,
-  viewProviders: [
-    {
-      provide: ControlContainer,
-      useExisting: FormGroupName,
-    },
-  ],
+  viewProviders: [tuiProvide(ControlContainer, FormGroupName)],
   imports: [
     ReactiveFormsModule,
     TuiValueChanges,
