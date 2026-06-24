@@ -7,8 +7,9 @@
 
 /// Start9 capability option code (Private Use range, next free after 224).
 pub const OPTION_START9_CAPABILITY: u8 = 225;
-/// Fixed "I speak HOSTNAME" marker: "ST9" namespace + a format version byte.
-pub const START9_CAPABILITY_MAGIC: [u8; 4] = *b"ST9\x01";
+/// Fixed "I speak HOSTNAME" marker: "S9" tag, a discriminator byte, and a
+/// format version byte (lets a future format bump without reusing code 225).
+pub const START9_CAPABILITY_MAGIC: [u8; 4] = *b"S9\x3b\x01";
 
 /// Append the Start9 capability option (RFC 6887 §7.3 framing, 32-bit padded).
 pub fn encode_start9_capability_option(buf: &mut Vec<u8>) {
@@ -48,8 +49,9 @@ mod tests {
 
     #[test]
     fn rejects_wrong_value() {
+        // Right code, wrong (future) version byte -> not a match.
         let mut b = Vec::new();
-        encode_pcp_option(&mut b, OPTION_START9_CAPABILITY, b"ST9\x02");
+        encode_pcp_option(&mut b, OPTION_START9_CAPABILITY, b"S9\x3b\x02");
         assert!(!has_start9_capability(&b));
     }
 
