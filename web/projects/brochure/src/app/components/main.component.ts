@@ -42,19 +42,15 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
       >
         {{ 'Get a Start9 server' | i18n }}
       </a>
-      <marketplace-package-link actions />
+      <a marketplacePackageLink actions></a>
       <ng-template let-pkg>
-        <button type="button" [marketplaceTile]="pkg"></button>
+        <button [marketplaceTile]="pkg"></button>
       </ng-template>
     </marketplace>
   `,
   styles: `
     marketplace {
       height: 100%;
-
-      ::ng-deep .t-nav-content {
-        display: grid;
-      }
 
       [tuiButton] {
         justify-content: flex-start;

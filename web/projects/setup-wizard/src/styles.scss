@@ -39,26 +39,6 @@ button:disabled {
   pointer-events: none;
 }
 
-.g-positive {
-  color: var(--tui-status-positive);
-}
-
-.g-warning {
-  color: var(--tui-status-warning);
-}
-
-.g-negative {
-  color: var(--tui-status-negative);
-}
-
-.g-secondary {
-  color: var(--tui-text-secondary) !important;
-}
-
-.g-info {
-  color: var(--tui-status-info);
-}
-
 [tuiCardLarge] footer {
   display: flex;
 

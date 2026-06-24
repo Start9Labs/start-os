@@ -19,7 +19,7 @@ import { MarketplacePkg } from '../types'
 import { MarketplacePreviewComponent } from './preview.component'
 
 @Component({
-  selector: 'button[marketplaceTile], a[marketplaceTile]',
+  selector: 'button[marketplaceTile]',
   template: `
     <span tuiCell>
       <span tuiAvatar [round]="false">
@@ -39,7 +39,7 @@ import { MarketplacePreviewComponent } from './preview.component'
       [overlay]="true"
       (click.self)="toggle(false)"
     >
-      <marketplace-preview [pkgId]="pkg().id" [controls]="controls() ?? null">
+      <marketplace-preview [pkgId]="pkg().id" [controls]="controls()">
         <button
           tuiAutoFocus
           tuiButtonX
@@ -73,6 +73,7 @@ import { MarketplacePreviewComponent } from './preview.component'
     }
   `,
   host: {
+    type: 'button',
     '(click)': 'toggle(true)',
   },
   hostDirectives: [TuiCardLarge],

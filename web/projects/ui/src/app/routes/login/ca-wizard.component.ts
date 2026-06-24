@@ -1,12 +1,13 @@
-import { Component, inject, DOCUMENT, signal } from '@angular/core'
+import { Component, DOCUMENT, inject, OnInit, signal } from '@angular/core'
 import {
   DocsLinkDirective,
   i18nPipe,
   RELATIVE_URL,
   ROOT_CA_DOWNLOAD_HREF,
 } from '@start9labs/shared'
-import { TuiButton, TuiIcon, TuiNotification } from '@taiga-ui/core'
-import { TuiCardLarge } from '@taiga-ui/layout'
+import { TuiButton, TuiNotification, TuiTitle } from '@taiga-ui/core'
+import { TuiAvatar, TuiBadge, tuiBadgeOptionsProvider } from '@taiga-ui/kit'
+import { TuiCardLarge, TuiHeader, TuiList } from '@taiga-ui/layout'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 
@@ -14,22 +15,26 @@ import { ConfigService } from 'src/app/services/config.service'
   selector: 'ca-wizard',
   template: `
     @if (!caTrusted()) {
-      <div tuiCardLarge class="card">
-        <tui-icon icon="@tui.lock" [style.font-size.rem]="4" />
-        <h1>{{ 'Trust your Root CA' | i18n }}</h1>
-        <p>
-          {{
-            'Download and trust your Root Certificate Authority to establish a secure (HTTPS) connection.'
-              | i18n
-          }}
-        </p>
+      <div tuiCardLarge>
+        <span size="xxl" tuiAvatar="@tui.lock"></span>
+        <header tuiHeader>
+          <hgroup tuiTitle>
+            <h1>{{ 'Trust your Root CA' | i18n }}</h1>
+            <p tuiSubtitle>
+              {{
+                'Download and trust your Root Certificate Authority to establish a secure (HTTPS) connection.'
+                  | i18n
+              }}
+            </p>
+          </hgroup>
+        </header>
         <div tuiNotification appearance="warning">
           {{
             'You will need to repeat this on every device you use to connect to your server.'
               | i18n
           }}
         </div>
-        <ol>
+        <ol tuiList="m">
           <li>
             <b>{{ 'Download your Root CA' | i18n }}</b>
             -
@@ -38,7 +43,7 @@ import { ConfigService } from 'src/app/services/config.service'
                 | i18n
             }}
             <br />
-            <a tuiButton size="s" iconEnd="@tui.download" [href]="rootCaHref">
+            <a tuiBadge iconEnd="@tui.download" [href]="rootCaHref">
               {{ 'Download' | i18n }}
             </a>
           </li>
@@ -51,9 +56,8 @@ import { ConfigService } from 'src/app/services/config.service'
             }}
             <br />
             <a
-              tuiButton
+              tuiBadge
               docsLink
-              size="s"
               path="/start-os/trust-ca.html"
               iconEnd="@tui.external-link"
             >
@@ -69,9 +73,7 @@ import { ConfigService } from 'src/app/services/config.service'
             }}
             <br />
             <button
-              tuiButton
-              size="s"
-              class="refresh"
+              tuiBadge
               appearance="positive"
               iconEnd="@tui.refresh-cw"
               (click)="refresh()"
@@ -80,101 +82,82 @@ import { ConfigService } from 'src/app/services/config.service'
             </button>
           </li>
         </ol>
-        <button
-          tuiButton
-          size="s"
-          appearance="flat-grayscale"
-          iconEnd="@tui.external-link"
-          (click)="launchHttps()"
-          [disabled]="caTrusted()"
-        >
-          {{ 'Skip' | i18n }}
-        </button>
-        <div>
-          <small>({{ 'not recommended' | i18n }})</small>
-        </div>
+        <footer>
+          <a
+            tuiBadge
+            appearance="secondary-grayscale"
+            iconEnd="@tui.external-link"
+            [href]="'https://' + config.host"
+          >
+            {{ 'Skip' | i18n }}
+          </a>
+          <div>
+            <small>({{ 'not recommended' | i18n }})</small>
+          </div>
+        </footer>
       </div>
     } @else {
-      <div tuiCardLarge class="card">
-        <tui-icon
-          icon="@tui.shield"
-          class="g-positive"
-          [style.font-size.rem]="4"
-        />
-        <h1>{{ 'Root CA Trusted!' | i18n }}</h1>
-        <p>
-          {{
-            'You have successfully trusted your Root CA and may now log in securely.'
-              | i18n
-          }}
-        </p>
-        <button tuiButton iconEnd="@tui.external-link" (click)="launchHttps()">
-          {{ 'Go to login' | i18n }}
-        </button>
+      <div tuiCardLarge>
+        <span size="xxl" tuiAvatar="@tui.shield" appearance="positive"></span>
+        <header tuiHeader>
+          <hgroup tuiTitle>
+            <h1>{{ 'Root CA Trusted!' | i18n }}</h1>
+            <p tuiSubtitle>
+              {{
+                'You have successfully trusted your Root CA and may now log in securely.'
+                  | i18n
+              }}
+            </p>
+          </hgroup>
+        </header>
+        <footer>
+          <a
+            tuiButton
+            iconEnd="@tui.external-link"
+            [href]="'https://' + config.host"
+          >
+            {{ 'Go to login' | i18n }}
+          </a>
+        </footer>
       </div>
     }
   `,
   styles: `
     :host {
-      padding: 1rem;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      min-height: 100dvh;
+      display: contents;
     }
 
-    [tuiButton] {
-      text-transform: uppercase;
-      font-weight: bold;
-      border-radius: 10rem;
-      margin-top: 1rem;
+    [tuiTitle] {
+      text-align: center;
+      min-width: 100%;
     }
 
-    .card {
-      max-width: max(70%, 40rem);
-      align-items: center !important;
-      gap: 0 !important;
-      background: var(--start9-base-1);
-      box-shadow: var(--tui-shadow-small);
+    [tuiBadge] {
+      margin-block-start: 0.5rem;
+      cursor: pointer;
     }
 
-    h1 {
-      margin: 1rem;
-      font-weight: bold;
-      font-size: 1.5rem;
-    }
-
-    p {
-      font-size: 1.3rem;
-      line-height: 1.5rem;
-      margin: 0 0 2rem;
-    }
-
-    [tuiNotification] {
-      margin-bottom: 2rem;
-    }
-
-    ol {
-      font-size: 1rem;
-      line-height: 1.5rem;
-      text-align: left;
-    }
-
-    li {
-      padding-bottom: 1.5rem;
+    footer,
+    [tuiAvatar] {
+      align-self: center;
+      text-align: center;
     }
   `,
+  providers: [tuiBadgeOptionsProvider({ size: 'xl', appearance: 'primary' })],
   imports: [
-    TuiIcon,
     TuiButton,
     TuiCardLarge,
     TuiNotification,
     i18nPipe,
     DocsLinkDirective,
+    TuiAvatar,
+    TuiHeader,
+    TuiTitle,
+    TuiList,
+    TuiBadge,
   ],
 })
-export class CAWizardComponent {
+export class CAWizardComponent implements OnInit {
   private readonly api = inject(ApiService)
   private readonly relativeUrl = inject(RELATIVE_URL)
   private readonly document = inject(DOCUMENT)
@@ -191,10 +174,6 @@ export class CAWizardComponent {
 
   refresh() {
     this.document.location.reload()
-  }
-
-  launchHttps() {
-    this.document.defaultView?.open(`https://${this.config.host}`, '_self')
   }
 
   private async testHttps() {

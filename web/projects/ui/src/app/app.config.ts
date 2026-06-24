@@ -25,7 +25,11 @@ import {
 import { provideServiceWorker } from '@angular/service-worker'
 import { WA_LOCATION, WA_WINDOW } from '@ng-web-apis/common'
 import initArgon from '@start9labs/argon2'
-import { FilterPackagesPipe } from '@start9labs/marketplace'
+import {
+  AbstractMarketplaceService,
+  FilterPackagesPipe,
+  MARKETPLACE_REGISTRY_ALERTS,
+} from '@start9labs/marketplace'
 import {
   I18N_PROVIDERS,
   I18N_STORAGE,
@@ -35,7 +39,11 @@ import {
   VERSION,
   WorkspaceConfig,
 } from '@start9labs/shared'
-import { tuiObfuscateOptionsProvider, tuiWindowSize } from '@taiga-ui/cdk'
+import {
+  tuiObfuscateOptionsProvider,
+  tuiProvide,
+  tuiWindowSize,
+} from '@taiga-ui/cdk'
 import {
   provideTaiga,
   TUI_BREAKPOINT,
@@ -54,6 +62,7 @@ import {
 } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { filter, identity, merge, pairwise } from 'rxjs'
+import { MarketplaceAlertsService } from 'src/app/routes/portal/routes/marketplace/services/alerts.service'
 import { FilterUpdatesPipe } from 'src/app/routes/portal/routes/updates/filter-updates.pipe'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { LiveApiService } from 'src/app/services/api/embassy-live-api.service'
@@ -61,6 +70,7 @@ import { MockApiService } from 'src/app/services/api/embassy-mock-api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
 import { ConfigService } from 'src/app/services/config.service'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
   PATCH_CACHE,
   PatchDbSource,
@@ -123,6 +133,8 @@ export const APP_CONFIG: ApplicationConfig = {
       deps: [PatchDbSource, PATCH_CACHE],
       useClass: PatchDB,
     },
+    tuiProvide(AbstractMarketplaceService, MarketplaceService),
+    tuiProvide(MARKETPLACE_REGISTRY_ALERTS, MarketplaceAlertsService),
     provideAppInitializer(() => {
       const i18n = inject(i18nService)
       const origin = inject(WA_LOCATION).origin

@@ -5,6 +5,7 @@ import {
   WaIntersectionObserver,
 } from '@ng-web-apis/intersection-observer'
 import { WaMutationObserver } from '@ng-web-apis/mutation-observer'
+import { tuiProvide } from '@taiga-ui/cdk'
 import { TuiScrollbar } from '@taiga-ui/core'
 import { NgDompurifyPipe } from '@taiga-ui/dompurify'
 import { SetupLogsService } from '../../services/setup-logs.service'
@@ -36,7 +37,7 @@ import { SetupLogsService } from '../../services/setup-logs.service'
     NgDompurifyPipe,
     TuiScrollbar,
   ],
-  providers: [{ provide: WA_INTERSECTION_ROOT, useExisting: ElementRef }],
+  providers: [tuiProvide(WA_INTERSECTION_ROOT, ElementRef)],
 })
 export class LogsWindowComponent {
   readonly logs$ = inject(SetupLogsService)

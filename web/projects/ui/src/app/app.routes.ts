@@ -1,5 +1,4 @@
-import { NgModule } from '@angular/core'
-import { PreloadAllModules, RouterModule, Routes } from '@angular/router'
+import { Routes } from '@angular/router'
 import { AuthGuard } from 'src/app/guards/auth.guard'
 import { UnauthGuard } from 'src/app/guards/unauth.guard'
 import { stateNot } from 'src/app/services/state.service'
