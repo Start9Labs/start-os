@@ -35,6 +35,9 @@ pub struct OutboundVpn {
     /// false means profiles routed through this VPN will have IPv6 disabled
     /// (per `outbound_supports_ipv6` in profiles.rs).
     pub supports_ipv6: bool,
+    /// Interface MTU, if explicitly set. `None` means the kernel default
+    /// (1420 on a clean path) is in effect. Editable via `update`.
+    pub mtu: Option<u16>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,6 +58,13 @@ pub struct OutboundVpnUpdateRequest {
     pub id: String,
     pub label: String,
     pub target: String,
+    /// Desired interface MTU. `Some(n)` writes `option mtu n`; `None` (or
+    /// absent) clears it so the tunnel inherits the kernel default. The web
+    /// edit form always submits the field's current value, so `None`
+    /// unambiguously means "clear". UCI is the single source of truth — there
+    /// is no stored `.conf` to round-trip.
+    #[serde(default)]
+    pub mtu: Option<u16>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser)]
@@ -71,10 +81,12 @@ pub struct OutboundVpnSetEnabledRequest {
 
 // === Parsed WireGuard Config ===
 
+#[derive(Debug)]
 struct ParsedWgConfig {
     private_key: String,
     addresses: Vec<String>,
     dns: Vec<String>,
+    mtu: Option<u16>,
     public_key: String,
     preshared_key: Option<String>,
     endpoint_host: Option<String>,
@@ -209,12 +221,55 @@ fn sanitize_interface_name(label: &str) -> Result<String, Error> {
     Ok(format!("{}{}", INTERFACE_PREFIX, sanitized))
 }
 
+/// Heuristic: does this text look like an OpenVPN config? Used purely to give a
+/// precise "OpenVPN isn't supported" error instead of the generic "not a
+/// WireGuard config" message. WireGuard .conf keys (PrivateKey, Address, DNS,
+/// MTU, PublicKey, Endpoint, AllowedIPs, PresharedKey, PersistentKeepalive)
+/// don't collide with any of these OpenVPN directives, so a hit is conclusive.
+fn looks_like_openvpn(config: &str) -> bool {
+    const MARKERS: &[&str] = &[
+        "client",
+        "remote ",
+        "dev tun",
+        "dev tap",
+        "proto ",
+        "ca ",
+        "cert ",
+        "tls-auth",
+        "tls-crypt",
+        "auth-user-pass",
+        "cipher ",
+        "persist-tun",
+        "persist-key",
+        "remote-cert-tls",
+        "resolv-retry",
+        "nobind",
+        "<ca>",
+        "<cert>",
+        "<key>",
+        "<tls-auth>",
+        "<tls-crypt>",
+    ];
+    config.lines().any(|line| {
+        let line = line.trim().to_lowercase();
+        if line.is_empty() || line.starts_with('#') || line.starts_with(';') {
+            return false;
+        }
+        MARKERS
+            .iter()
+            .any(|m| line == m.trim_end() || line.starts_with(m))
+    })
+}
+
 /// Parse a WireGuard .conf file into its components
 fn parse_wireguard_config(config: &str) -> Result<ParsedWgConfig, Error> {
     let mut current_section = String::new();
+    let mut saw_interface_header = false;
+    let mut saw_peer_header = false;
     let mut private_key = String::new();
     let mut addresses = Vec::new();
     let mut dns = Vec::new();
+    let mut mtu = None;
     let mut public_key = String::new();
     let mut preshared_key = None;
     let mut endpoint_host = None;
@@ -231,10 +286,12 @@ fn parse_wireguard_config(config: &str) -> Result<ParsedWgConfig, Error> {
         let lower = line.to_lowercase();
         if lower == "[interface]" {
             current_section = "interface".into();
+            saw_interface_header = true;
             continue;
         }
         if lower == "[peer]" {
             current_section = "peer".into();
+            saw_peer_header = true;
             continue;
         }
 
@@ -247,6 +304,14 @@ fn parse_wireguard_config(config: &str) -> Result<ParsedWgConfig, Error> {
                 "privatekey" => private_key = value.to_string(),
                 "address" => addresses = value.split(',').map(|s| s.trim().to_string()).collect(),
                 "dns" => dns = value.split(',').map(|s| s.trim().to_string()).collect(),
+                "mtu" => {
+                    let parsed = value.parse::<u32>().map_err(|_| Error::new(
+                        eyre!("Invalid MTU '{}': must be a number", value),
+                        ErrorKind::InvalidValue,
+                    ))?;
+                    validate_mtu(parsed)?;
+                    mtu = Some(parsed as u16);
+                }
                 _ => {}
             },
             "peer" => match key.as_str() {
@@ -267,6 +332,21 @@ fn parse_wireguard_config(config: &str) -> Result<ParsedWgConfig, Error> {
         }
     }
 
+    // Structural gate: a WireGuard .conf is an INI file with at least an
+    // [Interface] section. Reject anything else here so OpenVPN (and other
+    // non-WG formats) fail with a clear message instead of the misleading
+    // "missing PrivateKey" error they would otherwise hit below — every line of
+    // an OpenVPN file is silently skipped, leaving the keys empty.
+    if !saw_interface_header {
+        if looks_like_openvpn(config) {
+            return Err(Error::new(eyre!("This looks like an OpenVPN configuration. Only WireGuard configs are supported."), ErrorKind::InvalidValue));
+        }
+        return Err(Error::new(eyre!("Not a WireGuard configuration: missing [Interface] section"), ErrorKind::InvalidValue));
+    }
+    if !saw_peer_header {
+        return Err(Error::new(eyre!("WireGuard config missing [Peer] section"), ErrorKind::InvalidValue));
+    }
+
     if private_key.is_empty() {
         return Err(Error::new(eyre!("WireGuard config missing PrivateKey in [Interface] section"), ErrorKind::InvalidValue));
     }
@@ -282,6 +362,16 @@ fn parse_wireguard_config(config: &str) -> Result<ParsedWgConfig, Error> {
     if let Some(ref psk) = preshared_key {
         WgKey::try_from(psk.as_str())
             .map_err(|_| Error::new(eyre!("Invalid PresharedKey: must be a valid base64-encoded 32-byte key"), ErrorKind::InvalidValue))?;
+    }
+
+    // Require an interface Address and a peer Endpoint. A WG config can parse
+    // cleanly without these, but the resulting outbound tunnel would have no
+    // local IP / nothing to connect to — a silent dead interface. Reject early.
+    if addresses.is_empty() {
+        return Err(Error::new(eyre!("WireGuard config missing Address in [Interface] section"), ErrorKind::InvalidValue));
+    }
+    if endpoint_host.is_none() {
+        return Err(Error::new(eyre!("WireGuard config missing or invalid Endpoint in [Peer] section"), ErrorKind::InvalidValue));
     }
 
     // Validate endpoint_host: non-empty, no whitespace
@@ -315,6 +405,7 @@ fn parse_wireguard_config(config: &str) -> Result<ParsedWgConfig, Error> {
         private_key,
         addresses,
         dns,
+        mtu,
         public_key,
         preshared_key,
         endpoint_host,
@@ -336,6 +427,26 @@ fn validate_cidr(cidr: &str) -> Result<(), Error> {
     let max_prefix = if ip_part.contains(':') { 128 } else { 32 };
     if prefix > max_prefix {
         return Err(Error::new(eyre!("Invalid AllowedIPs entry '{}': prefix length exceeds maximum ({})", cidr, max_prefix), ErrorKind::InvalidValue));
+    }
+    Ok(())
+}
+
+/// WireGuard interface MTU bounds. The lower bound is the IPv6 minimum link
+/// MTU (the tunnel may carry IPv6, so the interface must be ≥ 1280); the upper
+/// bound is standard Ethernet. 1280 is the universal safe value for flaky or
+/// obfuscated (e.g. :443) endpoints whose path can't carry the 1420 default.
+const MIN_WG_MTU: u32 = 1280;
+const MAX_WG_MTU: u32 = 1500;
+
+/// Validate an MTU is within the supported range for a WireGuard tunnel.
+/// Takes a `u32` so out-of-range numbers (e.g. 70000) report the range error
+/// rather than overflowing a `u16` parse into a misleading "not a number".
+fn validate_mtu(mtu: u32) -> Result<(), Error> {
+    if !(MIN_WG_MTU..=MAX_WG_MTU).contains(&mtu) {
+        return Err(Error::new(
+            eyre!("Invalid MTU {mtu}: must be between {MIN_WG_MTU} and {MAX_WG_MTU}"),
+            ErrorKind::InvalidValue,
+        ));
     }
     Ok(())
 }
@@ -419,6 +530,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<OutboundVpn>, Error> {
 
             let enabled = !wg_iface.disabled();
             let supports_ipv6 = wg_iface.addresses.iter().any(|a| a.contains(':'));
+            let mtu = wg_iface.mtu;
 
             let used_by = get_used_by_profiles(&cfgs, &meta.interface);
 
@@ -429,6 +541,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<OutboundVpn>, Error> {
                 enabled,
                 used_by,
                 supports_ipv6,
+                mtu,
             })
         })
         .collect();
@@ -515,6 +628,9 @@ pub async fn update(
     DeserializeStdin(req): DeserializeStdin<OutboundVpnUpdateRequest>,
 ) -> Result<(), Error> {
     validate_label(&req.label)?;
+    if let Some(mtu) = req.mtu {
+        validate_mtu(mtu.into())?;
+    }
 
     let mut retries = 4;
     loop {
@@ -565,6 +681,21 @@ pub async fn update(
             }
         }
 
+        // Apply the MTU to the WG interface (network config). `None` clears it,
+        // restoring the kernel default. UCI is the single source of truth.
+        let mut mtu_changed = false;
+        for section in &mut cfgs["network"].sections {
+            if section.name().as_deref() != Some(req.id.as_str()) {
+                continue;
+            }
+            let Ok(iface) = section.get::<WgInterface>() else { continue };
+            if !iface.is_wireguard() {
+                continue;
+            }
+            mtu_changed = set_mtu_option(section, req.mtu, &arena);
+            break;
+        }
+
         rewrite_vpn_chain_routes(&mut cfgs)?;
 
         match dump_all("/etc/config", cfgs).await {
@@ -577,6 +708,12 @@ pub async fn update(
                 return Err(err.into());
             }
             Ok(()) => {
+                // An MTU change only takes effect on interface bring-up, so
+                // bounce the tunnel when it changed (label/target-only edits
+                // don't need this).
+                if mtu_changed {
+                    restart_wireguard_interface(&req.id).await?;
+                }
                 reload_system().await?;
                 crate::activity::log("vpn-client", "updated", true, &format!("Updated outbound VPN '{}'", req.label), None);
                 return Ok(());
@@ -977,6 +1114,36 @@ fn set_disabled_option<'a>(section: &mut Section<'a>, disabled: bool, arena: &'a
     });
 }
 
+/// Set, replace, or remove the `mtu` option on a WG interface section.
+/// `None` removes the option (inherit kernel default). Returns `true` when the
+/// resulting config differs from what was already there.
+fn set_mtu_option<'a>(section: &mut Section<'a>, mtu: Option<u16>, arena: &'a Arena) -> bool {
+    let current = section.lines.iter().find_map(|line| match line {
+        Line::Option { option, value, .. } if option.as_str() == "mtu" => {
+            Some(value.as_str().to_string())
+        }
+        _ => None,
+    });
+    let desired = mtu.map(|m| m.to_string());
+    if current == desired {
+        return false;
+    }
+
+    section
+        .lines
+        .retain(|line| !matches!(line, Line::Option { option, .. } if option.as_str() == "mtu"));
+
+    if let Some(m) = desired {
+        let mtu_str: &str = arena.alloc(m);
+        section.lines.push(Line::Option {
+            option: Token::from_str("mtu", arena),
+            value: Token::from_str(mtu_str, arena),
+            comment: LineComment::None,
+        });
+    }
+    true
+}
+
 /// Create a WireGuard client interface section in network config
 fn create_wg_client_interface<'a>(
     cfgs: &mut Configs<'a>,
@@ -1032,6 +1199,19 @@ fn create_wg_client_interface<'a>(
         value: Token::from_str("0", arena),
         comment: LineComment::None,
     });
+
+    // mtu — only emitted when the .conf specified one. Omitting it lets
+    // wireguard.sh keep the kernel default (1420 on a clean 1500-byte path).
+    // A too-high MTU on obfuscated/:443 endpoints silently black-holes large
+    // packets; the MSS clamp on the vpn_<X> zone is a TCP-only backstop.
+    if let Some(mtu) = parsed.mtu {
+        let mtu_str: &str = arena.alloc(mtu.to_string());
+        lines.push(Line::Option {
+            option: Token::from_str("mtu", arena),
+            value: Token::from_str(mtu_str, arena),
+            comment: LineComment::None,
+        });
+    }
 
     // addresses (list)
     for addr in &parsed.addresses {
@@ -1433,6 +1613,68 @@ config interface 'wg_guest'
         assert_eq!(parsed.allowed_ips, vec!["0.0.0.0/0", "::/0"]);
         assert_eq!(parsed.persistent_keepalive.as_deref(), Some("25"));
         assert!(parsed.preshared_key.is_none());
+        // wg_conf() omits MTU → inherit default
+        assert_eq!(parsed.mtu, None);
+    }
+
+    #[test]
+    fn test_parse_wg_config_mtu() {
+        let privkey = gen_key();
+        let pubkey = gen_key();
+        let conf = format!(
+            "[Interface]\n\
+             PrivateKey = {privkey}\n\
+             Address = 10.2.0.2/32\n\
+             MTU = 1280\n\
+             \n\
+             [Peer]\n\
+             PublicKey = {pubkey}\n\
+             Endpoint = vpn.example.com:51820\n\
+             AllowedIPs = 0.0.0.0/0\n"
+        );
+        let parsed = parse_wireguard_config(&conf).unwrap();
+        assert_eq!(parsed.mtu, Some(1280));
+    }
+
+    #[test]
+    fn test_parse_wg_config_commented_mtu_ignored() {
+        let privkey = gen_key();
+        let pubkey = gen_key();
+        // A commented MTU line must NOT be applied (mirrors the cstorm config).
+        let conf = format!(
+            "[Interface]\n\
+             PrivateKey = {privkey}\n\
+             Address = 10.2.0.2/32\n\
+             #MTU = 1280\n\
+             \n\
+             [Peer]\n\
+             PublicKey = {pubkey}\n\
+             Endpoint = vpn.example.com:51820\n\
+             AllowedIPs = 0.0.0.0/0\n"
+        );
+        let parsed = parse_wireguard_config(&conf).unwrap();
+        assert_eq!(parsed.mtu, None);
+    }
+
+    #[test]
+    fn test_parse_wg_config_mtu_out_of_range_rejected() {
+        let privkey = gen_key();
+        let pubkey = gen_key();
+        // "70000" exceeds u16 — must still be rejected as out-of-range, not
+        // misreported as "not a number".
+        for bad in ["1279", "1501", "0", "70000"] {
+            let conf = format!(
+                "[Interface]\n\
+                 PrivateKey = {privkey}\n\
+                 Address = 10.2.0.2/32\n\
+                 MTU = {bad}\n\
+                 \n\
+                 [Peer]\n\
+                 PublicKey = {pubkey}\n\
+                 AllowedIPs = 0.0.0.0/0\n"
+            );
+            assert!(parse_wireguard_config(&conf).is_err(), "MTU {bad} should be rejected");
+        }
     }
 
     #[test]
@@ -1448,6 +1690,7 @@ config interface 'wg_guest'
              [Peer]\n\
              PublicKey = {pubkey}\n\
              PresharedKey = {psk}\n\
+             Endpoint = vpn.example.com:51820\n\
              AllowedIPs = 0.0.0.0/0\n"
         );
 
@@ -1532,6 +1775,7 @@ config interface 'wg_guest'
              \n\
              [Peer]\n\
              PublicKey = {pubkey}\n\
+             Endpoint = vpn.example.com:51820\n\
              AllowedIPs = 0.0.0.0/0\n"
         );
 
@@ -1551,6 +1795,7 @@ config interface 'wg_guest'
              \n\
              [Peer]\n\
              PublicKey = {pubkey}\n\
+             Endpoint = vpn.example.com:51820\n\
              AllowedIPs = not-a-cidr\n"
         );
         assert!(parse_wireguard_config(&conf).is_err());
@@ -1571,6 +1816,113 @@ config interface 'wg_guest'
              AllowedIPs = 0.0.0.0/0\n"
         );
         assert!(parse_wireguard_config(&conf).is_err());
+    }
+
+    // === Non-WireGuard rejection (hardening) ===
+
+    #[test]
+    fn test_parse_rejects_openvpn_config() {
+        // A representative OpenVPN .ovpn (no [Interface]/[Peer] headers). Must be
+        // rejected with the OpenVPN-specific message, not "missing PrivateKey".
+        let conf = "\
+client
+dev tun
+proto udp
+remote vpn.example.com 1194
+resolv-retry infinite
+nobind
+persist-key
+persist-tun
+remote-cert-tls server
+cipher AES-256-GCM
+auth-user-pass
+<ca>
+-----BEGIN CERTIFICATE-----
+MIID...snip...
+-----END CERTIFICATE-----
+</ca>
+";
+        let err = parse_wireguard_config(conf).unwrap_err();
+        assert!(
+            err.to_string().to_lowercase().contains("openvpn"),
+            "OpenVPN config should report an OpenVPN-specific error, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_looks_like_openvpn_ignores_wireguard() {
+        // A valid WG config must NOT trip the OpenVPN heuristic.
+        let conf = wg_conf(&gen_key(), &gen_key());
+        assert!(!looks_like_openvpn(&conf));
+        // ...and the OpenVPN markers must be detected on a real .ovpn snippet.
+        assert!(looks_like_openvpn("client\ndev tun\nremote host 1194\n"));
+    }
+
+    #[test]
+    fn test_parse_rejects_missing_interface_header() {
+        // Bare key=value lines with no [Interface] header: not WG INI, and not
+        // OpenVPN either → the generic "not a WireGuard configuration" error.
+        let privkey = gen_key();
+        let pubkey = gen_key();
+        let conf = format!("PrivateKey = {privkey}\nPublicKey = {pubkey}\n");
+        let err = parse_wireguard_config(&conf).unwrap_err();
+        assert!(
+            err.to_string().contains("[Interface]"),
+            "expected a missing-[Interface] error, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_parse_rejects_missing_peer_header() {
+        let privkey = gen_key();
+        let conf = format!(
+            "[Interface]\n\
+             PrivateKey = {privkey}\n\
+             Address = 10.2.0.2/32\n"
+        );
+        assert!(parse_wireguard_config(&conf).is_err());
+    }
+
+    #[test]
+    fn test_parse_rejects_missing_address() {
+        // Parses cleanly but the interface would have no local IP → reject.
+        let privkey = gen_key();
+        let pubkey = gen_key();
+        let conf = format!(
+            "[Interface]\n\
+             PrivateKey = {privkey}\n\
+             \n\
+             [Peer]\n\
+             PublicKey = {pubkey}\n\
+             Endpoint = vpn.example.com:51820\n\
+             AllowedIPs = 0.0.0.0/0\n"
+        );
+        let err = parse_wireguard_config(&conf).unwrap_err();
+        assert!(
+            err.to_string().contains("Address"),
+            "expected a missing-Address error, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_parse_rejects_missing_endpoint() {
+        // No Endpoint → nothing to connect to → reject.
+        let privkey = gen_key();
+        let pubkey = gen_key();
+        let conf = format!(
+            "[Interface]\n\
+             PrivateKey = {privkey}\n\
+             Address = 10.2.0.2/32\n\
+             \n\
+             [Peer]\n\
+             PublicKey = {pubkey}\n\
+             AllowedIPs = 0.0.0.0/0\n"
+        );
+        let err = parse_wireguard_config(&conf).unwrap_err();
+        assert!(
+            err.to_string().contains("Endpoint"),
+            "expected a missing-Endpoint error, got: {err}"
+        );
     }
 
     // === Config helper tests: get_vpn_server_interfaces ===
@@ -1846,6 +2198,7 @@ config interface 'wg_guest'
              \n\
              [Peer]\n\
              PublicKey = {pubkey}\n\
+             Endpoint = vpn.example.com:51820\n\
              AllowedIPs = 0.0.0.0/0\n"
         );
         let parsed = parse_wireguard_config(&conf).unwrap();
@@ -1861,11 +2214,8 @@ config interface 'wg_guest'
             .find(|s| s.ty() == "wireguard_wg_test")
             .expect("peer should exist");
 
-        // No endpoint_host, endpoint_port, preshared_key, persistent_keepalive
-        let has_endpoint = peer.lines.iter().any(|l| matches!(l,
-            Line::Option { option, .. } if option.as_str() == "endpoint_host"));
-        assert!(!has_endpoint, "should not have endpoint_host");
-
+        // Endpoint is required (so it's present), but preshared_key and
+        // persistent_keepalive are genuinely optional and must be omitted here.
         let has_psk = peer.lines.iter().any(|l| matches!(l,
             Line::Option { option, .. } if option.as_str() == "preshared_key"));
         assert!(!has_psk, "should not have preshared_key");
@@ -3081,6 +3431,7 @@ config wireguard_wg_inner 'in_peer0'
                     enabled: !wg.disabled(),
                     used_by: vec![],
                     supports_ipv6: wg.addresses.iter().any(|a| a.contains(':')),
+                    mtu: wg.mtu,
                 })
             })
             .collect();

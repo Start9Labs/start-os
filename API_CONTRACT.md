@@ -849,6 +849,8 @@ struct OutboundVpn {
     /// pointed at an outbound VPN with `supports_ipv6 == false` get IPv6
     /// disabled (RA/DHCPv6) to avoid leaking around the tunnel.
     supports_ipv6: bool,
+    /// Interface MTU if explicitly set, else null (kernel default ~1420).
+    mtu: Option<u16>,
 }
 // Response: Vec<OutboundVpn>
 ```
@@ -869,7 +871,17 @@ struct OutboundVpnCreateResponse {
     /// The assigned interface ID
     id: String,
 }
-// Backend: parses WireGuard config, creates UCI interface+peer, restarts network
+// Backend: parses WireGuard config, creates UCI interface+peer, restarts network.
+// An uncommented `MTU` in the .conf (1280–1500) becomes `option mtu`; a
+// commented `#MTU` is ignored. The dedicated vpn_<X> egress zone also gets
+// `option mtu_fix 1` (TCP MSS clamp) as a backstop against too-high MTU.
+//
+// Validation (InvalidValue on failure): the config MUST be a WireGuard .conf —
+// it requires `[Interface]` + `[Peer]` headers, a valid PrivateKey/PublicKey
+// (base64 32-byte), at least one interface `Address`, and a peer `Endpoint`.
+// OpenVPN configs (no INI headers) are rejected with an OpenVPN-specific
+// message. The web UI mirrors this with an async file-content check before
+// submit, but the backend is the authoritative gate.
 ```
 
 ### `vpn-client.update`
@@ -880,9 +892,15 @@ struct OutboundVpnUpdateRequest {
     id: String,
     label: String,
     target: String,
+    /// Desired interface MTU (1280–1500). null/absent clears it (inherit the
+    /// kernel default). UCI is the single source of truth — there is no stored
+    /// .conf; the web edit form always submits the field's current value.
+    #[serde(default)]
+    mtu: Option<u16>,
 }
 // Response: null
-// Backend: updates UCI interface label+target options, restarts network
+// Backend: updates label+target metadata and the interface `mtu` option.
+// Bounces the WG interface only when the MTU actually changed.
 ```
 
 ### `vpn-client.delete`

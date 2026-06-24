@@ -1411,6 +1411,7 @@ export class MockApiService extends ApiService {
       enabled: true,
       used_by: [],
       supports_ipv6: true,
+      mtu: null,
     },
     {
       id: 'wg_mullvad',
@@ -1419,6 +1420,7 @@ export class MockApiService extends ApiService {
       enabled: true,
       used_by: [],
       supports_ipv6: false,
+      mtu: 1280,
     },
   ]
 
@@ -1448,6 +1450,9 @@ export class MockApiService extends ApiService {
         enabled: true,
         used_by: [],
         supports_ipv6: /(^|\n)\s*Address\s*=[^\n]*:/.test(params.config),
+        // Honor an uncommented MTU line; a commented `#MTU=` is ignored.
+        mtu:
+          Number(/(^|\n)\s*MTU\s*=\s*(\d+)/i.exec(params.config)?.[2]) || null,
       },
     ]
     this.logActivity(
@@ -1462,7 +1467,7 @@ export class MockApiService extends ApiService {
     await pauseFor(250)
     this.mockVpnClients = this.mockVpnClients.map(c =>
       c.id === params.id
-        ? { ...c, label: params.label, target: params.target }
+        ? { ...c, label: params.label, target: params.target, mtu: params.mtu }
         : c,
     )
     this.logActivity(

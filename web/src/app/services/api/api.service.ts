@@ -663,6 +663,8 @@ export interface OutboundVpn {
   enabled: boolean
   used_by: string[]
   supports_ipv6: boolean
+  /** Interface MTU, or null to inherit the kernel default (~1420). */
+  mtu: number | null
 }
 
 export interface OutboundVpnCreateRequest {
@@ -679,6 +681,8 @@ export interface OutboundVpnUpdateRequest {
   id: string
   label: string
   target: string
+  /** Desired MTU; null clears it (inherit default). Always sent by the form. */
+  mtu: number | null
 }
 
 export interface OutboundVpnDeleteRequest {

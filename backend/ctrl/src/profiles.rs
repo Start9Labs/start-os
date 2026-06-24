@@ -1661,6 +1661,7 @@ fn rewrite_firewall(
                 network: vec![profile.id.interface.clone()],
                 masq: None,
                 masq6: None,
+                mtu_fix: None,
             },
             None,
         )?;
@@ -2427,6 +2428,12 @@ pub(crate) fn ensure_vpn_outbound_zone(
             zone.masq6 = Some(true);
             changed = true;
         }
+        // MSS-clamp forwarded TCP to the tunnel's route MTU so a tunnel MTU
+        // smaller than the LAN's doesn't silently black-hole large packets.
+        if zone.mtu_fix != Some(true) {
+            zone.mtu_fix = Some(true);
+            changed = true;
+        }
         if changed {
             section.set(&zone)?;
         }
@@ -2442,6 +2449,7 @@ pub(crate) fn ensure_vpn_outbound_zone(
                 network: vec![wg_name.to_string()],
                 masq: Some(true),
                 masq6: Some(true),
+                mtu_fix: Some(true),
             },
             None,
         )?;

@@ -28,6 +28,12 @@ pub struct FirewallZone {
     /// traffic to the tunnel's assigned address on a dedicated `vpn_<X>` zone.
     #[uci(default)]
     pub masq6: Option<bool>,
+    /// TCP MSS clamping to path MTU (fw4 `option mtu_fix`). Enabled on VPN
+    /// egress zones so forwarded TCP doesn't black-hole when the tunnel MTU is
+    /// smaller than the LAN's — a backstop that complements an explicit
+    /// interface `mtu`. TCP-only; does not cover UDP/QUIC.
+    #[uci(default)]
+    pub mtu_fix: Option<bool>,
 }
 
 #[derive(Debug, TypedSection, Default)]

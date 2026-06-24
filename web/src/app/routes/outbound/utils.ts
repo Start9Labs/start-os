@@ -1,5 +1,6 @@
 import {
   AbstractControl,
+  AsyncValidatorFn,
   NonNullableFormBuilder,
   ValidationErrors,
   Validators,
@@ -13,6 +14,10 @@ export const OUTBOUND_VALIDATION_ERRORS = {
   invalidExtension: 'Please upload a .conf file',
   duplicateName: 'A VPN with this label already exists',
   interfaceNameLength: 'Label is too long (max ~12 characters)',
+  min: 'MTU must be at least 1280',
+  max: 'MTU must be at most 1500',
+  notWireguard: 'This doesn’t look like a WireGuard .conf file',
+  looksLikeOpenvpn: 'OpenVPN configs aren’t supported — only WireGuard',
 }
 
 function fileExtensionValidator(
@@ -30,6 +35,46 @@ function fileExtensionValidator(
   }
 }
 
+/**
+ * Async validator that reads the dropped file and confirms it's a WireGuard
+ * config. Gives the user instant feedback before submit; the backend
+ * (`parse_wireguard_config`) remains the authoritative gate. A WireGuard .conf
+ * is an INI file with `[Interface]` + `[Peer]` headers — OpenVPN has neither.
+ */
+function wireguardConfigValidator(): AsyncValidatorFn {
+  return async (control: AbstractControl): Promise<ValidationErrors | null> => {
+    const file = control.value as File | null
+    if (!file) return null
+
+    let text: string
+    try {
+      text = await file.text()
+    } catch {
+      // Unreadable file — defer to the backend rather than block on a guess.
+      return null
+    }
+
+    const hasInterface = /^[ \t]*\[interface\][ \t\r]*$/im.test(text)
+    const hasPeer = /^[ \t]*\[peer\][ \t\r]*$/im.test(text)
+    if (hasInterface && hasPeer) return null
+
+    // Distinguish OpenVPN (common mistake) for a more helpful message. These
+    // directives don't collide with any WireGuard .conf key.
+    const openvpnMarkers = [
+      /^[ \t]*client[ \t\r]*$/im,
+      /^[ \t]*dev[ \t]+(tun|tap)/im,
+      /^[ \t]*remote[ \t]+\S/im,
+      /^[ \t]*proto[ \t]+(udp|tcp)/im,
+      /^[ \t]*auth-user-pass/im,
+      /^[ \t]*cipher[ \t]/im,
+      /<ca>|<cert>|<key>|<tls-auth>|<tls-crypt>/i,
+    ]
+    return openvpnMarkers.some(r => r.test(text))
+      ? { looksLikeOpenvpn: true }
+      : { notWireguard: true }
+  }
+}
+
 const labelValidators = (existingLabels: string[]) => [
   Validators.required,
   CustomValidators.duplicateName(existingLabels),
@@ -43,6 +88,12 @@ export function getOutboundVpnForm(
   return builder.group({
     label: builder.control('', labelValidators(existingLabels)),
     target: builder.control('Internet', [Validators.required]),
+    // Optional. null = inherit the kernel default. Bounds mirror the backend
+    // (1280 is the IPv6-safe floor for flaky/obfuscated tunnels).
+    mtu: builder.control<number | null>(null, [
+      Validators.min(1280),
+      Validators.max(1500),
+    ]),
   })
 }
 
@@ -52,10 +103,10 @@ export function getAddOutboundVpnForm(
 ) {
   return builder.group({
     label: builder.control('', labelValidators(existingLabels)),
-    config: builder.control<File | null>(null, [
-      Validators.required,
-      fileExtensionValidator(['conf']),
-    ]),
+    config: builder.control<File | null>(null, {
+      validators: [Validators.required, fileExtensionValidator(['conf'])],
+      asyncValidators: [wireguardConfigValidator()],
+    }),
     target: builder.control('Internet', [Validators.required]),
   })
 }

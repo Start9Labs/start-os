@@ -16,7 +16,10 @@ export class OutboundService extends FormService<OutboundVpn[]> {
     // List doesn't have a single store operation
   }
 
-  update(id: string, data: { label: string; target: string }) {
+  update(
+    id: string,
+    data: { label: string; target: string; mtu: number | null },
+  ) {
     return this.actions.run(
       async () => {
         await this.api.vpnClientUpdate({ id, ...data })

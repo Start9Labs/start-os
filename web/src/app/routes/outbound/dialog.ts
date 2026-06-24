@@ -50,7 +50,7 @@ import {
         />
       </tui-textfield>
       <tui-error formControlName="label" />
-      @if (!form.value.config || form.controls.config.invalid) {
+      @if (!form.value.config || !form.controls.config.valid) {
         <label tuiInputFiles class="g-action" [style.min-block-size.rem]="6">
           <input tuiInputFiles accept=".conf" formControlName="config" />
           <ng-template>
@@ -123,8 +123,14 @@ class AddClient {
     this.i18n.transform(v)
 
   constructor() {
-    this.form.controls.config.valueChanges.subscribe(() => {
-      if (this.form.controls.config.invalid) {
+    // The config control uses an async validator (WireGuard content check), so
+    // its status settles to INVALID *after* the value changes — listen on
+    // statusChanges, not valueChanges, or the error never gets marked touched
+    // and stays hidden. Treating PENDING as "not valid yet" in the template (so
+    // the file input isn't unmounted mid-validation) is what prevents the
+    // mount/remount loop that made the dialog flicker.
+    this.form.controls.config.statusChanges.subscribe(status => {
+      if (status === 'INVALID') {
         this.form.controls.config.markAsTouched()
       }
     })

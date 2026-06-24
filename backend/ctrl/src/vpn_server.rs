@@ -31,6 +31,10 @@ pub struct WgInterface {
     pub addresses: Vec<String>,
     #[uci(default)]
     pub disabled: Option<String>,
+    /// Interface MTU. When unset, wireguard.sh leaves the kernel default
+    /// (1420 on a clean 1500-byte path).
+    #[uci(default)]
+    pub mtu: Option<u16>,
 }
 
 impl WgInterface {
@@ -1655,6 +1659,7 @@ fn set_wireguard_interface(
             listen_port: if config.enabled { Some(config.listen_port) } else { None },
             addresses,
             disabled: None,
+            mtu: None,
         };
         cfgs["network"].append(&new_iface, Some(interface_name))?;
     }

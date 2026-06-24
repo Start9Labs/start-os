@@ -29,6 +29,7 @@ import {
   TUI_CONFIRM,
   TuiChevron,
   TuiDataListWrapper,
+  TuiInputNumber,
   TuiSelect,
   TuiSkeleton,
 } from '@taiga-ui/kit'
@@ -96,6 +97,25 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
           </tui-textfield>
         </div>
       </section>
+      <section>
+        <div>
+          <tui-textfield>
+            <label tuiLabel>{{ 'MTU' | i18n }}</label>
+            <input
+              tuiInputNumber
+              [placeholder]="'Default (~1420)' | i18n"
+              formControlName="mtu"
+            />
+          </tui-textfield>
+          <tui-error formControlName="mtu" />
+          <small class="g-secondary">
+            {{
+              'Leave blank to use the default. Lower to 1280 if the VPN connects but requests time out.'
+                | i18n
+            }}
+          </small>
+        </div>
+      </section>
       @if (data()) {
         <footer appFooter>
           <button
@@ -151,6 +171,7 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
     TuiButton,
     TuiHint,
     TuiInput,
+    TuiInputNumber,
     Footer,
     Form,
     VPNSummary,
