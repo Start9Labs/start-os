@@ -17,12 +17,17 @@
 //!   local 0.0.0.0/0 dev lo table DIVERT_TABLE`: deliver the marked replies
 //!   locally, into the transparent socket.
 
-use std::net::{SocketAddr, SocketAddrV4};
+#[cfg(target_os = "linux")]
+use std::net::SocketAddr;
+use std::net::SocketAddrV4;
 
-use tokio::net::{TcpSocket, TcpStream};
+#[cfg(target_os = "linux")]
+use tokio::net::TcpSocket;
+use tokio::net::TcpStream;
 use tokio::process::Command;
 use tokio::sync::OnceCell;
 
+#[cfg(target_os = "linux")]
 use crate::net::utils::default_keepalive;
 use crate::prelude::*;
 use crate::util::Invoke;
@@ -51,6 +56,7 @@ pub fn divert_mark_rule() -> String {
 /// Open the internal leg of a demuxed connection from the client's own source
 /// address, so the backend sees the real peer. Requires `CAP_NET_ADMIN` (startd
 /// runs as root). The reply path is set up by [`ensure_divert_infra`].
+#[cfg(target_os = "linux")]
 pub async fn transparent_connect(
     client: SocketAddrV4,
     target: SocketAddrV4,
@@ -67,6 +73,20 @@ pub async fn transparent_connect(
     }
     sock.bind(SocketAddr::V4(client))?;
     sock.connect(SocketAddr::V4(target)).await
+}
+
+/// `IP_TRANSPARENT` is Linux-only and the SNI demux runs only on the Linux
+/// gateway, so this stub never executes off-Linux; it exists to keep the
+/// cross-platform build (apple-darwin) compiling.
+#[cfg(not(target_os = "linux"))]
+pub async fn transparent_connect(
+    _client: SocketAddrV4,
+    _target: SocketAddrV4,
+) -> std::io::Result<TcpStream> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "IP_TRANSPARENT transparent egress is Linux-only",
+    ))
 }
 
 static DIVERT_INFRA: OnceCell<()> = OnceCell::const_new();

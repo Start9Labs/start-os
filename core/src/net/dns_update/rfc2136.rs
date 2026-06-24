@@ -344,8 +344,9 @@ mod tests {
     /// An A-only injected name must answer NODATA (not forward) for an AAAA
     /// query: the name is held, so `contains_name` is true even though the
     /// queried type is absent. Forwarding would let upstream NXDOMAIN poison it.
-    #[test]
-    fn held_name_is_nodata_not_forwarded() {
+    // tokio runtime required: DnsInjector's SyncMutex spawns a lock watchdog.
+    #[tokio::test]
+    async fn held_name_is_nodata_not_forwarded() {
         let inj = injector();
         inj.upsert(
             InjectedRecord::from_parts(
