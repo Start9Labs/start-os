@@ -610,12 +610,14 @@ impl InterfaceForwardEntry {
         pmap: &PortMapController,
     ) -> Result<(), Error> {
         let mut keep = BTreeSet::<SocketAddrV4>::new();
-        // (local IP, external start) -> (port count, candidate upstream gateways)
-        // to open upstream. Only public (WAN-facing) forwards need this; private
-        // subnets are already reachable. A `count > 1` range is one PCP PORT_SET
-        // request (RFC 7753), skipped on gateways without it (UPnP/NAT-PMP can't
-        // map ranges — those are left for the operator).
-        let mut want = BTreeMap::<(Ipv4Addr, u16), (u16, Vec<Ipv4Addr>)>::new();
+        // (local IP, external start) -> (port count, internal start, candidate
+        // upstream gateways) to open upstream. The internal port is the target's,
+        // so the gateway maps external->internal faithfully (e.g. an 80->443
+        // redirect); it equals the external for ordinary port-preserving forwards.
+        // Only public (WAN-facing) forwards need this; private subnets are already
+        // reachable. A `count > 1` range is one PCP PORT_SET request (RFC 7753),
+        // skipped on gateways without it (UPnP/NAT-PMP can't map ranges).
+        let mut want = BTreeMap::<(Ipv4Addr, u16), (u16, u16, Vec<Ipv4Addr>)>::new();
 
         for (gw_id, info) in ip_info.iter() {
             if let Some(ip_info) = &info.ip_info {
@@ -645,13 +647,14 @@ impl InterfaceForwardEntry {
 
                             keep.insert(addr);
                             if public {
+                                let internal = target.port();
                                 want.entry((ip, self.external)).or_insert_with(|| {
                                     let gws = candidate_gateways(info);
                                     tracing::debug!(
-                                        "auto-port-mapping {ip}:{} on gateway {gw_id} via {gws:?} (reqs {reqs})",
+                                        "auto-port-mapping {ip}:{}->{internal} on gateway {gw_id} via {gws:?} (reqs {reqs})",
                                         self.external,
                                     );
-                                    (self.count, gws)
+                                    (self.count, internal, gws)
                                 });
                             }
                             let fwd_rc = port_forward
@@ -677,11 +680,11 @@ impl InterfaceForwardEntry {
         for (ip, port) in self.mapped.iter().filter(|key| !want.contains_key(key)) {
             pmap.remove(*ip, *port);
         }
-        for ((ip, port), (count, gateways)) in &want {
+        for ((ip, external), (count, internal, gateways)) in &want {
             if *count > 1 {
-                pmap.ensure_range(*ip, *port, *port, *count, gateways.clone());
+                pmap.ensure_range(*ip, *external, *internal, *count, gateways.clone());
             } else {
-                pmap.ensure(*ip, *port, *port, gateways.clone());
+                pmap.ensure(*ip, *external, *internal, gateways.clone());
             }
         }
         self.mapped = want.into_keys().collect();
