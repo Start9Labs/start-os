@@ -785,4 +785,5 @@ export default {
   876: 'Obtenez un serveur Start9',
   877: 'Impossible de joindre la bibliothèque',
   878: 'Vous devrez répéter cette opération sur chaque appareil utilisé pour vous connecter à votre serveur.',
+  879: 'Mettre à jour la configuration',
 } satisfies i18n

@@ -191,6 +191,8 @@ export abstract class ApiService {
 
   abstract updateTunnel(params: T.RenameGatewayParams): Promise<null>
 
+  abstract updateTunnelConfig(params: T.UpdateTunnelParams): Promise<null>
+
   abstract removeTunnel(params: T.RemoveTunnelParams): Promise<null>
 
   abstract setDefaultOutbound(params: { gateway: string | null }): Promise<null>

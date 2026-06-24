@@ -697,6 +697,11 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async updateTunnelConfig(params: T.UpdateTunnelParams): Promise<null> {
+    await pauseFor(2000)
+    return null
+  }
+
   async removeTunnel(params: T.RemoveTunnelParams): Promise<null> {
     await pauseFor(2000)
     const patch: RemoveOperation[] = [

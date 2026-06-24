@@ -672,6 +672,7 @@ export const ENGLISH: Record<string, number> = {
   'as its DNS server': 752,
   'DNS Server': 753,
   'View port forwards': 754,
+  'Update config': 879,
   'Interface(s)': 755,
   'No port forwarding rules': 756,
   'Port forwarding rules required on gateway': 757,

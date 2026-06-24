@@ -785,4 +785,5 @@ export default {
   876: 'Zdobądź serwer Start9',
   877: 'Nie można połączyć z katalogiem',
   878: 'Będziesz musiał powtórzyć tę czynność na każdym urządzeniu, którego używasz do łączenia się z serwerem.',
+  879: 'Zaktualizuj konfigurację',
 } satisfies i18n

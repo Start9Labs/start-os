@@ -785,4 +785,5 @@ export default {
   876: 'Consigue un servidor Start9',
   877: 'No se pudo acceder al registro',
   878: 'Tendrás que repetir esto en cada dispositivo que uses para conectarte a tu servidor.',
+  879: 'Actualizar configuración',
 } satisfies i18n
