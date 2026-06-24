@@ -18,12 +18,15 @@ use std::time::Duration;
 use crab_nat::{InternetProtocol, PortMapping, PortMappingOptions, TimeoutConfig, pcp};
 use igd_next::aio::Gateway;
 use igd_next::aio::tokio::Tokio;
+use tokio::net::UdpSocket;
 use tokio::sync::{mpsc, oneshot};
-use tokio::time::{Instant, interval};
+use tokio::time::{Instant, interval, timeout};
 
 use crate::db::model::public::NetworkInterfaceInfo;
+use crate::net::port_map::pcp::capability::has_start9_capability;
 use crate::net::port_map::pcp::hostname::OPTION_HOSTNAME;
 use crate::net::port_map::pcp::portset::{OPTION_PORT_SET, PortSet};
+use crate::net::port_map::server::PCP_PORT;
 use crate::net::port_map::upnp;
 use crate::prelude::*;
 
@@ -262,6 +265,9 @@ struct State {
     /// Last apply() attempt per key, to rate-limit on-demand retries of
     /// not-yet-active mappings (see RETRY_INTERVAL).
     last_attempt: BTreeMap<MappingKey, Instant>,
+    /// Per-gateway PCP ANNOUNCE result ("speaks the Start9 HOSTNAME
+    /// extension"); a positive verdict is trusted longer than a negative one.
+    hostname_caps: BTreeMap<Ipv4Addr, (bool, Instant)>,
 }
 
 impl State {
@@ -312,6 +318,9 @@ impl State {
         }
         self.upnp_cache
             .retain(|_, (_, at)| at.elapsed() < GATEWAY_CACHE_TTL);
+        self.hostname_caps.retain(|_, (ok, at)| {
+            at.elapsed() < if *ok { GATEWAY_CACHE_TTL } else { RETRY_INTERVAL }
+        });
         self.last_attempt.retain(|k, _| self.desired.contains_key(k));
     }
 
@@ -355,6 +364,12 @@ impl State {
                 data: hostname.as_bytes().to_vec(),
             }];
             for gw in &spec.gateways {
+                // Never hand a Private-Use OPTION_HOSTNAME to a gateway that
+                // hasn't confirmed it speaks the extension via ANNOUNCE.
+                if !self.gateway_supports_hostname(*gw).await {
+                    tracing::debug!("PCP HOSTNAME skip {gw}: no ANNOUNCE confirmation of support");
+                    continue;
+                }
                 match pcp::port_mapping(
                     pcp::BaseMapRequest::new(IpAddr::V4(*gw), IpAddr::V4(local_ip), InternetProtocol::Tcp, intl),
                     None,
@@ -368,7 +383,12 @@ impl State {
                 )
                 .await
                 {
-                    Ok(m) if m.external_port() == ext => {
+                    // Require the gateway to echo the HOSTNAME option too: it
+                    // confirms the binding took, independent of the ANNOUNCE marker.
+                    Ok(m)
+                        if m.external_port() == ext
+                            && m.response_options().iter().any(|o| o.code == OPTION_HOSTNAME) =>
+                    {
                         tracing::debug!(
                             "PCP HOSTNAME mapped {external_port}->{local_ip}:{} {hostname} via {gw}",
                             spec.internal_port,
@@ -524,6 +544,74 @@ impl State {
         }
         self.upnp_cache.get(&local_ip).map(|(g, _)| g)
     }
+
+    /// Whether `gw` answered a PCP ANNOUNCE with the Start9 capability marker,
+    /// cached per gateway (a yes trusted for GATEWAY_CACHE_TTL, a no re-probed
+    /// after RETRY_INTERVAL). Gates OPTION_HOSTNAME while we ride a Private-Use
+    /// option code.
+    async fn gateway_supports_hostname(&mut self, gw: Ipv4Addr) -> bool {
+        if let Some((ok, at)) = self.hostname_caps.get(&gw) {
+            let ttl = if *ok { GATEWAY_CACHE_TTL } else { RETRY_INTERVAL };
+            if at.elapsed() < ttl {
+                return *ok;
+            }
+        }
+        let ok = probe_announce(gw).await;
+        self.hostname_caps.insert(gw, (ok, Instant::now()));
+        ok
+    }
+}
+
+/// A datagram is a Start9 ANNOUNCE response iff it's a SUCCESS ANNOUNCE reply
+/// (version 2, response bit set on opcode 0) carrying the capability marker.
+fn announce_marker_ok(resp: &[u8]) -> bool {
+    resp.len() >= 24
+        && resp[0] == 2
+        && resp[1] == 0x80
+        && resp[3] == 0
+        && has_start9_capability(&resp[24..])
+}
+
+/// Send a PCP ANNOUNCE to `gw:5351` and report whether it answers with the
+/// Start9 capability marker. Raw UDP since crab_nat exposes no ANNOUNCE;
+/// best-effort — any error/timeout/non-marker reply is "not supported".
+async fn probe_announce(gw: Ipv4Addr) -> bool {
+    let Ok(sock) = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).await else {
+        return false;
+    };
+    if sock.connect((gw, PCP_PORT)).await.is_err() {
+        return false;
+    }
+    // Bare 24-byte PCP header: version 2, opcode 0 (ANNOUNCE), client IP.
+    let mut req = [0u8; 24];
+    req[0] = 2;
+    let local = match sock.local_addr().map(|a| a.ip()) {
+        Ok(IpAddr::V4(v4)) => v4,
+        _ => Ipv4Addr::UNSPECIFIED,
+    };
+    req[8..24].copy_from_slice(&local.to_ipv6_mapped().octets());
+    let mut buf = [0u8; 1100];
+    let attempts = PCP_TIMEOUTS.max_retries as u32 + 1;
+    for attempt in 0..attempts {
+        if sock.send(&req).await.is_err() {
+            return false;
+        }
+        let dur = if attempt == 0 {
+            PCP_TIMEOUTS.initial_timeout
+        } else {
+            PCP_TIMEOUTS
+                .max_retry_timeout
+                .unwrap_or(Duration::from_secs(1))
+        };
+        // Retransmit on a lost or garbled reply (RFC 6887 §8.3) rather than
+        // giving up on the first delivered-but-non-marker datagram.
+        if let Ok(Ok(n)) = timeout(dur, sock.recv(&mut buf)).await {
+            if announce_marker_ok(&buf[..n]) {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 #[cfg(test)]
@@ -562,5 +650,26 @@ mod tests {
         assert!(!state.desired.contains_key(&a));
         assert!(state.desired.contains_key(&b), "removing a dropped b");
         assert!(state.desired.contains_key(&plain));
+    }
+
+    // The client accepts only a SUCCESS ANNOUNCE reply carrying the exact marker.
+    #[test]
+    fn announce_marker_recognized() {
+        use crate::net::port_map::pcp::capability::encode_start9_capability_option;
+        let mut resp = vec![0u8; 24];
+        resp[0] = 2;
+        resp[1] = 0x80; // RESPONSE_BIT | opcode 0 (ANNOUNCE)
+        encode_start9_capability_option(&mut resp);
+        assert!(announce_marker_ok(&resp));
+
+        let mut not_response = resp.clone();
+        not_response[1] = 0x00;
+        assert!(!announce_marker_ok(&not_response));
+
+        let mut not_success = resp.clone();
+        not_success[3] = 4;
+        assert!(!announce_marker_ok(&not_success));
+
+        assert!(!announce_marker_ok(&resp[..24]), "no marker option");
     }
 }

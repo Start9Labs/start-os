@@ -10,6 +10,7 @@ use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddrV4};
 use std::sync::Arc;
 
+use crate::net::port_map::pcp::capability::encode_start9_capability_option;
 use crate::net::port_map::pcp::hostname::{
     RESULT_UNSUPP_HOSTNAME, encode_hostname_option, parse_hostname_options,
 };
@@ -19,6 +20,7 @@ use crate::tunnel::forward::sni::SniDemux;
 /// Standard PCP server port (RFC 6887).
 pub const PCP_PORT: u16 = 5351;
 const PCP_VERSION: u8 = 2;
+const OPCODE_ANNOUNCE: u8 = 0;
 const OPCODE_MAP: u8 = 1;
 const RESPONSE_BIT: u8 = 0x80;
 const MAP_REQUEST_LEN: usize = 60;
@@ -131,6 +133,18 @@ fn error_response(opcode: u8, result: u8, epoch: u32) -> Vec<u8> {
     r
 }
 
+/// An ANNOUNCE response carrying the Start9 capability marker, so a client can
+/// confirm this gateway speaks the HOSTNAME extension before emitting it.
+fn announce_response(epoch: u32) -> Vec<u8> {
+    let mut r = vec![0u8; HEADER_LEN];
+    r[0] = PCP_VERSION;
+    r[1] = RESPONSE_BIT | OPCODE_ANNOUNCE;
+    r[3] = SUCCESS;
+    r[8..12].copy_from_slice(&epoch.to_be_bytes());
+    encode_start9_capability_option(&mut r);
+    r
+}
+
 /// A MAP response, echoing the request's nonce/protocol/internal port.
 fn map_response(
     result: u8,
@@ -231,6 +245,11 @@ pub async fn handle<B: GatewayBackend + ?Sized>(
     }
     if req[0] != PCP_VERSION {
         return Some(error_response(opcode, UNSUPP_VERSION, epoch));
+    }
+    // Answer ANNOUNCE for any peer (the marker only reveals "I speak HOSTNAME");
+    // it must precede the MAP-only check, which would otherwise reject opcode 0.
+    if opcode == OPCODE_ANNOUNCE {
+        return Some(announce_response(epoch));
     }
     if opcode != OPCODE_MAP {
         return Some(error_response(opcode, UNSUPP_OPCODE, epoch));
@@ -512,5 +531,76 @@ mod tests {
         assert_eq!(r[0], PCP_VERSION);
         assert_eq!(r[1], RESPONSE_BIT | OPCODE_MAP);
         assert_eq!(r[3], UNSUPP_VERSION);
+    }
+
+    #[test]
+    fn announce_response_carries_marker() {
+        use crate::net::port_map::pcp::capability::has_start9_capability;
+        let r = announce_response(42);
+        assert_eq!(r.len(), HEADER_LEN + 8);
+        assert_eq!(r[0], PCP_VERSION);
+        assert_eq!(r[1], RESPONSE_BIT | OPCODE_ANNOUNCE);
+        assert_eq!(r[3], SUCCESS);
+        assert_eq!(u32::from_be_bytes([r[8], r[9], r[10], r[11]]), 42);
+        assert!(has_start9_capability(&r[HEADER_LEN..]));
+    }
+
+    struct Stub(Arc<SniDemux>);
+    impl GatewayBackend for Stub {
+        fn add_forward(
+            &self,
+            _: SocketAddrV4,
+            _: SocketAddrV4,
+            _: u16,
+            _: Ipv4Addr,
+        ) -> impl Future<Output = Result<(), u16>> + Send {
+            async { Ok(()) }
+        }
+        fn remove_forward(&self, _: Ipv4Addr, _: u16) -> impl Future<Output = ()> + Send {
+            async {}
+        }
+        fn remove_forward_by_source(
+            &self,
+            _: SocketAddrV4,
+            _: Ipv4Addr,
+        ) -> impl Future<Output = bool> + Send {
+            async { false }
+        }
+        fn external_ipv4(&self, _: Ipv4Addr) -> impl Future<Output = Option<Ipv4Addr>> + Send {
+            async { Some(Ipv4Addr::new(203, 0, 113, 1)) }
+        }
+        fn is_known_client(&self, _: Ipv4Addr) -> impl Future<Output = bool> + Send {
+            async { false }
+        }
+        fn sni(&self) -> &Arc<SniDemux> {
+            &self.0
+        }
+    }
+
+    // ANNOUNCE is answered with the marker for ANY peer (is_known_client false),
+    // and is NOT swallowed by the MAP-only path as UNSUPP_OPCODE.
+    #[tokio::test]
+    async fn handle_announce_returns_marker_unauthed() {
+        use crate::net::port_map::pcp::capability::has_start9_capability;
+        let stub = Stub(SniDemux::new());
+        let mut req = vec![0u8; HEADER_LEN];
+        req[0] = PCP_VERSION;
+        req[1] = OPCODE_ANNOUNCE;
+        let resp = handle(&stub, Ipv4Addr::new(10, 59, 0, 2), &req, 7)
+            .await
+            .expect("ANNOUNCE answered");
+        assert_eq!(resp[1], RESPONSE_BIT | OPCODE_ANNOUNCE);
+        assert_eq!(resp[3], SUCCESS);
+        assert!(has_start9_capability(&resp[HEADER_LEN..]));
+    }
+
+    #[tokio::test]
+    async fn handle_rejects_unknown_opcode() {
+        let stub = Stub(SniDemux::new());
+        let mut req = vec![0u8; HEADER_LEN];
+        req[0] = PCP_VERSION;
+        req[1] = 3; // not ANNOUNCE(0) nor MAP(1)
+        let resp = handle(&stub, Ipv4Addr::LOCALHOST, &req, 0).await.unwrap();
+        assert_eq!(resp[3], UNSUPP_OPCODE);
     }
 }

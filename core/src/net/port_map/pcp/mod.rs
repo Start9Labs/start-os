@@ -1,6 +1,7 @@
 //! PCP option extensions shared by client and server: HOSTNAME (SNI demux) and
 //! PORT_SET (contiguous port ranges).
 
+pub mod capability;
 pub mod hostname;
 pub mod portset;
 
