@@ -22,13 +22,22 @@ use crate::util::Invoke;
 // accept queue on the vhost proxy under burst load.
 const LISTEN_BACKLOG: i32 = 1024;
 
-fn build_listen_socket(addr: SocketAddr) -> std::io::Result<std::net::TcpListener> {
+fn build_listen_socket(
+    addr: SocketAddr,
+    reuse_port: bool,
+) -> std::io::Result<std::net::TcpListener> {
     let domain = match addr {
         SocketAddr::V4(_) => socket2::Domain::IPV4,
         SocketAddr::V6(_) => socket2::Domain::IPV6,
     };
     let socket = socket2::Socket::new(domain, socket2::Type::STREAM, Some(socket2::Protocol::TCP))?;
     socket.set_reuse_address(true)?;
+    if reuse_port {
+        // SO_REUSEADDR alone does not let a dual-stack wildcard catch-all listener
+        // share a TCP port with the per-address specific listeners bound alongside
+        // it; that requires SO_REUSEPORT. Used by the DNS :53 binds (`dns_server_on`).
+        socket.set_reuse_port(true)?;
+    }
     socket.set_nonblocking(true)?;
     socket.bind(&addr.into())?;
     socket.listen(LISTEN_BACKLOG)?;
@@ -39,14 +48,23 @@ fn build_listen_socket(addr: SocketAddr) -> std::io::Result<std::net::TcpListene
 /// ([`LISTEN_BACKLOG`]) instead of mio's hardcoded 128. Use everywhere we'd
 /// otherwise reach for `mio::net::TcpListener::bind`.
 pub fn bind_mio_listener(addr: SocketAddr) -> std::io::Result<mio::net::TcpListener> {
-    Ok(mio::net::TcpListener::from_std(build_listen_socket(addr)?))
+    Ok(mio::net::TcpListener::from_std(build_listen_socket(addr, false)?))
 }
 
 /// Bind a `tokio::net::TcpListener` with an explicit listen backlog
 /// ([`LISTEN_BACKLOG`]) instead of tokio's hardcoded 128. Use everywhere we'd
 /// otherwise reach for `tokio::net::TcpListener::bind`.
 pub fn bind_tokio_listener(addr: SocketAddr) -> std::io::Result<tokio::net::TcpListener> {
-    tokio::net::TcpListener::from_std(build_listen_socket(addr)?)
+    tokio::net::TcpListener::from_std(build_listen_socket(addr, false)?)
+}
+
+/// Like [`bind_tokio_listener`], but with SO_REUSEPORT so a wildcard catch-all
+/// listener can share a port with per-address specific listeners (the DNS :53
+/// binds in `dns_server_on`).
+pub fn bind_tokio_listener_reuse_port(
+    addr: SocketAddr,
+) -> std::io::Result<tokio::net::TcpListener> {
+    tokio::net::TcpListener::from_std(build_listen_socket(addr, true)?)
 }
 
 /// Detect silent peer death within ~2 min instead of the Linux default ~2h.
