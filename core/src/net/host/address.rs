@@ -153,7 +153,50 @@ pub fn address_api<C: Context, Kind: HostApiKind>()
                     }
 
                     let mut table = Table::new();
-                    todo!("find a good way to represent this");
+                    table.add_row(row![bc =>
+                        "ADDRESS",
+                        "VISIBILITY",
+                        "PUBLIC GATEWAY",
+                        "ACME PROVIDER",
+                        "PRIVATE GATEWAYS",
+                    ]);
+                    for addr in res.iter() {
+                        let visibility = match (&addr.public, &addr.private) {
+                            (Some(_), Some(_)) => "public, private",
+                            (Some(_), None) => "public",
+                            (None, Some(_)) => "private",
+                            (None, None) => "none",
+                        };
+                        let public_gateway = addr
+                            .public
+                            .as_ref()
+                            .map_or_else(|| "—".to_owned(), |p| p.gateway.to_string());
+                        let acme = addr
+                            .public
+                            .as_ref()
+                            .and_then(|p| p.acme.as_ref())
+                            .map_or_else(|| "—".to_owned(), |a| a.0.to_string());
+                        let private_gateways = addr
+                            .private
+                            .as_ref()
+                            .filter(|g| !g.is_empty())
+                            .map_or_else(
+                                || "—".to_owned(),
+                                |g| {
+                                    g.iter()
+                                        .map(|g| g.to_string())
+                                        .collect::<Vec<_>>()
+                                        .join(", ")
+                                },
+                            );
+                        table.add_row(row![
+                            addr.address,
+                            visibility,
+                            public_gateway,
+                            acme,
+                            private_gateways,
+                        ]);
+                    }
 
                     table.print_tty(false)?;
 
