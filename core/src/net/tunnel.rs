@@ -33,6 +33,13 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
                 .with_about("about.remove-tunnel")
                 .with_call_remote::<CliContext>(),
         )
+        .subcommand(
+            "update",
+            from_fn_async(update_tunnel)
+                .no_display()
+                .with_about("about.update-tunnel")
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
@@ -66,6 +73,48 @@ fn sanitize_config(config: &str) -> String {
         res.push('\n');
     }
     res
+}
+
+/// Write the (sanitized) WireGuard config for `iface`, import it into
+/// NetworkManager on that interface, and mark its resolver preferred-but-not-
+/// exclusive (positive dns-priority below the LAN default) so the config's
+/// `DNS =` wins yet others remain a fallback. Reactivation/priority are
+/// best-effort: a failure must not abort the import.
+async fn import_wireguard(iface: &GatewayId, config: &str) -> Result<(), Error> {
+    let tmpdir = TmpDir::new().await?;
+    let conf = tmpdir.join(iface.as_str()).with_extension("conf");
+    write_file_atomic(&conf, &sanitize_config(config)).await?;
+    Command::new("nmcli")
+        .arg("connection")
+        .arg("import")
+        .arg("type")
+        .arg("wireguard")
+        .arg("file")
+        .arg(&conf)
+        .invoke(ErrorKind::Network)
+        .await?;
+    tmpdir.delete().await?;
+
+    const WG_DNS_PRIORITY: &str = "10";
+    for proto in ["ipv4", "ipv6"] {
+        Command::new("nmcli")
+            .arg("connection")
+            .arg("modify")
+            .arg(iface.as_str())
+            .arg(format!("{proto}.dns-priority"))
+            .arg(WG_DNS_PRIORITY)
+            .invoke(ErrorKind::Network)
+            .await
+            .log_err();
+    }
+    Command::new("nmcli")
+        .arg("connection")
+        .arg("up")
+        .arg(iface.as_str())
+        .invoke(ErrorKind::Network)
+        .await
+        .log_err();
+    Ok(())
 }
 
 pub async fn add_tunnel(
@@ -126,43 +175,7 @@ pub async fn add_tunnel(
         )
         .await;
 
-    let tmpdir = TmpDir::new().await?;
-    let conf = tmpdir.join(&iface).with_extension("conf");
-    write_file_atomic(&conf, &sanitize_config(&config)).await?;
-    Command::new("nmcli")
-        .arg("connection")
-        .arg("import")
-        .arg("type")
-        .arg("wireguard")
-        .arg("file")
-        .arg(&conf)
-        .invoke(ErrorKind::Network)
-        .await?;
-    tmpdir.delete().await?;
-
-    // NM imported the config's `DNS =` into ipv4/ipv6.dns. Mark it preferred but
-    // not exclusive — a positive priority lower than the LAN's default (100) so
-    // the tunnel's resolver wins yet others remain a fallback — then reactivate
-    // to apply. Best-effort: a failure must not abort the import.
-    const WG_DNS_PRIORITY: &str = "10";
-    for proto in ["ipv4", "ipv6"] {
-        Command::new("nmcli")
-            .arg("connection")
-            .arg("modify")
-            .arg(iface.as_str())
-            .arg(format!("{proto}.dns-priority"))
-            .arg(WG_DNS_PRIORITY)
-            .invoke(ErrorKind::Network)
-            .await
-            .log_err();
-    }
-    Command::new("nmcli")
-        .arg("connection")
-        .arg("up")
-        .arg(iface.as_str())
-        .invoke(ErrorKind::Network)
-        .await
-        .log_err();
+    import_wireguard(&iface, &config).await?;
 
     sub.recv().await;
 
@@ -328,4 +341,54 @@ pub async fn remove_tunnel(
     }
 
     Ok(())
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[ts(export)]
+pub struct UpdateTunnelParams {
+    #[arg(help = "help.arg.gateway-id")]
+    id: GatewayId,
+    #[arg(help = "help.arg.wireguard-config")]
+    config: String,
+}
+
+/// Replace the WireGuard config behind an existing gateway interface in place,
+/// keeping the gateway id and everything keyed to it (forwards, private/public
+/// domains). Used to re-issue a config — e.g. one that now carries a `DNS =`
+/// line. The device-watch loop only blanks ip_info for an absent device, never
+/// forgets it, so deleting and re-importing the connection preserves the gateway.
+pub async fn update_tunnel(
+    ctx: RpcContext,
+    UpdateTunnelParams { id, config }: UpdateTunnelParams,
+) -> Result<(), Error> {
+    let Some(existing) = ctx
+        .db
+        .peek()
+        .await
+        .into_public()
+        .into_server_info()
+        .into_network()
+        .into_gateways()
+        .into_idx(&id)
+        .and_then(|e| e.into_ip_info().transpose())
+    else {
+        return Err(Error::new(eyre!("unknown gateway: {id}"), ErrorKind::NotFound));
+    };
+
+    if existing.as_deref().as_device_type().de()? != Some(NetworkInterfaceType::Wireguard) {
+        return Err(Error::new(
+            eyre!("network interface {id} is not a proxy"),
+            ErrorKind::InvalidRequest,
+        ));
+    }
+
+    Command::new("nmcli")
+        .arg("connection")
+        .arg("delete")
+        .arg(id.as_str())
+        .invoke(ErrorKind::Network)
+        .await?;
+
+    import_wireguard(&id, &config).await
 }

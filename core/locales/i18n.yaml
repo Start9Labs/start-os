@@ -6310,6 +6310,13 @@ about.update-port-forward-label:
   fr_FR: "Mettre à jour le libellé d'une redirection de port"
   pl_PL: "Zaktualizuj etykietę przekierowania portu"
 
+about.update-tunnel:
+  en_US: "Replace a gateway's WireGuard config in place, keeping its identity"
+  de_DE: "Die WireGuard-Konfiguration eines Gateways direkt ersetzen, unter Beibehaltung seiner Identität"
+  es_ES: "Reemplazar la configuración WireGuard de un gateway in situ, conservando su identidad"
+  fr_FR: "Remplacer la configuration WireGuard d'une passerelle sur place, en conservant son identité"
+  pl_PL: "Zastąp konfigurację WireGuard bramy w miejscu, zachowując jej tożsamość"
+
 about.view-edit-gateway-configs:
   en_US: "View and edit gateway configurations"
   de_DE: "Gateway-Konfigurationen anzeigen und bearbeiten"
