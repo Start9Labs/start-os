@@ -2035,8 +2035,8 @@ impl NetworkInterfaceController {
         Ok(())
     }
 
-    pub async fn delete_iface(&self, interface: &GatewayId) -> Result<(), Error> {
-        let Some(has_ip_info) = self
+    pub async fn delete_iface(self: &Arc<Self>, interface: &GatewayId) -> Result<(), Error> {
+        let Some(true) = self
             .watcher
             .ip_info
             .peek(|ifaces| ifaces.get(interface).map(|i| i.ip_info.is_some()))
@@ -2044,25 +2044,28 @@ impl NetworkInterfaceController {
             return self.forget(interface).await;
         };
 
-        if has_ip_info {
-            let mut ip_info = self.watcher.ip_info.clone_unseen();
+        // Deleting the gateway that carries this very request tears its tunnel
+        // down, dropping our transport and cancelling this handler — which would
+        // leave the NM connection deleted but the gateway entry never forgotten
+        // (a half-deleted gateway, recovered only by a reboot). Detach the
+        // delete + wait + forget so it runs to completion regardless: dropping the
+        // JoinHandle on cancellation does not abort the task.
+        let this = self.clone();
+        let interface = interface.clone();
+        let task = tokio::spawn(async move {
+            let mut ip_info = this.watcher.ip_info.clone_unseen();
 
             let connection = Connection::system().await?;
-
             let netman_proxy = NetworkManagerProxy::new(&connection).await?;
 
-            let device = Some(
-                netman_proxy
-                    .get_device_by_ip_iface(interface.as_str())
-                    .await?,
-            )
-            .filter(|o| &**o != "/")
-            .or_not_found(lazy_format!("{interface} in NetworkManager"))?;
+            let iface_name = interface.as_str();
+            let device = Some(netman_proxy.get_device_by_ip_iface(iface_name).await?)
+                .filter(|o| &**o != "/")
+                .or_not_found(lazy_format!("{iface_name} in NetworkManager"))?;
 
             let device_proxy = DeviceProxy::new(&connection, device).await?;
 
             let ac = device_proxy.active_connection().await?;
-
             if &*ac == "/" {
                 return Err(Error::new(
                     eyre!("{}", t!("net.gateway.cannot-delete-without-connection")),
@@ -2071,20 +2074,24 @@ impl NetworkInterfaceController {
             }
 
             let ac_proxy = active_connection::ActiveConnectionProxy::new(&connection, ac).await?;
-
             let settings =
                 ConnectionSettingsProxy::new(&connection, ac_proxy.connection().await?).await?;
 
             settings.delete().await?;
 
             ip_info
-                .wait_for(|ifaces| ifaces.get(interface).map_or(true, |i| i.ip_info.is_none()))
+                .wait_for(|ifaces| ifaces.get(&interface).map_or(true, |i| i.ip_info.is_none()))
                 .await;
+
+            this.forget(&interface).await
+        });
+        match task.await {
+            Ok(res) => res,
+            Err(e) => Err(Error::new(
+                eyre!("delete gateway task failed: {e}"),
+                ErrorKind::Network,
+            )),
         }
-
-        self.forget(interface).await?;
-
-        Ok(())
     }
 
     pub async fn set_name(&self, interface: &GatewayId, name: InternedString) -> Result<(), Error> {
