@@ -647,7 +647,10 @@ impl InterfaceForwardEntry {
 
                             keep.insert(addr);
                             if public {
-                                let internal = target.port();
+                                // The gateway forwards to the port StartOS listens
+                                // on at its LAN IP (== external); our own nftables
+                                // rule DNATs that to the container target locally.
+                                let internal = self.external;
                                 want.entry((ip, self.external)).or_insert_with(|| {
                                     let gws = candidate_gateways(info);
                                     tracing::debug!(
