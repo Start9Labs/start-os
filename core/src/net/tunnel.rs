@@ -383,12 +383,26 @@ pub async fn update_tunnel(
         ));
     }
 
-    Command::new("nmcli")
-        .arg("connection")
-        .arg("delete")
-        .arg(id.as_str())
-        .invoke(ErrorKind::Network)
-        .await?;
+    // Updating the gateway that carries this very request tears its tunnel down,
+    // which drops our transport and cancels this handler mid-sequence — leaving
+    // the connection deleted and never re-imported (recovered only by a reboot).
+    // Run the destructive delete + re-import in a detached task so it completes
+    // regardless: dropping its JoinHandle on cancellation does not abort the task.
+    let task = tokio::spawn(async move {
+        Command::new("nmcli")
+            .arg("connection")
+            .arg("delete")
+            .arg(id.as_str())
+            .invoke(ErrorKind::Network)
+            .await?;
 
-    import_wireguard(&id, &config).await
+        import_wireguard(&id, &config).await
+    });
+    match task.await {
+        Ok(res) => res,
+        Err(e) => Err(Error::new(
+            eyre!("gateway config update task failed: {e}"),
+            ErrorKind::Network,
+        )),
+    }
 }
