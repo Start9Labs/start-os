@@ -1,4 +1,5 @@
 import { Component, inject } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import {
   NonNullableFormBuilder,
   ReactiveFormsModule,
@@ -6,6 +7,7 @@ import {
 } from '@angular/forms'
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import { ErrorService } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiAutoFocus, tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
 import {
@@ -36,6 +38,11 @@ import {
   MappedSubnet,
   subnetValidator,
 } from './utils'
+
+// Wrapper so the Default (ip: null) option survives tuiSelect's null-skipping.
+interface WanItem {
+  readonly ip: string | null
+}
 
 @Component({
   template: `
@@ -88,8 +95,9 @@ import {
 
       <tui-textfield
         tuiChevron
-        [tuiTextfieldCleaner]="false"
+        [identityMatcher]="matchWan"
         [stringify]="stringifyWan"
+        [tuiTextfieldCleaner]="false"
       >
         <label tuiLabel>WAN IP</label>
         @if (mobile) {
@@ -102,16 +110,56 @@ import {
         }
       </tui-textfield>
 
-      <label tuiLabel>
-        <input tuiCheckbox type="checkbox" formControlName="autoconfig" />
-        Enable Gateway Autoconfiguration (Recommended for StartOS)
-        <tui-icon
-          icon="@tui.info"
-          [tuiHint]="autoconfigHint"
-          [style.cursor]="'help'"
-          [style.font-size.rem]="0.9"
-        />
-      </label>
+      @if (!context.data.device) {
+        <tui-textfield
+          tuiChevron
+          [stringify]="stringifyKind"
+          [tuiTextfieldCleaner]="false"
+        >
+          <label tuiLabel>Kind</label>
+          @if (mobile) {
+            <select
+              tuiSelect
+              formControlName="kind"
+              [items]="kindItems"
+            ></select>
+          } @else {
+            <input tuiSelect formControlName="kind" />
+          }
+          @if (!mobile) {
+            <tui-data-list-wrapper *tuiDropdown [items]="kindItems" />
+          }
+        </tui-textfield>
+      }
+
+      <tui-elastic-container>
+        @if (!context.data.device && kind() === 'server') {
+          <label tuiLabel>
+            <input tuiCheckbox type="checkbox" formControlName="dnsInjection" />
+            Allow DNS Injection
+            <tui-icon
+              icon="@tui.info"
+              [tuiHint]="dnsInjectionHint"
+              [style.cursor]="'help'"
+              [style.font-size.rem]="0.9"
+            />
+          </label>
+          <label tuiLabel>
+            <input
+              tuiCheckbox
+              type="checkbox"
+              formControlName="autoPortForward"
+            />
+            Allow Auto Port Forward
+            <tui-icon
+              icon="@tui.info"
+              [tuiHint]="autoPortForwardHint"
+              [style.cursor]="'help'"
+              [style.font-size.rem]="0.9"
+            />
+          </label>
+        }
+      </tui-elastic-container>
 
       <footer>
         <button tuiButton (click)="onSave()">Save</button>
@@ -164,31 +212,43 @@ export class DevicesAdd {
         ? [Validators.required, ipInSubnetValidator(this.autoSubnet.range)]
         : [],
     ],
-    wanIp: this.fb.control<string | null>(
-      this.context.data.device?.wanIp ?? null,
+    wanIp: this.fb.control<WanItem>({
+      ip: this.context.data.device?.wanIp ?? null,
+    }),
+    kind: this.fb.control<T.Tunnel.WgClientKind>(
+      this.context.data.device?.kind ?? 'client',
     ),
-    autoconfig: [
-      !!(
-        this.context.data.device?.allowDnsInjection &&
-        this.context.data.device?.allowAutoPortForward
-      ),
-    ],
+    dnsInjection: [this.context.data.device?.allowDnsInjection ?? true],
+    autoPortForward: [this.context.data.device?.allowAutoPortForward ?? true],
   })
 
-  // Shown as a tuiHint on the autoconfig checkbox so it reads as attached to
-  // that field rather than floating in the modal.
-  protected readonly autoconfigHint =
-    'The device can configure the gateway on its own behalf — adding/updating the DNS records the tunnel serves and requesting port forwards (via PCP). Only enable for devices you trust.'
+  protected readonly kind = toSignal(this.form.controls.kind.valueChanges, {
+    initialValue: this.form.controls.kind.value,
+  })
 
-  protected readonly wanItems: readonly (string | null)[] = [
-    null,
-    ...this.context.data.wanOptions,
+  protected readonly dnsInjectionHint =
+    'The device can add/update the DNS records the tunnel serves for every peer to resolve. Only enable for devices you trust.'
+  protected readonly autoPortForwardHint =
+    'The device can request port forwards on the gateway (via PCP). Only enable for devices you trust.'
+
+  protected readonly kindItems: readonly T.Tunnel.WgClientKind[] = [
+    'client',
+    'server',
+  ]
+
+  // Real object item so the Default (ip: null) option stringifies in tuiSelect.
+  protected readonly wanItems: readonly WanItem[] = [
+    { ip: null },
+    ...this.context.data.wanOptions.map(ip => ({ ip })),
   ]
 
   protected readonly stringify = ({ range, name }: MappedSubnet) =>
     range ? `${name} (${range})` : ''
-  protected readonly stringifyWan = (ip: string | null) =>
+  protected readonly stringifyWan = ({ ip }: WanItem) =>
     wanLabel(ip, this.context.data.defaultWan)
+  protected readonly matchWan = (a: WanItem, b: WanItem) => a.ip === b.ip
+  protected readonly stringifyKind = (kind: T.Tunnel.WgClientKind) =>
+    kind === 'server' ? 'Server' : 'Client'
 
   protected onSubnet(subnet: MappedSubnet) {
     this.form.controls.ip.clearValidators()
@@ -215,37 +275,42 @@ export class DevicesAdd {
     }
 
     const loader = this.loading.open('').subscribe()
-    const { ip, name, subnet, wanIp, autoconfig } = this.form.getRawValue()
+    const { ip, name, subnet, wanIp, kind, dnsInjection, autoPortForward } =
+      this.form.getRawValue()
     const data = { ip, name, subnet: subnet?.range || '' }
     const device = this.context.data.device
 
     try {
       if (device) {
-        await this.api.editDevice(data)
+        await this.api.editDevice({ ...data, kind: device.kind })
       } else {
-        await this.api.addDevice(data)
+        await this.api.addDevice({ ...data, kind })
       }
 
-      if (wanIp !== (device?.wanIp ?? null)) {
-        await this.api.setDeviceWan({ subnet: data.subnet, ip, wanIp })
+      if (wanIp.ip !== (device?.wanIp ?? null)) {
+        await this.api.setDeviceWan({
+          subnet: data.subnet,
+          ip,
+          wanIp: wanIp.ip,
+        })
       }
 
-      // One "Gateway Autoconfiguration" checkbox drives both per-device flags;
-      // it's "on" only when both are on.
-      if (
-        autoconfig !==
-        !!(device?.allowDnsInjection && device?.allowAutoPortForward)
-      ) {
-        await this.api.setDnsInjection({
-          subnet: data.subnet,
-          ip,
-          enabled: autoconfig,
-        })
-        await this.api.setAutoPortForward({
-          subnet: data.subnet,
-          ip,
-          enabled: autoconfig,
-        })
+      // addDevice sets both flags on for a server; only sync the ones unchecked.
+      if (!device && kind === 'server') {
+        if (!dnsInjection) {
+          await this.api.setDnsInjection({
+            subnet: data.subnet,
+            ip,
+            enabled: false,
+          })
+        }
+        if (!autoPortForward) {
+          await this.api.setAutoPortForward({
+            subnet: data.subnet,
+            ip,
+            enabled: false,
+          })
+        }
       }
 
       if (!device) {

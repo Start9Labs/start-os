@@ -1,12 +1,15 @@
-import { Component, computed, inject } from '@angular/core'
+import { Component, computed, inject, signal } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
+import { FormsModule } from '@angular/forms'
 import { ErrorService } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import { TuiButton, TuiDataList, TuiDropdown } from '@taiga-ui/core'
+import { TuiButton, TuiDataList, TuiDropdown, TuiLoader } from '@taiga-ui/core'
 import {
   TUI_CONFIRM,
   TuiNotificationMiddleService,
   TuiSkeleton,
+  TuiSwitch,
 } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
@@ -24,13 +27,15 @@ import { MappedDevice } from './utils'
 
 @Component({
   template: `
-    <table class="g-table" [tuiSkeleton]="!devices()">
+    <h3>Servers</h3>
+    <table class="g-table" [tuiSkeleton]="!servers()">
       <thead>
         <tr>
           <th>Name</th>
           <th>Subnet</th>
           <th>LAN IP</th>
-          <th>Autoconfig</th>
+          <th>DNS Injection</th>
+          <th>Auto Port Forward</th>
           <th>WAN</th>
           <th [style.padding-inline-end.rem]="0.625">
             <button tuiButton size="xs" iconStart="@tui.plus" (click)="onAdd()">
@@ -40,17 +45,44 @@ import { MappedDevice } from './utils'
         </tr>
       </thead>
       <tbody>
-        @for (device of devices(); track $index) {
+        @for (device of servers(); track $index) {
           <tr>
             <td>{{ device.name }}</td>
             <td>{{ device.subnet.name }}</td>
             <td>{{ device.ip }}</td>
             <td>
-              {{
-                device.allowDnsInjection && device.allowAutoPortForward
-                  ? 'Yes'
-                  : 'No'
-              }}
+              <tui-loader
+                size="xs"
+                [loading]="togglingDns() === device.ip"
+                [overlay]="true"
+              >
+                <input
+                  tuiSwitch
+                  type="checkbox"
+                  size="s"
+                  [style.display]="'flex'"
+                  [showIcons]="false"
+                  [ngModel]="device.allowDnsInjection"
+                  (ngModelChange)="onDnsInjection(device)"
+                />
+              </tui-loader>
+            </td>
+            <td>
+              <tui-loader
+                size="xs"
+                [loading]="togglingPf() === device.ip"
+                [overlay]="true"
+              >
+                <input
+                  tuiSwitch
+                  type="checkbox"
+                  size="s"
+                  [style.display]="'flex'"
+                  [showIcons]="false"
+                  [ngModel]="device.allowAutoPortForward"
+                  (ngModelChange)="onAutoPortForward(device)"
+                />
+              </tui-loader>
             </td>
             <td>{{ wanLabel(device.wanIp, defaultWan()) }}</td>
             <td>
@@ -84,6 +116,13 @@ import { MappedDevice } from './utils'
                   </button>
                   <button
                     tuiOption
+                    iconStart="@tui.arrow-down"
+                    (click)="onSetKind(device, 'client')"
+                  >
+                    Demote to Client
+                  </button>
+                  <button
+                    tuiOption
                     iconStart="@tui.trash"
                     (click)="onDelete(device)"
                   >
@@ -95,8 +134,83 @@ import { MappedDevice } from './utils'
           </tr>
         } @empty {
           <tr>
-            <td colspan="6">
-              <app-placeholder icon="@tui.laptop">No devices</app-placeholder>
+            <td colspan="7">
+              <app-placeholder icon="@tui.laptop">No servers</app-placeholder>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    <h3>Clients</h3>
+    <table class="g-table" [tuiSkeleton]="!clients()">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Subnet</th>
+          <th>LAN IP</th>
+          <th>WAN</th>
+          <th [style.padding-inline-end.rem]="0.625"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (device of clients(); track $index) {
+          <tr>
+            <td>{{ device.name }}</td>
+            <td>{{ device.subnet.name }}</td>
+            <td>{{ device.ip }}</td>
+            <td>{{ wanLabel(device.wanIp, defaultWan()) }}</td>
+            <td>
+              <button
+                tuiIconButton
+                size="xs"
+                tuiDropdown
+                tuiDropdownAuto
+                appearance="flat-grayscale"
+                iconStart="@tui.ellipsis-vertical"
+              >
+                Actions
+                <tui-data-list
+                  *tuiDropdown="let close"
+                  size="s"
+                  (click)="close()"
+                >
+                  <button
+                    tuiOption
+                    iconStart="@tui.pencil"
+                    (click)="onEdit(device)"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    tuiOption
+                    iconStart="@tui.settings"
+                    (click)="onConfig(device)"
+                  >
+                    View Config
+                  </button>
+                  <button
+                    tuiOption
+                    iconStart="@tui.arrow-up"
+                    (click)="onSetKind(device, 'server')"
+                  >
+                    Promote to Server
+                  </button>
+                  <button
+                    tuiOption
+                    iconStart="@tui.trash"
+                    (click)="onDelete(device)"
+                  >
+                    Delete
+                  </button>
+                </tui-data-list>
+              </button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="5">
+              <app-placeholder icon="@tui.laptop">No clients</app-placeholder>
             </td>
           </tr>
         }
@@ -109,9 +223,12 @@ import { MappedDevice } from './utils'
     }
   `,
   imports: [
+    FormsModule,
     TuiButton,
     TuiDropdown,
     TuiDataList,
+    TuiLoader,
+    TuiSwitch,
     PlaceholderComponent,
     TuiSkeleton,
   ],
@@ -124,6 +241,9 @@ export default class Devices {
   private readonly patch = inject<PatchDB<TunnelData>>(PatchDB)
 
   protected readonly wanLabel = wanLabel
+
+  protected readonly togglingDns = signal<string | null>(null)
+  protected readonly togglingPf = signal<string | null>(null)
 
   private readonly wans = toSignal(
     this.patch.watch$('gateways').pipe(map(wanOptions)),
@@ -151,19 +271,31 @@ export default class Devices {
   protected readonly devices = computed(() =>
     this.subnets()?.flatMap(subnet =>
       Object.entries(subnet.clients).map(
-        ([ip, { name, allowDnsInjection, allowAutoPortForward, wanIp }]) => ({
+        ([
+          ip,
+          { name, kind, allowDnsInjection, allowAutoPortForward, wanIp },
+        ]) => ({
           subnet: {
             name: subnet.name,
             range: subnet.range,
           },
           ip,
           name,
+          kind,
           allowDnsInjection,
           allowAutoPortForward,
           wanIp,
         }),
       ),
     ),
+  )
+
+  protected readonly servers = computed(() =>
+    this.devices()?.filter(d => d.kind === 'server'),
+  )
+
+  protected readonly clients = computed(() =>
+    this.devices()?.filter(d => d.kind === 'client'),
   )
 
   protected onAdd() {
@@ -217,6 +349,64 @@ export default class Devices {
         const loader = this.loading.open('').subscribe()
         try {
           await this.api.deleteDevice({ subnet: subnet.range, ip })
+        } catch (e: any) {
+          this.errorService.handleError(e)
+          console.log(e)
+        } finally {
+          loader.unsubscribe()
+        }
+      })
+  }
+
+  protected async onDnsInjection({
+    subnet,
+    ip,
+    allowDnsInjection,
+  }: MappedDevice) {
+    this.togglingDns.set(ip)
+    try {
+      await this.api.setDnsInjection({
+        subnet: subnet.range,
+        ip,
+        enabled: !allowDnsInjection,
+      })
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      this.togglingDns.set(null)
+    }
+  }
+
+  protected async onAutoPortForward({
+    subnet,
+    ip,
+    allowAutoPortForward,
+  }: MappedDevice) {
+    this.togglingPf.set(ip)
+    try {
+      await this.api.setAutoPortForward({
+        subnet: subnet.range,
+        ip,
+        enabled: !allowAutoPortForward,
+      })
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      this.togglingPf.set(null)
+    }
+  }
+
+  protected onSetKind(
+    { subnet, ip }: MappedDevice,
+    kind: T.Tunnel.WgClientKind,
+  ): void {
+    this.dialogs
+      .open(TUI_CONFIRM, { label: 'Are you sure?' })
+      .pipe(filter(Boolean))
+      .subscribe(async () => {
+        const loader = this.loading.open('').subscribe()
+        try {
+          await this.api.setDeviceKind({ subnet: subnet.range, ip, kind })
         } catch (e: any) {
           this.errorService.handleError(e)
           console.log(e)

@@ -13,6 +13,7 @@ export interface MappedForward {
   readonly internalport: string
   readonly label: T.Tunnel.SniRoute['label']
   readonly enabled: T.Tunnel.SniRoute['enabled']
+  readonly auto: T.Tunnel.SniRoute['auto']
   readonly sni: string | null
   readonly hostname: string | null
 }
@@ -29,9 +30,25 @@ export function mapForwards(
   return Object.entries(portForwards).flatMap(([source, forward]) =>
     forward.kind === 'sni'
       ? Object.entries(forward.routes).map(([hostname, route]) =>
-          toRow(source, route.target, route.label, route.enabled, hostname),
+          toRow(
+            source,
+            route.target,
+            route.label,
+            route.enabled,
+            route.auto,
+            hostname,
+          ),
         )
-      : [toRow(source, forward.target, forward.label, forward.enabled, null)],
+      : [
+          toRow(
+            source,
+            forward.target,
+            forward.label,
+            forward.enabled,
+            forward.auto,
+            null,
+          ),
+        ],
   )
 
   function toRow(
@@ -39,6 +56,7 @@ export function mapForwards(
     target: string,
     label: string | null,
     enabled: boolean,
+    auto: boolean,
     hostname: string | null,
   ): MappedForward {
     const [externalip, externalport] = source.split(':')
@@ -57,6 +75,7 @@ export function mapForwards(
       internalport: internalport!,
       label,
       enabled,
+      auto,
       sni: hostname,
       hostname,
     }

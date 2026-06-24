@@ -10,6 +10,7 @@ export interface MappedDevice {
   }
   readonly ip: string
   readonly name: string
+  readonly kind: T.Tunnel.WgClientKind
   readonly allowDnsInjection: boolean
   readonly allowAutoPortForward: boolean
   readonly wanIp: string | null

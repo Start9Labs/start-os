@@ -40,6 +40,7 @@ export abstract class ApiService {
     params: T.Tunnel.SetAutoPortForwardParams,
   ): Promise<null> // device.set-auto-port-forward
   abstract setDeviceWan(params: T.Tunnel.SetDeviceWanParams): Promise<null> // device.set-wan
+  abstract setDeviceKind(params: T.Tunnel.SetDeviceKindParams): Promise<null> // device.set-kind
   // dns
   abstract addDnsRecord(params: T.Tunnel.AddDnsRecordParams): Promise<null> // dns.add
   abstract removeDnsRecord(

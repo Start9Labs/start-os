@@ -112,6 +112,10 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'device.set-wan', params })
   }
 
+  async setDeviceKind(params: T.Tunnel.SetDeviceKindParams): Promise<null> {
+    return this.rpcRequest({ method: 'device.set-kind', params })
+  }
+
   // dns
 
   async addDnsRecord(params: T.Tunnel.AddDnsRecordParams): Promise<null> {

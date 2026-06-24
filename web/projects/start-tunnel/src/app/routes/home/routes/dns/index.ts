@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   Signal,
 } from '@angular/core'
@@ -24,6 +25,7 @@ import { DNS_ADD } from './add'
 
 @Component({
   template: `
+    <h3>Manual</h3>
     <table class="g-table" [tuiSkeleton]="!records()">
       <thead>
         <tr>
@@ -31,7 +33,6 @@ import { DNS_ADD } from './add'
           <th>Type</th>
           <th>Value</th>
           <th>TTL</th>
-          <th>Source</th>
           <th [style.padding-inline-end.rem]="0.625">
             <button tuiButton size="xs" iconStart="@tui.plus" (click)="onAdd()">
               Add
@@ -40,13 +41,70 @@ import { DNS_ADD } from './add'
         </tr>
       </thead>
       <tbody>
-        @for (record of records() || []; track $index) {
+        @for (record of manual(); track $index) {
           <tr>
             <td>{{ record.name }}</td>
             <td>{{ record.type }}</td>
             <td>{{ record.value }}</td>
             <td>{{ record.ttl }}</td>
-            <td>{{ record.source || 'Manual' }}</td>
+            <td>
+              <button
+                tuiIconButton
+                size="xs"
+                tuiDropdown
+                tuiDropdownAuto
+                appearance="flat-grayscale"
+                iconStart="@tui.ellipsis-vertical"
+              >
+                Actions
+                <tui-data-list
+                  *tuiDropdown="let close"
+                  size="s"
+                  (click)="close()"
+                >
+                  <button
+                    tuiOption
+                    iconStart="@tui.trash"
+                    (click)="onDelete(record)"
+                  >
+                    Delete
+                  </button>
+                </tui-data-list>
+              </button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="5">
+              <app-placeholder icon="@tui.list">
+                No manual DNS records. Add one to get started.
+              </app-placeholder>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    <h3>Automatic</h3>
+    <table class="g-table" [tuiSkeleton]="!records()">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Value</th>
+          <th>TTL</th>
+          <th>Source</th>
+          <th [style.padding-inline-end.rem]="0.625"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (record of automatic(); track $index) {
+          <tr>
+            <td>{{ record.name }}</td>
+            <td>{{ record.type }}</td>
+            <td>{{ record.value }}</td>
+            <td>{{ record.ttl }}</td>
+            <td>{{ record.source }}</td>
             <td>
               <button
                 tuiIconButton
@@ -77,8 +135,8 @@ import { DNS_ADD } from './add'
           <tr>
             <td colspan="6">
               <app-placeholder icon="@tui.list">
-                No DNS records. Devices you trust can add their own via RFC
-                2136, or add one manually.
+                No automatic DNS records. Devices you trust can add their own
+                via RFC 2136.
               </app-placeholder>
             </td>
           </tr>
@@ -103,6 +161,12 @@ export default class Dns {
   private readonly errorService = inject(ErrorService)
 
   protected readonly records = toSignal(this.patch.watch$('dnsRecords'))
+  protected readonly manual = computed(() =>
+    (this.records() || []).filter(r => r.source === null),
+  )
+  protected readonly automatic = computed(() =>
+    (this.records() || []).filter(r => r.source !== null),
+  )
 
   private readonly devices: Signal<MappedDevice[]> = toSignal(
     this.patch

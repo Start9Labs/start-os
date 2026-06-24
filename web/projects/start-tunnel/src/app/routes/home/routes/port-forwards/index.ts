@@ -29,6 +29,7 @@ import { mapForwards, MappedDevice, MappedForward } from './utils'
 
 @Component({
   template: `
+    <h3>Manual</h3>
     <table class="g-table" [tuiSkeleton]="!portForwards()">
       <thead>
         <tr>
@@ -48,12 +49,12 @@ import { mapForwards, MappedDevice, MappedForward } from './utils'
         </tr>
       </thead>
       <tbody>
-        @for (forward of forwards(); track $index) {
+        @for (forward of manual(); track $index) {
           <tr>
             <td>
               <tui-loader
                 size="xs"
-                [loading]="toggling() === $index"
+                [loading]="toggling() === key(forward)"
                 [overlay]="true"
               >
                 <input
@@ -63,7 +64,7 @@ import { mapForwards, MappedDevice, MappedForward } from './utils'
                   [style.display]="'flex'"
                   [showIcons]="false"
                   [ngModel]="forward.enabled"
-                  (ngModelChange)="onToggle(forward, $index)"
+                  (ngModelChange)="onToggle(forward)"
                 />
               </tui-loader>
             </td>
@@ -110,6 +111,84 @@ import { mapForwards, MappedDevice, MappedForward } from './utils'
         } @empty {
           <tr>
             <td colspan="9">
+              <app-placeholder icon="@tui.globe">
+                No port forwards
+              </app-placeholder>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    <h3>Automatic</h3>
+    <table class="g-table" [tuiSkeleton]="!portForwards()">
+      <thead>
+        <tr>
+          <th></th>
+          <th>External IP</th>
+          <th>External Port</th>
+          <th>Hostname</th>
+          <th>Device</th>
+          <th>Internal Port</th>
+          <th>Protocol</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (forward of automatic(); track $index) {
+          <tr>
+            <td>
+              <tui-loader
+                size="xs"
+                [loading]="toggling() === key(forward)"
+                [overlay]="true"
+              >
+                <input
+                  tuiSwitch
+                  type="checkbox"
+                  size="s"
+                  [style.display]="'flex'"
+                  [showIcons]="false"
+                  [ngModel]="forward.enabled"
+                  (ngModelChange)="onToggle(forward)"
+                />
+              </tui-loader>
+            </td>
+            <td>{{ forward.externalip }}</td>
+            <td>{{ forward.externalport }}</td>
+            <td>{{ forward.sni || '—' }}</td>
+            <td>{{ forward.device.name }}</td>
+            <td>{{ forward.internalport }}</td>
+            <td>TCP/UDP</td>
+            <td>
+              <button
+                tuiIconButton
+                size="xs"
+                tuiDropdown
+                tuiDropdownAuto
+                appearance="flat-grayscale"
+                iconStart="@tui.ellipsis-vertical"
+              >
+                Actions
+                <tui-data-list
+                  *tuiDropdown="let close"
+                  size="s"
+                  (click)="close()"
+                >
+                  <button
+                    tuiOption
+                    iconStart="@tui.trash"
+                    (click)="onDelete(forward)"
+                  >
+                    Delete
+                  </button>
+                </tui-data-list>
+              </button>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="8">
               <app-placeholder icon="@tui.globe">
                 No port forwards
               </app-placeholder>
@@ -168,11 +247,22 @@ export default class PortForwards {
   protected readonly forwards = computed(() =>
     mapForwards(this.portForwards() || {}, this.devices()),
   )
+  protected readonly manual = computed(() =>
+    this.forwards().filter(f => !f.auto),
+  )
+  protected readonly automatic = computed(() =>
+    this.forwards().filter(f => f.auto),
+  )
 
-  protected readonly toggling = signal<number | null>(null)
+  protected readonly toggling = signal<string | null>(null)
 
-  protected async onToggle(forward: MappedForward, index: number) {
-    this.toggling.set(index)
+  protected key(forward: MappedForward): string {
+    return `${forward.externalip}:${forward.externalport}:${forward.hostname ?? ''}`
+  }
+
+  protected async onToggle(forward: MappedForward) {
+    const key = this.key(forward)
+    this.toggling.set(key)
     const source = `${forward.externalip}:${forward.externalport}`
 
     try {

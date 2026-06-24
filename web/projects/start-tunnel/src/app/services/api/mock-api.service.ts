@@ -167,8 +167,9 @@ export class MockApiService extends ApiService {
           name: params.name,
           key: '',
           psk: '',
-          allowDnsInjection: false,
-          allowAutoPortForward: false,
+          kind: params.kind,
+          allowDnsInjection: params.kind === 'server',
+          allowAutoPortForward: params.kind === 'server',
           wanIp: null,
         },
       },
@@ -260,6 +261,25 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async setDeviceKind(params: T.Tunnel.SetDeviceKindParams): Promise<null> {
+    await pauseFor(1000)
+
+    const base = `/wg/subnets/${replaceSlashes(params.subnet)}/clients/${params.ip}`
+    const auto = params.kind === 'server'
+    const patch: ReplaceOperation<string | boolean>[] = [
+      { op: PatchOp.REPLACE, path: `${base}/kind`, value: params.kind },
+      { op: PatchOp.REPLACE, path: `${base}/allowDnsInjection`, value: auto },
+      {
+        op: PatchOp.REPLACE,
+        path: `${base}/allowAutoPortForward`,
+        value: auto,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
   async addDnsRecord(params: T.Tunnel.AddDnsRecordParams): Promise<null> {
     await pauseFor(1000)
 
@@ -314,6 +334,7 @@ export class MockApiService extends ApiService {
           target: params.target,
           label: params.label || null,
           enabled: true,
+          auto: false,
         }
       }
 
@@ -333,6 +354,7 @@ export class MockApiService extends ApiService {
         label: params.label || null,
         enabled: true,
         count: 1,
+        auto: false,
       }
       forwards[source] = value
       this.mockRevision([
