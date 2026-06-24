@@ -513,4 +513,12 @@ export default {
   511: 'Próba połączenia z routerem',
   512: 'Połączenie przywrócone',
   513: 'Ponowne łączenie z nowym adresem…',
+  514: 'To urządzenie ma tylko lokalny adres IPv6 (ULA/link-local), więc przekazywanie portów IPv6 jest wyłączone. Wymaga globalnego adresu (GUA) z delegacji prefiksu od dostawcy (ISP).',
+  515: 'Urządzenie nie ma globalnego adresu IPv6 (GUA)',
+  524: 'Opublikowane porty zostaną usunięte',
+  525: 'Ta zmiana przerywa działanie następujących opublikowanych portów, więc zostaną one usunięte: {list}.',
+  526: 'Usuń i kontynuuj',
+  527: 'Opublikowany port zostanie ujawniony',
+  528: 'Profil „{profile}” kieruje ruch przez VPN ({vpn}), ale opublikowane porty są osiągane przez publiczne połączenie internetowe (WAN), a nie przez VPN. Następujące porty pozostaną widoczne pod Twoim rzeczywistym publicznym adresem IP: {list}.',
+  529: 'Ujawnij i kontynuuj',
 } satisfies i18n

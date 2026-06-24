@@ -2240,21 +2240,23 @@ const VPN_KILLSWITCH_METRIC: u32 = 2048;
 /// with 0x80, to prevent DNAT reply traffic from being captured by source-based
 /// VPN policy routing rules.
 fn ensure_dnat_return_rule(cfgs: &mut Configs) -> Result<(), Error> {
-    let exists = cfgs["network"]
+    // Remove-then-append so the rule is always rewritten from the current
+    // constants. A name-only existence check would let a stale definition
+    // (an old priority/mark from a prior release, or a manual edit) survive
+    // forever on already-provisioned devices, silently breaking the ordering
+    // invariant with the source-based VPN rules.
+    cfgs["network"]
         .sections
-        .iter()
-        .any(|s| s.name().as_deref() == Some(DNAT_RETURN_RULE));
-    if !exists {
-        cfgs["network"].append(
-            &NetworkRule {
-                src: None,
-                lookup: 254, // main table
-                mark: Some(DNAT_RETURN_MARK.to_string()),
-                priority: Some(DNAT_RETURN_PRIORITY),
-            },
-            Some(DNAT_RETURN_RULE),
-        )?;
-    }
+        .retain(|s| s.name().as_deref() != Some(DNAT_RETURN_RULE));
+    cfgs["network"].append(
+        &NetworkRule {
+            src: None,
+            lookup: 254, // main table
+            mark: Some(DNAT_RETURN_MARK.to_string()),
+            priority: Some(DNAT_RETURN_PRIORITY),
+        },
+        Some(DNAT_RETURN_RULE),
+    )?;
     Ok(())
 }
 
@@ -2267,21 +2269,20 @@ fn ensure_dnat_return_rule(cfgs: &mut Configs) -> Result<(), Error> {
 /// policy rules (prr6_*). Priority 100 (DNAT_RETURN_PRIORITY) keeps it ahead of
 /// both prl6_ (150) and prr6_ (200).
 fn ensure_dnat_return6_rule(cfgs: &mut Configs) -> Result<(), Error> {
-    let exists = cfgs["network"]
+    // Remove-then-append: see ensure_dnat_return_rule for why a name-only
+    // existence check is insufficient.
+    cfgs["network"]
         .sections
-        .iter()
-        .any(|s| s.name().as_deref() == Some(DNAT_RETURN_RULE6));
-    if !exists {
-        cfgs["network"].append(
-            &NetworkRule6 {
-                lookup: 254, // main table
-                mark: Some(DNAT_RETURN_MARK.to_string()),
-                priority: Some(DNAT_RETURN_PRIORITY),
-                ..Default::default()
-            },
-            Some(DNAT_RETURN_RULE6),
-        )?;
-    }
+        .retain(|s| s.name().as_deref() != Some(DNAT_RETURN_RULE6));
+    cfgs["network"].append(
+        &NetworkRule6 {
+            lookup: 254, // main table
+            mark: Some(DNAT_RETURN_MARK.to_string()),
+            priority: Some(DNAT_RETURN_PRIORITY),
+            ..Default::default()
+        },
+        Some(DNAT_RETURN_RULE6),
+    )?;
     Ok(())
 }
 
@@ -2525,6 +2526,17 @@ pub(crate) fn cleanup_orphaned_vpn_zones(cfgs: &mut Configs) {
                 break;
             }
         }
+    }
+
+    // 4. The global DNAT-return ip rules exist only to keep port-forward replies
+    //    on the main table for VPN-routed profiles. With no VPN-routed profile
+    //    left they have no consumer — tear them down so they exist iff at least
+    //    one VPN-routed profile does, mirroring the zone lifecycle above.
+    if referenced_vpns.is_empty() {
+        cfgs["network"].sections.retain(|s| {
+            let n = s.name();
+            n.as_deref() != Some(DNAT_RETURN_RULE) && n.as_deref() != Some(DNAT_RETURN_RULE6)
+        });
     }
 }
 
@@ -4526,6 +4538,147 @@ config interface 'lan'
                 .iter()
                 .any(|s| s.name().as_deref() == Some("prr_guest")),
             "rule should be removed after switching to WAN"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_dnat_return_rule_recreated_from_constants() {
+        // A stale dnat_return (an old priority/mark from a prior release, or a
+        // manual edit) must be rewritten from the current constants — a
+        // name-only existence check would leave it in place forever.
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+
+        // Pre-seed a stale dnat_return rule with wrong mark/lookup/priority.
+        cfgs["network"]
+            .append(
+                &NetworkRule {
+                    src: None,
+                    lookup: 99,
+                    mark: Some("0xdead/0xdead".into()),
+                    priority: Some(999),
+                },
+                Some("dnat_return"),
+            )
+            .unwrap();
+
+        let profile = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wg_test".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            dns_source: String::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+        set_config(ctx, &mut cfgs, &profile).unwrap();
+
+        let dnat_rules: Vec<_> = cfgs["network"]
+            .sections
+            .iter()
+            .filter(|s| s.name().as_deref() == Some("dnat_return"))
+            .collect();
+        assert_eq!(
+            dnat_rules.len(),
+            1,
+            "stale dnat_return must be replaced, not duplicated"
+        );
+        let data = dnat_rules[0].get::<NetworkRule>().unwrap();
+        assert_eq!(data.mark.as_deref(), Some("0x80/0x80"));
+        assert_eq!(data.lookup, 254);
+        assert_eq!(data.priority, Some(100));
+        assert!(data.src.is_none());
+    }
+
+    #[tokio::test]
+    async fn test_dnat_return_rules_removed_when_no_vpn_profile() {
+        // The global dnat_return / dnat_return6 ip rules should exist iff at
+        // least one VPN-routed profile does. Switching the last VPN profile back
+        // to WAN must tear them down.
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+
+        let profile_vpn = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wg_test".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            dns_source: String::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+        set_config(ctx.clone(), &mut cfgs, &profile_vpn).unwrap();
+        assert!(
+            cfgs["network"]
+                .sections
+                .iter()
+                .any(|s| s.name().as_deref() == Some("dnat_return")),
+            "dnat_return should exist while a VPN profile is active"
+        );
+
+        // Switch the only VPN-routed profile back to WAN.
+        let profile_wan = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wan".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            dns_source: String::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+        set_config(ctx, &mut cfgs, &profile_wan).unwrap();
+
+        assert!(
+            !cfgs["network"]
+                .sections
+                .iter()
+                .any(|s| s.name().as_deref() == Some("dnat_return")),
+            "dnat_return must be removed once no VPN profile remains"
+        );
+        assert!(
+            !cfgs["network"]
+                .sections
+                .iter()
+                .any(|s| s.name().as_deref() == Some("dnat_return6")),
+            "dnat_return6 must be removed once no VPN profile remains"
         );
     }
 

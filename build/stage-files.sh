@@ -135,6 +135,8 @@ cp backend/hotplug/99-startwrt-remote-access "${FILES_DIR}/etc/hotplug.d/iface/9
 chmod +x "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-remote-access"
 cp backend/hotplug/99-startwrt-proxy-arp "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-proxy-arp"
 chmod +x "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-proxy-arp"
+cp backend/hotplug/99-startwrt-published-ports "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-published-ports"
+chmod +x "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-published-ports"
 
 # Custom nftables rules auto-included by fw4 (/etc/nftables.d/*.nft).
 # 10-startwrt-dnat-mark.nft marks DNAT-state reply traffic so port-forward

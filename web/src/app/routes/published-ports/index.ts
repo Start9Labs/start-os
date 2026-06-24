@@ -15,8 +15,9 @@ import { provideFormService } from 'src/app/services/form.service'
 import { PublishPortDialog } from './dialog'
 import { PublishedPortsService } from './service'
 import { PublishedPortsTable } from './table'
-import { PublishedPortDialogResult, PublishedPortDisplay } from './types'
+import { isGua, PublishedPortDialogResult, PublishedPortDisplay } from './types'
 import { i18nPipe } from 'src/app/i18n/i18n.pipe'
+import { confirmVpnExposedPort } from 'src/app/services/vpn-exposed-port'
 
 @Component({
   template: `
@@ -38,6 +39,8 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
       [publishedPorts]="loading() ? [] : service.data() || []"
       [ipv4EndpointHost]="ipv4EndpointHost()"
       [ipv6Available]="ipv6Available()"
+      [vpnProfiles]="vpnProfiles()"
+      [defaultProfile]="defaultProfile()"
       [tuiSkeleton]="loading()"
       (edit)="edit($event)"
     ></table>
@@ -65,6 +68,14 @@ export default class PublishedPorts {
   // IPv4 endpoint host: DDNS hostname or WAN IP
   protected readonly ipv4EndpointHost = signal<string | null>(null)
 
+  // Profiles whose outbound is a VPN, keyed by lower-cased fullname → VPN label.
+  // Used to warn when a published port is created for a device whose profile
+  // routes through a VPN (the port stays exposed on the public WAN IP).
+  protected readonly vpnProfiles = signal<Map<string, string>>(new Map())
+  // Fullname of the default (LAN-owning) profile — devices with no explicit
+  // security profile belong to it.
+  protected readonly defaultProfile = signal('')
+
   constructor() {
     this.loadDependencies()
   }
@@ -76,14 +87,45 @@ export default class PublishedPorts {
       this.api.wanDdnsGet(),
       this.api.wanIpv4Get(),
     ])
-    // IPv6 port forwarding requires WAN IPv6 + LAN IPv6
-    const wanIpv6Enabled = wanIpv6.mode !== 'disabled'
+
+    this.loadVpnProfiles()
+    // IPv6 port forwarding requires WAN IPv6 + LAN IPv6, and crucially a real
+    // global address delegated to the WAN — without a GUA prefix no LAN device
+    // can be reachable, so ULA/link-local-only WANs must not offer IPv6.
+    const wanGua = wanIpv6.assigned_ipv6
+    const wanHasGua = wanGua ? isGua(wanGua) : false
     const lanIpv6Enabled = lanIpv6.slaac || lanIpv6.dhcpv6
-    this.ipv6Available.set(wanIpv6Enabled && lanIpv6Enabled)
+    this.ipv6Available.set(wanHasGua && lanIpv6Enabled)
 
     // Use DDNS hostname if available, otherwise WAN IP
     const ddnsHostname = ddns.enabled ? ddns.hostname || null : null
     this.ipv4EndpointHost.set(ddnsHostname || wanIpv4.assigned_ip)
+  }
+
+  private async loadVpnProfiles() {
+    try {
+      const [profileIds, vpns] = await Promise.all([
+        this.api.profilesList(),
+        this.api.vpnClientList(),
+      ])
+      const profiles = await Promise.all(
+        profileIds.map(id => this.api.profileGet(id)),
+      )
+      const vpnLabels = new Map(vpns.map(v => [v.id, v.label]))
+      const map = new Map<string, string>()
+      for (const p of profiles) {
+        if (p.owns_lan) this.defaultProfile.set(p.fullname)
+        if (p.outbound !== 'wan') {
+          map.set(
+            p.fullname.toLowerCase(),
+            vpnLabels.get(p.outbound) ?? p.outbound,
+          )
+        }
+      }
+      this.vpnProfiles.set(map)
+    } catch {
+      // Non-fatal: without this the VPN-leak warning is simply not shown.
+    }
   }
 
   edit(existing?: PublishedPortDisplay) {
@@ -104,8 +146,26 @@ export default class PublishedPorts {
           },
         },
       )
-      .subscribe(result => {
+      .subscribe(async result => {
         const { port: value, reserveIpv4, reserveIpv6 } = result
+
+        // An enabled port whose device routes through a VPN stays exposed on the
+        // public WAN IP — confirm before saving (on both create and edit).
+        if (value.enabled) {
+          const device = this.service.getDevice(value.deviceMac)
+          const profile = device?.securityProfile || this.defaultProfile()
+          const vpn = this.vpnProfiles().get(profile.toLowerCase())
+          if (
+            vpn &&
+            !(await confirmVpnExposedPort(this.dialogs, this.i18n, {
+              profile,
+              vpn,
+              labels: [value.label],
+            }))
+          ) {
+            return
+          }
+        }
 
         // Handle IP reservation if needed
         if (reserveIpv4 || reserveIpv6) {

@@ -6,6 +6,7 @@ import {
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiTable, TuiTableDirective } from '@taiga-ui/addon-table'
 import {
   TuiAppearance,
@@ -17,6 +18,7 @@ import { TuiBadge, TuiButtonSelect, TuiChevron } from '@taiga-ui/kit'
 
 import { Placeholder } from 'src/app/components/placeholder'
 import { i18nPipe } from 'src/app/i18n/i18n.pipe'
+import { confirmPublishedPortDeletion } from 'src/app/services/published-port-deletion'
 
 import { EthernetPortView, EthernetService } from './service'
 
@@ -116,13 +118,37 @@ import { EthernetPortView, EthernetService } from './service'
 })
 export class EthernetTable {
   protected readonly service = inject(EthernetService)
+  private readonly dialogs = inject(TuiResponsiveDialogService)
+  private readonly i18n = inject(i18nPipe)
 
   readonly ethernetTable = input<EthernetPortView[]>([])
 
-  onProfileChange(item: EthernetPortView, fullname: string) {
+  async onProfileChange(item: EthernetPortView, fullname: string) {
+    const previousName = item.profile?.fullname ?? 'Admin'
+    if (fullname === previousName) return
+
     const profile =
       this.service.profiles().find(p => p.fullname === fullname) ?? null
     item.profile = profile
-    this.service.save([...this.ethernetTable()])
+    const items = [...this.ethernetTable()]
+
+    // Reassigning this port moves its devices to a new subnet, breaking any
+    // published ports forwarding to them. Surface them for confirmation first.
+    let pending
+    try {
+      pending = await this.service.previewPorts(items)
+    } catch {
+      this.service.refresh() // nothing applied — restore the dropdown
+      return
+    }
+
+    if (
+      !(await confirmPublishedPortDeletion(this.dialogs, this.i18n, pending))
+    ) {
+      this.service.refresh() // revert the dropdown to the applied state
+      return
+    }
+
+    this.service.save(items)
   }
 }

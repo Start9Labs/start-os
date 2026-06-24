@@ -28,7 +28,7 @@ export abstract class ApiService {
   ): Promise<VpnServerPeerAddResponse>
   abstract vpnServerPeerDelete(params: VpnServerPeerDeleteArgs): Promise<null>
   abstract wifiGet(): Promise<WifiConfig>
-  abstract wifiSet(params: WifiConfig): Promise<null>
+  abstract wifiSet(params: WifiConfig): Promise<WifiSetResult>
   abstract wifiGeneratePassword(): Promise<string>
   abstract wifiBlackoutGet(): Promise<ScheduleWindow[]>
   abstract wifiBlackoutSet(params: ScheduleWindow[]): Promise<null>
@@ -85,7 +85,7 @@ export abstract class ApiService {
   abstract sshKeysList(): Promise<SshKeyFromApi[]>
   abstract sshKeysAdd(params: SshKeysAddRequest): Promise<SshKeyFromApi>
   abstract ethernetGet(): Promise<EthernetConfig>
-  abstract ethernetSet(params: EthernetSetConfig): Promise<null>
+  abstract ethernetSet(params: EthernetSetConfig): Promise<EthernetSetResult>
   abstract sshKeysDelete(params: SshKeysDeleteRequest): Promise<null>
   abstract activityList(
     params?: ActivityListParams,
@@ -121,6 +121,24 @@ export interface EthernetSetConfig {
   wan_ipv6: boolean
   wan_port: string | null
   ports: Record<string, EthernetSetPort>
+  // When true, authorize deleting the published ports listed in a prior
+  // EthernetSetResult.pending_published_port_deletions response.
+  confirm_published_port_deletion?: boolean
+}
+
+// A published port that will be deleted because its device is moving to a
+// different security profile (snake_case fields — the backend serializes the
+// shared AffectedPublishedPort verbatim in both ethernet and wifi results).
+export interface AffectedPublishedPort {
+  id: string
+  label: string
+  device_mac: string
+  device_name: string | null
+}
+
+export interface EthernetSetResult {
+  // Non-empty (and nothing applied) when confirmation is required; empty once applied.
+  pending_published_port_deletions: AffectedPublishedPort[]
 }
 
 // SSH Keys types
@@ -338,6 +356,14 @@ export interface WifiConfig {
   broadcastSeparately: boolean
   radios: Record<string, WifiRadio>
   passwords: WifiPassword[]
+  // When true, authorize deleting the published ports listed in a prior
+  // WifiSetResult.pendingPublishedPortDeletions response.
+  confirmPublishedPortDeletion?: boolean
+}
+
+export interface WifiSetResult {
+  // Non-empty (and nothing applied) when confirmation is required; empty once applied.
+  pendingPublishedPortDeletions: AffectedPublishedPort[]
 }
 
 export interface ScheduleWindow {

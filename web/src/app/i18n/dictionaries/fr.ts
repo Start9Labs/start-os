@@ -513,4 +513,12 @@ export default {
   511: 'Tentative de connexion au routeur',
   512: 'Connexion rétablie',
   513: 'Reconnexion à la nouvelle adresse…',
+  514: 'L’adresse IPv6 de cet appareil est uniquement locale (ULA/lien-local), la redirection de port IPv6 est donc désactivée. Elle nécessite une adresse globale (GUA) issue de la délégation de préfixe du FAI.',
+  515: 'L’appareil n’a pas d’adresse IPv6 globale (GUA)',
+  524: 'Les ports publiés seront supprimés',
+  525: 'Cette modification interrompt les ports publiés suivants, ils seront donc supprimés : {list}.',
+  526: 'Supprimer et continuer',
+  527: 'Le port publié sera exposé',
+  528: 'Le profil « {profile} » achemine le trafic via un VPN ({vpn}), mais les ports publiés sont atteints via votre connexion internet publique (WAN), et non via le VPN. Les ports suivants resteront exposés sur votre véritable adresse IP publique : {list}.',
+  529: 'Exposer et continuer',
 } satisfies i18n

@@ -2,8 +2,10 @@ import { inject, Injectable, signal } from '@angular/core'
 import { FormService } from 'src/app/services/form.service'
 import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 import {
+  AffectedPublishedPort,
   ApiService,
   EthernetConfig,
+  EthernetSetConfig,
   ProfileId,
 } from 'src/app/services/api/api.service'
 
@@ -46,20 +48,35 @@ export class EthernetService extends FormService<EthernetPortView[]> {
   }
 
   async store(items: EthernetPortView[]): Promise<void> {
-    const wanPort = items.find(p => p.wan)?.name ?? null
+    // store() is the real apply (via save()'s restart flow) — confirm the
+    // published-port cleanup the preview already surfaced to the user.
+    await this.api.ethernetSet(this.buildConfig(items, true))
+  }
 
-    await this.api.ethernetSet({
+  /**
+   * Dry-run: returns the published ports that would be deleted if these port
+   * assignments were applied. Applies nothing (confirm = false).
+   */
+  async previewPorts(
+    items: EthernetPortView[],
+  ): Promise<AffectedPublishedPort[]> {
+    const result = await this.api.ethernetSet(this.buildConfig(items, false))
+    return result.pending_published_port_deletions
+  }
+
+  private buildConfig(
+    items: EthernetPortView[],
+    confirm: boolean,
+  ): EthernetSetConfig {
+    const wanPort = items.find(p => p.wan)?.name ?? null
+    return {
       wan_ipv6: this.wanIpv6,
       wan_port: wanPort,
       ports: Object.fromEntries(
-        items.map(p => [
-          p.name,
-          {
-            profile: p.wan ? null : p.profile,
-          },
-        ]),
+        items.map(p => [p.name, { profile: p.wan ? null : p.profile }]),
       ),
-    })
+      confirm_published_port_deletion: confirm,
+    }
   }
 
   private toPortViews(ethernet: EthernetConfig): EthernetPortView[] {

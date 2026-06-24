@@ -46,6 +46,50 @@ pub struct Ethernet<Id: Ord = ProfileId> {
     pub ports: BTreeMap<String, Port<Id>>,
 }
 
+/// `ethernet.set` request: the desired port layout plus a confirmation flag.
+/// Reassigning a port to a different profile moves its devices to a new subnet,
+/// which breaks any published ports forwarding to them. When the flag is false
+/// and such ports exist, `set` applies nothing and returns them in
+/// `EthernetSetResult` for a confirmation dialog; with the flag true it deletes
+/// those published ports as part of the reassignment.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EthernetSetRequest {
+    #[serde(flatten)]
+    pub ethernet: Ethernet<ProfileIdOpt>,
+    #[serde(default)]
+    pub confirm_published_port_deletion: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct EthernetSetResult {
+    /// Non-empty (and nothing applied) when published ports would be deleted and
+    /// the caller hasn't confirmed yet. Empty once the change is applied.
+    pub pending_published_port_deletions: Vec<crate::published_ports::AffectedPublishedPort>,
+}
+
+/// Names of ports whose profile (VLAN) assignment is changing: present in
+/// `old_ports` but resolving to a different VLAN than `requested`. Newly added
+/// ports (absent from `old_ports`) are excluded — they have no existing devices
+/// to move off a subnet.
+fn changed_vlan_ports(
+    requested: &BTreeMap<String, Port<ProfileIdOpt>>,
+    old_ports: &HashMap<String, Option<u16>>,
+    lookup: &profiles::Lookup,
+) -> Result<HashSet<String>, Error> {
+    let mut changed = HashSet::new();
+    for (name, port) in requested {
+        let new_vlan = match &port.profile {
+            Some(id) => Some(lookup.resolve(id)?.vlan_tag),
+            None => None,
+        };
+        let old_vlan = old_ports.get(name).copied().flatten();
+        if old_ports.contains_key(name) && old_vlan != new_vlan {
+            changed.insert(name.clone());
+        }
+    }
+    Ok(changed)
+}
+
 pub fn ethernet<C: CtrlContext + Clone>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("get", from_fn_async_local(get::<C>).with_display_serializable())
@@ -137,8 +181,13 @@ const PORT_BOUNCE_DOWN_SECS: u64 = 2;
 #[instrument(skip_all)]
 pub async fn set<C: CtrlContext>(
     ctx: C,
-    DeserializeStdin(ethernet): DeserializeStdin<Ethernet<ProfileIdOpt>>,
-) -> Result<(), Error> {
+    DeserializeStdin(req): DeserializeStdin<EthernetSetRequest>,
+) -> Result<EthernetSetResult, Error> {
+    let EthernetSetRequest {
+        ethernet,
+        confirm_published_port_deletion: confirm,
+    } = req;
+
     // Snapshot current port→profile mapping so we can detect changes after write.
     let old_ports = if ctx.effectful() {
         get(ctx.clone())
@@ -155,10 +204,48 @@ pub async fn set<C: CtrlContext>(
         HashMap::new()
     };
 
+    // Devices behind any port whose profile (VLAN) is changing will move to a new
+    // subnet, breaking their published ports. Find those ports' MACs (bridge FDB
+    // is port-precise) and the published ports they'd break.
+    let (affected_macs, changed_ports): (HashSet<String>, HashSet<String>) =
+        if ctx.effectful() {
+            let arena = Arena::new();
+            let cfgs =
+                parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"]).await?;
+            let lookup = profiles::Lookup::parse(ctx.clone(), &cfgs)?;
+            let changed_ports = changed_vlan_ports(&ethernet.ports, &old_ports, &lookup)?;
+            let macs = crate::devices::get_bridge_fdb()
+                .await
+                .into_iter()
+                .filter(|(_, port)| changed_ports.contains(port))
+                .map(|(mac, _)| mac)
+                .collect();
+            (macs, changed_ports)
+        } else {
+            (HashSet::new(), HashSet::new())
+        };
+
+    if ctx.effectful() && !confirm {
+        // Dry run: report what would be deleted and apply nothing. The UI calls
+        // again with `confirm_published_port_deletion: true` (through its
+        // network-restart flow) to actually apply. The list may be empty, which
+        // just tells the caller there's nothing to confirm.
+        let affected = crate::published_ports::affected_ports_for_macs(
+            ctx.uci_root().as_path(),
+            &affected_macs,
+            &HashMap::new(),
+        )
+        .await?;
+        return Ok(EthernetSetResult {
+            pending_published_port_deletions: affected,
+        });
+    }
+
     let mut retries = 4;
     loop {
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall"]).await?;
+        let mut cfgs =
+            parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "firewall", "dhcp"]).await?;
         let lookup = profiles::Lookup::parse(ctx.clone(), &cfgs)?;
         let ethernet = Ethernet::<ProfileId> {
             wan_ipv6: ethernet.wan_ipv6,
@@ -183,6 +270,11 @@ pub async fn set<C: CtrlContext>(
             crate::activity::log("ethernet", "updated", false, "Failed to update Ethernet port assignments", Some(&err.to_string()));
             return Err(err);
         }
+        // Confirmed path: delete the published ports (and stale reservations) for
+        // devices being moved off their subnet, atomically with the reassignment.
+        if !affected_macs.is_empty() {
+            crate::published_ports::remove_ports_for_macs(&mut cfgs, &affected_macs);
+        }
         match dump_all(ctx.uci_root(), cfgs).await {
             Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
                 retries -= 1;
@@ -193,12 +285,10 @@ pub async fn set<C: CtrlContext>(
                 return Err(err.into());
             }
             Ok(()) => {
-                let changed: Vec<&str> = ethernet.ports.keys()
-                    .filter(|name| {
-                        let new_vlan = ethernet.ports[*name].profile.as_ref().map(|p| p.vlan_tag);
-                        let old_vlan = old_ports.get(*name).copied().flatten();
-                        old_ports.contains_key(*name) && old_vlan != new_vlan
-                    })
+                let changed: Vec<&str> = ethernet
+                    .ports
+                    .keys()
+                    .filter(|name| changed_ports.contains(name.as_str()))
                     .map(|s| s.as_str())
                     .collect();
                 let summary = if changed.is_empty() {
@@ -224,9 +314,11 @@ pub async fn set<C: CtrlContext>(
                     // reprograms an existing bridge member's VLAN/PVID live
                     // via RTM_SETLINK/RTM_DELLINK netlink (no teardown, no
                     // reboot).  odhcpd re-binds automatically (it has a
-                    // `network` procd reload trigger); dnsmasq needs nothing
-                    // because moving eth0 between VLANs doesn't recreate the
-                    // per-profile sub-interfaces it's bound to.
+                    // `network` procd reload trigger); dnsmasq normally needs
+                    // nothing because moving eth0 between VLANs doesn't recreate
+                    // the per-profile sub-interfaces it's bound to — but when we
+                    // also removed published-port DHCP reservations
+                    // (`dhcp_changed`) it must reload to drop them.
                     //
                     // `firewall reload` (NOT `restart`): a port-VLAN move
                     // doesn't change any zone↔interface binding, so the fw4
@@ -250,14 +342,21 @@ pub async fn set<C: CtrlContext>(
                     // it can't re-trigger the lockout above; WiFi clients
                     // just briefly reassociate.  Run sequentially so it
                     // doesn't race the network reload.
+                    let dhcp_changed = !affected_macs.is_empty();
                     tokio::spawn(async move {
                         let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/network").arg("reload")).await;
                         let _ = crate::run_quiet_async(tokio::process::Command::new("/etc/init.d/firewall").arg("reload")).await;
                         let _ = crate::run_quiet_async(&mut tokio::process::Command::new("wifi")).await;
+                        if dhcp_changed {
+                            crate::published_ports::reload_dnsmasq();
+                            // odhcpd owns IPv6 leases/hostids; reload so a cleared
+                            // or preserved reservation takes runtime effect.
+                            crate::published_ports::reload_odhcpd();
+                        }
                         bounce_changed_ports(&old_ports, &ethernet).await;
                     });
                 }
-                return Ok(());
+                return Ok(EthernetSetResult::default());
             }
         }
     }
@@ -530,7 +629,16 @@ pub async fn edit<C: CtrlContext + Clone>(ctx: C) -> Result<(), Error> {
             .collect(),
     };
     let modified_ethernet = crate::utils::edit_in_editor(&current_ethernet)?;
-    set(ctx, DeserializeStdin(modified_ethernet)).await
+    // CLI editor path has no dialog: confirm published-port cleanup implicitly.
+    set(
+        ctx,
+        DeserializeStdin(EthernetSetRequest {
+            ethernet: modified_ethernet,
+            confirm_published_port_deletion: true,
+        }),
+    )
+    .await
+    .map(|_| ())
 }
 
 #[cfg(test)]
@@ -541,6 +649,25 @@ mod tests {
     use std::sync::Arc;
     use tokio::runtime::Runtime;
     use uciedit::{parse_all, Arena};
+
+    /// Test shim: the production `set` now takes an `EthernetSetRequest` and
+    /// returns `EthernetSetResult`; these tests predate that and pass a bare
+    /// `Ethernet`. Wrap it (no published-port confirmation needed — tests run
+    /// non-effectfully) so the existing call sites stay unchanged.
+    async fn set(
+        ctx: TestContext,
+        e: DeserializeStdin<Ethernet<ProfileIdOpt>>,
+    ) -> Result<(), Error> {
+        super::set(
+            ctx,
+            DeserializeStdin(super::EthernetSetRequest {
+                ethernet: e.0,
+                confirm_published_port_deletion: false,
+            }),
+        )
+        .await
+        .map(|_| ())
+    }
 
     #[derive(Clone)]
     struct TestContext(PathBuf);

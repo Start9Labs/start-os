@@ -201,7 +201,7 @@ fn is_private_ipv4(ip: &Ipv4Addr) -> bool {
         || (octets[0] == 192 && octets[1] == 168)
 }
 
-fn has_global_ipv6(addrs: &[Ipv6Addr]) -> bool {
+pub(crate) fn has_global_ipv6(addrs: &[Ipv6Addr]) -> bool {
     addrs.iter().any(|addr| {
         // 2000::/3 — first 3 bits are 001
         let first = addr.segments()[0];
@@ -975,6 +975,12 @@ mod tests {
         assert!(!has_global_ipv6(&[ula]));
         assert!(!has_global_ipv6(&[link_local]));
         assert!(!has_global_ipv6(&[]));
+
+        // 2000::/3 boundaries (is_gua now relies on this range).
+        assert!(!has_global_ipv6(&["1fff::1".parse().unwrap()])); // just below
+        assert!(has_global_ipv6(&["2000::1".parse().unwrap()])); // lower edge
+        assert!(has_global_ipv6(&["3fff::1".parse().unwrap()])); // upper edge
+        assert!(!has_global_ipv6(&["4000::1".parse().unwrap()])); // just above
     }
 
     fn setup_firewall_config(dir: &std::path::Path, startwrt_content: &str) {

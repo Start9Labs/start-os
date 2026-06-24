@@ -29,6 +29,7 @@ import {
 } from 'src/app/services/api/api.service'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { i18nPipe } from 'src/app/i18n/i18n.pipe'
+import { confirmVpnExposedPort } from 'src/app/services/vpn-exposed-port'
 import { ADD_PROFILE, ProfileDialogResult } from './dialog'
 import { ProfilesService } from './service'
 
@@ -254,12 +255,18 @@ class Profiles {
     }))
     const subnet = this.lanSubnet()
 
-    // Check if editing a profile that has static IPs in its subnet
+    // Check if editing a profile that has static IPs in its subnet, and collect
+    // the labels of any published ports on its devices (to confirm VPN exposure
+    // when this save switches the profile's outbound to a VPN).
     let hasStaticIpsInSubnet = false
+    let publishedPortLabels: string[] = []
     let scheduleWindows: ScheduleWindow[] = []
     if (profile) {
       try {
-        const devices = await this.api.devicesList()
+        const [devices, ports] = await Promise.all([
+          this.api.devicesList().catch(() => []),
+          this.api.publishedPortsList().catch(() => []),
+        ])
         const profileSubnet = profile.gateway_ip
           .split('.')
           .slice(0, 3)
@@ -269,6 +276,19 @@ class Profiles {
             d.ipv4_static &&
             d.ipv4?.split('.').slice(0, 3).join('.') === profileSubnet,
         )
+        const defaultName =
+          this.service.data()?.find(p => p.owns_lan)?.fullname ?? ''
+        const profileMacs = new Set(
+          devices
+            .filter(
+              d => (d.security_profile || defaultName) === profile.fullname,
+            )
+            .map(d => d.mac?.toUpperCase())
+            .filter((m): m is string => !!m),
+        )
+        publishedPortLabels = ports
+          .filter(p => profileMacs.has(p.device_mac.toUpperCase()))
+          .map(p => p.label)
       } catch {
         // If we can't check, leave the form enabled — backend validates anyway
       }
@@ -301,6 +321,26 @@ class Profiles {
       })
       .subscribe(async result => {
         const { schedule_windows, ...profileFields } = result
+
+        // If this save newly routes the profile through a VPN (a change from its
+        // previous outbound) and devices on it have published ports, warn once
+        // that those ports stay exposed on the public WAN IP despite the VPN.
+        if (
+          result.outbound !== 'wan' &&
+          result.outbound !== profile?.outbound &&
+          publishedPortLabels.length
+        ) {
+          const vpn =
+            outboundVpns.find(v => v.interface === result.outbound)?.label ??
+            result.outbound
+          const ok = await confirmVpnExposedPort(this.dialogs, this.i18n, {
+            profile: result.fullname ?? profile?.fullname ?? '',
+            vpn,
+            labels: publishedPortLabels,
+          })
+          if (!ok) return
+        }
+
         if (profile) {
           const params = { ...profile, ...profileFields }
           let adminIpChanged = false

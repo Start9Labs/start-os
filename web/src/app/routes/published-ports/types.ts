@@ -1,5 +1,17 @@
 export type Protocol = 'tcp' | 'udp' | 'tcp+udp'
 
+/**
+ * Mirror of the backend `is_gua`: a Global Unicast Address (2000::/3) is the
+ * only IPv6 scope reachable from the WAN. ULA (fc00::/7) and link-local
+ * (fe80::/10) are not, so they can't back an IPv6 published port. Checks the
+ * leading hextet against 2000::/3, matching the backend's parsed range check
+ * (a malformed/empty leading hextet — e.g. from `::1` — yields NaN → false).
+ */
+export function isGua(ip: string): boolean {
+  const firstHextet = parseInt(ip.split(':')[0], 16)
+  return firstHextet >= 0x2000 && firstHextet <= 0x3fff
+}
+
 export type PublishedPortStatus =
   | 'active'
   | 'partial' // IPv4 unavailable (e.g., CGNAT)

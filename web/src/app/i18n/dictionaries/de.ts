@@ -513,4 +513,12 @@ export default {
   511: 'Router wird kontaktiert',
   512: 'Verbindung wiederhergestellt',
   513: 'Verbindung zur neuen Adresse wird hergestellt…',
+  514: 'Dieses Gerät hat nur eine lokale IPv6-Adresse (ULA/Link-Local), daher ist die IPv6-Portweiterleitung deaktiviert. Sie erfordert eine globale (GUA) Adresse aus der ISP-Präfixdelegation.',
+  515: 'Gerät hat keine globale IPv6-Adresse (GUA)',
+  524: 'Veröffentlichte Ports werden gelöscht',
+  525: 'Diese Änderung unterbricht die folgenden veröffentlichten Ports, daher werden sie gelöscht: {list}.',
+  526: 'Löschen und fortfahren',
+  527: 'Veröffentlichter Port wird offengelegt',
+  528: 'Das Profil „{profile}“ wird über ein VPN ({vpn}) geleitet, veröffentlichte Ports werden jedoch über Ihre öffentliche Internetverbindung (WAN) erreicht, nicht über das VPN. Die folgenden Ports bleiben unter Ihrer echten öffentlichen IP-Adresse erreichbar: {list}.',
+  529: 'Offenlegen und fortfahren',
 } satisfies i18n

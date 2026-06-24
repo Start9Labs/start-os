@@ -518,4 +518,12 @@ export const ENGLISH: Record<string, number> = {
   'Trying to reach the router': 511,
   'Connection restored': 512,
   'Reconnecting to the new address…': 513,
+  "This device's IPv6 address is local-only (ULA/link-local), so IPv6 port forwarding is disabled. It requires a global (GUA) address from ISP prefix delegation.": 514,
+  'Device has no global IPv6 (GUA) address': 515,
+  'Published Ports Will Be Deleted': 524,
+  'This change breaks the following published port(s), so they will be deleted: {list}.': 525,
+  'Delete & Continue': 526,
+  'Published Port Will Be Exposed': 527,
+  'The "{profile}" profile routes traffic through a VPN ({vpn}), but published ports are reached over your public internet (WAN) connection, not the VPN. The following port(s) will stay exposed on your real public IP address: {list}.': 528,
+  'Expose & Continue': 529,
 }

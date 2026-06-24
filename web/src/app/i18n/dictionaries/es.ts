@@ -513,4 +513,12 @@ export default {
   511: 'Intentando contactar con el router',
   512: 'Conexión restablecida',
   513: 'Reconectando a la nueva dirección…',
+  514: 'La dirección IPv6 de este dispositivo es solo local (ULA/enlace-local), por lo que el reenvío de puertos IPv6 está deshabilitado. Requiere una dirección global (GUA) de la delegación de prefijos del ISP.',
+  515: 'El dispositivo no tiene una dirección IPv6 global (GUA)',
+  524: 'Se eliminarán los puertos publicados',
+  525: 'Este cambio rompe los siguientes puertos publicados, por lo que se eliminarán: {list}.',
+  526: 'Eliminar y continuar',
+  527: 'El puerto publicado quedará expuesto',
+  528: 'El perfil «{profile}» enruta el tráfico a través de una VPN ({vpn}), pero los puertos publicados se alcanzan a través de tu conexión a internet pública (WAN), no de la VPN. Los siguientes puertos permanecerán expuestos en tu dirección IP pública real: {list}.',
+  529: 'Exponer y continuar',
 } satisfies i18n

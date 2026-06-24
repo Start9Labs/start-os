@@ -451,7 +451,7 @@ async fn get_wifi_clients() -> (HashMap<String, String>, std::collections::HashS
 /// Parse `bridge fdb show br br-lan` to map each MAC to its bridge port.
 /// Only dynamic (learned) entries are included — permanent/self-only entries
 /// (multicast groups, etc.) are skipped.
-async fn get_bridge_fdb() -> HashMap<String, String> {
+pub async fn get_bridge_fdb() -> HashMap<String, String> {
     let output = run_cmd("bridge", &["fdb", "show", "br", "br-lan"]).await;
     let mut fdb: HashMap<String, String> = HashMap::new();
     for line in output.lines() {
@@ -1753,26 +1753,38 @@ fn ymd_to_days(y: u64, m: u64, d: u64) -> u64 {
 }
 
 /// Pick the best IPv6 address from candidates, preferring GUA over ULA.
-/// Filters out link-local (fe80::) addresses.
+///
+/// "Global" is decided by parsing the address and reusing
+/// `system::has_global_ipv6` (the `2000::/3` range check), so this shares the
+/// single authoritative definition with `is_gua` rather than a string-prefix
+/// heuristic that would wrongly accept deprecated/oddball scopes (e.g.
+/// `fec0::/10` site-local) as global and return one ahead of a real GUA later
+/// in the list. Link-local, any other non-GUA/non-ULA scope, and unparseable
+/// strings are unreachable and filtered out, so the result is always a GUA or
+/// a ULA. ULA is kept as a fallback for the device-list display and so the
+/// published-ports validator can tell "has a local address" apart from
+/// "link-local only".
 pub fn pick_ipv6<'a>(candidates: impl Iterator<Item = &'a str>) -> Option<String> {
-    let mut best: Option<(&str, bool)> = None; // (addr, is_gua)
+    let mut ula_fallback: Option<&str> = None;
     for ip in candidates {
-        if ip.starts_with("fe80:") {
+        let Ok(addr) = ip.parse::<std::net::Ipv6Addr>() else {
             continue;
-        }
-        let is_ula = ip.starts_with("fd") || ip.starts_with("fc");
-        if !is_ula {
+        };
+        if crate::system::has_global_ipv6(std::slice::from_ref(&addr)) {
             return Some(ip.to_string()); // GUA — best possible, return immediately
         }
-        if best.is_none() {
-            best = Some((ip, false));
+        // ULA (fc00::/7): first byte 0xfc or 0xfd. Usable fallback if no GUA
+        // turns up; keep the first one seen.
+        let first_byte = addr.octets()[0];
+        if (first_byte == 0xfc || first_byte == 0xfd) && ula_fallback.is_none() {
+            ula_fallback = Some(ip);
         }
     }
-    best.map(|(ip, _)| ip.to_string())
+    ula_fallback.map(|ip| ip.to_string())
 }
 
 /// Extract the last 4 hextets from an IPv6 address for use as hostid.
-fn extract_ipv6_hostid(ipv6: &str) -> String {
+pub(crate) fn extract_ipv6_hostid(ipv6: &str) -> String {
     let parts: Vec<&str> = ipv6.split(':').collect();
     if parts.len() >= 4 {
         parts[parts.len() - 4..].join(":")
@@ -1800,6 +1812,51 @@ fn days_to_ymd(days: u64) -> (u64, u64, u64) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_pick_ipv6() {
+        // GUA preferred over ULA regardless of order.
+        assert_eq!(
+            pick_ipv6(["fd00::1", "2001:db8::5"].into_iter()).as_deref(),
+            Some("2001:db8::5"),
+        );
+        assert_eq!(
+            pick_ipv6(["2001:db8::5", "fd00::1"].into_iter()).as_deref(),
+            Some("2001:db8::5"),
+        );
+
+        // ULA returned when there's no GUA.
+        assert_eq!(
+            pick_ipv6(["fd00::1"].into_iter()).as_deref(),
+            Some("fd00::1"),
+        );
+
+        // Link-local is excluded — a device with only fe80:: resolves to None,
+        // which is what flags it as `ipv6_link_local_only` in published_ports.
+        assert_eq!(pick_ipv6(["fe80::1"].into_iter()), None);
+        assert_eq!(pick_ipv6(["fe80::1", "fe80::2"].into_iter()), None);
+
+        // Regression: GUA is decided by the parsed 2000::/3 range, not a string
+        // prefix. A deprecated site-local (fec0::/10) must NOT be mistaken for a
+        // GUA and returned ahead of the real GUA that follows it.
+        assert_eq!(
+            pick_ipv6(["fec0::1", "2001:db8::5"].into_iter()).as_deref(),
+            Some("2001:db8::5"),
+        );
+        // …and with no GUA present, a non-GUA/non-ULA scope is unreachable, so
+        // it's filtered out rather than returned as a usable address.
+        assert_eq!(pick_ipv6(["fec0::1"].into_iter()), None);
+
+        // Unparseable candidates are skipped, not returned.
+        assert_eq!(pick_ipv6(["not-an-ip"].into_iter()), None);
+        assert_eq!(
+            pick_ipv6(["not-an-ip", "fd00::1"].into_iter()).as_deref(),
+            Some("fd00::1"),
+        );
+
+        // Empty → None.
+        assert_eq!(pick_ipv6(std::iter::empty()), None);
+    }
 
     #[tokio::test]
     async fn vpn_peer_config_ip_is_v4_not_clobbered_by_v6() {

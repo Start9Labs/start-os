@@ -1,6 +1,6 @@
 use crate::dns::{self, DnsServer};
 use crate::profiles;
-use crate::system::get_wan_ipv6s;
+use crate::system::{get_wan_ipv6s, has_global_ipv6};
 use crate::utils::DeserializeStdin;
 use crate::utils::HandlerExtSerde;
 use crate::CtrlContext;
@@ -467,10 +467,17 @@ pub async fn ipv6_get<C: CtrlContext>(ctx: C) -> Result<WanIpv6Response, Error> 
     drop(arena);
 
     let assigned_ipv6 = if ctx.effectful() {
-        get_wan_ipv6s()
-            .await
-            .ok()
-            .and_then(|addrs| addrs.into_iter().next())
+        let addrs = get_wan_ipv6s().await.unwrap_or_default();
+        // Prefer a Global Unicast Address: it's the only WAN scope that can back
+        // inbound/published-port forwarding, and every consumer (the
+        // published-ports IPv6 gate, the inbound endpoint list, the WAN IPv6
+        // page) wants the reachable address. Fall back to the first address so a
+        // ULA-only WAN still reports something truthful.
+        addrs
+            .iter()
+            .copied()
+            .find(|a| has_global_ipv6(std::slice::from_ref(a)))
+            .or_else(|| addrs.first().copied())
             .map(|a| a.to_string())
     } else {
         None

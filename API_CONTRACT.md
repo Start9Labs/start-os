@@ -335,7 +335,9 @@ struct WanIpv6Response {
     peer_ipv4: Option<String>,
     mask: Option<String>,      // e.g. "/32"
     border_relay: Option<String>,
-    /// Runtime: assigned IPv6 address
+    /// Runtime: assigned WAN IPv6 address. GUA-preferred — when the WAN has a
+    /// global address it is reported here (the only scope reachable for inbound
+    /// forwarding); falls back to the first address on a ULA-only WAN.
     assigned_ipv6: Option<String>,
 }
 ```
@@ -576,16 +578,39 @@ struct Ethernet {
 ### `ethernet.set`
 
 ```rust
-// Request:
+// Request: Ethernet fields are flattened in alongside the confirm flag.
 #[derive(Deserialize)]
-struct Ethernet {
-    wan_ipv6: bool,
-    wan_port: Option<String>,
-    /// Uses ProfileIdOpt for lookup flexibility
-    ports: BTreeMap<String, Port<ProfileIdOpt>>,
+struct EthernetSetRequest {
+    #[serde(flatten)]
+    ethernet: Ethernet,            // { wan_ipv6, wan_port, ports: BTreeMap<String, Port<ProfileIdOpt>> }
+    /// Authorize deleting the published ports returned by a prior unconfirmed call.
+    #[serde(default)]
+    confirm_published_port_deletion: bool,
 }
-// Response: null
-// Backend: updates UCI network (bridge VLANs, WAN interfaces), restarts network
+
+// A published port that will be deleted because its device is moving to a
+// different profile. Shared (snake_case) with wifi.set's result.
+#[derive(Serialize)]
+struct AffectedPublishedPort {
+    id: String,
+    label: String,
+    device_mac: String,
+    device_name: Option<String>,
+}
+
+// Response:
+#[derive(Serialize)]
+struct EthernetSetResult {
+    /// Non-empty (and nothing applied) when a port being reassigned to a
+    /// different profile has devices with published ports and the caller hasn't
+    /// confirmed. Empty once the change is applied.
+    pending_published_port_deletions: Vec<AffectedPublishedPort>,
+}
+// Backend: detects ports changing profile, finds their devices via bridge FDB,
+// and the published ports they'd break. Without confirmation it applies nothing
+// and returns them; with confirmation it deletes those published ports (firewall
+// rules + stale DHCP reservations) atomically with the bridge-VLAN/WAN update,
+// then reloads network + firewall.
 ```
 
 Note: `ProfileId` and `ProfileIdOpt` are shared types defined at the top of the contract.
@@ -704,11 +729,15 @@ Returns all port forwarding rules with enriched device info and status.
 #[serde(rename_all = "lowercase")]
 enum PublishedPortStatus {
     Active,
-    /// IPv4 unavailable (e.g. CGNAT)
+    /// One protocol works but the other can't: IPv4 unavailable (e.g. CGNAT), or
+    /// the IPv6 forward is stranded on an old prefix ("IPv6 address out of date").
     Partial,
     /// Device offline or identity mismatch
     Paused,
-    /// Failed to apply rule
+    /// Failed to apply rule, no usable address, or (IPv6-only) the forward is
+    /// stranded on an old delegated prefix ("IPv6 address out of date" — the
+    /// device's current GUA is in a different /64; normally repaired by the wan6
+    /// reconcile hotplug).
     Error,
     Disabled,
 }
@@ -765,6 +794,37 @@ struct PublishedPortsSetRequest {
 // Response: null
 // Backend: rebuilds firewall redirect+rule sections, resolves device IPs, restarts firewall
 ```
+
+Validation (errors with `MissingDeviceAddress`, rejecting the whole request):
+- An enabled `ipv4` port whose device has no resolvable IPv4 address.
+- An enabled `ipv6` port when IPv6 publishing is impossible — any of:
+  the router has no global IPv6 prefix delegated; the device resolved to a ULA
+  address; or the device is online but has only a link-local address. ULA and
+  link-local are unreachable from the WAN, so the request is rejected rather than
+  silently saving a dead IPv6 forward. Only a *genuinely offline* device (no IPv6
+  seen at all) on a GUA-capable router is not rejected; its IPv6 rule is deferred
+  by the rule-creation GUA guard so a briefly-offline device doesn't fail an
+  otherwise-valid save.
+
+On save, an enabled `ipv6` port also pins the target device's interface suffix as
+a DHCP `hostid` (so its GUA is `delegated_prefix ++ hostid` and is stable across
+ISP prefix rotations), mirroring the IPv4 static-lease reservation. odhcpd is
+reloaded so the hostid takes runtime effect.
+
+### `published-ports.reconcile`
+
+```rust
+// Request: {}
+// Response: null
+```
+
+Internal endpoint (`no_auth`), **not called from the frontend**. Fired by the
+`/etc/hotplug.d/iface/99-startwrt-published-ports` hook on `wan6` `ifup`/`ifupdate`
+(i.e. when the ISP-delegated IPv6 prefix changes). Recomputes the `dest_ip` of
+every `pp_*_v6` forward against the router's current global prefix — using the
+device's live neighbor-table GUA when reachable, otherwise `current_prefix ++
+stored_hostid` — and reloads the firewall only if something changed. No-ops when
+the router currently has no global prefix (a flap to "none" never wipes rules).
 
 ---
 
@@ -996,8 +1056,32 @@ struct WifiConfig {
 ### `wifi.set`
 
 ```rust
-// Request: WifiConfig (same structure as response)
-// Response: null
+// Request: WifiConfig fields (camelCase) flattened in, plus a confirm flag.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WifiSetRequest {
+    #[serde(flatten)]
+    wifi: WifiConfig,                       // same structure as wifi.get's response
+    /// Authorize deleting the published ports returned by a prior unconfirmed call.
+    #[serde(default)]
+    confirm_published_port_deletion: bool,  // serialized as `confirmPublishedPortDeletion`
+}
+
+// Response:
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WifiSetResult {
+    /// Non-empty (and nothing applied) when reassigning a password to a different
+    /// profile would break published ports for devices on the vacated profile and
+    /// the caller hasn't confirmed. Empty once applied. Entries are the shared
+    /// snake_case `AffectedPublishedPort` (see ethernet.set).
+    pending_published_port_deletions: Vec<AffectedPublishedPort>,  // `pendingPublishedPortDeletions`
+}
+// Backend: a profile losing its last WiFi password is "vacated"; its WiFi devices
+// (matched by current profile, since per-SSID mapping isn't available) move off
+// that subnet. Without confirmation it applies nothing and returns the published
+// ports that would break; with confirmation it deletes them (firewall rules +
+// stale DHCP reservations) atomically with the WiFi update, then reloads firewall.
 ```
 
 ### `wifi.blackout-get`
@@ -1221,8 +1305,9 @@ struct SshKeyDeleteRequest {
 | `devices.update`         | **New** | Devices         |
 | `devices.forget`         | **New** | Devices         |
 | `devices.data-usage`     | **New** | Devices         |
-| `published-ports.list`   | **New** | Published Ports |
-| `published-ports.set`    | **New** | Published Ports |
+| `published-ports.list`      | **New** | Published Ports |
+| `published-ports.set`       | **New** | Published Ports |
+| `published-ports.reconcile` | **New** | Published Ports (internal, hotplug) |
 | `vpn-client.list`        | **New** | Outbound VPN    |
 | `vpn-client.create`      | **New** | Outbound VPN    |
 | `vpn-client.update`      | **New** | Outbound VPN    |

@@ -64,6 +64,8 @@ import {
   OutboundVpnSetEnabledRequest,
   EthernetConfig,
   EthernetSetConfig,
+  EthernetSetResult,
+  WifiSetResult,
   SshKeyFromApi,
   SshKeysAddRequest,
   SshKeysDeleteRequest,
@@ -529,7 +531,7 @@ export class MockApiService extends ApiService {
     return structuredClone(this.mockWifi)
   }
 
-  async wifiSet(params: WifiConfig): Promise<null> {
+  async wifiSet(params: WifiConfig): Promise<WifiSetResult> {
     await pauseFor(250)
     this.mockWifi = structuredClone(params)
     this.logActivity(
@@ -537,7 +539,7 @@ export class MockApiService extends ApiService {
       'updated',
       `Updated WiFi settings (SSID: '${params.ssid}')`,
     )
-    return null
+    return { pendingPublishedPortDeletions: [] }
   }
 
   private mockBlackoutWindows: ScheduleWindow[] = [
@@ -1547,7 +1549,7 @@ export class MockApiService extends ApiService {
     return structuredClone(this.mockEthernet)
   }
 
-  async ethernetSet(params: EthernetSetConfig): Promise<null> {
+  async ethernetSet(params: EthernetSetConfig): Promise<EthernetSetResult> {
     await pauseFor(250)
     this.mockEthernet = {
       wan_ipv6: params.wan_ipv6,
@@ -1577,7 +1579,7 @@ export class MockApiService extends ApiService {
       'updated',
       `Updated ethernet ports (${changedPorts})`,
     )
-    return null
+    return { pending_published_port_deletions: [] }
   }
 
   // --- SSH Keys smart endpoint mocks ---

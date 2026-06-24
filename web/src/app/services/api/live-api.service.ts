@@ -61,6 +61,8 @@ import {
   OutboundVpnSetEnabledRequest,
   EthernetConfig,
   EthernetSetConfig,
+  EthernetSetResult,
+  WifiSetResult,
   SshKeyFromApi,
   SshKeysAddRequest,
   SshKeysDeleteRequest,
@@ -167,7 +169,7 @@ export class LiveApiService extends ApiService {
     return this.rpc.request({ method: 'wifi.get', params: {} })
   }
 
-  async wifiSet(params: WifiConfig): Promise<null> {
+  async wifiSet(params: WifiConfig): Promise<WifiSetResult> {
     return this.rpc.request({ method: 'wifi.set', params })
   }
 
@@ -361,7 +363,7 @@ export class LiveApiService extends ApiService {
     return this.rpc.request({ method: 'ethernet.get', params: {} })
   }
 
-  async ethernetSet(params: EthernetSetConfig): Promise<null> {
+  async ethernetSet(params: EthernetSetConfig): Promise<EthernetSetResult> {
     return this.rpc.request({ method: 'ethernet.set', params })
   }
 

@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core'
 import {
+  AffectedPublishedPort,
   ApiService,
   WifiConfig,
   WifiPassword,
@@ -20,7 +21,22 @@ export class WifiService extends FormService<WifiConfig> {
   }
 
   async store(data: WifiConfig) {
-    await this.api.wifiSet(data)
+    // Real apply — confirm any published-port cleanup (the caller previews and
+    // confirms first where a reassignment can break published ports).
+    await this.api.wifiSet({ ...data, confirmPublishedPortDeletion: true })
+  }
+
+  /**
+   * Dry-run: returns the published ports that would be deleted if this config
+   * were applied (i.e. devices whose WiFi profile is being vacated). Applies
+   * nothing.
+   */
+  async previewWifi(data: WifiConfig): Promise<AffectedPublishedPort[]> {
+    const result = await this.api.wifiSet({
+      ...data,
+      confirmPublishedPortDeletion: false,
+    })
+    return result.pendingPublishedPortDeletions
   }
 
   async addPassword(password: WifiPassword) {
@@ -30,20 +46,8 @@ export class WifiService extends FormService<WifiConfig> {
       await this.api.wifiSet({
         ...current,
         passwords: [...current.passwords, password],
+        confirmPublishedPortDeletion: true,
       })
-      this.refresh()
-    })
-  }
-
-  // @TODO matt review
-  async updatePassword(index: number, update: Partial<WifiPassword>) {
-    await this.actions.run(async () => {
-      const current = this.data()
-      if (!current) return
-      const passwords = current.passwords.map((p, i) =>
-        i === index ? { ...p, ...update } : p,
-      )
-      await this.api.wifiSet({ ...current, passwords })
       this.refresh()
     })
   }
@@ -68,7 +72,7 @@ export class WifiService extends FormService<WifiConfig> {
     // NOT discard it, throw so the dialog can close and surface it instead of
     // spinning forever.
     this.connection.suppress()
-    return this.api.wifiSet(data).then(
+    return this.api.wifiSet({ ...data, confirmPublishedPortDeletion: true }).then(
       () => true,
       e => {
         if (isNetworkError(e)) return false
@@ -82,7 +86,11 @@ export class WifiService extends FormService<WifiConfig> {
       const current = this.data()
       if (!current) return
       const passwords = current.passwords.filter((_, i) => i !== index)
-      await this.api.wifiSet({ ...current, passwords })
+      await this.api.wifiSet({
+        ...current,
+        passwords,
+        confirmPublishedPortDeletion: true,
+      })
       this.refresh()
     })
   }

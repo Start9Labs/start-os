@@ -37,7 +37,10 @@ function isTemplate(value: TranslatedError): value is TranslatedTemplate {
   return typeof value === 'object' && value !== null && 'template' in value
 }
 
-function fill(text: string, vars: Record<string, string | number>): string {
+export function fill(
+  text: string,
+  vars: Record<string, string | number>,
+): string {
   return text.replace(/\{(\w+)\}/g, (_, key) =>
     key in vars ? String(vars[key]) : `{${key}}`,
   )

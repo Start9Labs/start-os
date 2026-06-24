@@ -311,6 +311,39 @@ pub async fn read_lan_ipv6_from_ubus() -> Option<Ipv6Addr> {
         .copied()
 }
 
+/// Read the LAN's current delegated *global* IPv6 prefix (base address + length)
+/// from ubus. Unlike [`read_lan_ipv6_from_ubus`] (which prefers the ULA for cert
+/// SANs), this returns the GUA prefix (2000::/3) so the published-ports reconcile
+/// can recompute a device's forward address as `prefix ++ hostid` after the ISP
+/// rotates the delegation. Returns `None` when the router currently has no global
+/// prefix.
+pub async fn read_lan_gua_prefix() -> Option<(Ipv6Addr, u8)> {
+    let output = tokio::process::Command::new("ubus")
+        .args(["call", "network.interface.lan", "status"])
+        .invoke(ErrorKind::Network.into())
+        .await
+        .ok()?;
+    let json: serde_json::Value = serde_json::from_slice(&output).ok()?;
+
+    let arr = json.get("ipv6-prefix-assignment")?.as_array()?;
+    for entry in arr {
+        let Some(addr) = entry
+            .get("address")
+            .and_then(|v| v.as_str())
+            .and_then(|s| s.parse::<Ipv6Addr>().ok())
+        else {
+            // A malformed entry shouldn't mask a valid GUA later in the list.
+            continue;
+        };
+        // Global Unicast (2000::/3) is the only WAN-reachable delegation.
+        if crate::system::has_global_ipv6(std::slice::from_ref(&addr)) {
+            let mask = entry.get("mask").and_then(|v| v.as_u64()).unwrap_or(64) as u8;
+            return Some((addr, mask));
+        }
+    }
+    None
+}
+
 /// Check whether the server cert should be renewed (missing, corrupt, not
 /// yet valid, or expiring within 30 days — the threshold baked into
 /// [`startos::net::ssl::should_use_cert`]).

@@ -40,8 +40,14 @@ import { injectContext } from '@taiga-ui/polymorpheus'
 import { ModalHelp } from 'src/app/help/modal-help'
 import { provideHelp } from 'src/app/help/help'
 import { Device } from 'src/app/routes/devices/utils'
-import { Protocol, PublishedPort, PublishedPortDialogResult } from './types'
+import {
+  isGua,
+  Protocol,
+  PublishedPort,
+  PublishedPortDialogResult,
+} from './types'
 import { i18nPipe } from 'src/app/i18n/i18n.pipe'
+import { i18nKey } from 'src/app/i18n/i18n.providers'
 
 function uuid4(): string {
   const b = crypto.getRandomValues(new Uint8Array(16))
@@ -152,26 +158,9 @@ const IP: Record<string, string> = {
           formControlName="ipVersion"
           [items]="ipVersionValues"
           [itemContent]="ip"
-          [disabledItemHandler]="isIpVersionDisabled"
         />
       </fieldset>
-      <tui-error formControlName="ipVersion" />
-      @if (!context.data.ipv6Available) {
-        <small class="g-secondary">
-          {{
-            'IPv6 options require WAN IPv6 and LAN IPv6 to be enabled' | i18n
-          }}
-        </small>
-      } @else if (deviceHasOnlyUla()) {
-        <div tuiNotification appearance="warning" size="s">
-          {{
-            'This device only has a local (ULA) IPv6 address. IPv6 port forwarding requires a global address from ISP prefix delegation.'
-              | i18n
-          }}
-        </div>
-      } @else if (ipVersionHint()) {
-        <small class="g-secondary">{{ ipVersionHint() }}</small>
-      }
+      <tui-error [error]="ipVersionError()" />
 
       <tui-elastic-container>
         @if (['ipv4', 'both'].includes(form.value.ipVersion || '')) {
@@ -225,7 +214,9 @@ const IP: Record<string, string> = {
         >
           {{ 'Cancel' | i18n }}
         </button>
-        <button tuiButton>{{ 'Save' | i18n }}</button>
+        <button tuiButton [disabled]="formStatus() === 'INVALID'">
+          {{ 'Save' | i18n }}
+        </button>
       </footer>
     </form>
   `,
@@ -350,34 +341,41 @@ export class PublishPortDialog implements OnInit {
     this.deviceMap().get(this.selectedDeviceMac()),
   )
 
-  protected readonly deviceHasOnlyUla = computed(() => {
-    const device = this.selectedDevice()
-    if (!device?.ipv6) return false
-    return device.ipv6.startsWith('fd') || device.ipv6.startsWith('fc')
-  })
-
-  protected readonly ipVersionHint = computed(() => {
-    const device = this.selectedDevice()
-    if (!device) return ''
-    const missing: string[] = []
-    if (!device.ipv4) missing.push('IPv4')
-    if (!device.ipv6) missing.push('IPv6')
-    if (!missing.length) return ''
-    return `${this.i18n.transform('Device has no')} ${missing.join(' or ')} ${this.i18n.transform('address')}`
-  })
-
-  protected readonly isIpVersionDisabled = (value: string): boolean => {
-    const device = this.selectedDevice()
-    const ipv6Available = this.context.data.ipv6Available
-
-    if (!ipv6Available && (value === 'ipv6' || value === 'both')) return true
-    if (device && !device.ipv4 && (value === 'ipv4' || value === 'both'))
-      return true
-    if (device && !device.ipv6 && (value === 'ipv6' || value === 'both'))
-      return true
-
-    return false
+  // The specific, actionable reason the current IP-version selection can't be
+  // published for the selected device — or null when it's fine. Shared by the
+  // inline <tui-error> (display) and validateIpVersion (drives form.invalid /
+  // Save-disable) so both always agree.
+  private ipVersionErrorKey(
+    ipVersion: 'ipv4' | 'ipv6' | 'both',
+    device: Device | undefined,
+  ): i18nKey | null {
+    if (!device) return null
+    const needsIpv4 = ipVersion === 'ipv4' || ipVersion === 'both'
+    const needsIpv6 = ipVersion === 'ipv6' || ipVersion === 'both'
+    if (needsIpv4 && !device.ipv4) return 'Device has no IPv4 address'
+    if (needsIpv6) {
+      if (!this.context.data.ipv6Available)
+        return 'IPv6 options require WAN IPv6 and LAN IPv6 to be enabled'
+      if (!device.ipv6) return 'Device has no global IPv6 (GUA) address'
+      if (!isGua(device.ipv6))
+        return "This device's IPv6 address is local-only (ULA/link-local), so IPv6 port forwarding is disabled. It requires a global (GUA) address from ISP prefix delegation."
+    }
+    return null
   }
+
+  // Translated inline error for the current selection (shown proactively).
+  protected readonly ipVersionError = computed(() => {
+    const key = this.ipVersionErrorKey(
+      this.selectedIpVersion(),
+      this.selectedDevice(),
+    )
+    return key ? this.i18n.transform(key) : null
+  })
+
+  // Reactive form validity for the Save button (OnPush-safe).
+  protected readonly formStatus = toSignal(this.form.statusChanges, {
+    initialValue: this.form.status,
+  })
 
   // TODO @Alex refactor this to declarative validation
   ngOnInit() {
@@ -468,17 +466,10 @@ export class PublishPortDialog implements OnInit {
       ipVersionControl.updateValueAndValidity()
     }
 
-    // Auto-correct ipVersion when selected device lacks an address
-    this.form.controls.deviceMac.valueChanges.subscribe(mac => {
-      const device = this.deviceMap().get(mac)
-      if (!device) return
-      const current = this.form.value.ipVersion
-      if (!device.ipv4 && (current === 'ipv4' || current === 'both')) {
-        this.form.patchValue({ ipVersion: device.ipv6 ? 'ipv6' : 'ipv4' })
-      }
-      if (!device.ipv6 && (current === 'ipv6' || current === 'both')) {
-        this.form.patchValue({ ipVersion: device.ipv4 ? 'ipv4' : 'ipv6' })
-      }
+    // Re-validate the chosen IP version against the newly-selected device (no
+    // auto-correct — the user's selection stands; an incompatible one surfaces
+    // an inline error and disables Save).
+    this.form.controls.deviceMac.valueChanges.subscribe(() => {
       updateIpVersionValidation()
     })
 
@@ -527,18 +518,8 @@ export class PublishPortDialog implements OnInit {
   private validateIpVersion(control: AbstractControl): ValidationErrors | null {
     const value = control.value as 'ipv4' | 'ipv6' | 'both'
     const device = this.deviceMap().get(this.form?.value.deviceMac ?? '')
-    if (!device) return null
-
-    const needsIpv4 = value === 'ipv4' || value === 'both'
-    const needsIpv6 = value === 'ipv6' || value === 'both'
-
-    if (needsIpv4 && !device.ipv4) {
-      return { missingDeviceAddress: { message: 'Device has no IPv4 address' } }
-    }
-    if (needsIpv6 && !device.ipv6) {
-      return { missingDeviceAddress: { message: 'Device has no IPv6 address' } }
-    }
-    return null
+    const message = this.ipVersionErrorKey(value, device)
+    return message ? { missingDeviceAddress: { message } } : null
   }
 
   protected save() {
