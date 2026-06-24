@@ -249,6 +249,7 @@ pub async fn handle<B: GatewayBackend + ?Sized>(
     // Answer ANNOUNCE for any peer (the marker only reveals "I speak HOSTNAME");
     // it must precede the MAP-only check, which would otherwise reject opcode 0.
     if opcode == OPCODE_ANNOUNCE {
+        tracing::debug!("PCP ANNOUNCE from {peer}: replying with Start9 capability marker");
         return Some(announce_response(epoch));
     }
     if opcode != OPCODE_MAP {

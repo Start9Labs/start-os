@@ -366,7 +366,7 @@ impl State {
             for gw in &spec.gateways {
                 // Never hand a Private-Use OPTION_HOSTNAME to a gateway that
                 // hasn't confirmed it speaks the extension via ANNOUNCE.
-                if !self.gateway_supports_hostname(*gw).await {
+                if !self.gateway_supports_hostname(local_ip, *gw).await {
                     tracing::debug!("PCP HOSTNAME skip {gw}: no ANNOUNCE confirmation of support");
                     continue;
                 }
@@ -549,14 +549,14 @@ impl State {
     /// cached per gateway (a yes trusted for GATEWAY_CACHE_TTL, a no re-probed
     /// after RETRY_INTERVAL). Gates OPTION_HOSTNAME while we ride a Private-Use
     /// option code.
-    async fn gateway_supports_hostname(&mut self, gw: Ipv4Addr) -> bool {
+    async fn gateway_supports_hostname(&mut self, local_ip: Ipv4Addr, gw: Ipv4Addr) -> bool {
         if let Some((ok, at)) = self.hostname_caps.get(&gw) {
             let ttl = if *ok { GATEWAY_CACHE_TTL } else { RETRY_INTERVAL };
             if at.elapsed() < ttl {
                 return *ok;
             }
         }
-        let ok = probe_announce(gw).await;
+        let ok = probe_announce(local_ip, gw).await;
         self.hostname_caps.insert(gw, (ok, Instant::now()));
         ok
     }
@@ -575,8 +575,11 @@ fn announce_marker_ok(resp: &[u8]) -> bool {
 /// Send a PCP ANNOUNCE to `gw:5351` and report whether it answers with the
 /// Start9 capability marker. Raw UDP since crab_nat exposes no ANNOUNCE;
 /// best-effort — any error/timeout/non-marker reply is "not supported".
-async fn probe_announce(gw: Ipv4Addr) -> bool {
-    let Ok(sock) = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).await else {
+async fn probe_announce(local_ip: Ipv4Addr, gw: Ipv4Addr) -> bool {
+    // Bind the gateway-facing source IP (as the crab_nat MAP path does) so the
+    // ANNOUNCE egresses the right interface — e.g. the WireGuard tunnel to a
+    // StartTunnel gateway — and the reply routes back to us.
+    let Ok(sock) = UdpSocket::bind((local_ip, 0)).await else {
         return false;
     };
     if sock.connect((gw, PCP_PORT)).await.is_err() {
@@ -585,11 +588,7 @@ async fn probe_announce(gw: Ipv4Addr) -> bool {
     // Bare 24-byte PCP header: version 2, opcode 0 (ANNOUNCE), client IP.
     let mut req = [0u8; 24];
     req[0] = 2;
-    let local = match sock.local_addr().map(|a| a.ip()) {
-        Ok(IpAddr::V4(v4)) => v4,
-        _ => Ipv4Addr::UNSPECIFIED,
-    };
-    req[8..24].copy_from_slice(&local.to_ipv6_mapped().octets());
+    req[8..24].copy_from_slice(&local_ip.to_ipv6_mapped().octets());
     let mut buf = [0u8; 1100];
     let attempts = PCP_TIMEOUTS.max_retries as u32 + 1;
     for attempt in 0..attempts {
