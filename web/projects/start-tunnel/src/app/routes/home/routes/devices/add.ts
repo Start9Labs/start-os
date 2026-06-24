@@ -26,7 +26,12 @@ import {
 } from '@taiga-ui/kit'
 import { TuiElasticContainer, TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { wanLabel } from 'src/app/routes/home/components/wan'
+import {
+  matchWan,
+  toWanItems,
+  WanItem,
+  wanLabel,
+} from 'src/app/routes/home/components/wan'
 import { ApiService } from 'src/app/services/api/api.service'
 
 import { DEVICES_CONFIG } from './config'
@@ -37,11 +42,6 @@ import {
   MappedSubnet,
   subnetValidator,
 } from './utils'
-
-// Wrapper so the Default (ip: null) option survives tuiSelect's null-skipping.
-interface WanItem {
-  readonly ip: string | null
-}
 
 @Component({
   template: `
@@ -205,17 +205,13 @@ export class DevicesAdd {
   protected readonly autoPortForwardHint =
     'The device can request port forwards on the gateway (via PCP). Only enable for devices you trust.'
 
-  // Real object item so the Default (ip: null) option stringifies in tuiSelect.
-  protected readonly wanItems: readonly WanItem[] = [
-    { ip: null },
-    ...this.context.data.wanOptions.map(ip => ({ ip })),
-  ]
+  protected readonly wanItems = toWanItems(this.context.data.wanOptions)
 
   protected readonly stringify = ({ range, name }: MappedSubnet) =>
     range ? `${name} (${range})` : ''
   protected readonly stringifyWan = ({ ip }: WanItem) =>
-    wanLabel(ip, this.context.data.defaultWan)
-  protected readonly matchWan = (a: WanItem, b: WanItem) => a.ip === b.ip
+    wanLabel(ip, 'Use Subnet Default')
+  protected readonly matchWan = matchWan
 
   protected onSubnet(subnet: MappedSubnet) {
     this.form.controls.ip.clearValidators()

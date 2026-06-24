@@ -48,7 +48,20 @@ export function defaultWanIp(gateways: Gateways): string | null {
   return null
 }
 
-export function wanLabel(ip: string | null, defaultIp: string | null): string {
-  if (ip) return ip
-  return defaultIp ? `Default (${defaultIp})` : 'Default'
+// tuiSelect skips a bare `null` item, so the "default" choice is wrapped in an
+// object to keep it selectable.
+export interface WanItem {
+  readonly ip: string | null
+}
+
+export function toWanItems(options: readonly string[]): readonly WanItem[] {
+  return [{ ip: null }, ...options.map(ip => ({ ip }))]
+}
+
+export const matchWan = (a: WanItem, b: WanItem) => a.ip === b.ip
+
+// `defaultLabel` names what the null/default option inherits from, e.g.
+// "Use System Default" (subnet) or "Use Subnet Default" (device).
+export function wanLabel(ip: string | null, defaultLabel: string): string {
+  return ip ?? defaultLabel
 }

@@ -92,7 +92,7 @@ import { MappedDevice } from './utils'
                   />
                 </tui-loader>
               </td>
-              <td>{{ wanLabel(device.wanIp, defaultWan()) }}</td>
+              <td>{{ wanLabel(device.wanIp, 'Use Subnet Default') }}</td>
               <td>
                 <button
                   tuiIconButton
@@ -179,7 +179,7 @@ import { MappedDevice } from './utils'
               <td>{{ device.name }}</td>
               <td>{{ device.subnet.name }}</td>
               <td>{{ device.ip }}</td>
-              <td>{{ wanLabel(device.wanIp, defaultWan()) }}</td>
+              <td>{{ wanLabel(device.wanIp, 'Use Subnet Default') }}</td>
               <td>
                 <button
                   tuiIconButton

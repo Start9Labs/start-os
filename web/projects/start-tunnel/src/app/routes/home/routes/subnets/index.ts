@@ -8,6 +8,7 @@ import {
   TuiNotificationMiddleService,
   TuiSkeleton,
 } from '@taiga-ui/kit'
+import { TuiCardLarge } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
 import { PlaceholderComponent } from 'src/app/routes/home/components/placeholder'
@@ -23,77 +24,95 @@ import { SUBNETS_ADD } from './add'
 
 @Component({
   template: `
-    <table class="g-table" [tuiSkeleton]="!subnets()">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>IP Range</th>
-          <th>DNS</th>
-          <th>WAN</th>
-          <th [style.padding-inline-end.rem]="0.625">
-            <button tuiButton size="xs" iconStart="@tui.plus" (click)="onAdd()">
-              Add
-            </button>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (subnet of subnets(); track $index) {
+    <div tuiCardLarge="compact" appearance="floating">
+      <header>
+        <button tuiButton size="xs" iconStart="@tui.plus" (click)="onAdd()">
+          Add
+        </button>
+      </header>
+      <table class="g-table" [tuiSkeleton]="!subnets()">
+        <thead>
           <tr>
-            <td>{{ subnet.name }}</td>
-            <td>{{ subnet.range }}</td>
-            <td>{{ subnet.dnsLabel }}</td>
-            <td>{{ wanLabel(subnet.wanIp, defaultWan()) }}</td>
-            <td>
-              <button
-                tuiIconButton
-                size="xs"
-                tuiDropdown
-                tuiDropdownAuto
-                appearance="flat-grayscale"
-                iconStart="@tui.ellipsis-vertical"
-              >
-                Actions
-                <tui-data-list
-                  *tuiDropdown="let close"
-                  size="s"
-                  (click)="close()"
+            <th>Name</th>
+            <th>IP Range</th>
+            <th>DNS</th>
+            <th>WAN</th>
+            <th [style.padding-inline-end.rem]="0.625"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (subnet of subnets(); track $index) {
+            <tr>
+              <td>{{ subnet.name }}</td>
+              <td>{{ subnet.range }}</td>
+              <td>{{ subnet.dnsLabel }}</td>
+              <td>{{ wanLabel(subnet.wanIp, 'Use System Default') }}</td>
+              <td>
+                <button
+                  tuiIconButton
+                  size="xs"
+                  tuiDropdown
+                  tuiDropdownAuto
+                  appearance="flat-grayscale"
+                  iconStart="@tui.ellipsis-vertical"
                 >
-                  <button
-                    tuiOption
-                    iconStart="@tui.pencil"
-                    (click)="onEdit(subnet)"
+                  Actions
+                  <tui-data-list
+                    *tuiDropdown="let close"
+                    size="s"
+                    (click)="close()"
                   >
-                    Edit
-                  </button>
-                  <button
-                    tuiOption
-                    iconStart="@tui.trash"
-                    (click)="onDelete($index)"
-                  >
-                    Delete
-                  </button>
-                </tui-data-list>
-              </button>
-            </td>
-          </tr>
-        } @empty {
-          <tr>
-            <td colspan="5">
-              <app-placeholder icon="@tui.network">No subnets</app-placeholder>
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
+                    <button
+                      tuiOption
+                      iconStart="@tui.pencil"
+                      (click)="onEdit(subnet)"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      tuiOption
+                      iconStart="@tui.trash"
+                      (click)="onDelete($index)"
+                    >
+                      Delete
+                    </button>
+                  </tui-data-list>
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5">
+                <app-placeholder icon="@tui.network">
+                  No subnets
+                </app-placeholder>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
   `,
   styles: `
     :host {
-      max-inline-size: 50rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    header button {
+      margin-inline-start: auto;
     }
   `,
   imports: [
     TuiButton,
+    TuiCardLarge,
     TuiDropdown,
     TuiDataList,
     PlaceholderComponent,
