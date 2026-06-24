@@ -375,6 +375,7 @@ pub async fn check_dns(
     use hickory_server::resolver::config::{ResolverConfig, ResolverOpts};
 
     use crate::net::dns::forward_name_server;
+    use crate::net::port_map::candidate_gateways;
 
     let ip_info = ctx.net_controller.net_iface.watcher.ip_info();
     let gw_info = ip_info
@@ -393,8 +394,12 @@ pub async fn check_dns(
         return Ok(false);
     }
 
-    // Query each LAN DNS server directly for the record and confirm the answer.
-    for dns_ip in &gw_ip_info.dns_servers {
+    // Query the DHCP-advertised resolvers AND the subnet gateway(s) (.1): a
+    // static WireGuard link advertises no DHCP resolver, so dns_servers is empty
+    // there — but the .1 is exactly where the private domain is injected/served.
+    let mut candidates: BTreeSet<IpAddr> = gw_ip_info.dns_servers.iter().copied().collect();
+    candidates.extend(candidate_gateways(gw_info).into_iter().map(IpAddr::V4));
+    for dns_ip in &candidates {
         let mut config = ResolverConfig::from_parts(None, Vec::new(), Vec::new());
         config.add_name_server(forward_name_server(SocketAddr::new(*dns_ip, 53)));
         let mut opts = ResolverOpts::default();
