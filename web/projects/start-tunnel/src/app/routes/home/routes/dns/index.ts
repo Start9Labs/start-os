@@ -14,6 +14,7 @@ import {
   TuiNotificationMiddleService,
   TuiSkeleton,
 } from '@taiga-ui/kit'
+import { TuiCardLarge } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
 import { PlaceholderComponent } from 'src/app/routes/home/components/placeholder'
@@ -25,128 +26,157 @@ import { DNS_ADD } from './add'
 
 @Component({
   template: `
-    <h3>Manual</h3>
-    <table class="g-table" [tuiSkeleton]="!records()">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Type</th>
-          <th>Value</th>
-          <th>TTL</th>
-          <th [style.padding-inline-end.rem]="0.625">
-            <button tuiButton size="xs" iconStart="@tui.plus" (click)="onAdd()">
-              Add
-            </button>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (record of manual(); track $index) {
+    <div tuiCardLarge="compact" appearance="floating">
+      <header>
+        <h3>Manual</h3>
+        <button tuiButton size="xs" iconStart="@tui.plus" (click)="onAdd()">
+          Add
+        </button>
+      </header>
+      <table class="g-table" [tuiSkeleton]="!records()">
+        <thead>
           <tr>
-            <td>{{ record.name }}</td>
-            <td>{{ record.type }}</td>
-            <td>{{ record.value }}</td>
-            <td>{{ record.ttl }}</td>
-            <td>
-              <button
-                tuiIconButton
-                size="xs"
-                tuiDropdown
-                tuiDropdownAuto
-                appearance="flat-grayscale"
-                iconStart="@tui.ellipsis-vertical"
-              >
-                Actions
-                <tui-data-list
-                  *tuiDropdown="let close"
-                  size="s"
-                  (click)="close()"
+            <th>Name</th>
+            <th>Type</th>
+            <th>Value</th>
+            <th>TTL</th>
+            <th [style.padding-inline-end.rem]="0.625"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (record of manual(); track $index) {
+            <tr>
+              <td>{{ record.name }}</td>
+              <td>{{ record.type }}</td>
+              <td>{{ record.value }}</td>
+              <td>{{ record.ttl }}</td>
+              <td>
+                <button
+                  tuiIconButton
+                  size="xs"
+                  tuiDropdown
+                  tuiDropdownAuto
+                  appearance="flat-grayscale"
+                  iconStart="@tui.ellipsis-vertical"
                 >
-                  <button
-                    tuiOption
-                    iconStart="@tui.trash"
-                    (click)="onDelete(record)"
+                  Actions
+                  <tui-data-list
+                    *tuiDropdown="let close"
+                    size="s"
+                    (click)="close()"
                   >
-                    Delete
-                  </button>
-                </tui-data-list>
-              </button>
-            </td>
-          </tr>
-        } @empty {
-          <tr>
-            <td colspan="5">
-              <app-placeholder icon="@tui.list">
-                No manual DNS records. Add one to get started.
-              </app-placeholder>
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
+                    <button
+                      tuiOption
+                      iconStart="@tui.trash"
+                      (click)="onDelete(record)"
+                    >
+                      Delete
+                    </button>
+                  </tui-data-list>
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5">
+                <app-placeholder icon="@tui.list">
+                  No manual DNS records. Add one to get started.
+                </app-placeholder>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
 
-    <h3>Automatic</h3>
-    <table class="g-table" [tuiSkeleton]="!records()">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Type</th>
-          <th>Value</th>
-          <th>TTL</th>
-          <th>Source</th>
-          <th [style.padding-inline-end.rem]="0.625"></th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (record of automatic(); track $index) {
+    <div tuiCardLarge="compact" appearance="floating">
+      <header>
+        <h3>Automatic</h3>
+      </header>
+      <table class="g-table" [tuiSkeleton]="!records()">
+        <thead>
           <tr>
-            <td>{{ record.name }}</td>
-            <td>{{ record.type }}</td>
-            <td>{{ record.value }}</td>
-            <td>{{ record.ttl }}</td>
-            <td>{{ record.source }}</td>
-            <td>
-              <button
-                tuiIconButton
-                size="xs"
-                tuiDropdown
-                tuiDropdownAuto
-                appearance="flat-grayscale"
-                iconStart="@tui.ellipsis-vertical"
-              >
-                Actions
-                <tui-data-list
-                  *tuiDropdown="let close"
-                  size="s"
-                  (click)="close()"
+            <th>Name</th>
+            <th>Type</th>
+            <th>Value</th>
+            <th>TTL</th>
+            <th>Source</th>
+            <th [style.padding-inline-end.rem]="0.625"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (record of automatic(); track $index) {
+            <tr>
+              <td>{{ record.name }}</td>
+              <td>{{ record.type }}</td>
+              <td>{{ record.value }}</td>
+              <td>{{ record.ttl }}</td>
+              <td>{{ record.source }}</td>
+              <td>
+                <button
+                  tuiIconButton
+                  size="xs"
+                  tuiDropdown
+                  tuiDropdownAuto
+                  appearance="flat-grayscale"
+                  iconStart="@tui.ellipsis-vertical"
                 >
-                  <button
-                    tuiOption
-                    iconStart="@tui.trash"
-                    (click)="onDelete(record)"
+                  Actions
+                  <tui-data-list
+                    *tuiDropdown="let close"
+                    size="s"
+                    (click)="close()"
                   >
-                    Delete
-                  </button>
-                </tui-data-list>
-              </button>
-            </td>
-          </tr>
-        } @empty {
-          <tr>
-            <td colspan="6">
-              <app-placeholder icon="@tui.list">
-                No automatic DNS records. Devices you trust can add their own
-                via RFC 2136.
-              </app-placeholder>
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
+                    <button
+                      tuiOption
+                      iconStart="@tui.trash"
+                      (click)="onDelete(record)"
+                    >
+                      Delete
+                    </button>
+                  </tui-data-list>
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="6">
+                <app-placeholder icon="@tui.list">
+                  No automatic DNS records. Devices you trust can add their own
+                  via RFC 2136.
+                </app-placeholder>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  `,
+  styles: `
+    :host {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    header h3 {
+      margin: 0;
+    }
+
+    header button {
+      margin-inline-start: auto;
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiButton,
+    TuiCardLarge,
     TuiDropdown,
     TuiDataList,
     PlaceholderComponent,

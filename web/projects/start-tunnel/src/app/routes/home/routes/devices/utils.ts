@@ -25,6 +25,7 @@ export interface MappedSubnet {
 export interface DeviceData {
   readonly subnets: Signal<readonly MappedSubnet[]>
   readonly device?: MappedDevice
+  readonly kind?: T.Tunnel.WgClientKind
   readonly wanOptions: readonly string[]
   readonly defaultWan: string | null
 }

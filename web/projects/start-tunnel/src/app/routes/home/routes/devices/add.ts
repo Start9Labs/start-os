@@ -1,5 +1,4 @@
 import { Component, inject } from '@angular/core'
-import { toSignal } from '@angular/core/rxjs-interop'
 import {
   NonNullableFormBuilder,
   ReactiveFormsModule,
@@ -110,30 +109,8 @@ interface WanItem {
         }
       </tui-textfield>
 
-      @if (!context.data.device) {
-        <tui-textfield
-          tuiChevron
-          [stringify]="stringifyKind"
-          [tuiTextfieldCleaner]="false"
-        >
-          <label tuiLabel>Kind</label>
-          @if (mobile) {
-            <select
-              tuiSelect
-              formControlName="kind"
-              [items]="kindItems"
-            ></select>
-          } @else {
-            <input tuiSelect formControlName="kind" />
-          }
-          @if (!mobile) {
-            <tui-data-list-wrapper *tuiDropdown [items]="kindItems" />
-          }
-        </tui-textfield>
-      }
-
       <tui-elastic-container>
-        @if (!context.data.device && kind() === 'server') {
+        @if (!context.data.device && kind === 'server') {
           <label tuiLabel>
             <input tuiCheckbox type="checkbox" formControlName="dnsInjection" />
             Allow DNS Injection
@@ -215,26 +192,18 @@ export class DevicesAdd {
     wanIp: this.fb.control<WanItem>({
       ip: this.context.data.device?.wanIp ?? null,
     }),
-    kind: this.fb.control<T.Tunnel.WgClientKind>(
-      this.context.data.device?.kind ?? 'client',
-    ),
     dnsInjection: [this.context.data.device?.allowDnsInjection ?? true],
     autoPortForward: [this.context.data.device?.allowAutoPortForward ?? true],
   })
 
-  protected readonly kind = toSignal(this.form.controls.kind.valueChanges, {
-    initialValue: this.form.controls.kind.value,
-  })
+  // Inferred from which "Add" button opened the dialog, not user-selectable.
+  protected readonly kind: T.Tunnel.WgClientKind =
+    this.context.data.kind ?? this.context.data.device?.kind ?? 'client'
 
   protected readonly dnsInjectionHint =
     'The device can add/update the DNS records the tunnel serves for every peer to resolve. Only enable for devices you trust.'
   protected readonly autoPortForwardHint =
     'The device can request port forwards on the gateway (via PCP). Only enable for devices you trust.'
-
-  protected readonly kindItems: readonly T.Tunnel.WgClientKind[] = [
-    'client',
-    'server',
-  ]
 
   // Real object item so the Default (ip: null) option stringifies in tuiSelect.
   protected readonly wanItems: readonly WanItem[] = [
@@ -247,8 +216,6 @@ export class DevicesAdd {
   protected readonly stringifyWan = ({ ip }: WanItem) =>
     wanLabel(ip, this.context.data.defaultWan)
   protected readonly matchWan = (a: WanItem, b: WanItem) => a.ip === b.ip
-  protected readonly stringifyKind = (kind: T.Tunnel.WgClientKind) =>
-    kind === 'server' ? 'Server' : 'Client'
 
   protected onSubnet(subnet: MappedSubnet) {
     this.form.controls.ip.clearValidators()
@@ -275,10 +242,11 @@ export class DevicesAdd {
     }
 
     const loader = this.loading.open('').subscribe()
-    const { ip, name, subnet, wanIp, kind, dnsInjection, autoPortForward } =
+    const { ip, name, subnet, wanIp, dnsInjection, autoPortForward } =
       this.form.getRawValue()
     const data = { ip, name, subnet: subnet?.range || '' }
     const device = this.context.data.device
+    const kind = this.kind
 
     try {
       if (device) {

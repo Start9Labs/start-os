@@ -17,6 +17,7 @@ import {
   TuiSkeleton,
   TuiSwitch,
 } from '@taiga-ui/kit'
+import { TuiCardLarge } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
 import { PlaceholderComponent } from 'src/app/routes/home/components/placeholder'
@@ -29,178 +30,207 @@ import { mapForwards, MappedDevice, MappedForward } from './utils'
 
 @Component({
   template: `
-    <h3>Manual</h3>
-    <table class="g-table" [tuiSkeleton]="!portForwards()">
-      <thead>
-        <tr>
-          <th></th>
-          <th>Label</th>
-          <th>External IP</th>
-          <th>External Port</th>
-          <th>Hostname</th>
-          <th>Device</th>
-          <th>Internal Port</th>
-          <th>Protocol</th>
-          <th [style.padding-inline-end.rem]="0.625">
-            <button tuiButton size="xs" iconStart="@tui.plus" (click)="onAdd()">
-              Add
-            </button>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (forward of manual(); track $index) {
+    <div tuiCardLarge="compact" appearance="floating">
+      <header>
+        <h3>Manual</h3>
+        <button tuiButton size="xs" iconStart="@tui.plus" (click)="onAdd()">
+          Add
+        </button>
+      </header>
+      <table class="g-table" [tuiSkeleton]="!portForwards()">
+        <thead>
           <tr>
-            <td>
-              <tui-loader
-                size="xs"
-                [loading]="toggling() === key(forward)"
-                [overlay]="true"
-              >
-                <input
-                  tuiSwitch
-                  type="checkbox"
-                  size="s"
-                  [style.display]="'flex'"
-                  [showIcons]="false"
-                  [ngModel]="forward.enabled"
-                  (ngModelChange)="onToggle(forward)"
-                />
-              </tui-loader>
-            </td>
-            <td>{{ forward.label || '—' }}</td>
-            <td>{{ forward.externalip }}</td>
-            <td>{{ forward.externalport }}</td>
-            <td>{{ forward.sni || '—' }}</td>
-            <td>{{ forward.device.name }}</td>
-            <td>{{ forward.internalport }}</td>
-            <td>TCP/UDP</td>
-            <td>
-              <button
-                tuiIconButton
-                size="xs"
-                tuiDropdown
-                tuiDropdownAuto
-                appearance="flat-grayscale"
-                iconStart="@tui.ellipsis-vertical"
-              >
-                Actions
-                <tui-data-list
-                  *tuiDropdown="let close"
-                  size="s"
-                  (click)="close()"
+            <th></th>
+            <th>Label</th>
+            <th>External IP</th>
+            <th>External Port</th>
+            <th>Hostname</th>
+            <th>Device</th>
+            <th>Internal Port</th>
+            <th>Protocol</th>
+            <th [style.padding-inline-end.rem]="0.625"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (forward of manual(); track $index) {
+            <tr>
+              <td>
+                <tui-loader
+                  size="xs"
+                  [loading]="toggling() === key(forward)"
+                  [overlay]="true"
                 >
-                  <button
-                    tuiOption
-                    iconStart="@tui.pencil"
-                    (click)="onEditLabel(forward)"
+                  <input
+                    tuiSwitch
+                    type="checkbox"
+                    size="s"
+                    [style.display]="'flex'"
+                    [showIcons]="false"
+                    [ngModel]="forward.enabled"
+                    (ngModelChange)="onToggle(forward)"
+                  />
+                </tui-loader>
+              </td>
+              <td>{{ forward.label || '—' }}</td>
+              <td>{{ forward.externalip }}</td>
+              <td>{{ forward.externalport }}</td>
+              <td>{{ forward.sni || '—' }}</td>
+              <td>{{ forward.device.name }}</td>
+              <td>{{ forward.internalport }}</td>
+              <td>TCP/UDP</td>
+              <td>
+                <button
+                  tuiIconButton
+                  size="xs"
+                  tuiDropdown
+                  tuiDropdownAuto
+                  appearance="flat-grayscale"
+                  iconStart="@tui.ellipsis-vertical"
+                >
+                  Actions
+                  <tui-data-list
+                    *tuiDropdown="let close"
+                    size="s"
+                    (click)="close()"
                   >
-                    {{ forward.label ? 'Rename' : 'Add label' }}
-                  </button>
-                  <button
-                    tuiOption
-                    iconStart="@tui.trash"
-                    (click)="onDelete(forward)"
-                  >
-                    Delete
-                  </button>
-                </tui-data-list>
-              </button>
-            </td>
-          </tr>
-        } @empty {
-          <tr>
-            <td colspan="9">
-              <app-placeholder icon="@tui.globe">
-                No port forwards
-              </app-placeholder>
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
+                    <button
+                      tuiOption
+                      iconStart="@tui.pencil"
+                      (click)="onEditLabel(forward)"
+                    >
+                      {{ forward.label ? 'Rename' : 'Add label' }}
+                    </button>
+                    <button
+                      tuiOption
+                      iconStart="@tui.trash"
+                      (click)="onDelete(forward)"
+                    >
+                      Delete
+                    </button>
+                  </tui-data-list>
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="9">
+                <app-placeholder icon="@tui.globe">
+                  No port forwards
+                </app-placeholder>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
 
-    <h3>Automatic</h3>
-    <table class="g-table" [tuiSkeleton]="!portForwards()">
-      <thead>
-        <tr>
-          <th></th>
-          <th>External IP</th>
-          <th>External Port</th>
-          <th>Hostname</th>
-          <th>Device</th>
-          <th>Internal Port</th>
-          <th>Protocol</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (forward of automatic(); track $index) {
+    <div tuiCardLarge="compact" appearance="floating">
+      <header>
+        <h3>Automatic</h3>
+      </header>
+      <table class="g-table" [tuiSkeleton]="!portForwards()">
+        <thead>
           <tr>
-            <td>
-              <tui-loader
-                size="xs"
-                [loading]="toggling() === key(forward)"
-                [overlay]="true"
-              >
-                <input
-                  tuiSwitch
-                  type="checkbox"
-                  size="s"
-                  [style.display]="'flex'"
-                  [showIcons]="false"
-                  [ngModel]="forward.enabled"
-                  (ngModelChange)="onToggle(forward)"
-                />
-              </tui-loader>
-            </td>
-            <td>{{ forward.externalip }}</td>
-            <td>{{ forward.externalport }}</td>
-            <td>{{ forward.sni || '—' }}</td>
-            <td>{{ forward.device.name }}</td>
-            <td>{{ forward.internalport }}</td>
-            <td>TCP/UDP</td>
-            <td>
-              <button
-                tuiIconButton
-                size="xs"
-                tuiDropdown
-                tuiDropdownAuto
-                appearance="flat-grayscale"
-                iconStart="@tui.ellipsis-vertical"
-              >
-                Actions
-                <tui-data-list
-                  *tuiDropdown="let close"
-                  size="s"
-                  (click)="close()"
+            <th></th>
+            <th>External IP</th>
+            <th>External Port</th>
+            <th>Hostname</th>
+            <th>Device</th>
+            <th>Internal Port</th>
+            <th>Protocol</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (forward of automatic(); track $index) {
+            <tr>
+              <td>
+                <tui-loader
+                  size="xs"
+                  [loading]="toggling() === key(forward)"
+                  [overlay]="true"
                 >
-                  <button
-                    tuiOption
-                    iconStart="@tui.trash"
-                    (click)="onDelete(forward)"
+                  <input
+                    tuiSwitch
+                    type="checkbox"
+                    size="s"
+                    [style.display]="'flex'"
+                    [showIcons]="false"
+                    [ngModel]="forward.enabled"
+                    (ngModelChange)="onToggle(forward)"
+                  />
+                </tui-loader>
+              </td>
+              <td>{{ forward.externalip }}</td>
+              <td>{{ forward.externalport }}</td>
+              <td>{{ forward.sni || '—' }}</td>
+              <td>{{ forward.device.name }}</td>
+              <td>{{ forward.internalport }}</td>
+              <td>TCP/UDP</td>
+              <td>
+                <button
+                  tuiIconButton
+                  size="xs"
+                  tuiDropdown
+                  tuiDropdownAuto
+                  appearance="flat-grayscale"
+                  iconStart="@tui.ellipsis-vertical"
+                >
+                  Actions
+                  <tui-data-list
+                    *tuiDropdown="let close"
+                    size="s"
+                    (click)="close()"
                   >
-                    Delete
-                  </button>
-                </tui-data-list>
-              </button>
-            </td>
-          </tr>
-        } @empty {
-          <tr>
-            <td colspan="8">
-              <app-placeholder icon="@tui.globe">
-                No port forwards
-              </app-placeholder>
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
+                    <button
+                      tuiOption
+                      iconStart="@tui.trash"
+                      (click)="onDelete(forward)"
+                    >
+                      Delete
+                    </button>
+                  </tui-data-list>
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="8">
+                <app-placeholder icon="@tui.globe">
+                  No port forwards
+                </app-placeholder>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  `,
+  styles: `
+    :host {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    header h3 {
+      margin: 0;
+    }
+
+    header button {
+      margin-inline-start: auto;
+    }
   `,
   imports: [
     FormsModule,
     TuiButton,
+    TuiCardLarge,
     TuiDropdown,
     TuiDataList,
     TuiLoader,

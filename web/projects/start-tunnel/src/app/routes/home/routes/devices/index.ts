@@ -11,6 +11,7 @@ import {
   TuiSkeleton,
   TuiSwitch,
 } from '@taiga-ui/kit'
+import { TuiCardLarge } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
 import { PlaceholderComponent } from 'src/app/routes/home/components/placeholder'
@@ -27,204 +28,241 @@ import { MappedDevice } from './utils'
 
 @Component({
   template: `
-    <h3>Servers</h3>
-    <table class="g-table" [tuiSkeleton]="!servers()">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Subnet</th>
-          <th>LAN IP</th>
-          <th>DNS Injection</th>
-          <th>Auto Port Forward</th>
-          <th>WAN</th>
-          <th [style.padding-inline-end.rem]="0.625">
-            <button tuiButton size="xs" iconStart="@tui.plus" (click)="onAdd()">
-              Add
-            </button>
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (device of servers(); track $index) {
+    <div tuiCardLarge="compact" appearance="floating">
+      <header>
+        <h3>Servers</h3>
+        <button
+          tuiButton
+          size="xs"
+          iconStart="@tui.plus"
+          (click)="onAdd('server')"
+        >
+          Add
+        </button>
+      </header>
+      <table class="g-table" [tuiSkeleton]="!servers()">
+        <thead>
           <tr>
-            <td>{{ device.name }}</td>
-            <td>{{ device.subnet.name }}</td>
-            <td>{{ device.ip }}</td>
-            <td>
-              <tui-loader
-                size="xs"
-                [loading]="togglingDns() === device.ip"
-                [overlay]="true"
-              >
-                <input
-                  tuiSwitch
-                  type="checkbox"
-                  size="s"
-                  [style.display]="'flex'"
-                  [showIcons]="false"
-                  [ngModel]="device.allowDnsInjection"
-                  (ngModelChange)="onDnsInjection(device)"
-                />
-              </tui-loader>
-            </td>
-            <td>
-              <tui-loader
-                size="xs"
-                [loading]="togglingPf() === device.ip"
-                [overlay]="true"
-              >
-                <input
-                  tuiSwitch
-                  type="checkbox"
-                  size="s"
-                  [style.display]="'flex'"
-                  [showIcons]="false"
-                  [ngModel]="device.allowAutoPortForward"
-                  (ngModelChange)="onAutoPortForward(device)"
-                />
-              </tui-loader>
-            </td>
-            <td>{{ wanLabel(device.wanIp, defaultWan()) }}</td>
-            <td>
-              <button
-                tuiIconButton
-                size="xs"
-                tuiDropdown
-                tuiDropdownAuto
-                appearance="flat-grayscale"
-                iconStart="@tui.ellipsis-vertical"
-              >
-                Actions
-                <tui-data-list
-                  *tuiDropdown="let close"
-                  size="s"
-                  (click)="close()"
+            <th>Name</th>
+            <th>Subnet</th>
+            <th>LAN IP</th>
+            <th>DNS Injection</th>
+            <th>Auto Port Forward</th>
+            <th>WAN</th>
+            <th [style.padding-inline-end.rem]="0.625"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (device of servers(); track $index) {
+            <tr>
+              <td>{{ device.name }}</td>
+              <td>{{ device.subnet.name }}</td>
+              <td>{{ device.ip }}</td>
+              <td>
+                <tui-loader
+                  size="xs"
+                  [loading]="togglingDns() === device.ip"
+                  [overlay]="true"
                 >
-                  <button
-                    tuiOption
-                    iconStart="@tui.pencil"
-                    (click)="onEdit(device)"
+                  <input
+                    tuiSwitch
+                    type="checkbox"
+                    size="s"
+                    [style.display]="'flex'"
+                    [showIcons]="false"
+                    [ngModel]="device.allowDnsInjection"
+                    (ngModelChange)="onDnsInjection(device)"
+                  />
+                </tui-loader>
+              </td>
+              <td>
+                <tui-loader
+                  size="xs"
+                  [loading]="togglingPf() === device.ip"
+                  [overlay]="true"
+                >
+                  <input
+                    tuiSwitch
+                    type="checkbox"
+                    size="s"
+                    [style.display]="'flex'"
+                    [showIcons]="false"
+                    [ngModel]="device.allowAutoPortForward"
+                    (ngModelChange)="onAutoPortForward(device)"
+                  />
+                </tui-loader>
+              </td>
+              <td>{{ wanLabel(device.wanIp, defaultWan()) }}</td>
+              <td>
+                <button
+                  tuiIconButton
+                  size="xs"
+                  tuiDropdown
+                  tuiDropdownAuto
+                  appearance="flat-grayscale"
+                  iconStart="@tui.ellipsis-vertical"
+                >
+                  Actions
+                  <tui-data-list
+                    *tuiDropdown="let close"
+                    size="s"
+                    (click)="close()"
                   >
-                    Edit
-                  </button>
-                  <button
-                    tuiOption
-                    iconStart="@tui.settings"
-                    (click)="onConfig(device)"
-                  >
-                    View Config
-                  </button>
-                  <button
-                    tuiOption
-                    iconStart="@tui.arrow-down"
-                    (click)="onSetKind(device, 'client')"
-                  >
-                    Demote to Client
-                  </button>
-                  <button
-                    tuiOption
-                    iconStart="@tui.trash"
-                    (click)="onDelete(device)"
-                  >
-                    Delete
-                  </button>
-                </tui-data-list>
-              </button>
-            </td>
-          </tr>
-        } @empty {
-          <tr>
-            <td colspan="7">
-              <app-placeholder icon="@tui.laptop">No servers</app-placeholder>
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
+                    <button
+                      tuiOption
+                      iconStart="@tui.pencil"
+                      (click)="onEdit(device)"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      tuiOption
+                      iconStart="@tui.settings"
+                      (click)="onConfig(device)"
+                    >
+                      View Config
+                    </button>
+                    <button
+                      tuiOption
+                      iconStart="@tui.arrow-down"
+                      (click)="onSetKind(device, 'client')"
+                    >
+                      Demote to Client
+                    </button>
+                    <button
+                      tuiOption
+                      iconStart="@tui.trash"
+                      (click)="onDelete(device)"
+                    >
+                      Delete
+                    </button>
+                  </tui-data-list>
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7">
+                <app-placeholder icon="@tui.laptop">No servers</app-placeholder>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
 
-    <h3>Clients</h3>
-    <table class="g-table" [tuiSkeleton]="!clients()">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Subnet</th>
-          <th>LAN IP</th>
-          <th>WAN</th>
-          <th [style.padding-inline-end.rem]="0.625"></th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (device of clients(); track $index) {
+    <div tuiCardLarge="compact" appearance="floating">
+      <header>
+        <h3>Clients</h3>
+        <button
+          tuiButton
+          size="xs"
+          iconStart="@tui.plus"
+          (click)="onAdd('client')"
+        >
+          Add
+        </button>
+      </header>
+      <table class="g-table" [tuiSkeleton]="!clients()">
+        <thead>
           <tr>
-            <td>{{ device.name }}</td>
-            <td>{{ device.subnet.name }}</td>
-            <td>{{ device.ip }}</td>
-            <td>{{ wanLabel(device.wanIp, defaultWan()) }}</td>
-            <td>
-              <button
-                tuiIconButton
-                size="xs"
-                tuiDropdown
-                tuiDropdownAuto
-                appearance="flat-grayscale"
-                iconStart="@tui.ellipsis-vertical"
-              >
-                Actions
-                <tui-data-list
-                  *tuiDropdown="let close"
-                  size="s"
-                  (click)="close()"
+            <th>Name</th>
+            <th>Subnet</th>
+            <th>LAN IP</th>
+            <th>WAN</th>
+            <th [style.padding-inline-end.rem]="0.625"></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (device of clients(); track $index) {
+            <tr>
+              <td>{{ device.name }}</td>
+              <td>{{ device.subnet.name }}</td>
+              <td>{{ device.ip }}</td>
+              <td>{{ wanLabel(device.wanIp, defaultWan()) }}</td>
+              <td>
+                <button
+                  tuiIconButton
+                  size="xs"
+                  tuiDropdown
+                  tuiDropdownAuto
+                  appearance="flat-grayscale"
+                  iconStart="@tui.ellipsis-vertical"
                 >
-                  <button
-                    tuiOption
-                    iconStart="@tui.pencil"
-                    (click)="onEdit(device)"
+                  Actions
+                  <tui-data-list
+                    *tuiDropdown="let close"
+                    size="s"
+                    (click)="close()"
                   >
-                    Edit
-                  </button>
-                  <button
-                    tuiOption
-                    iconStart="@tui.settings"
-                    (click)="onConfig(device)"
-                  >
-                    View Config
-                  </button>
-                  <button
-                    tuiOption
-                    iconStart="@tui.arrow-up"
-                    (click)="onSetKind(device, 'server')"
-                  >
-                    Promote to Server
-                  </button>
-                  <button
-                    tuiOption
-                    iconStart="@tui.trash"
-                    (click)="onDelete(device)"
-                  >
-                    Delete
-                  </button>
-                </tui-data-list>
-              </button>
-            </td>
-          </tr>
-        } @empty {
-          <tr>
-            <td colspan="5">
-              <app-placeholder icon="@tui.laptop">No clients</app-placeholder>
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
+                    <button
+                      tuiOption
+                      iconStart="@tui.pencil"
+                      (click)="onEdit(device)"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      tuiOption
+                      iconStart="@tui.settings"
+                      (click)="onConfig(device)"
+                    >
+                      View Config
+                    </button>
+                    <button
+                      tuiOption
+                      iconStart="@tui.arrow-up"
+                      (click)="onSetKind(device, 'server')"
+                    >
+                      Promote to Server
+                    </button>
+                    <button
+                      tuiOption
+                      iconStart="@tui.trash"
+                      (click)="onDelete(device)"
+                    >
+                      Delete
+                    </button>
+                  </tui-data-list>
+                </button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5">
+                <app-placeholder icon="@tui.laptop">No clients</app-placeholder>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
   `,
   styles: `
     :host {
-      max-inline-size: 50rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    header h3 {
+      margin: 0;
+    }
+
+    header button {
+      margin-inline-start: auto;
     }
   `,
   imports: [
     FormsModule,
     TuiButton,
+    TuiCardLarge,
     TuiDropdown,
     TuiDataList,
     TuiLoader,
@@ -298,11 +336,12 @@ export default class Devices {
     this.devices()?.filter(d => d.kind === 'client'),
   )
 
-  protected onAdd() {
+  protected onAdd(kind: T.Tunnel.WgClientKind) {
     this.dialogs
       .open(DEVICES_ADD, {
-        label: 'Add device',
+        label: kind === 'server' ? 'Add server' : 'Add client',
         data: {
+          kind,
           subnets: this.subnets,
           wanOptions: this.wans(),
           defaultWan: this.defaultWan(),
