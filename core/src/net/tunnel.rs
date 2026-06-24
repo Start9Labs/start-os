@@ -140,6 +140,30 @@ pub async fn add_tunnel(
         .await?;
     tmpdir.delete().await?;
 
+    // NM imported the config's `DNS =` into ipv4/ipv6.dns. Mark it preferred but
+    // not exclusive — a positive priority lower than the LAN's default (100) so
+    // the tunnel's resolver wins yet others remain a fallback — then reactivate
+    // to apply. Best-effort: a failure must not abort the import.
+    const WG_DNS_PRIORITY: &str = "10";
+    for proto in ["ipv4", "ipv6"] {
+        Command::new("nmcli")
+            .arg("connection")
+            .arg("modify")
+            .arg(iface.as_str())
+            .arg(format!("{proto}.dns-priority"))
+            .arg(WG_DNS_PRIORITY)
+            .invoke(ErrorKind::Network)
+            .await
+            .log_err();
+    }
+    Command::new("nmcli")
+        .arg("connection")
+        .arg("up")
+        .arg(iface.as_str())
+        .invoke(ErrorKind::Network)
+        .await
+        .log_err();
+
     sub.recv().await;
 
     if set_as_default_outbound {
