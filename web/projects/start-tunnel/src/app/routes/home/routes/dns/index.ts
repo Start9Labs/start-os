@@ -111,7 +111,7 @@ import { DNS_ADD } from './add'
               <td>{{ record.type }}</td>
               <td>{{ record.value }}</td>
               <td>{{ record.ttl }}</td>
-              <td>{{ record.source }}</td>
+              <td>{{ sourceName(record.source) }}</td>
               <td>
                 <button
                   tuiIconButton
@@ -210,6 +210,12 @@ export default class Dns {
       ),
     { initialValue: [] },
   )
+
+  // Records carry the injecting device's IP; show its friendly name when known.
+  protected sourceName(source: string | null): string {
+    if (!source) return '—'
+    return this.devices().find(d => d.ip === source)?.name ?? source
+  }
 
   protected onAdd(): void {
     this.dialogs

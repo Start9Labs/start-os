@@ -131,7 +131,6 @@ import { mapForwards, MappedDevice, MappedForward } from './utils'
       <table class="g-table" [tuiSkeleton]="!portForwards()">
         <thead>
           <tr>
-            <th></th>
             <th>External IP</th>
             <th>External Port</th>
             <th>Hostname</th>
@@ -144,23 +143,6 @@ import { mapForwards, MappedDevice, MappedForward } from './utils'
         <tbody>
           @for (forward of automatic(); track $index) {
             <tr>
-              <td>
-                <tui-loader
-                  size="xs"
-                  [loading]="toggling() === key(forward)"
-                  [overlay]="true"
-                >
-                  <input
-                    tuiSwitch
-                    type="checkbox"
-                    size="s"
-                    [style.display]="'flex'"
-                    [showIcons]="false"
-                    [ngModel]="forward.enabled"
-                    (ngModelChange)="onToggle(forward)"
-                  />
-                </tui-loader>
-              </td>
               <td>{{ forward.externalip }}</td>
               <td>{{ forward.externalport }}</td>
               <td>{{ forward.sni || '—' }}</td>
@@ -195,7 +177,7 @@ import { mapForwards, MappedDevice, MappedForward } from './utils'
             </tr>
           } @empty {
             <tr>
-              <td colspan="8">
+              <td colspan="7">
                 <app-placeholder icon="@tui.globe">
                   No port forwards
                 </app-placeholder>
