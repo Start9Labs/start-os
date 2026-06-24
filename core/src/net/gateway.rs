@@ -157,6 +157,45 @@ async fn forget_iface(
     ctx.net_controller.net_iface.forget(&gateway).await
 }
 
+/// The WireGuard preshared key NetworkManager holds for `interface`'s peer, if
+/// any. `GetSecrets` is root-only, so a sandboxed service can't read it — which
+/// is what makes a TSIG key derived from it unforgeable. `None` for a
+/// non-WireGuard gateway or a peer configured without a PSK.
+pub(crate) async fn wireguard_psk(interface: &str) -> Result<Option<[u8; 32]>, Error> {
+    let connection = Connection::system().await?;
+    let netman = NetworkManagerProxy::new(&connection).await?;
+    let device = netman.get_device_by_ip_iface(interface).await?;
+    if &*device == "/" {
+        return Ok(None);
+    }
+    let device = DeviceProxy::new(&connection, device).await?;
+    let ac = device.active_connection().await?;
+    if &*ac == "/" {
+        return Ok(None);
+    }
+    let ac = active_connection::ActiveConnectionProxy::new(&connection, ac).await?;
+    let settings = ConnectionSettingsProxy::new(&connection, ac.connection().await?).await?;
+    let secrets = settings.get_secrets("wireguard").await?;
+    let Some(peers) = secrets.get("wireguard").and_then(|wg| wg.get("peers")) else {
+        return Ok(None);
+    };
+    let peers = peers
+        .downcast_ref::<zbus::zvariant::Array>()
+        .with_kind(ErrorKind::Network)?;
+    for peer in peers.inner() {
+        let Ok(dict) = peer.downcast_ref::<Dict>() else {
+            continue;
+        };
+        let psk = dict
+            .get::<_, String>(&zbus::zvariant::Str::from_static("preshared-key"))
+            .with_kind(ErrorKind::Network)?;
+        if let Some(psk) = psk.filter(|s| !s.is_empty()) {
+            return Ok(Some(psk.parse::<crate::util::serde::Base64<[u8; 32]>>()?.0));
+        }
+    }
+    Ok(None)
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
 #[group(skip)]
 #[ts(export)]
@@ -553,6 +592,11 @@ trait ConnectionSettings {
     fn delete(&self) -> Result<(), Error>;
 
     fn get_settings(&self) -> Result<HashMap<String, HashMap<String, OwnedValue>>, Error>;
+
+    fn get_secrets(
+        &self,
+        setting_name: &str,
+    ) -> Result<HashMap<String, HashMap<String, OwnedValue>>, Error>;
 
     fn update2(
         &self,

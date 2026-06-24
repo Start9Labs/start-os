@@ -3,13 +3,23 @@
 //!
 //! [`DnsInjector`] is an in-memory store of injected DNS records plus per-gateway
 //! policy plug-ins: an authorizer (does this source IP's "allow DNS injection"
-//! toggle permit it?) and an `on_change` hook (persist the records — to PatchDb
-//! on the tunnel, an addn-hosts file on StartWRT). [`InjectingHandler`] wraps a
-//! forwarding `RequestHandler`: an injected-name `Query` is answered locally, an
-//! authorized `Update` mutates the store, everything else is forwarded unchanged.
+//! toggle permit it?), a TSIG key lookup (the per-device key derived from that
+//! device's WireGuard PSK), and an `on_change` hook (persist the records — to
+//! PatchDb on the tunnel, an addn-hosts file on StartWRT). [`InjectingHandler`]
+//! wraps a forwarding `RequestHandler`: an injected-name `Query` is answered
+//! locally, a TSIG-authenticated `Update` mutates the store, everything else is
+//! forwarded unchanged.
 //!
-//! Authorization is by **source IP only** (no TSIG). Manual CRUD via
-//! [`DnsInjector::upsert`] / [`DnsInjector::delete`] bypasses the authorizer.
+//! UPDATEs are authenticated by **TSIG** (RFC 8945): the source IP alone is
+//! forgeable by any co-located service that can emit on the tunnel interface, so
+//! every UPDATE must carry a valid HMAC keyed off the device's root-only WG PSK.
+//! TSIG proves the signer holds that PSK (no forgery) but not freshness: there's
+//! no anti-replay state, so a captured signature replays within `TSIG_FUDGE`.
+//! That's bounded to records the sending device may already mutate and is
+//! idempotent (the client re-asserts every few minutes), so it's accepted as a
+//! limitation rather than tracked. Manual CRUD via [`DnsInjector::upsert`] /
+//! [`DnsInjector::delete`] is an admin path and bypasses both the authorizer and
+//! TSIG.
 
 use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
@@ -104,11 +114,15 @@ fn parse_rdata(rtype: &str, value: &str) -> Result<(RecordType, RData), Error> {
 }
 
 type Authorizer = Box<dyn Fn(IpAddr) -> bool + Send + Sync>;
+/// The per-device derived TSIG key for a source IP, or `None` if it isn't an
+/// allowed DNS-injection device.
+type KeyLookup = Box<dyn Fn(IpAddr) -> Option<[u8; 32]> + Send + Sync>;
 type OnChange = Box<dyn Fn(Vec<InjectedRecord>) + Send + Sync>;
 
 pub struct DnsInjector {
     records: SyncMutex<BTreeMap<LowerName, Vec<InjectedRecord>>>,
     authorize: Authorizer,
+    tsig_key: KeyLookup,
     on_change: OnChange,
 }
 
@@ -116,6 +130,7 @@ impl DnsInjector {
     pub fn new(
         initial: Vec<InjectedRecord>,
         authorize: impl Fn(IpAddr) -> bool + Send + Sync + 'static,
+        tsig_key: impl Fn(IpAddr) -> Option<[u8; 32]> + Send + Sync + 'static,
         on_change: impl Fn(Vec<InjectedRecord>) + Send + Sync + 'static,
     ) -> Arc<Self> {
         let mut records: BTreeMap<LowerName, Vec<InjectedRecord>> = BTreeMap::new();
@@ -125,8 +140,26 @@ impl DnsInjector {
         Arc::new(Self {
             records: SyncMutex::new(records),
             authorize: Box::new(authorize),
+            tsig_key: Box::new(tsig_key),
             on_change: Box::new(on_change),
         })
+    }
+
+    /// Verify the RFC 8945 TSIG on a raw UPDATE request from `src`: rejects an
+    /// absent/invalid/out-of-window signature, or a src with no injection key.
+    /// The key is derived from the device's WireGuard PSK, which a sandboxed
+    /// service can't read — so it can't forge a signature for the server's IP.
+    fn verify_tsig(&self, src: IpAddr, request_bytes: &[u8]) -> bool {
+        let Some(key) = (self.tsig_key)(src) else {
+            return false;
+        };
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_secs());
+        match super::tsig_signer(key).verify_message_byte(request_bytes, None, true) {
+            Ok((_, _, valid)) => valid.contains(&now),
+            Err(_) => false,
+        }
     }
 
     /// Every injected record, in stable order.
@@ -282,11 +315,19 @@ impl RequestHandler for InjectingHandler {
     ) -> ResponseInfo {
         match request.metadata.op_code {
             OpCode::Update => {
-                // Re-decode the raw message: MessageRequest hides the authority
-                // section where the update RRs live.
-                let code = match hickory_server::proto::op::Message::from_vec(request.as_slice()) {
-                    Ok(msg) => self.injector.apply_update(request.src().ip(), &msg.authorities),
-                    Err(_) => ResponseCode::FormErr,
+                let src = request.src().ip();
+                // Require a valid TSIG (keyed off the device's WireGuard PSK)
+                // before touching the store: source IP alone is forgeable by any
+                // co-located service that can emit on the tunnel interface.
+                let code = if !self.injector.verify_tsig(src, request.as_slice()) {
+                    ResponseCode::Refused
+                } else {
+                    // Re-decode the raw message: MessageRequest hides the
+                    // authority section where the update RRs live.
+                    match hickory_server::proto::op::Message::from_vec(request.as_slice()) {
+                        Ok(msg) => self.injector.apply_update(src, &msg.authorities),
+                        Err(_) => ResponseCode::FormErr,
+                    }
                 };
                 let header = header_with_code(request, code);
                 response_handle
@@ -332,7 +373,7 @@ mod tests {
     use super::*;
 
     fn injector() -> Arc<DnsInjector> {
-        DnsInjector::new(Vec::new(), |_| true, |_| {})
+        DnsInjector::new(Vec::new(), |_| true, |_| None, |_| {})
     }
 
     fn fqdn(s: &str) -> LowerName {
@@ -363,5 +404,57 @@ mod tests {
         assert!(inj.lookup(&q, RecordType::AAAA).is_empty(), "no AAAA record");
         assert!(inj.contains_name(&q), "held name -> handler answers NODATA");
         assert!(!inj.contains_name(&fqdn("nope.goop")), "unknown name -> handler forwards");
+    }
+
+    #[test]
+    fn tsig_key_derivation_is_deterministic() {
+        let a = super::super::derive_tsig_key(&[1u8; 32]);
+        assert_eq!(a, super::super::derive_tsig_key(&[1u8; 32]), "same psk -> same key");
+        assert_ne!(a, super::super::derive_tsig_key(&[2u8; 32]), "different psk -> different key");
+    }
+
+    // A signed UPDATE built the way the server signs it must verify; an unsigned
+    // one, a wrong key, or a src with no key must be rejected.
+    #[tokio::test]
+    async fn tsig_gates_updates() {
+        use hickory_server::proto::op::update_message::append;
+        use hickory_server::proto::rr::RecordSet;
+        use hickory_server::proto::rr::rdata::A;
+
+        let build = |sign_key: Option<[u8; 32]>| {
+            let mut name = Name::from_utf8("host.example.com").unwrap();
+            name.set_fqdn(true);
+            let mut rrset = RecordSet::new(name.clone(), RecordType::A, 0);
+            rrset.insert(
+                Record::from_rdata(name.clone(), 300, RData::A(A::from(Ipv4Addr::new(10, 59, 0, 2)))),
+                0,
+            );
+            let mut msg = append(rrset, name.base_name(), false, false);
+            if let Some(key) = sign_key {
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
+                msg.finalize(&super::super::tsig_signer(key), now).unwrap();
+            }
+            msg.to_vec().unwrap()
+        };
+
+        let src = IpAddr::V4(Ipv4Addr::new(10, 59, 0, 2));
+        let key_a = super::super::derive_tsig_key(&[7u8; 32]);
+        let key_b = super::super::derive_tsig_key(&[9u8; 32]);
+        let signed = build(Some(key_a));
+        let unsigned = build(None);
+
+        let inj = DnsInjector::new(Vec::new(), |_| true, move |ip| (ip == src).then_some(key_a), |_| {});
+        assert!(inj.verify_tsig(src, &signed), "valid TSIG from the right key accepted");
+        assert!(!inj.verify_tsig(src, &unsigned), "unsigned UPDATE rejected");
+        assert!(
+            !inj.verify_tsig(IpAddr::V4(Ipv4Addr::new(10, 59, 0, 9)), &signed),
+            "no key for src rejected"
+        );
+
+        let inj_b = DnsInjector::new(Vec::new(), |_| true, move |_| Some(key_b), |_| {});
+        assert!(!inj_b.verify_tsig(src, &signed), "wrong key rejected");
     }
 }

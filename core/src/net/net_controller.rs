@@ -102,7 +102,18 @@ impl NetController {
             ),
             tls_client_config,
             dns: DnsController::init(db, &net_iface.watcher).await?,
-            dns_update: DnsUpdateController::new(net_iface.watcher.subscribe()),
+            dns_update: DnsUpdateController::new(
+                net_iface.watcher.subscribe(),
+                Arc::new(|gw: GatewayId| -> std::pin::Pin<
+                    Box<dyn std::future::Future<Output = Result<Option<[u8; 32]>, ()>> + Send>,
+                > {
+                    Box::pin(async move {
+                        crate::net::gateway::wireguard_psk(gw.as_str())
+                            .await
+                            .map_err(|_| ())
+                    })
+                }),
+            ),
             forward: InterfacePortForwardController::new(
                 net_iface.watcher.subscribe(),
                 port_map.clone(),

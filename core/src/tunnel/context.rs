@@ -86,6 +86,23 @@ fn allowed_injectors(server: &WgServer) -> BTreeSet<IpAddr> {
     out
 }
 
+/// Allowed-injector client IPs -> their per-device TSIG key (derived from the
+/// WireGuard PSK), so the injector can cryptographically verify each UPDATE.
+fn injector_keys(server: &WgServer) -> BTreeMap<IpAddr, [u8; 32]> {
+    let mut out = BTreeMap::new();
+    for (_, subnet) in &server.subnets.0 {
+        for (ip, client) in &subnet.clients.0 {
+            if client.allow_dns_injection {
+                out.insert(
+                    IpAddr::V4(*ip),
+                    crate::net::dns_update::derive_tsig_key(&client.psk.0),
+                );
+            }
+        }
+    }
+    out
+}
+
 /// Seed the injector from persisted records, dropping any that no longer parse.
 fn seed_records(records: &DnsRecords) -> Vec<InjectedRecord> {
     records
@@ -128,6 +145,8 @@ pub struct TunnelContextSeed {
     /// Injector authorizer reads this live, so a toggle change takes effect
     /// without rebuilding the injector.
     pub dns_allowed: Arc<SyncMutex<BTreeSet<IpAddr>>>,
+    /// Per-injector TSIG keys, read live so the injector can verify UPDATEs.
+    pub dns_keys: Arc<SyncMutex<BTreeMap<IpAddr, [u8; 32]>>>,
     pub active_forwards: SyncMutex<BTreeMap<SocketAddrV4, Arc<()>>>,
     /// Serializes `resync_egress`; its read-DB → install → prune isn't atomic,
     /// so a concurrent reconcile could prune a rule another call just installed.
@@ -200,13 +219,16 @@ impl TunnelContext {
         let peek = db.peek().await;
         let wg = peek.as_wg().de()?;
         let dns_allowed = Arc::new(SyncMutex::new(allowed_injectors(&wg)));
+        let dns_keys = Arc::new(SyncMutex::new(injector_keys(&wg)));
         let dns_injector = {
             let seed = seed_records(&peek.as_dns_records().de()?);
             let allowed = dns_allowed.clone();
+            let keys = dns_keys.clone();
             let persist_db = db.clone();
             DnsInjector::new(
                 seed,
                 move |src| allowed.peek(|s| s.contains(&src)),
+                move |src| keys.peek(|m| m.get(&src).copied()),
                 move |records| {
                     let db = persist_db.clone();
                     let entries: Vec<_> = records.iter().map(dns_entry).collect();
@@ -289,6 +311,7 @@ impl TunnelContext {
             sni,
             dns_injector,
             dns_allowed,
+            dns_keys,
             active_forwards: SyncMutex::new(active_forwards),
             egress_lock: tokio::sync::Mutex::new(()),
             shutdown,
@@ -328,6 +351,7 @@ impl TunnelContext {
     pub async fn sync_network(&self, server: &WgServer) -> Result<(), Error> {
         server.sync().await?;
         self.dns_allowed.mutate(|s| *s = allowed_injectors(server));
+        self.dns_keys.mutate(|m| *m = injector_keys(server));
         self.dns_proxy.sync(server, self.dns_injector.clone()).await?;
         self.resync_egress().await
     }
