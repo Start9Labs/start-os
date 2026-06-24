@@ -638,8 +638,10 @@ trait Ip6Config {
     #[zbus(property)]
     fn gateway(&self) -> Result<String, Error>;
 
+    // IP6Config has no `NameserverData`; its resolvers are `Nameservers` (aay),
+    // each a raw 16-byte address.
     #[zbus(property)]
-    fn nameserver_data(&self) -> Result<Vec<NameserverData>, Error>;
+    fn nameservers(&self) -> Result<Vec<Vec<u8>>, Error>;
 }
 
 #[derive(Clone, Debug, DeserializeDict, ZValue, ZType)]
@@ -1134,7 +1136,7 @@ async fn watch_ip(
                                 .with_stream(ip6_proxy.receive_address_data_changed().await.stub())
                                 .with_stream(ip6_proxy.receive_gateway_changed().await.stub())
                                 .with_stream(
-                                    ip6_proxy.receive_nameserver_data_changed().await.stub(),
+                                    ip6_proxy.receive_nameservers_changed().await.stub(),
                                 );
 
                             let dhcp4_proxy = if &*dhcp4_config != "/" {
@@ -1381,8 +1383,15 @@ async fn poll_ip_info(
             .nameserver_data()
             .await?
             .into_iter()
-            .chain(ip6_proxy.nameserver_data().await?)
             .filter_map(|ns| ns.address.parse::<IpAddr>().log_err()),
+    );
+    dns_servers.extend(
+        ip6_proxy
+            .nameservers()
+            .await?
+            .into_iter()
+            .filter_map(|raw| <[u8; 16]>::try_from(raw).ok())
+            .map(|octets| IpAddr::V6(Ipv6Addr::from(octets))),
     );
     let scope_id = if_nametoindex(iface.as_str()).with_kind(ErrorKind::Network)?;
     let subnets: OrdSet<IpNet> = addresses.into_iter().map(IpNet::try_from).try_collect()?;
