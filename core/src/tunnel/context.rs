@@ -407,6 +407,7 @@ impl TunnelContext {
                     label,
                     enabled,
                     count,
+                    auto,
                 } => {
                     let ip = crate::tunnel::forward::igd::external_ipv4(self, *target.ip())
                         .await
@@ -418,6 +419,7 @@ impl TunnelContext {
                             label: label.clone(),
                             enabled: *enabled,
                             count: *count,
+                            auto: *auto,
                         },
                     );
                 }

@@ -279,6 +279,7 @@ pub(super) async fn apply_peer_forward_range(
         label: Some(protocol_label.to_string()),
         enabled: true,
         count,
+        auto: true,
     };
     ctx.db
         .mutate(|db| db.as_port_forwards_mut().insert(&source, &entry).map(|_| ()))

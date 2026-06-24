@@ -157,7 +157,7 @@ impl GatewayBackend for TunnelContext {
                                     ),
                                     None => (Some("PCP".into()), true),
                                 };
-                                routes.insert(h.clone(), SniRoute { target, label, enabled });
+                                routes.insert(h.clone(), SniRoute { target, label, enabled, auto: true });
                             }
                             Ok(())
                         }

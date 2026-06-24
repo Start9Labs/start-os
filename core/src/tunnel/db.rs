@@ -116,6 +116,7 @@ fn sni_and_dnat_persistence_round_trip() {
         target: "10.59.0.2:443".parse().unwrap(),
         label: None,
         enabled: true,
+        auto: true,
     };
     let mut routes = BTreeMap::new();
     routes.insert("id.thebarsonists.run".to_string(), route);
@@ -140,6 +141,7 @@ fn sni_and_dnat_persistence_round_trip() {
         label: None,
         enabled: true,
         count: 1,
+        auto: false,
     };
     let dnat_json = serde_json::to_value(&dnat).unwrap();
     eprintln!("DNAT serialized: {dnat_json}");
@@ -244,6 +246,9 @@ pub enum PortForward {
         /// Contiguous ports forwarded (a PCP PORT_SET range); `1` for single-port.
         #[serde(default = "default_one")]
         count: u16,
+        /// Gateway-created (PCP/UPnP) vs user-added. Drives the UI Manual/Automatic split.
+        #[serde(default)]
+        auto: bool,
     },
     Sni {
         /// hostname (lowercase; may be `*.suffix`) -> route.
@@ -259,6 +264,9 @@ pub struct SniRoute {
     pub label: Option<String>,
     #[serde(default = "default_true")]
     pub enabled: bool,
+    /// Gateway-created (PCP) vs user-added. Drives the UI Manual/Automatic split.
+    #[serde(default)]
+    pub auto: bool,
 }
 
 fn default_true() -> bool {

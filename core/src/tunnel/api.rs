@@ -18,7 +18,7 @@ use crate::tunnel::context::TunnelContext;
 use crate::net::port_map::server::GatewayBackend;
 use crate::tunnel::db::{DnsRecordEntry, PortForward};
 use crate::tunnel::wg::{
-    DnsConfig, WIREGUARD_INTERFACE_NAME, WgConfig, WgSubnetClients, WgSubnetConfig,
+    DnsConfig, WIREGUARD_INTERFACE_NAME, WgClientKind, WgConfig, WgSubnetClients, WgSubnetConfig,
 };
 use crate::util::serde::{HandlerExtSerde, display_serializable};
 
@@ -237,6 +237,14 @@ pub fn device_api<C: Context>() -> ParentHandler<C> {
                 .with_about("about.set-device-wan")
                 .with_call_remote::<CliContext>(),
         )
+        .subcommand(
+            "set-kind",
+            from_fn_async(set_device_kind)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("about.promote-or-demote-device-kind")
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -322,6 +330,68 @@ pub async fn set_auto_port_forward(
         })
         .await
         .result?;
+    Ok(())
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[serde(rename_all = "camelCase")]
+pub struct SetDeviceKindParams {
+    #[ts(type = "string")]
+    subnet: Ipv4Net,
+    #[ts(type = "string")]
+    ip: Ipv4Addr,
+    #[arg(long, value_enum)]
+    kind: WgClientKind,
+}
+
+/// Promote a device to Server or demote to Client. The role is sticky, but the
+/// transition resets both capability flags to the kind's default (Server: both
+/// on; Client: both off), since a Client has no autoconfig.
+pub async fn set_device_kind(
+    ctx: TunnelContext,
+    SetDeviceKindParams { subnet, ip, kind }: SetDeviceKindParams,
+) -> Result<(), Error> {
+    let autoconfig = matches!(kind, WgClientKind::Server);
+    ctx.db
+        .mutate(|db| {
+            db.as_wg_mut()
+                .as_subnets_mut()
+                .as_idx_mut(&subnet)
+                .or_not_found(&subnet)?
+                .as_clients_mut()
+                .as_idx_mut(&ip)
+                .or_not_found(&ip)?
+                .as_kind_mut()
+                .ser(&kind)?;
+            db.as_wg_mut()
+                .as_subnets_mut()
+                .as_idx_mut(&subnet)
+                .or_not_found(&subnet)?
+                .as_clients_mut()
+                .as_idx_mut(&ip)
+                .or_not_found(&ip)?
+                .as_allow_dns_injection_mut()
+                .ser(&autoconfig)?;
+            db.as_wg_mut()
+                .as_subnets_mut()
+                .as_idx_mut(&subnet)
+                .or_not_found(&subnet)?
+                .as_clients_mut()
+                .as_idx_mut(&ip)
+                .or_not_found(&ip)?
+                .as_allow_auto_port_forward_mut()
+                .ser(&autoconfig)
+        })
+        .await
+        .result?;
+    ctx.dns_allowed.mutate(|s| {
+        if autoconfig {
+            s.insert(IpAddr::V4(ip));
+        } else {
+            s.remove(&IpAddr::V4(ip));
+        }
+    });
     Ok(())
 }
 
@@ -705,11 +775,20 @@ pub struct AddDeviceParams {
     name: InternedString,
     #[ts(type = "string | null")]
     ip: Option<Ipv4Addr>,
+    /// Client (no autoconfig) or Server (gateway-autoconfig on by default).
+    #[serde(default)]
+    #[arg(long, value_enum, default_value = "client")]
+    kind: WgClientKind,
 }
 
 pub async fn add_device(
     ctx: TunnelContext,
-    AddDeviceParams { subnet, name, ip }: AddDeviceParams,
+    AddDeviceParams {
+        subnet,
+        name,
+        ip,
+        kind,
+    }: AddDeviceParams,
 ) -> Result<(), Error> {
     let server = ctx
         .db
@@ -748,7 +827,7 @@ pub async fn add_device(
                     }
                     let client = clients
                         .entry(ip)
-                        .or_insert_with(|| WgConfig::generate(name.clone()));
+                        .or_insert_with(|| WgConfig::generate(name.clone(), kind));
                     client.name = name;
 
                     Ok(())
@@ -940,6 +1019,7 @@ pub async fn add_forward(
         label,
         enabled: true,
         count: 1,
+        auto: false,
     };
 
     ctx.db

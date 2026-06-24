@@ -184,6 +184,18 @@ impl Base64<WgKey> {
     }
 }
 
+/// A WireGuard client's role. A `Server` is a StartOS box that may configure the
+/// gateway (DNS injection / auto port-forward); a `Client` is a plain peer with
+/// no autoconfig. Stored and sticky — toggling the capability flags never changes
+/// it; the migration backfills it from those flags.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, TS, clap::ValueEnum)]
+#[serde(rename_all = "camelCase")]
+pub enum WgClientKind {
+    #[default]
+    Client,
+    Server,
+}
+
 #[derive(Clone, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
@@ -191,6 +203,10 @@ pub struct WgConfig {
     pub name: InternedString,
     pub key: Base64<WgKey>,
     pub psk: Base64<[u8; 32]>,
+    /// Client (no autoconfig) vs Server (a StartOS box). Sticky; defaulted by the
+    /// migration from the capability flags.
+    #[serde(default)]
+    pub kind: WgClientKind,
     /// Whether this device may inject DNS records via RFC 2136. Off by default
     /// — only enable for devices you trust (it lets the device add records to
     /// the tunnel's DNS for every peer to resolve).
@@ -209,13 +225,16 @@ pub struct WgConfig {
     pub wan_ip: Option<std::net::Ipv4Addr>,
 }
 impl WgConfig {
-    pub fn generate(name: InternedString) -> Self {
+    pub fn generate(name: InternedString, kind: WgClientKind) -> Self {
+        // A Server gets gateway-autoconfig on by default; a Client gets nothing.
+        let autoconfig = matches!(kind, WgClientKind::Server);
         Self {
             name,
             key: Base64(WgKey::generate()),
             psk: Base64(rand::random()),
-            allow_dns_injection: false,
-            allow_auto_port_forward: false,
+            kind,
+            allow_dns_injection: autoconfig,
+            allow_auto_port_forward: autoconfig,
             wan_ip: None,
         }
     }

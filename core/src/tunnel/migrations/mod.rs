@@ -5,6 +5,8 @@ use crate::tunnel::db::TunnelDatabase;
 
 mod m_00_port_forward_entry;
 mod m_01_port_forward_kind;
+mod m_02_wg_client_kind;
+mod m_03_port_forward_auto;
 
 #[cfg(test)]
 pub use m_01_port_forward_kind::PortForwardKind;
@@ -20,6 +22,8 @@ pub trait TunnelMigration {
 pub const MIGRATIONS: &[&dyn TunnelMigration] = &[
     &m_00_port_forward_entry::PortForwardEntry,
     &m_01_port_forward_kind::PortForwardKind,
+    &m_02_wg_client_kind::WgClientKind,
+    &m_03_port_forward_auto::PortForwardAuto,
 ];
 
 #[instrument(skip_all)]

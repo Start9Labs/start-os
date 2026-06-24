@@ -5659,6 +5659,13 @@ about.persist-new-notification:
   fr_FR: "Persister une nouvelle notification"
   pl_PL: "Utrwal nowe powiadomienie"
 
+about.promote-or-demote-device-kind:
+  en_US: "Promote a device to a server or demote it to a client"
+  de_DE: "Ein Gerät zu einem Server hochstufen oder zu einem Client herabstufen"
+  es_ES: "Promover un dispositivo a servidor o degradarlo a cliente"
+  fr_FR: "Promouvoir un appareil en serveur ou le rétrograder en client"
+  pl_PL: "Awansuj urządzenie do serwera lub zdegraduj je do klienta"
+
 about.promote-os-registry:
   en_US: "Promote an OS version from one registry to another"
   de_DE: "Eine OS-Version von einer Registry in eine andere heraufstufen"
