@@ -225,6 +225,7 @@ fn export_bindings_tunnel_db() {
     SetAutoPortForwardParams::export_all_to("bindings/tunnel").unwrap();
     SetSubnetWanParams::export_all_to("bindings/tunnel").unwrap();
     SetDeviceWanParams::export_all_to("bindings/tunnel").unwrap();
+    SetDeviceKindParams::export_all_to("bindings/tunnel").unwrap();
     AddDnsRecordParams::export_all_to("bindings/tunnel").unwrap();
     RemoveDnsRecordParams::export_all_to("bindings/tunnel").unwrap();
     DnsRecordEntry::export_all_to("bindings/tunnel").unwrap();

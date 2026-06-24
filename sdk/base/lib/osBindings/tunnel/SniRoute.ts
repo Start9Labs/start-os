@@ -7,4 +7,8 @@ export type SniRoute = {
   target: string
   label: string | null
   enabled: boolean
+  /**
+   * Gateway-created (PCP) vs user-added. Drives the UI Manual/Automatic split.
+   */
+  auto: boolean
 }

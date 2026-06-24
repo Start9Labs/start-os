@@ -15,6 +15,10 @@ export type PortForward =
        * Contiguous ports forwarded (a PCP PORT_SET range); `1` for single-port.
        */
       count: number
+      /**
+       * Gateway-created (PCP/UPnP) vs user-added. Drives the UI Manual/Automatic split.
+       */
+      auto: boolean
     }
   | {
       kind: 'sni'
