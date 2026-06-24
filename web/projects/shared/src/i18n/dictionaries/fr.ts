@@ -786,4 +786,6 @@ export default {
   877: 'Impossible de joindre la bibliothèque',
   878: 'Vous devrez répéter cette opération sur chaque appareil utilisé pour vous connecter à votre serveur.',
   879: 'Mettre à jour la configuration',
+  880: 'Ou activez DNS Injection pour cet appareil sur la passerelle.',
+  881: 'Ou activez la redirection de port automatique (UPnP / NAT-PMP / PCP) sur la passerelle.',
 } satisfies i18n

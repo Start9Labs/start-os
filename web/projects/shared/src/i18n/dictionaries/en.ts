@@ -787,4 +787,6 @@ export const ENGLISH: Record<string, number> = {
   'Get a Start9 server': 876,
   'Could not reach registry': 877,
   'You will need to repeat this on every device you use to connect to your server.': 878,
+  'Or enable DNS Injection for this device on the gateway.': 880,
+  'Or enable automatic port forwarding (UPnP / NAT-PMP / PCP) on the gateway.': 881,
 }

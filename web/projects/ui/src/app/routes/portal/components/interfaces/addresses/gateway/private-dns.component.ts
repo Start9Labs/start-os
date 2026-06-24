@@ -32,6 +32,7 @@ export type PrivateDnsValidationData = {
         {{
           'In StartTunnel, set the DNS for this subnet to this server.' | i18n
         }}
+        {{ 'Or enable DNS Injection for this device on the gateway.' | i18n }}
       </p>
     } @else {
       <p>
