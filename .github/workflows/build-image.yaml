@@ -63,7 +63,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: openwrt-image
-          path: out/*.img
+          # Both the sdcard .img (fresh install) and the sysupgrade .img.gz
+          # (OTA) — manage-release.sh publishes/indexes both.
+          path: |
+            out/*.img
+            out/*.img.gz
           retention-days: 7
 
   release:
@@ -75,6 +79,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      S3_BUCKET: s3://startwrt-images
     steps:
       - uses: actions/checkout@v4
         with:
@@ -98,11 +104,41 @@ jobs:
           name: openwrt-image
           path: artifacts/
 
+      # Upload the built images to shared S3 (the registry CDN serves them from
+      # here). This is the only publishing step done in CI; registering and
+      # indexing into the registry stay a deliberate local gate run from
+      # scripts/manage-release.sh with the developer key.
+      - name: Configure S3
+        run: |
+          sudo apt-get install -y -qq s3cmd > /dev/null
+          cat > ~/.s3cfg <<EOF
+          [default]
+          access_key = ${{ secrets.S3_ACCESS_KEY }}
+          secret_key = ${{ secrets.S3_SECRET_KEY }}
+          host_base = nyc3.digitaloceanspaces.com
+          host_bucket = %(bucket)s.nyc3.digitaloceanspaces.com
+          use_https = True
+          EOF
+
+      - name: Upload images to S3
+        run: |
+          VERSION="${{ steps.tag.outputs.tag }}"
+          VERSION="${VERSION#v}"
+          for file in artifacts/*.img artifacts/*.img.gz; do
+            [ -f "$file" ] || continue
+            echo "Uploading $(basename "$file")..."
+            s3cmd put -P "$file" "${S3_BUCKET}/v${VERSION}/$(basename "$file")"
+          done
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: ${{ steps.tag.outputs.tag }}
-          files: artifacts/*.img
+          # Attach both images: the sdcard .img (fresh install) and the
+          # sysupgrade .img.gz (OTA), matching what manage-release.sh publishes.
+          files: |
+            artifacts/*.img
+            artifacts/*.img.gz
           fail_on_unmatched_files: true
           generate_release_notes: true
