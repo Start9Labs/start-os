@@ -229,22 +229,23 @@ jobs:
 
       - name: Prevent rebuild of compiled artifacts
         run: |
-          mkdir -p web/node_modules
-          mkdir -p web/dist/raw
-          mkdir -p core/bindings
-          mkdir -p sdk/base/lib/osBindings
-          mkdir -p container-runtime/node_modules
-          mkdir -p container-runtime/dist
-          mkdir -p container-runtime/dist/node_modules
-          mkdir -p sdk/dist
-          mkdir -p sdk/baseDist
-          mkdir -p patch-db/client/node_modules
-          mkdir -p patch-db/client/dist
-          mkdir -p web/.angular
-          mkdir -p web/dist/raw/ui
-          mkdir -p web/dist/raw/setup-wizard
-          mkdir -p web/dist/static/ui
-          mkdir -p web/dist/static/setup-wizard
+          mkdir -p shared/web/node_modules
+          mkdir -p start-os/web/dist/raw
+          mkdir -p start-tunnel/web/dist/raw
+          mkdir -p shared/crates/start-core/bindings
+          mkdir -p start-sdk/base/lib/osBindings
+          mkdir -p start-os/container-runtime/node_modules
+          mkdir -p start-os/container-runtime/dist
+          mkdir -p start-os/container-runtime/dist/node_modules
+          mkdir -p start-sdk/dist
+          mkdir -p start-sdk/baseDist
+          mkdir -p vendor/patch-db/client/node_modules
+          mkdir -p vendor/patch-db/client/dist
+          mkdir -p shared/web/.angular
+          mkdir -p start-os/web/dist/raw/ui
+          mkdir -p start-os/web/dist/raw/setup-wizard
+          mkdir -p start-os/web/dist/static/ui
+          mkdir -p start-os/web/dist/static/setup-wizard
           PLATFORM=${{ matrix.platform }} make -t compiled-${{ env.ARCH }}.tar
 
       - run: git status
@@ -295,12 +296,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          sparse-checkout: web/package.json
+          sparse-checkout: shared/web/package.json
 
       - name: Determine version
         id: version
         run: |
-          VERSION=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' web/package.json | head -1)
+          VERSION=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' shared/web/package.json | head -1)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Version: $VERSION"
 

@@ -60,7 +60,7 @@ if [ -z "${TARGET:-}" ]; then
   fi
 fi
 
-cd ../..
+cd ../../../..
 FEATURES="$(echo "${ENVIRONMENT:-}" | sed 's/-/,/g')"
 RUSTFLAGS=""
 if [[ "${ENVIRONMENT:-}" =~ (^|-)console($|-) ]]; then
@@ -73,11 +73,11 @@ fi
 
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-rust-zig-builder cargo zigbuild --manifest-path=./core/Cargo.toml $BUILD_FLAGS --features=$FEATURES --locked --bin start-cli --target=$TARGET
-if [ "$(ls -nd "core/target/$TARGET/$PROFILE/start-cli" | awk '{ print $3 }')" != "$UID" ]; then
+rust-zig-builder cargo zigbuild --manifest-path=./Cargo.toml $BUILD_FLAGS --features=$FEATURES --locked -p start-cli --bin start-cli --target=$TARGET
+if [ "$(ls -nd "target/$TARGET/$PROFILE/start-cli" | awk '{ print $3 }')" != "$UID" ]; then
   rust-zig-builder sh -c "cd core && chown -R $UID:$UID target && chown -R $UID:$UID  /usr/local/cargo"
 fi
 
 if [ "$INSTALL" = "true" ]; then
-  cp "core/target/$TARGET/$PROFILE/start-cli" ~/.cargo/bin/start-cli
+  cp "target/$TARGET/$PROFILE/start-cli" ~/.cargo/bin/start-cli
 fi

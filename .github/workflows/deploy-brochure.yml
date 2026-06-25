@@ -8,16 +8,16 @@ on:
   push:
     branches: ["master"]
     paths:
-      - "web/projects/brochure/**"
-      - "web/projects/shared/**"
-      - "web/projects/marketplace/**"
-      - "web/angular.json"
-      - "web/package.json"
-      - "web/package-lock.json"
-      - "web/tsconfig.json"
-      - "web/tsconfig.lib.json"
-      - "sdk/**"
-      - "patch-db"
+      - "brochure/**"
+      - "shared/web/shared/**"
+      - "shared/web/marketplace/**"
+      - "shared/web/angular.json"
+      - "shared/web/package.json"
+      - "shared/web/package-lock.json"
+      - "shared/web/tsconfig.json"
+      - "shared/web/tsconfig.lib.json"
+      - "start-sdk/**"
+      - "vendor/patch-db"
       - ".github/workflows/deploy-brochure.yml"
       # Doc-only edits under the allowlisted paths (e.g. sdk/**) shouldn't redeploy.
       - "!**/*.md"
@@ -48,27 +48,27 @@ jobs:
           cache: npm
           cache-dependency-path: "**/package-lock.json"
 
-      # web resolves the SDK via file:../sdk/baseDist, so baseDist must exist
+      # web resolves the SDK via file:../start-sdk/baseDist, so baseDist must exist
       # before web's `npm ci` and the brochure build.
       - name: Build SDK (baseDist)
         run: |
-          npm --prefix sdk/base ci
-          cd sdk && make baseDist
+          npm --prefix start-sdk/base ci
+          cd start-sdk && make baseDist
 
-      # brochure transitively bundles patch-db-client (file:../patch-db/client),
+      # brochure transitively bundles patch-db-client (file:../vendor/patch-db/client),
       # so its dist must be built too.
       - name: Build patch-db client
         run: |
-          npm --prefix patch-db/client ci
-          npm --prefix patch-db/client run build
+          npm --prefix vendor/vendor/patch-db/client ci
+          npm --prefix vendor/vendor/patch-db/client run build
 
       - name: Install web dependencies
-        run: npm --prefix web ci
+        run: npm --prefix shared/web ci
 
       - name: Build brochure
         run: |
-          npm --prefix web run build:brochure
-          test -f web/dist/raw/brochure/index.html
+          npm --prefix shared/web run build:brochure
+          test -f brochure/dist/raw/brochure/index.html
 
       - name: Configure SSH
         run: |
@@ -85,4 +85,4 @@ jobs:
           EOF
 
       - name: Deploy to VPS
-        run: rsync -az --delete web/dist/raw/brochure/ marketplace-vps:/var/www/html/marketplace.start9.com/
+        run: rsync -az --delete brochure/dist/raw/brochure/ marketplace-vps:/var/www/html/marketplace.start9.com/

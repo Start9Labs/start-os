@@ -12,21 +12,21 @@ RUST_ARCH := $(shell if [ "$(ARCH)" = "riscv64" ]; then echo riscv64gc; else ech
 REGISTRY_BASENAME := $(shell PROJECT=start-registry PLATFORM=$(ARCH) ./build/env/basename.sh)
 TUNNEL_BASENAME := $(shell PROJECT=start-tunnel PLATFORM=$(ARCH) ./build/env/basename.sh)
 IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo iso; fi)
-WEB_UIS := web/dist/raw/ui/index.html web/dist/raw/setup-wizard/index.html
-COMPRESSED_WEB_UIS := web/dist/static/ui/index.html web/dist/static/setup-wizard/index.html
+WEB_UIS := start-os/web/dist/raw/ui/index.html start-os/web/dist/raw/setup-wizard/index.html
+COMPRESSED_WEB_UIS := start-os/web/dist/static/ui/index.html start-os/web/dist/static/setup-wizard/index.html
 FIRMWARE_ROMS := build/lib/firmware/$(PLATFORM) $(shell jq --raw-output '.[] | select(.platform[] | contains("$(PLATFORM)")) | "./build/lib/firmware/$(PLATFORM)/" + .id + ".rom.gz"' build/lib/firmware.json)
 BUILD_SRC := $(call ls-files, build/lib) build/lib/depends build/lib/conflicts $(FIRMWARE_ROMS) build/lib/migration-images/.done
 IMAGE_RECIPE_SRC := $(call ls-files, build/image-recipe/)
-STARTD_SRC := core/startd.service core/services.slice core/startos-shutdown.service core/startos-restart.service $(BUILD_SRC)
-CORE_SRC := $(call ls-files, core) $(shell git ls-files --recurse-submodules patch-db) $(GIT_HASH_FILE)
-WEB_SHARED_SRC := $(call ls-files, web/projects/shared) $(call ls-files, web/projects/marketplace) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules/.package-lock.json web/config.json patch-db/client/dist/index.js sdk/baseDist/package.json web/patchdb-ui-seed.json sdk/dist/package.json
-WEB_UI_SRC := $(call ls-files, web/projects/ui)
-WEB_SETUP_WIZARD_SRC := $(call ls-files, web/projects/setup-wizard)
-WEB_START_TUNNEL_SRC := $(call ls-files, web/projects/start-tunnel)
-PATCH_DB_CLIENT_SRC := $(shell git ls-files --recurse-submodules patch-db/client)
+STARTD_SRC := start-os/startd.service start-os/services.slice start-os/startos-shutdown.service start-os/startos-restart.service $(BUILD_SRC)
+CORE_SRC := $(call ls-files, shared/crates/start-core) $(shell git ls-files --recurse-submodules vendor/patch-db) $(GIT_HASH_FILE)
+WEB_SHARED_SRC := $(call ls-files, shared/web/shared) $(call ls-files, shared/web/marketplace) $(shell ls -p shared/web/ | grep -v / | sed 's|^|shared/web/|g') shared/web/node_modules/.package-lock.json shared/web/config.json vendor/patch-db/client/dist/index.js start-sdk/baseDist/package.json start-os/web/patchdb-ui-seed.json start-sdk/dist/package.json
+WEB_UI_SRC := $(call ls-files, start-os/web/ui)
+WEB_SETUP_WIZARD_SRC := $(call ls-files, start-os/web/setup-wizard)
+WEB_START_TUNNEL_SRC := $(call ls-files, start-tunnel/web)
+PATCH_DB_CLIENT_SRC := $(shell git ls-files --recurse-submodules vendor/patch-db/client)
 GZIP_BIN := $(shell which pigz || which gzip)
 TAR_BIN := $(shell which gtar || which tar)
-COMPILED_TARGETS := core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox core/target/$(RUST_ARCH)-unknown-linux-musl/release/start-container container-runtime/rootfs.$(ARCH).squashfs
+COMPILED_TARGETS := target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox target/$(RUST_ARCH)-unknown-linux-musl/release/start-container start-os/container-runtime/rootfs.$(ARCH).squashfs
 STARTOS_TARGETS := $(STARTD_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE) $(COMPILED_TARGETS) target/$(RUST_ARCH)-unknown-linux-musl/release/startos-backup-fs $(PLATFORM_FILE) \
 	$(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then \
 		echo target/aarch64-unknown-linux-musl/release/pi-beep; \
@@ -37,8 +37,8 @@ STARTOS_TARGETS := $(STARTD_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_
 	$(shell /bin/bash -c 'if [[ "${ENVIRONMENT}" =~ (^|-)console($$|-) ]]; then \
 		echo target/$(RUST_ARCH)-unknown-linux-musl/release/tokio-console; \
 	fi')
-REGISTRY_TARGETS := core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/registrybox core/start-registryd.service
-TUNNEL_TARGETS := core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox core/start-tunneld.service
+REGISTRY_TARGETS := target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/registrybox start-registry/start-registryd.service
+TUNNEL_TARGETS := target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox start-tunnel/start-tunneld.service
 
 ifeq ($(REMOTE),)
 	mkdir = mkdir -p $1
@@ -71,82 +71,84 @@ touch:
 metadata: $(VERSION_FILE) $(PLATFORM_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
 
 clean:
-	rm -rf core/target
-	rm -rf core/bindings
-	rm -rf web/.angular
-	rm -f web/config.json
-	rm -rf web/node_modules
-	rm -rf web/dist
-	rm -rf patch-db/client/node_modules
-	rm -rf patch-db/client/dist
-	rm -rf patch-db/target
+	rm -rf target
+	rm -rf shared/crates/start-core/bindings
+	rm -rf shared/web/.angular
+	rm -f shared/web/config.json
+	rm -rf shared/web/node_modules
+	rm -rf start-os/web/dist
+	rm -rf start-tunnel/web/dist
+	rm -rf brochure/dist
+	rm -rf vendor/patch-db/client/node_modules
+	rm -rf vendor/patch-db/client/dist
+	rm -rf vendor/patch-db/target
 	rm -rf target
 	rm -rf dpkg-workdir
 	rm -rf image-recipe/deb
 	rm -rf results
 	rm -rf build/lib/firmware
-	rm -rf container-runtime/dist
-	rm -rf container-runtime/node_modules
-	rm -f container-runtime/*.squashfs
-	(cd sdk && make clean)
+	rm -rf start-os/container-runtime/dist
+	rm -rf start-os/container-runtime/node_modules
+	rm -f start-os/container-runtime/*.squashfs
+	(cd start-sdk && make clean)
 	rm -rf build/lib/migration-images
 	rm -f env/*.txt
 
 format:
-	cd core && cargo +nightly fmt
-	npm --prefix web run format
-	cd sdk && make fmt
+	cd shared/crates/start-core && cargo +nightly fmt
+	npm --prefix shared/web run format
+	cd start-sdk && make fmt
 
 # Read-only formatting verification (prettier --check for web + sdk). Used by CI.
 format-check:
-	npm --prefix web run format:check
-	cd sdk && make check-fmt
+	npm --prefix shared/web run format:check
+	cd start-sdk && make check-fmt
 
 test: | test-core test-sdk test-container-runtime
 
 test-core: $(CORE_SRC) $(ENVIRONMENT_FILE) 
-	./core/run-tests.sh
+	./shared/crates/start-core/run-tests.sh
 
-test-sdk: $(call ls-files, sdk) sdk/base/lib/osBindings/index.ts
-	cd sdk && make test
+test-sdk: $(call ls-files, start-sdk) start-sdk/base/lib/osBindings/index.ts
+	cd start-sdk && make test
 
-test-container-runtime: container-runtime/node_modules/.package-lock.json $(call ls-files, container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
-	cd container-runtime && npm test
+test-container-runtime: start-os/container-runtime/node_modules/.package-lock.json $(call ls-files, start-os/container-runtime/src) start-os/container-runtime/package.json start-os/container-runtime/tsconfig.json 
+	cd start-os/container-runtime && npm test
 
 build/lib/migration-images/.done: build/save-migration-images.sh
 	ARCH=$(ARCH) ./build/save-migration-images.sh build/lib/migration-images
 	touch $@
 
 install-cli: $(GIT_HASH_FILE)
-	./core/build/build-cli.sh --install
+	./shared/crates/start-core/build/build-cli.sh --install
 
 cli: $(GIT_HASH_FILE)
-	./core/build/build-cli.sh
+	./shared/crates/start-core/build/build-cli.sh
 
-registry: core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/registrybox
+registry: target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/registrybox
 
 install-registry: $(REGISTRY_TARGETS)
 	$(call mkdir,$(DESTDIR)/usr/bin)
-	$(call cp,core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/registrybox,$(DESTDIR)/usr/bin/start-registrybox)
+	$(call cp,target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/registrybox,$(DESTDIR)/usr/bin/start-registrybox)
 	$(call ln,/usr/bin/start-registrybox,$(DESTDIR)/usr/bin/start-registryd)
 	$(call ln,/usr/bin/start-registrybox,$(DESTDIR)/usr/bin/start-registry)
 
 	$(call mkdir,$(DESTDIR)/lib/systemd/system)
-	$(call cp,core/start-registryd.service,$(DESTDIR)/lib/systemd/system/start-registryd.service)
+	$(call cp,start-registry/start-registryd.service,$(DESTDIR)/lib/systemd/system/start-registryd.service)
 
-core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/registrybox: $(CORE_SRC) $(ENVIRONMENT_FILE)
-	ARCH=$(ARCH) PROFILE=$(PROFILE) ./core/build/build-registrybox.sh
+target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/registrybox: $(CORE_SRC) $(ENVIRONMENT_FILE)
+	ARCH=$(ARCH) PROFILE=$(PROFILE) ./shared/crates/start-core/build/build-registrybox.sh
 
-tunnel: core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox
+tunnel: target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox
 
-install-tunnel: core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox core/start-tunneld.service
+install-tunnel: target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox start-tunnel/start-tunneld.service
 	$(call mkdir,$(DESTDIR)/usr/bin)
-	$(call cp,core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox,$(DESTDIR)/usr/bin/start-tunnelbox)
+	$(call cp,target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox,$(DESTDIR)/usr/bin/start-tunnelbox)
 	$(call ln,/usr/bin/start-tunnelbox,$(DESTDIR)/usr/bin/start-tunneld)
 	$(call ln,/usr/bin/start-tunnelbox,$(DESTDIR)/usr/bin/start-tunnel)
 
 	$(call mkdir,$(DESTDIR)/lib/systemd/system)
-	$(call cp,core/start-tunneld.service,$(DESTDIR)/lib/systemd/system/start-tunneld.service)
+	$(call cp,start-tunnel/start-tunneld.service,$(DESTDIR)/lib/systemd/system/start-tunneld.service)
 
 	$(call mkdir,$(DESTDIR)/usr/lib/startos/scripts)
 	$(call cp,build/lib/scripts/forward-port,$(DESTDIR)/usr/lib/startos/scripts/forward-port)
@@ -156,8 +158,8 @@ install-tunnel: core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox
 	$(call mkdir,$(DESTDIR)/usr/share/keyrings)
 	$(call cp,apt/start9.gpg,$(DESTDIR)/usr/share/keyrings/start9.gpg)
 
-core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox: $(CORE_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) web/dist/static/start-tunnel/index.html
-	ARCH=$(ARCH) PROFILE=$(PROFILE) ./core/build/build-tunnelbox.sh
+target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox: $(CORE_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) start-tunnel/web/dist/static/start-tunnel/index.html
+	ARCH=$(ARCH) PROFILE=$(PROFILE) ./shared/crates/start-core/build/build-tunnelbox.sh
 
 deb: results/$(BASENAME).deb
 
@@ -185,7 +187,7 @@ results/$(BASENAME).$(IMAGE_TYPE) results/$(BASENAME).squashfs: $(IMAGE_RECIPE_S
 install: $(STARTOS_TARGETS)
 	$(call mkdir,$(DESTDIR)/usr/bin)
 	$(call mkdir,$(DESTDIR)/usr/sbin)
-	$(call cp,core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox,$(DESTDIR)/usr/bin/startbox)
+	$(call cp,target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox,$(DESTDIR)/usr/bin/startbox)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/startd)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/start-cli)
 	if [ "$(PLATFORM)" = "raspberrypi" ]; then $(call cp,target/aarch64-unknown-linux-musl/release/pi-beep,$(DESTDIR)/usr/bin/pi-beep); fi
@@ -199,10 +201,10 @@ install: $(STARTOS_TARGETS)
 	$(call ln,/usr/bin/startos-backup-fs,$(DESTDIR)/usr/sbin/mount.backup-fs)
 	
 	$(call mkdir,$(DESTDIR)/lib/systemd/system)
-	$(call cp,core/startd.service,$(DESTDIR)/lib/systemd/system/startd.service)
-	$(call cp,core/services.slice,$(DESTDIR)/lib/systemd/system/services.slice)
-	$(call cp,core/startos-shutdown.service,$(DESTDIR)/lib/systemd/system/startos-shutdown.service)
-	$(call cp,core/startos-restart.service,$(DESTDIR)/lib/systemd/system/startos-restart.service)
+	$(call cp,start-os/startd.service,$(DESTDIR)/lib/systemd/system/startd.service)
+	$(call cp,start-os/services.slice,$(DESTDIR)/lib/systemd/system/services.slice)
+	$(call cp,start-os/startos-shutdown.service,$(DESTDIR)/lib/systemd/system/startos-shutdown.service)
+	$(call cp,start-os/startos-restart.service,$(DESTDIR)/lib/systemd/system/startos-restart.service)
 	if /bin/bash -c '[[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]'; then \
 		sed -i '/^Environment=/a Environment=RUST_BACKTRACE=full' $(DESTDIR)/lib/systemd/system/startd.service; \
 	fi
@@ -211,7 +213,7 @@ install: $(STARTOS_TARGETS)
 	$(call rm,$(DESTDIR)/usr/lib/startos)
 	$(call cp,build/lib,$(DESTDIR)/usr/lib/startos)
 	$(call mkdir,$(DESTDIR)/usr/lib/startos/container-runtime)
-	$(call cp,container-runtime/rootfs.$(ARCH).squashfs,$(DESTDIR)/usr/lib/startos/container-runtime/rootfs.squashfs)
+	$(call cp,start-os/container-runtime/rootfs.$(ARCH).squashfs,$(DESTDIR)/usr/lib/startos/container-runtime/rootfs.squashfs)
 
 	$(call cp,build/env/PLATFORM.txt,$(DESTDIR)/usr/lib/startos/PLATFORM.txt)
 	$(call cp,build/env/ENVIRONMENT.txt,$(DESTDIR)/usr/lib/startos/ENVIRONMENT.txt)
@@ -227,10 +229,10 @@ update-overlay: $(STARTOS_TARGETS)
 	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) PLATFORM=$(PLATFORM)
 	$(call ssh,"sudo systemctl start startd")
 
-wormhole: core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox
+wormhole: target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox
 	@echo "Paste the following command into the shell of your StartOS server:"
 	@echo
-	@wormhole send core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo /usr/lib/startos/scripts/chroot-and-upgrade \"cd /usr/bin && rm startbox && wormhole receive --accept-file %s && chmod +x startbox\"\n", $$3 }'
+	@wormhole send target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo /usr/lib/startos/scripts/chroot-and-upgrade \"cd /usr/bin && rm startbox && wormhole receive --accept-file %s && chmod +x startbox\"\n", $$3 }'
 
 wormhole-deb: results/$(BASENAME).deb
 	@echo "Paste the following command into the shell of your StartOS server:"
@@ -250,10 +252,10 @@ update: $(STARTOS_TARGETS)
 	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/startos/next PLATFORM=$(PLATFORM)
 	$(call ssh,'sudo /media/startos/next/usr/lib/startos/scripts/chroot-and-upgrade --no-sync "apt-get install -y $(shell cat ./build/lib/depends)"')
 
-update-startbox: core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox # only update binary (faster than full update)
+update-startbox: target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox # only update binary (faster than full update)
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	$(call ssh,'sudo /usr/lib/startos/scripts/chroot-and-upgrade --create')
-	$(call cp,core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox,/media/startos/next/usr/bin/startbox)
+	$(call cp,target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox,/media/startos/next/usr/bin/startbox)
 	$(call ssh,'sudo /media/startos/next/usr/lib/startos/scripts/chroot-and-upgrade --no-sync true')
 
 update-deb: results/$(BASENAME).deb # better than update, but only available from debian
@@ -282,47 +284,47 @@ emulate-reflash: $(STARTOS_TARGETS)
 upload-ota: results/$(BASENAME).squashfs
 	TARGET=$(TARGET) KEY=$(KEY) ./build/upload-ota.sh
 
-container-runtime/debian.$(ARCH).squashfs: ./container-runtime/download-base-image.sh
-	ARCH=$(ARCH) ./container-runtime/download-base-image.sh
+start-os/container-runtime/debian.$(ARCH).squashfs: ./start-os/container-runtime/download-base-image.sh
+	ARCH=$(ARCH) ./start-os/container-runtime/download-base-image.sh
 
-container-runtime/package-lock.json: sdk/dist/package.json
-	npm --prefix container-runtime i
-	touch container-runtime/package-lock.json
+start-os/container-runtime/package-lock.json: start-sdk/dist/package.json
+	npm --prefix start-os/container-runtime i
+	touch start-os/container-runtime/package-lock.json
 
-container-runtime/node_modules/.package-lock.json: container-runtime/package-lock.json
-	npm --prefix container-runtime ci
-	touch container-runtime/node_modules/.package-lock.json
+start-os/container-runtime/node_modules/.package-lock.json: start-os/container-runtime/package-lock.json
+	npm --prefix start-os/container-runtime ci
+	touch start-os/container-runtime/node_modules/.package-lock.json
 
-ts-bindings: core/bindings/index.ts
-	mkdir -p sdk/base/lib/osBindings
-	rsync -ac --delete core/bindings/ sdk/base/lib/osBindings/
+ts-bindings: shared/crates/start-core/bindings/index.ts
+	mkdir -p start-sdk/base/lib/osBindings
+	rsync -ac --delete shared/crates/start-core/bindings/ start-sdk/base/lib/osBindings/
 
-core/bindings/index.ts: $(call ls-files, core) $(ENVIRONMENT_FILE)
-	rm -rf core/bindings
-	./core/build/build-ts.sh
-	ls core/bindings/*.ts | sed 's/core\/bindings\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' | grep -v '"./index"' | tee core/bindings/index.ts
-	if [ -d core/bindings/tunnel ]; then \
-		ls core/bindings/tunnel/*.ts | sed 's/core\/bindings\/tunnel\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' | grep -v '"./index"' > core/bindings/tunnel/index.ts; \
-		echo 'export * as Tunnel from "./tunnel";' >> core/bindings/index.ts; \
+shared/crates/start-core/bindings/index.ts: $(call ls-files, shared/crates/start-core) $(ENVIRONMENT_FILE)
+	rm -rf shared/crates/start-core/bindings
+	./shared/crates/start-core/build/build-ts.sh
+	ls shared/crates/start-core/bindings/*.ts | sed 's|.*/bindings/\([^.]*\)\.ts|export { \1 } from "./\1";|g' | grep -v '"./index"' | tee shared/crates/start-core/bindings/index.ts
+	if [ -d shared/crates/start-core/bindings/tunnel ]; then \
+		ls shared/crates/start-core/bindings/tunnel/*.ts | sed 's|.*/bindings/tunnel/\([^.]*\)\.ts|export { \1 } from "./\1";|g' | grep -v '"./index"' > shared/crates/start-core/bindings/tunnel/index.ts; \
+		echo 'export * as Tunnel from "./tunnel";' >> shared/crates/start-core/bindings/index.ts; \
 	fi
-	npm --prefix sdk/base exec -- prettier --config=./sdk/base/package.json -w './core/bindings/**/*.ts'
-	touch core/bindings/index.ts
+	npm --prefix start-sdk/base exec -- prettier --config=./start-sdk/base/package.json -w './shared/crates/start-core/bindings/**/*.ts'
+	touch shared/crates/start-core/bindings/index.ts
 
-sdk/dist/package.json sdk/baseDist/package.json: $(call ls-files, sdk) sdk/base/lib/osBindings/index.ts
-	(cd sdk && make bundle)
-	touch sdk/dist/package.json
-	touch sdk/baseDist/package.json
+start-sdk/dist/package.json start-sdk/baseDist/package.json: $(call ls-files, start-sdk) start-sdk/base/lib/osBindings/index.ts
+	(cd start-sdk && make bundle)
+	touch start-sdk/dist/package.json
+	touch start-sdk/baseDist/package.json
 
 # TODO: make container-runtime its own makefile?
-container-runtime/dist/index.js: container-runtime/node_modules/.package-lock.json $(call ls-files, container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
-	npm --prefix container-runtime run build
+start-os/container-runtime/dist/index.js: start-os/container-runtime/node_modules/.package-lock.json $(call ls-files, start-os/container-runtime/src) start-os/container-runtime/package.json start-os/container-runtime/tsconfig.json 
+	npm --prefix start-os/container-runtime run build
 
-container-runtime/dist/node_modules/.package-lock.json container-runtime/dist/package.json container-runtime/dist/package-lock.json: container-runtime/package.json container-runtime/package-lock.json sdk/dist/package.json container-runtime/install-dist-deps.sh
-	./container-runtime/install-dist-deps.sh
-	touch container-runtime/dist/node_modules/.package-lock.json
+start-os/container-runtime/dist/node_modules/.package-lock.json start-os/container-runtime/dist/package.json start-os/container-runtime/dist/package-lock.json: start-os/container-runtime/package.json start-os/container-runtime/package-lock.json start-sdk/dist/package.json start-os/container-runtime/install-dist-deps.sh
+	./start-os/container-runtime/install-dist-deps.sh
+	touch start-os/container-runtime/dist/node_modules/.package-lock.json
 
-container-runtime/rootfs.$(ARCH).squashfs: container-runtime/debian.$(ARCH).squashfs container-runtime/container-runtime.service container-runtime/update-image.sh container-runtime/update-image-local.sh container-runtime/deb-install.sh container-runtime/dist/index.js container-runtime/dist/node_modules/.package-lock.json core/target/$(RUST_ARCH)-unknown-linux-musl/release/start-container
-	ARCH=$(ARCH) ./container-runtime/update-image-local.sh
+start-os/container-runtime/rootfs.$(ARCH).squashfs: start-os/container-runtime/debian.$(ARCH).squashfs start-os/container-runtime/start-os/container-runtime.service start-os/container-runtime/update-image.sh start-os/container-runtime/update-image-local.sh start-os/container-runtime/deb-install.sh start-os/container-runtime/dist/index.js start-os/container-runtime/dist/node_modules/.package-lock.json target/$(RUST_ARCH)-unknown-linux-musl/release/start-container
+	ARCH=$(ARCH) ./start-os/container-runtime/update-image-local.sh
 
 build/lib/depends build/lib/conflicts: $(ENVIRONMENT_FILE) $(PLATFORM_FILE) $(shell ls build/dpkg-deps/*)
 	PLATFORM=$(PLATFORM) ARCH=$(ARCH) build/dpkg-deps/generate.sh
@@ -330,57 +332,60 @@ build/lib/depends build/lib/conflicts: $(ENVIRONMENT_FILE) $(PLATFORM_FILE) $(sh
 $(FIRMWARE_ROMS): build/lib/firmware.json ./build/download-firmware.sh $(PLATFORM_FILE)
 	./build/download-firmware.sh $(PLATFORM)
 
-core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox: $(CORE_SRC) $(COMPRESSED_WEB_UIS) web/patchdb-ui-seed.json $(ENVIRONMENT_FILE)
-	ARCH=$(ARCH) PROFILE=$(PROFILE) ./core/build/build-startbox.sh
-	touch core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox
+target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox: $(CORE_SRC) $(COMPRESSED_WEB_UIS) start-os/web/patchdb-ui-seed.json $(ENVIRONMENT_FILE)
+	ARCH=$(ARCH) PROFILE=$(PROFILE) ./shared/crates/start-core/build/build-startbox.sh
+	touch target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox
 
-core/target/$(RUST_ARCH)-unknown-linux-musl/release/start-container: $(CORE_SRC) $(ENVIRONMENT_FILE)
-	ARCH=$(ARCH) ./core/build/build-start-container.sh
-	touch core/target/$(RUST_ARCH)-unknown-linux-musl/release/start-container
+target/$(RUST_ARCH)-unknown-linux-musl/release/start-container: $(CORE_SRC) $(ENVIRONMENT_FILE)
+	ARCH=$(ARCH) ./shared/crates/start-core/build/build-start-container.sh
+	touch target/$(RUST_ARCH)-unknown-linux-musl/release/start-container
 
-web/package-lock.json: web/package.json sdk/baseDist/package.json
-	npm --prefix web i
-	touch web/package-lock.json
+shared/web/package-lock.json: shared/web/package.json start-sdk/baseDist/package.json
+	npm --prefix shared/web i
+	touch shared/web/package-lock.json
 
-web/node_modules/.package-lock.json: web/package-lock.json
-	npm --prefix web ci
-	touch web/node_modules/.package-lock.json
+shared/web/node_modules/.package-lock.json: shared/web/package-lock.json
+	npm --prefix shared/web ci
+	touch shared/web/node_modules/.package-lock.json
 
-web/.angular/.updated: patch-db/client/dist/index.js sdk/baseDist/package.json web/node_modules/.package-lock.json
-	rm -rf web/.angular
-	mkdir -p web/.angular
-	touch web/.angular/.updated
+shared/web/.angular/.updated: vendor/patch-db/client/dist/index.js start-sdk/baseDist/package.json shared/web/node_modules/.package-lock.json
+	rm -rf shared/web/.angular
+	mkdir -p shared/web/.angular
+	touch shared/web/.angular/.updated
 
-web/.i18n-checked: $(WEB_SHARED_SRC) $(WEB_UI_SRC) $(WEB_SETUP_WIZARD_SRC) $(WEB_START_TUNNEL_SRC)
-	npm --prefix web run check:i18n
-	touch web/.i18n-checked
+shared/web/.i18n-checked: $(WEB_SHARED_SRC) $(WEB_UI_SRC) $(WEB_SETUP_WIZARD_SRC) $(WEB_START_TUNNEL_SRC)
+	npm --prefix shared/web run check:i18n
+	touch shared/web/.i18n-checked
 
-web/dist/raw/ui/index.html: $(WEB_UI_SRC) $(WEB_SHARED_SRC) web/.angular/.updated web/.i18n-checked
-	npm --prefix web run build:ui
-	touch web/dist/raw/ui/index.html
+start-os/web/dist/raw/ui/index.html: $(WEB_UI_SRC) $(WEB_SHARED_SRC) shared/web/.angular/.updated shared/web/.i18n-checked
+	npm --prefix shared/web run build:ui
+	touch start-os/web/dist/raw/ui/index.html
 
-web/dist/raw/setup-wizard/index.html: $(WEB_SETUP_WIZARD_SRC) $(WEB_SHARED_SRC) web/.angular/.updated web/.i18n-checked
-	npm --prefix web run build:setup
-	touch web/dist/raw/setup-wizard/index.html
+start-os/web/dist/raw/setup-wizard/index.html: $(WEB_SETUP_WIZARD_SRC) $(WEB_SHARED_SRC) shared/web/.angular/.updated shared/web/.i18n-checked
+	npm --prefix shared/web run build:setup
+	touch start-os/web/dist/raw/setup-wizard/index.html
 
-web/dist/raw/start-tunnel/index.html: $(WEB_START_TUNNEL_SRC) $(WEB_SHARED_SRC) web/.angular/.updated web/.i18n-checked
-	npm --prefix web run build:tunnel
-	touch web/dist/raw/start-tunnel/index.html
+start-tunnel/web/dist/raw/start-tunnel/index.html: $(WEB_START_TUNNEL_SRC) $(WEB_SHARED_SRC) shared/web/.angular/.updated shared/web/.i18n-checked
+	npm --prefix shared/web run build:tunnel
+	touch start-tunnel/web/dist/raw/start-tunnel/index.html
 
-web/dist/static/%/index.html: web/dist/raw/%/index.html
-	./web/compress-uis.sh $*
+start-os/web/dist/static/%/index.html: start-os/web/dist/raw/%/index.html
+	./shared/web/compress-uis.sh $* start-os/web
 
-web/config.json: $(GIT_HASH_FILE) $(ENVIRONMENT_FILE) web/config-sample.json web/update-config.sh
-	./web/update-config.sh	
+start-tunnel/web/dist/static/%/index.html: start-tunnel/web/dist/raw/%/index.html
+	./shared/web/compress-uis.sh $* start-tunnel/web
 
-patch-db/client/node_modules/.package-lock.json: patch-db/client/package.json
-	npm --prefix patch-db/client ci
-	touch patch-db/client/node_modules/.package-lock.json
+shared/web/config.json: $(GIT_HASH_FILE) $(ENVIRONMENT_FILE) shared/web/config-sample.json shared/web/update-config.sh
+	./shared/web/update-config.sh	
 
-patch-db/client/dist/index.js: $(PATCH_DB_CLIENT_SRC) patch-db/client/node_modules/.package-lock.json
-	rm -rf patch-db/client/dist
-	npm --prefix patch-db/client run build
-	touch patch-db/client/dist/index.js
+vendor/patch-db/client/node_modules/.package-lock.json: vendor/patch-db/client/package.json
+	npm --prefix vendor/patch-db/client ci
+	touch vendor/patch-db/client/node_modules/.package-lock.json
+
+vendor/patch-db/client/dist/index.js: $(PATCH_DB_CLIENT_SRC) vendor/patch-db/client/node_modules/.package-lock.json
+	rm -rf vendor/patch-db/client/dist
+	npm --prefix vendor/patch-db/client run build
+	touch vendor/patch-db/client/dist/index.js
 
 # used by github actions
 compiled-$(ARCH).tar: $(COMPILED_TARGETS) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)
@@ -390,7 +395,7 @@ compiled-$(ARCH).tar: $(COMPILED_TARGETS) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $
 uis: $(WEB_UIS) 
 
 # this is a convenience step to build the UI
-ui: web/dist/raw/ui
+ui: start-os/web/dist/raw/ui
 
 target/aarch64-unknown-linux-musl/release/pi-beep: ./build/build-cargo-dep.sh
 	ARCH=aarch64 ./build/build-cargo-dep.sh pi-beep
