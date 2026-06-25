@@ -23,8 +23,8 @@
     "paths": {
       /* baseUrl removed for TS6; lib paths resolve relative to this file (web/).
          Apps redeclare paths (incl. "*": ["./*"]) relative to their own dir. */
-      "@start9labs/marketplace": ["./projects/marketplace/index"],
-      "@start9labs/shared": ["./projects/shared/src/public-api"]
+      "@start9labs/marketplace": ["./marketplace/index"],
+      "@start9labs/shared": ["./shared/src/public-api"]
     },
     "typeRoots": ["node_modules/@types"],
     "types": ["node"]
