@@ -6,9 +6,10 @@ import {
   LeafProgressPipe,
 } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import { TuiButton } from '@taiga-ui/core'
+import { TuiButton, TuiExpand } from '@taiga-ui/core'
 import { TuiNotificationMiddleService, TuiProgress } from '@taiga-ui/kit'
 import { InstallingProgressPipe } from 'src/app/routes/portal/routes/services/pipes/install-progress.pipe'
+import { InstallPhaseViewPipe } from 'src/app/routes/portal/routes/services/pipes/install-phase-view.pipe'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
@@ -33,10 +34,11 @@ import { getManifest } from 'src/app/utils/get-package-data'
       phase of pkg.stateInfo.installingInfo?.progress?.phases;
       track $index
     ) {
-      @let leaf = phase.progress | leafProgress;
+      @let view = phase.progress | installPhaseView;
+      @let leaf = view.progress | leafProgress;
       @let percent = leaf | installingProgress;
       <div>
-        {{ $any(phase.name) | i18n }}:
+        <b>{{ $any(phase.name) | i18n }}</b>
         @if (leaf === null) {
           <span>{{ 'waiting' | i18n }}</span>
         } @else if (leaf === true) {
@@ -46,6 +48,9 @@ import { getManifest } from 'src/app/utils/get-package-data'
         } @else {
           <span>{{ percent }}%</span>
         }
+        <tui-expand [expanded]="!!view.subtext">
+          <div class="subtext">{{ $any(view.subtext) | i18n }}</div>
+        </tui-expand>
         <progress
           tuiProgressBar
           size="m"
@@ -66,6 +71,15 @@ import { getManifest } from 'src/app/utils/get-package-data'
       padding: 0.25rem 0;
     }
 
+    b {
+      color: var(--tui-text-primary);
+    }
+
+    .subtext {
+      padding: 0;
+      font-size: 0.875rem;
+    }
+
     span {
       float: right;
       text-transform: capitalize;
@@ -78,7 +92,9 @@ import { getManifest } from 'src/app/utils/get-package-data'
   host: { class: 'g-card' },
   imports: [
     TuiProgress,
+    TuiExpand,
     InstallingProgressPipe,
+    InstallPhaseViewPipe,
     LeafProgressPipe,
     i18nPipe,
     TuiButton,
