@@ -187,6 +187,11 @@ struct HostBinds {
     forwards: BTreeMap<u16, (SocketAddrV4, u16, ForwardRequirements, Arc<()>)>,
     vhosts: BTreeMap<(Option<InternedString>, u16), (ProxyTarget, Arc<()>)>,
     private_dns: BTreeMap<InternedString, Arc<()>>,
+    /// Device LAN IPs for which we've asked the upstream gateway to map external
+    /// 80 -> 443 (the HTTP→HTTPS redirect — a pure PortMapController mapping with
+    /// no LAN forward, since StartOS serves 80/443 itself). Tracked so the
+    /// mapping is withdrawn when 443 stops being publicly exposed.
+    redirect_maps: BTreeSet<Ipv4Addr>,
 }
 
 pub struct NetServiceData {
@@ -490,10 +495,13 @@ impl NetServiceData {
         }
 
         // Best-effort HTTP→HTTPS redirect: when something is publicly exposed on
-        // 443, also map external 80 → the host's 443 so plain http:// auto-
-        // redirects to https. Plain forward, no hostname. Upstream PCP/UPnP is
-        // best-effort and only debug-logs on failure, so port 80 already held by
-        // another server on the network is harmless. Skipped if 80 is in use.
+        // 443, ask the upstream gateway(s) to map external 80 -> the host's 443
+        // (PCP/NAT-PMP/UPnP) so plain http:// auto-redirects to https. This is a
+        // pure upstream port-map via PortMapController, NOT an nft LAN forward:
+        // StartOS already listens on 80/443 itself, so there is no container to
+        // DNAT to (unlike a service forward, this is the one case where external
+        // != internal). Best-effort; skipped if 80 is a real forward.
+        let mut redirect_ips: BTreeSet<Ipv4Addr> = BTreeSet::new();
         if !forwards.contains_key(&80) {
             let mut redirect_gateways: BTreeSet<GatewayId> = BTreeSet::new();
             if let Some((_, _, reqs)) = forwards.get(&443) {
@@ -504,21 +512,37 @@ impl NetServiceData {
                     redirect_gateways.extend(target.public.iter().cloned());
                 }
             }
-            if !redirect_gateways.is_empty() {
-                forwards.insert(
-                    80,
-                    (
-                        SocketAddrV4::new(self.ip, 443),
-                        1,
-                        ForwardRequirements {
-                            public_gateways: redirect_gateways,
-                            private_ips: BTreeSet::new(),
-                            secure: true,
-                        },
-                    ),
-                );
+            for gw_id in &redirect_gateways {
+                let Some(info) = net_ifaces.get(gw_id) else {
+                    continue;
+                };
+                let Some(ip_info) = &info.ip_info else {
+                    continue;
+                };
+                let gws = candidate_gateways(info);
+                if gws.is_empty() {
+                    continue;
+                }
+                for subnet in ip_info.subnets.iter() {
+                    if let IpAddr::V4(ip) = subnet.addr() {
+                        if redirect_ips.insert(ip) {
+                            ctrl.port_map.ensure(ip, 80, 443, gws.clone());
+                        }
+                    }
+                }
             }
         }
+        // Withdraw redirect maps that no longer apply (443 unexposed, or 80 became
+        // a real forward).
+        let stale: Vec<Ipv4Addr> = binds
+            .redirect_maps
+            .difference(&redirect_ips)
+            .copied()
+            .collect();
+        for ip in stale {
+            ctrl.port_map.remove(ip, 80);
+        }
+        binds.redirect_maps = redirect_ips;
 
         // ── Phase 3: Reconcile ──
         let all = binds
