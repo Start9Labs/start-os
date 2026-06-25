@@ -969,12 +969,16 @@ impl NetService {
             .result
     }
 
-    pub async fn clear_bindings(&self, except: BTreeSet<BindId>) -> Result<(), Error> {
+    /// Returns `true` if the mutate actually changed something (a non-empty
+    /// patch). A no-op clears nothing, so the caller can skip waiting on the
+    /// sync-task for a change that will never arrive.
+    pub async fn clear_bindings(&self, except: BTreeSet<BindId>) -> Result<bool, Error> {
         let (ctrl, pkg_id) = {
             let data = self.data.lock().await;
             (data.net_controller()?, data.id.clone())
         };
-        ctrl.db
+        let rev = ctrl
+            .db
             .mutate(|db| {
                 let gateways = db
                     .as_public()
@@ -1049,8 +1053,8 @@ impl NetService {
                 }
                 Ok(())
             })
-            .await
-            .result
+            .await;
+        rev.result.map(|_| rev.revision.is_some())
     }
 
     pub async fn remove_all(mut self) -> Result<(), Error> {
@@ -1063,13 +1067,19 @@ impl NetService {
             ));
         }
         let current = self.synced.peek(|v| *v);
-        self.clear_bindings(Default::default()).await?;
-        let mut w = self.synced.clone();
-        tokio::select! {
-            _ = w.wait_for(|v| *v > current) => {}
-            // sync-task already dead (e.g. aborted by a prior remove_all):
-            // `synced` will never advance again, so don't block on it.
-            _ = &mut self.sync_task => {}
+        // Only wait for the sync-task to apply the teardown if clear_bindings
+        // actually changed something. A no-op mutate produces no patch, so the
+        // sync-task's `hosts` watch never fires and `synced` never advances —
+        // without this guard the wait below blocks forever (its `sync_task` arm
+        // only rescues us when the task is already dead, not alive-but-idle).
+        if self.clear_bindings(Default::default()).await? {
+            let mut w = self.synced.clone();
+            tokio::select! {
+                _ = w.wait_for(|v| *v > current) => {}
+                // sync-task already dead (e.g. aborted by a prior remove_all):
+                // `synced` will never advance again, so don't block on it.
+                _ = &mut self.sync_task => {}
+            }
         }
         self.sync_task.abort();
         // Clean up any outbound gateway ip rules for this service
