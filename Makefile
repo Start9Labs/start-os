@@ -323,7 +323,7 @@ start-os/container-runtime/dist/node_modules/.package-lock.json start-os/contain
 	./start-os/container-runtime/install-dist-deps.sh
 	touch start-os/container-runtime/dist/node_modules/.package-lock.json
 
-start-os/container-runtime/rootfs.$(ARCH).squashfs: start-os/container-runtime/debian.$(ARCH).squashfs start-os/container-runtime/start-os/container-runtime.service start-os/container-runtime/update-image.sh start-os/container-runtime/update-image-local.sh start-os/container-runtime/deb-install.sh start-os/container-runtime/dist/index.js start-os/container-runtime/dist/node_modules/.package-lock.json target/$(RUST_ARCH)-unknown-linux-musl/release/start-container
+start-os/container-runtime/rootfs.$(ARCH).squashfs: start-os/container-runtime/debian.$(ARCH).squashfs start-os/container-runtime/container-runtime.service start-os/container-runtime/update-image.sh start-os/container-runtime/update-image-local.sh start-os/container-runtime/deb-install.sh start-os/container-runtime/dist/index.js start-os/container-runtime/dist/node_modules/.package-lock.json target/$(RUST_ARCH)-unknown-linux-musl/release/start-container
 	ARCH=$(ARCH) ./start-os/container-runtime/update-image-local.sh
 
 build/lib/depends build/lib/conflicts: $(ENVIRONMENT_FILE) $(PLATFORM_FILE) $(shell ls build/dpkg-deps/*)

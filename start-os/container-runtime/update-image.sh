@@ -21,7 +21,7 @@ cp container-runtime.service /tmp/combined/lib/systemd/system/container-runtime.
 chown 0:0 /tmp/combined/lib/systemd/system/container-runtime.service
 cp container-runtime-failure.service /tmp/combined/lib/systemd/system/container-runtime-failure.service
 chown 0:0 /tmp/combined/lib/systemd/system/container-runtime-failure.service
-cp ../core/target/${RUST_ARCH}-unknown-linux-musl/release/start-container /tmp/combined/usr/bin/start-container
+cp ../../target/${RUST_ARCH}-unknown-linux-musl/release/start-container /tmp/combined/usr/bin/start-container
 echo -e '#!/bin/bash\nexec start-container "$@"' > /tmp/combined/usr/bin/start-cli # TODO: remove
 chmod +x /tmp/combined/usr/bin/start-cli
 chown 0:0 /tmp/combined/usr/bin/start-container
@@ -38,5 +38,5 @@ done
 truncate -s 0 /tmp/combined/etc/machine-id
 
 rm -f rootfs.${ARCH}.squashfs
-mkdir -p ../build/lib/container-runtime
+mkdir -p ../../build/lib/container-runtime
 mksquashfs /tmp/combined rootfs.${ARCH}.squashfs

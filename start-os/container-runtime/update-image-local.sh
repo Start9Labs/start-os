@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd "$(dirname "${BASH_SOURCE[0]}")/.."
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
 
 USE_TTY=
 if tty -s; then
@@ -15,7 +15,7 @@ case $ARCH in
         DOCKER_PLATFORM=linux/arm64;;
 esac
 
-docker run --rm $USE_TTY --platform=$DOCKER_PLATFORM -eARCH --privileged -v "$(pwd):/root/start-os" start9/build-env /root/start-os/container-runtime/update-image.sh
-if [ "$(ls -nd "container-runtime/rootfs.${ARCH}.squashfs" | awk '{ print $3 }')" != "$UID" ]; then
-  docker run --rm $USE_TTY -v "$(pwd):/root/start-os" start9/build-env chown -R $UID:$UID /root/start-os/container-runtime
+docker run --rm $USE_TTY --platform=$DOCKER_PLATFORM -eARCH --privileged -v "$(pwd):/root/start-os" start9/build-env /root/start-os/start-os/container-runtime/update-image.sh
+if [ "$(ls -nd "start-os/container-runtime/rootfs.${ARCH}.squashfs" | awk '{ print $3 }')" != "$UID" ]; then
+  docker run --rm $USE_TTY -v "$(pwd):/root/start-os" start9/build-env chown -R $UID:$UID /root/start-os/start-os/container-runtime
 fi
