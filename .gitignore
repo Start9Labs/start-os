@@ -20,10 +20,15 @@ secrets.db
 /compiled-*.tar
 /build/lib/firmware
 tmp
-web/.i18n-checked
+shared/web/.i18n-checked
 docs/USER.md
 CLAUDE.local.md
 *.s9pk
 /build/lib/migration-images
 .claude/*
 !.claude/settings.json
+
+# monorepo: per-product web build outputs
+/start-os/web/dist/
+/start-tunnel/web/dist/
+/brochure/dist/
