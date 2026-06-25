@@ -196,6 +196,311 @@ pub(crate) async fn wireguard_psk(interface: &str) -> Result<Option<[u8; 32]>, E
     Ok(None)
 }
 
+/// Update2 flag: persist the change to disk (NM_SETTINGS_UPDATE2_FLAG_TO_DISK).
+const NM_UPDATE2_TO_DISK: u32 = 0x1;
+/// Resolver priority for an imported WireGuard config's `DNS =` — preferred but
+/// not exclusive (positive, below the LAN default). Mirrors import_wireguard.
+const WG_DNS_PRIORITY: i32 = 10;
+
+struct WgPeer {
+    public_key: String,
+    preshared_key: Option<String>,
+    endpoint: Option<String>,
+    persistent_keepalive: Option<u32>,
+}
+
+/// The fields of a WireGuard `.conf` we map onto a NetworkManager connection.
+/// `AllowedIPs` is intentionally dropped: like `sanitize_config` (tunnel.rs) we
+/// force a full-tunnel `0.0.0.0/0, ::/0` so every gateway routes the same way.
+struct WgConfig {
+    private_key: String,
+    addresses: Vec<(IpAddr, u8)>,
+    dns: Vec<IpAddr>,
+    listen_port: Option<u32>,
+    peers: Vec<WgPeer>,
+}
+
+impl WgConfig {
+    fn parse(config: &str) -> Result<Self, Error> {
+        let invalid = |what: &str| {
+            Error::new(
+                eyre!("invalid WireGuard config: {what}"),
+                ErrorKind::InvalidRequest,
+            )
+        };
+        enum Section {
+            None,
+            Interface,
+            Peer,
+        }
+        let mut section = Section::None;
+        let mut private_key = None;
+        let mut addresses = Vec::new();
+        let mut dns = Vec::new();
+        let mut listen_port = None;
+        let mut peers: Vec<WgPeer> = Vec::new();
+
+        for raw in config.lines() {
+            let line = raw.split(['#', ';']).next().unwrap_or("").trim();
+            if line.is_empty() {
+                continue;
+            }
+            if line.eq_ignore_ascii_case("[interface]") {
+                section = Section::Interface;
+                continue;
+            }
+            if line.eq_ignore_ascii_case("[peer]") {
+                section = Section::Peer;
+                peers.push(WgPeer {
+                    public_key: String::new(),
+                    preshared_key: None,
+                    endpoint: None,
+                    persistent_keepalive: None,
+                });
+                continue;
+            }
+            let Some((key, val)) = line.split_once('=') else {
+                continue;
+            };
+            let (key, val) = (key.trim().to_ascii_lowercase(), val.trim());
+            match section {
+                Section::Interface => match key.as_str() {
+                    "privatekey" => private_key = Some(val.to_string()),
+                    "address" => {
+                        for part in val.split(',').map(str::trim).filter(|p| !p.is_empty()) {
+                            let (ip, prefix) = match part.split_once('/') {
+                                Some((ip, p)) => (
+                                    ip.trim().parse().map_err(|_| invalid("address"))?,
+                                    p.trim().parse().map_err(|_| invalid("prefix"))?,
+                                ),
+                                None => {
+                                    let ip: IpAddr = part.parse().map_err(|_| invalid("address"))?;
+                                    (ip, if ip.is_ipv4() { 32 } else { 128 })
+                                }
+                            };
+                            if (ip.is_ipv4() && prefix > 32) || (ip.is_ipv6() && prefix > 128) {
+                                return Err(invalid("address prefix out of range"));
+                            }
+                            addresses.push((ip, prefix));
+                        }
+                    }
+                    "dns" => {
+                        for part in val.split(',').map(str::trim) {
+                            if let Ok(ip) = part.parse::<IpAddr>() {
+                                dns.push(ip);
+                            }
+                        }
+                    }
+                    "listenport" => listen_port = val.parse().ok(),
+                    _ => {}
+                },
+                Section::Peer => {
+                    if let Some(p) = peers.last_mut() {
+                        match key.as_str() {
+                            "publickey" => p.public_key = val.to_string(),
+                            "presharedkey" => p.preshared_key = Some(val.to_string()),
+                            "endpoint" => p.endpoint = Some(val.to_string()),
+                            "persistentkeepalive" => p.persistent_keepalive = val.parse().ok(),
+                            _ => {}
+                        }
+                    }
+                }
+                Section::None => {}
+            }
+        }
+
+        Ok(Self {
+            private_key: private_key.ok_or_else(|| invalid("missing PrivateKey"))?,
+            addresses,
+            dns,
+            listen_port,
+            peers,
+        })
+    }
+
+    /// Build the NetworkManager settings dict that `nmcli connection import` of
+    /// this (sanitized) config would produce, so an in-place Update2 is
+    /// equivalent to a fresh import.
+    fn to_nm_settings(
+        &self,
+        iface: &str,
+        uuid: Option<&str>,
+    ) -> Result<HashMap<String, HashMap<String, OwnedValue>>, Error> {
+        let ov = |v: ZValue<'_>| v.try_to_owned().with_kind(ErrorKind::Network);
+        let mut settings: HashMap<String, HashMap<String, OwnedValue>> = HashMap::new();
+
+        let mut conn = HashMap::from([
+            ("id".into(), ov(iface.into())?),
+            ("type".into(), ov("wireguard".into())?),
+            ("interface-name".into(), ov(iface.into())?),
+        ]);
+        // On add NM generates the uuid; on update we keep the existing one so the
+        // profile is replaced rather than redefined.
+        if let Some(uuid) = uuid {
+            conn.insert("uuid".into(), ov(uuid.into())?);
+        }
+        settings.insert("connection".into(), conn);
+
+        let mut wg: HashMap<String, OwnedValue> = HashMap::new();
+        wg.insert("private-key".into(), ov(self.private_key.as_str().into())?);
+        if let Some(port) = self.listen_port {
+            wg.insert("listen-port".into(), ov(port.into())?);
+        }
+        let peers: Vec<HashMap<String, ZValue>> = self
+            .peers
+            .iter()
+            .map(|p| {
+                let mut d: HashMap<String, ZValue> = HashMap::new();
+                d.insert("public-key".into(), p.public_key.as_str().into());
+                if let Some(psk) = &p.preshared_key {
+                    d.insert("preshared-key".into(), psk.as_str().into());
+                }
+                if let Some(ep) = &p.endpoint {
+                    d.insert("endpoint".into(), ep.as_str().into());
+                }
+                if let Some(ka) = p.persistent_keepalive {
+                    d.insert("persistent-keepalive".into(), ka.into());
+                }
+                d.insert(
+                    "allowed-ips".into(),
+                    vec!["0.0.0.0/0".to_string(), "::/0".to_string()].into(),
+                );
+                d
+            })
+            .collect();
+        wg.insert("peers".into(), ov(peers.into())?);
+        settings.insert("wireguard".into(), wg);
+
+        for (proto, is_v4) in [("ipv4", true), ("ipv6", false)] {
+            let addrs: Vec<_> = self
+                .addresses
+                .iter()
+                .filter(|(ip, _)| ip.is_ipv4() == is_v4)
+                .collect();
+            let dns: Vec<_> = self.dns.iter().filter(|ip| ip.is_ipv4() == is_v4).collect();
+            let mut s: HashMap<String, OwnedValue> = HashMap::new();
+            if addrs.is_empty() {
+                s.insert("method".into(), ov("disabled".into())?);
+            } else {
+                s.insert("method".into(), ov("manual".into())?);
+                let address_data: Vec<HashMap<String, ZValue>> = addrs
+                    .iter()
+                    .map(|(ip, prefix)| {
+                        HashMap::from([
+                            ("address".into(), ip.to_string().into()),
+                            ("prefix".into(), (*prefix as u32).into()),
+                        ])
+                    })
+                    .collect();
+                s.insert("address-data".into(), ov(address_data.into())?);
+                // import_wireguard sets dns-priority on every active protocol,
+                // regardless of whether this config carries resolvers.
+                s.insert("dns-priority".into(), ov(WG_DNS_PRIORITY.into())?);
+                if !dns.is_empty() {
+                    let dns_val = if is_v4 {
+                        // ipv4.dns is au: the address octets as a little-endian u32.
+                        ZValue::from(
+                            dns.iter()
+                                .filter_map(|ip| match ip {
+                                    IpAddr::V4(v4) => Some(u32::from_le_bytes(v4.octets())),
+                                    _ => None,
+                                })
+                                .collect::<Vec<u32>>(),
+                        )
+                    } else {
+                        // ipv6.dns is aay: each address as 16 raw bytes.
+                        ZValue::from(
+                            dns.iter()
+                                .filter_map(|ip| match ip {
+                                    IpAddr::V6(v6) => Some(v6.octets().to_vec()),
+                                    _ => None,
+                                })
+                                .collect::<Vec<Vec<u8>>>(),
+                        )
+                    };
+                    s.insert("dns".into(), ov(dns_val)?);
+                    s.insert("dns-search".into(), ov(vec!["~".to_string()].into())?);
+                    s.insert("dns-priority".into(), ov(WG_DNS_PRIORITY.into())?);
+                }
+            }
+            settings.insert(proto.into(), s);
+        }
+
+        Ok(settings)
+    }
+}
+
+/// Apply a re-issued WireGuard config to `interface`'s existing NM connection in
+/// place via D-Bus Update2 + Device.Reapply. The wg device is never deleted, so
+/// the tunnel — and the request that triggered the update, when it rides this
+/// same tunnel — is not torn down. Reapply applies the change to the live device
+/// without bringing the interface down (NM supports this for WireGuard).
+pub(crate) async fn update_wireguard_config(interface: &str, config: &str) -> Result<(), Error> {
+    let parsed = WgConfig::parse(config)?;
+
+    let connection = Connection::system().await?;
+    let netman = NetworkManagerProxy::new(&connection).await?;
+    let device = netman.get_device_by_ip_iface(interface).await?;
+    if &*device == "/" {
+        return Err(Error::new(
+            eyre!("{interface} not found in NetworkManager"),
+            ErrorKind::NotFound,
+        ));
+    }
+    let device_proxy = DeviceProxy::new(&connection, device).await?;
+    let ac = device_proxy.active_connection().await?;
+    if &*ac == "/" {
+        return Err(Error::new(
+            eyre!("{interface} has no active connection to update"),
+            ErrorKind::InvalidRequest,
+        ));
+    }
+    let ac_proxy = active_connection::ActiveConnectionProxy::new(&connection, ac).await?;
+    let settings =
+        ConnectionSettingsProxy::new(&connection, ac_proxy.connection().await?).await?;
+
+    // Preserve the connection's uuid so this updates the existing profile rather
+    // than defining a new one.
+    let existing = settings.get_settings().await?;
+    let uuid = existing
+        .get("connection")
+        .and_then(|c| c.get("uuid"))
+        .and_then(|u| u.downcast_ref::<zbus::zvariant::Str>().ok())
+        .map(|s| s.to_string())
+        .ok_or_else(|| {
+            Error::new(
+                eyre!("{interface} connection is missing its uuid"),
+                ErrorKind::Network,
+            )
+        })?;
+
+    settings
+        .update2(
+            parsed.to_nm_settings(interface, Some(uuid.as_str()))?,
+            NM_UPDATE2_TO_DISK,
+            HashMap::new(),
+        )
+        .await?;
+    device_proxy.reapply(HashMap::new(), 0, 0).await?;
+    Ok(())
+}
+
+/// Create `interface`'s WireGuard connection from a config and bring it up, using
+/// the same parse + conversion as [`update_wireguard_config`] so an added gateway
+/// and an updated one are byte-for-byte identical. Replaces the old
+/// `nmcli connection import` helper.
+pub(crate) async fn add_wireguard_config(interface: &str, config: &str) -> Result<(), Error> {
+    let settings = WgConfig::parse(config)?.to_nm_settings(interface, None)?;
+    let connection = Connection::system().await?;
+    let netman = NetworkManagerProxy::new(&connection).await?;
+    // `/` for device + specific_object: NM creates the virtual wg device on activation.
+    let root = zbus::zvariant::ObjectPath::try_from("/").with_kind(ErrorKind::Network)?;
+    netman
+        .add_and_activate_connection(settings, &root, &root)
+        .await?;
+    Ok(())
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
 #[group(skip)]
 #[ts(export)]
@@ -540,6 +845,16 @@ pub async fn set_outbound_gateway(
 trait NetworkManager {
     fn get_device_by_ip_iface(&self, iface: &str) -> Result<OwnedObjectPath, Error>;
 
+    /// Add a persistent connection from the given settings and activate it in one
+    /// call. Pass `/` for device/specific_object to let NM pick or create the
+    /// device (a virtual WireGuard interface is created on activation).
+    fn add_and_activate_connection(
+        &self,
+        connection: HashMap<String, HashMap<String, OwnedValue>>,
+        device: &zbus::zvariant::ObjectPath<'_>,
+        specific_object: &zbus::zvariant::ObjectPath<'_>,
+    ) -> Result<(OwnedObjectPath, OwnedObjectPath), Error>;
+
     #[zbus(property)]
     fn all_devices(&self) -> Result<Vec<OwnedObjectPath>, Error>;
 
@@ -699,8 +1014,10 @@ impl TryFrom<OwnedValue> for Dhcp4Options {
 }
 
 mod device {
+    use std::collections::HashMap;
+
     use zbus::proxy;
-    use zbus::zvariant::OwnedObjectPath;
+    use zbus::zvariant::{OwnedObjectPath, OwnedValue};
 
     use crate::prelude::*;
 
@@ -710,6 +1027,16 @@ mod device {
     )]
     pub trait Device {
         fn delete(&self) -> Result<(), Error>;
+
+        /// Apply changed connection settings to the live device without
+        /// deactivating it. Empty `connection` reapplies the active connection's
+        /// current (just-updated) settings; `version_id` 0 skips the version check.
+        fn reapply(
+            &self,
+            connection: HashMap<String, HashMap<String, OwnedValue>>,
+            version_id: u64,
+            flags: u32,
+        ) -> Result<(), Error>;
 
         #[zbus(property)]
         fn ip_interface(&self) -> Result<String, Error>;
@@ -2035,8 +2362,8 @@ impl NetworkInterfaceController {
         Ok(())
     }
 
-    pub async fn delete_iface(self: &Arc<Self>, interface: &GatewayId) -> Result<(), Error> {
-        let Some(true) = self
+    pub async fn delete_iface(&self, interface: &GatewayId) -> Result<(), Error> {
+        let Some(has_ip_info) = self
             .watcher
             .ip_info
             .peek(|ifaces| ifaces.get(interface).map(|i| i.ip_info.is_some()))
@@ -2044,28 +2371,25 @@ impl NetworkInterfaceController {
             return self.forget(interface).await;
         };
 
-        // Deleting the gateway that carries this very request tears its tunnel
-        // down, dropping our transport and cancelling this handler — which would
-        // leave the NM connection deleted but the gateway entry never forgotten
-        // (a half-deleted gateway, recovered only by a reboot). Detach the
-        // delete + wait + forget so it runs to completion regardless: dropping the
-        // JoinHandle on cancellation does not abort the task.
-        let this = self.clone();
-        let interface = interface.clone();
-        let task = tokio::spawn(async move {
-            let mut ip_info = this.watcher.ip_info.clone_unseen();
+        if has_ip_info {
+            let mut ip_info = self.watcher.ip_info.clone_unseen();
 
             let connection = Connection::system().await?;
+
             let netman_proxy = NetworkManagerProxy::new(&connection).await?;
 
-            let iface_name = interface.as_str();
-            let device = Some(netman_proxy.get_device_by_ip_iface(iface_name).await?)
-                .filter(|o| &**o != "/")
-                .or_not_found(lazy_format!("{iface_name} in NetworkManager"))?;
+            let device = Some(
+                netman_proxy
+                    .get_device_by_ip_iface(interface.as_str())
+                    .await?,
+            )
+            .filter(|o| &**o != "/")
+            .or_not_found(lazy_format!("{interface} in NetworkManager"))?;
 
             let device_proxy = DeviceProxy::new(&connection, device).await?;
 
             let ac = device_proxy.active_connection().await?;
+
             if &*ac == "/" {
                 return Err(Error::new(
                     eyre!("{}", t!("net.gateway.cannot-delete-without-connection")),
@@ -2074,24 +2398,20 @@ impl NetworkInterfaceController {
             }
 
             let ac_proxy = active_connection::ActiveConnectionProxy::new(&connection, ac).await?;
+
             let settings =
                 ConnectionSettingsProxy::new(&connection, ac_proxy.connection().await?).await?;
 
             settings.delete().await?;
 
             ip_info
-                .wait_for(|ifaces| ifaces.get(&interface).map_or(true, |i| i.ip_info.is_none()))
+                .wait_for(|ifaces| ifaces.get(interface).map_or(true, |i| i.ip_info.is_none()))
                 .await;
-
-            this.forget(&interface).await
-        });
-        match task.await {
-            Ok(res) => res,
-            Err(e) => Err(Error::new(
-                eyre!("delete gateway task failed: {e}"),
-                ErrorKind::Network,
-            )),
         }
+
+        self.forget(interface).await?;
+
+        Ok(())
     }
 
     pub async fn set_name(&self, interface: &GatewayId, name: InternedString) -> Result<(), Error> {
@@ -2231,5 +2551,107 @@ impl Accept for WildcardListener {
             )));
         }
         Poll::Pending
+    }
+}
+
+#[cfg(test)]
+mod wg_config_tests {
+    use super::*;
+
+    fn as_str(v: &OwnedValue) -> String {
+        v.downcast_ref::<zbus::zvariant::Str>().unwrap().to_string()
+    }
+
+    #[test]
+    fn parses_interface_and_peer() {
+        let config = "[Interface]\n\
+            PrivateKey = aPrivateKey=\n\
+            Address = 10.59.0.2/24, fd00::2/64\n\
+            DNS = 10.59.0.1\n\
+            ListenPort = 51820\n\
+            \n\
+            [Peer]   # the tunnel server\n\
+            PublicKey = aPublicKey=\n\
+            PresharedKey = aPSK=\n\
+            Endpoint = 1.2.3.4:51820\n\
+            AllowedIPs = 10.0.0.0/8\n\
+            PersistentKeepalive = 25\n";
+        let p = WgConfig::parse(config).unwrap();
+        assert_eq!(p.private_key, "aPrivateKey=");
+        assert_eq!(
+            p.addresses,
+            vec![
+                (IpAddr::V4(Ipv4Addr::new(10, 59, 0, 2)), 24),
+                (IpAddr::V6("fd00::2".parse().unwrap()), 64),
+            ]
+        );
+        assert_eq!(p.dns, vec![IpAddr::V4(Ipv4Addr::new(10, 59, 0, 1))]);
+        assert_eq!(p.listen_port, Some(51820));
+        assert_eq!(p.peers.len(), 1);
+        assert_eq!(p.peers[0].public_key, "aPublicKey=");
+        assert_eq!(p.peers[0].preshared_key.as_deref(), Some("aPSK="));
+        assert_eq!(p.peers[0].endpoint.as_deref(), Some("1.2.3.4:51820"));
+        assert_eq!(p.peers[0].persistent_keepalive, Some(25));
+    }
+
+    // ipv4.dns is `au` with each address as little-endian octets — the format we
+    // captured from a real NM 1.52 import (10.x -> from_le_bytes). A regression
+    // here would silently point the gateway at the wrong DNS server.
+    #[test]
+    fn builds_nm_settings_matching_import() {
+        let config = "[Interface]\n\
+            PrivateKey = aPrivateKey=\n\
+            Address = 10.59.0.2/24\n\
+            DNS = 10.59.0.1\n\
+            [Peer]\n\
+            PublicKey = aPublicKey=\n\
+            Endpoint = 1.2.3.4:51820\n\
+            AllowedIPs = 10.0.0.0/8\n";
+        let s = WgConfig::parse(config)
+            .unwrap()
+            .to_nm_settings("wg0", Some("the-uuid"))
+            .unwrap();
+
+        assert_eq!(as_str(&s["connection"]["uuid"]), "the-uuid");
+        assert_eq!(as_str(&s["connection"]["type"]), "wireguard");
+        assert_eq!(as_str(&s["connection"]["interface-name"]), "wg0");
+        assert_eq!(as_str(&s["wireguard"]["private-key"]), "aPrivateKey=");
+
+        let ipv4 = &s["ipv4"];
+        assert_eq!(as_str(&ipv4["method"]), "manual");
+        let dns = Vec::<u32>::try_from(ipv4["dns"].try_clone().unwrap()).unwrap();
+        assert_eq!(dns, vec![u32::from_le_bytes([10, 59, 0, 1])]);
+        let priority = i32::try_from(ipv4["dns-priority"].try_clone().unwrap()).unwrap();
+        assert_eq!(priority, WG_DNS_PRIORITY);
+
+        // No ipv6 address in this config, so ipv6 is disabled (matches import).
+        assert_eq!(as_str(&s["ipv6"]["method"]), "disabled");
+
+        // Peer's allowed-ips is forced to full-tunnel regardless of the config.
+        let peers = Vec::<HashMap<String, OwnedValue>>::try_from(
+            s["wireguard"]["peers"].try_clone().unwrap(),
+        )
+        .unwrap();
+        assert_eq!(peers.len(), 1);
+        assert_eq!(as_str(&peers[0]["public-key"]), "aPublicKey=");
+        let allowed = Vec::<String>::try_from(peers[0]["allowed-ips"].try_clone().unwrap()).unwrap();
+        assert_eq!(allowed, vec!["0.0.0.0/0".to_string(), "::/0".to_string()]);
+    }
+
+    #[test]
+    fn rejects_out_of_range_prefix() {
+        assert!(WgConfig::parse("[Interface]\nPrivateKey = k=\nAddress = 10.0.0.2/40\n").is_err());
+        assert!(WgConfig::parse("[Interface]\nPrivateKey = k=\nAddress = fd00::2/200\n").is_err());
+    }
+
+    // add() lets NM generate the uuid; update() preserves the existing one so the
+    // same profile is replaced in place rather than redefined.
+    #[test]
+    fn uuid_present_only_on_update() {
+        let parsed =
+            WgConfig::parse("[Interface]\nPrivateKey = k=\nAddress = 10.0.0.2/24\n").unwrap();
+        assert!(!parsed.to_nm_settings("wg0", None).unwrap()["connection"].contains_key("uuid"));
+        let updated = parsed.to_nm_settings("wg0", Some("uuid-x")).unwrap();
+        assert_eq!(as_str(&updated["connection"]["uuid"]), "uuid-x");
     }
 }
