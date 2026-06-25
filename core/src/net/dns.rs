@@ -34,7 +34,7 @@ use crate::context::{CliContext, RpcContext};
 use crate::db::model::Database;
 use crate::db::model::public::NetworkInterfaceInfo;
 use crate::net::gateway::NetworkInterfaceWatcher;
-use crate::net::utils::{bind_tokio_listener, ipv6_is_link_local};
+use crate::net::utils::{bind_tokio_listener_reuse_port, ipv6_is_link_local};
 use crate::prelude::*;
 use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::file_string_stream;
@@ -626,6 +626,9 @@ fn bind_reuse_udp(addr: SocketAddr, dual_stack: bool) -> Result<UdpSocket, Error
     socket
         .set_reuse_address(true)
         .with_kind(ErrorKind::Network)?;
+    socket
+        .set_reuse_port(true)
+        .with_kind(ErrorKind::Network)?;
     if matches!(addr, SocketAddr::V6(_)) {
         socket
             .set_only_v6(!dual_stack)
@@ -640,7 +643,7 @@ fn dns_server_on(resolver: Resolver, addr: SocketAddr) -> Result<Server<Resolver
     let dual_stack = matches!(addr, SocketAddr::V6(v6) if v6.ip().is_unspecified());
     let mut server = Server::new(resolver);
     server.register_listener(
-        bind_tokio_listener(addr).with_kind(ErrorKind::Network)?,
+        bind_tokio_listener_reuse_port(addr).with_kind(ErrorKind::Network)?,
         Duration::from_secs(30),
         DNS_RESPONSE_BUFFER_SIZE,
     );
