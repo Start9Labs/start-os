@@ -1,36 +1,50 @@
-# Start9 Docs
+# Start9 Docs Site
 
-The official documentation for [Start9](https://start9.com) products — covering StartOS, StartTunnel, Service Packaging, and Bitcoin Guides.
+The documentation site for [Start9](https://start9.com) products — StartOS, StartTunnel, Service Packaging, and Bitcoin Guides.
 
 **Live site:** [docs.start9.com](https://docs.start9.com)
 
-## Books
+This project (the `docs/` directory of the `start-os` monorepo) owns the **site build infrastructure**, the **landing page**, and the **Bitcoin Guides** book. The per-product mdBooks now live in their own product directories; this project's build wires them together into one deployed site.
 
-| Product | URL | Content |
-|---------|-----|---------|
-| [StartOS](start-os/) | [docs.start9.com/start-os](https://docs.start9.com/start-os/) | Setup, services, networking, backups, system admin, firmware |
-| [StartTunnel](start-tunnel/) | [docs.start9.com/start-tunnel](https://docs.start9.com/start-tunnel/) | Installation, subnets, devices, port forwarding, architecture |
-| [Service Packaging](packaging/) | [docs.start9.com/packaging](https://docs.start9.com/packaging/) | Developer guide for building and publishing StartOS services |
-| [Bitcoin Guides](bitcoin-guides/) | [docs.start9.com/bitcoin-guides](https://docs.start9.com/bitcoin-guides/) | Guides for running Bitcoin and related services on StartOS |
+## Books and where they live
 
-### Product context
+| Book | URL | Source dir | Content |
+|------|-----|-----------|---------|
+| StartOS | [docs.start9.com/start-os](https://docs.start9.com/start-os/) | `../start-os/docs/` | Setup, services, networking, backups, system admin, firmware |
+| StartTunnel | [docs.start9.com/start-tunnel](https://docs.start9.com/start-tunnel/) | `../start-tunnel/docs/` | Installation, subnets, devices, port forwarding |
+| Service Packaging | [docs.start9.com/packaging](https://docs.start9.com/packaging/) | `../start-sdk/docs/` | Developer guide for building and publishing StartOS services |
+| Bitcoin Guides | [docs.start9.com/bitcoin-guides](https://docs.start9.com/bitcoin-guides/) | `docs/bitcoin-guides/` | Running Bitcoin and related services on StartOS |
 
-- **StartOS 0.4.0** — networking strategies that aren't built into StartOS core (Tor, P2P tunnels, etc.) are distributed as marketplace services. Outbound gateways support a system default plus per-service override.
-- **Service Packaging** — these docs are the single source of truth for service packaging. Code examples are based on the [hello-world](https://github.com/Start9Labs/hello-world-startos) template.
-- **StartTunnel** — a WireGuard-based gateway service for clearnet access. Separate product, separate book.
-- **Bitcoin Guides** — wallet indexes, Electrum servers, archival vs pruned nodes, LND migration. The Bitcoin package on StartOS integrates btc-rpc-proxy for on-demand block fetching, so pruned nodes work transparently with multiple downstream services.
+The first three books were moved out of this directory into their product dirs so each book sits next to the code it documents. `build.sh` maps each book name to its source dir, so build output and deployed URLs are unchanged. Only `bitcoin-guides` still lives here.
 
-## How It Works
+## What's in this project
 
-Built with [mdBook](https://rust-lang.github.io/mdBook/) and deployed via rsync to a VPS. Each product is an independent mdBook instance sharing a common theme.
+```
+docs/
+├── build.sh           ← builds every book into the docs/ output dir
+├── serve.sh           ← build + local dev server
+├── versions.conf      ← book → version list (single source of truth)
+├── theme/             ← shared mdBook theme (CSS/JS/favicon), symlinked by every book
+├── landing/           ← static landing page served at docs.start9.com/
+├── bitcoin-guides/    ← the Bitcoin Guides mdBook
+└── scripts/           ← build-time tooling (llms.txt generator)
+```
 
-On push to `master`, GitHub Actions:
-1. Builds all books into versioned `docs/` output directories
+## Product context
+
+- **StartOS 0.4.0** — networking strategies not built into StartOS core (Tor, P2P tunnels, etc.) are distributed as marketplace services. Outbound gateways support a system default plus per-service override.
+- **Service Packaging** — single source of truth for service packaging; code examples are based on the [hello-world](https://github.com/Start9Labs/hello-world-startos) template.
+- **StartTunnel** — a WireGuard-based gateway service for clearnet access.
+- **Bitcoin Guides** — wallet indexes, Electrum servers, archival vs pruned nodes, LND migration. The Bitcoin package integrates btc-rpc-proxy for on-demand block fetching, so pruned nodes work transparently with multiple downstream services.
+
+## How it works
+
+Built with [mdBook](https://rust-lang.github.io/mdBook/). Each book is an independent mdBook instance sharing the common `theme/`. On push to `master` (paths under `docs/`, `start-os/docs/`, `start-tunnel/docs/`, or `start-sdk/docs/`), the `docs-deploy.yml` workflow:
+
+1. Builds all books into versioned `docs/<book>/<version>/` directories
 2. Generates `llms.txt` and `llms-full.txt` for LLM consumption
-3. Deploys to the VPS via rsync and reloads nginx
+3. rsyncs to the VPS and regenerates nginx routing from `versions.conf`
 
-## Getting Started
+## Getting started
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for local development setup and how to submit changes.
-
-See [ARCHITECTURE.md](ARCHITECTURE.md) for how the repo is structured and why.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup and how to submit changes, and [ARCHITECTURE.md](ARCHITECTURE.md) for how the build is structured.

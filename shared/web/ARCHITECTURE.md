@@ -2,6 +2,24 @@
 
 Angular 22 + TypeScript workspace using [Taiga UI 5](https://taiga-ui.dev/) component library.
 
+## Workspace layout
+
+This directory (`shared/web`) is the Angular workspace root. The two **libraries** live here directly:
+
+- `shared/src/` — `@start9labs/shared`
+- `marketplace/src/` — `@start9labs/marketplace`
+
+The four **apps** are declared in `angular.json` but rooted in their product dirs, so paths below prefixed `ui/`, `setup-wizard/`, etc. actually live outside this directory:
+
+| App | `angular.json` root |
+|-----|---------------------|
+| `ui` | `../../start-os/web/ui` |
+| `setup-wizard` | `../../start-os/web/setup-wizard` |
+| `start-tunnel` | `../../start-tunnel/web` |
+| `brochure` | `../../brochure` |
+
+Apps import the libs via the `tsconfig.json` path aliases `@start9labs/shared` → `./shared/src/public-api` and `@start9labs/marketplace` → `./marketplace/index`.
+
 ## API Layer (JSON-RPC)
 
 All backend communication uses JSON-RPC, not REST.

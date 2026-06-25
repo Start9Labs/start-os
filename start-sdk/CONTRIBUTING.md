@@ -2,18 +2,21 @@
 
 This guide covers developing the SDK itself. If you're building a service package *using* the SDK, see the [packaging docs](https://docs.start9.com/packaging).
 
-For contributing to the broader StartOS project, see the root [CONTRIBUTING.md](../CONTRIBUTING.md).
+The SDK lives at `start-sdk/` inside the [start-os monorepo](../README.md). For contributing to the broader StartOS project, see the root [CONTRIBUTING.md](../CONTRIBUTING.md) and root [AGENTS.md](../AGENTS.md).
 
 ## Documentation
 
-This sub-tree's docs split across four files:
+This sub-tree's docs:
 
-- `README.md` — what this is
-- `ARCHITECTURE.md` — how it's built
-- `CONTRIBUTING.md` — this file; how to contribute
-- `CLAUDE.md` — AI-developer operating rules
+- `README.md` — what this is + quickstart
+- `ARCHITECTURE.md` — how it's structured (modules, data flow)
+- `CONTRIBUTING.md` — this file; how to build/test/contribute
+- `AGENTS.md` — practical agent/dev instructions (`CLAUDE.md` is just `@AGENTS.md`)
+- `CHANGELOG.md` — Keep a Changelog style release history
 
-**These docs must be kept up to date.** When you change the SDK's structure, conventions, build process, or product surface, update the relevant file(s) in the same change — do not defer.
+The developer-facing reference is the packaging mdbook in `docs/` (published at [docs.start9.com/packaging](https://docs.start9.com/packaging)).
+
+**These docs must be kept up to date.** When you change the SDK's structure, conventions, build process, or developer surface, update the relevant file(s) — including the packaging mdbook — in the same change. Do not defer.
 
 ## Prerequisites
 
@@ -32,7 +35,7 @@ make --version
 ## Repository Layout
 
 ```
-sdk/
+start-sdk/
 ├── base/              # @start9labs/start-sdk-base (core types, ABI, effects)
 │   ├── lib/           #   TypeScript source
 │   ├── package.json
@@ -45,18 +48,23 @@ sdk/
 │   └── jest.config.js
 ├── baseDist/          # Build output for base (generated)
 ├── dist/              # Build output for package (generated, published to npm)
+├── docs/              # "Service Packaging" mdbook (docs.start9.com/packaging)
+├── s9pk.mk            # Build plumbing shipped in the published package
+├── tsconfig.base.json # tsconfig shipped in the published package
 ├── Makefile           # Build orchestration
 ├── README.md
 ├── ARCHITECTURE.md
-└── CLAUDE.md
+├── CHANGELOG.md
+└── AGENTS.md
 ```
+
+`s9pk.mk` and `tsconfig.base.json` are copied into `dist/` so service packages can `include node_modules/@start9labs/start-sdk/s9pk.mk` and `extends "@start9labs/start-sdk/tsconfig.base.json"` — they are a public contract; editing them changes every package's build.
 
 ## Getting Started
 
-Install dependencies for both sub-packages:
+From `start-sdk/`, install dependencies for both sub-packages:
 
 ```bash
-cd sdk
 make node_modules
 ```
 
@@ -199,7 +207,7 @@ Decide where new code belongs:
 
 ### Adding OS Bindings
 
-Types in `base/lib/osBindings/` mirror Rust types from the StartOS core. When Rust types change, the corresponding TypeScript bindings need updating. These are re-exported through `base/lib/osBindings/index.ts`.
+Types in `base/lib/osBindings/` mirror Rust types from the monorepo's `shared/crates/start-core` (the `startos` lib). When those Rust types change, the corresponding TypeScript bindings need regenerating. These are re-exported through `base/lib/osBindings/index.ts`.
 
 ### Writing Tests
 

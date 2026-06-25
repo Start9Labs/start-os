@@ -1,4 +1,29 @@
-# CLAUDE.md
+# AGENTS.md
+
+Agent/dev instructions for `shared/web` — the Angular workspace root and the two shared libs (`@start9labs/shared`, `@start9labs/marketplace`). See `ARCHITECTURE.md` for structure, `CONTRIBUTING.md` for full setup.
+
+## Where things are
+
+- **You are at the workspace root.** `angular.json`, `package.json`, `tsconfig.json` all live here. The libs `shared/` and `marketplace/` live here directly.
+- **Apps live elsewhere.** `ui` → `../../start-os/web/ui`, `setup-wizard` → `../../start-os/web/setup-wizard`, `start-tunnel` → `../../start-tunnel/web`, `brochure` → `../../brochure`. Editing app code means editing those dirs even though `ng`/`tsc` are run from here.
+- i18n dictionaries: `shared/src/i18n/dictionaries/`.
+
+## Build / test / check (run from `shared/web`)
+
+```sh
+npm ci
+npm run build:deps           # MUST run first after install — builds the file: deps (start-sdk, patch-db client)
+npm run check                # type-check all projects; or check:shared / check:ui / etc. for one
+npm run format               # prettier; format:check for CI
+npm run start:ui             # mock dev server (needs config.json — cp config-sample.json)
+npm run build:ui             # prod build of a single app
+```
+
+Gotchas:
+
+- `@start9labs/start-sdk` and `patch-db-client` are `file:` deps built by `build:deps`; a fresh checkout won't type-check until you run it.
+- There is no unit-test runner wired up — `npm run check` (tsc, strict + strictTemplates) plus a successful `build:*` is the verification bar.
+- `vendor/patch-db` is a git submodule; `build:deps` runs `npm ci && npm run build` inside it.
 
 ## Operating rules
 
@@ -10,7 +35,7 @@
 - **Follow existing patterns before inventing new ones.** Nearly anything you build has a precedent in this codebase — search for a similar component first and copy its conventions (signals, `inject()`, OnPush, etc. — see ARCHITECTURE.md's component conventions).
 - **i18n is mandatory for user-facing strings.** Every English string used in templates goes through `| i18n` and must have an entry in every language dictionary under `shared/src/i18n/dictionaries/`. See ARCHITECTURE.md's i18n section.
 - **Use tuiTitle + tuiSubtitle** for a common UI pattern of a vertical stack of primary text and secondary text. Use the <b> tag to make the title bold.
-- **`projects/brochure` is a public website, not an embedded OS app.** It's the marketplace front at marketplace.start9.com and **auto-deploys on merge to `master`** (`.github/workflows/deploy-brochure.yml`) — `ui`, `setup-wizard`, and `start-tunnel` ship inside the OS image instead. brochure consumes the same source `shared`/`marketplace` libs as the other apps.
+- **`brochure` (`../../brochure`) is a public website, not an embedded OS app.** It's the marketplace front at marketplace.start9.com and **auto-deploys on merge to `master`** (`.github/workflows/deploy-brochure.yml`) — `ui`, `setup-wizard`, and `start-tunnel` ship inside the OS image instead. brochure consumes the same source `shared`/`marketplace` libs as the other apps.
 
 ## Taiga 5 idioms to default to
 

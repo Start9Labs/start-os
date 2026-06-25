@@ -1,17 +1,27 @@
 # Contributing
 
-We welcome contributions! Whether you spot a typo or want to suggest new content, fork this repo and submit a PR. If you're not comfortable with that process, [create an issue](https://github.com/Start9Labs/docs/issues) or reach out via our [community channels](https://start9.com/contact).
+We welcome contributions! Whether you spot a typo or want to suggest new content, fork the [`start-os`](https://github.com/Start9Labs/start-os) monorepo and submit a PR. If you're not comfortable with that process, [open an issue](https://github.com/Start9Labs/start-os/issues) or reach out via our [community channels](https://start9.com/contact).
 
-## Documentation
+This is the docs-site project inside the monorepo. See the [root CONTRIBUTING](../CONTRIBUTING.md) for the monorepo-wide workflow.
 
-This repo's docs split across:
+## Project docs
 
-- `README.md` — what this is
-- `ARCHITECTURE.md` — how it's built
-- `CONTRIBUTING.md` — this file; how to contribute
-- `CLAUDE.md` — AI-developer operating rules
+- `README.md` — what this project is
+- `ARCHITECTURE.md` — how the site is built and deployed
+- `CONTRIBUTING.md` — this file
+- `AGENTS.md` — operating rules for AI developers (`CLAUDE.md` just imports it)
 
-**These docs must be kept up to date.** When you change project structure, conventions, build process, or product context, update the relevant file(s) in the same change — do not defer.
+Keep these up to date. When you change the build process, conventions, or where a book lives, update the relevant file(s) in the same change.
+
+## Where the books live
+
+Only the **Bitcoin Guides** book (`bitcoin-guides/`), the landing page, the theme, and the build infra live in this project. The other books live in their product dirs:
+
+- StartOS → `../start-os/docs/`
+- StartTunnel → `../start-tunnel/docs/`
+- Service Packaging (book name `packaging`) → `../start-sdk/docs/`
+
+`build.sh`'s `book_dir()` maps each book name to its source dir, so the build and the deployed URLs treat all books uniformly.
 
 ## Local Setup
 
@@ -21,41 +31,42 @@ This repo's docs split across:
    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
    ```
 
-2. Install [mdBook](https://rust-lang.github.io/mdBook/) and [mdbook-tabs](https://github.com/niccoloforlini/mdbook-tabs):
+2. Install [mdBook](https://rust-lang.github.io/mdBook/) (v0.5.2 to match CI) and [mdbook-tabs](https://github.com/niccoloforlini/mdbook-tabs):
 
    ```
-   cargo install mdbook mdbook-tabs
+   cargo install mdbook --version 0.5.2
+   cargo install mdbook-tabs --version 0.3.4
    ```
 
-3. Install [Node.js](https://nodejs.org/) (v22+) and script dependencies:
+3. Install [Node.js](https://nodejs.org/) (v22+) and the script dependencies (only needed to regenerate `llms.txt`):
 
    ```
    cd scripts && npm install && cd ..
    ```
 
-4. Clone and serve:
+4. From the `docs/` project, build and serve:
 
    ```
-   git clone https://github.com/Start9Labs/docs.git && cd docs
    ./serve.sh
    ```
 
-   This builds all books and serves at http://localhost:3000. For live-reload while editing a single book:
+   This builds all books and serves at http://localhost:3000. For live-reload while editing a single book, run mdBook in that book's source dir:
 
    ```
-   cd start-os && mdbook serve -p 3001
+   cd ../start-os/docs && mdbook serve -p 3001    # StartOS
+   cd bitcoin-guides && mdbook serve -p 3001       # Bitcoin Guides
    ```
 
 ## Build & Tooling
 
-- `./build.sh` — build all books into `docs/`
+- `./build.sh` — build all books into the `docs/` output dir
 - `./serve.sh` — build + serve on http://localhost:3000
-- `cd <book> && mdbook serve -p 3001` — live-reload a single book
+- `cd <book-src-dir> && mdbook serve -p 3001` — live-reload a single book
 - `cd scripts && npm run generate-llms-txt` — regenerate `llms.txt` files
 
 ## Writing Docs
 
-All documentation lives under `start-os/src/`, `start-tunnel/src/`, `packaging/src/`, or `bitcoin-guides/src/` as flat Markdown files (no subdirectory nesting). The sidebar for each book is defined by its `src/SUMMARY.md`, which uses `# Part Title` lines to create section headers and `---` for visual separators.
+Each book's pages are flat Markdown files directly under its `src/` (no subdirectory nesting). The sidebar is defined by that book's `src/SUMMARY.md`, which uses `# Part Title` lines for section headers and `---` for separators.
 
 ### Page Structure
 
@@ -93,7 +104,7 @@ Linux instructions here.
 {{#endtabs}}
 ```
 
-`global="..."` makes a tab group's selection sticky across pages (via `localStorage`, mirrored to a `?<global>=<tab>` URL param). Every group sharing a `global` name **must use identical tab labels** — a stored label that isn't present in a group is silently ignored, so mismatched sets fail to sync. So:
+`global="..."` makes a tab group's selection sticky across pages (via `localStorage`, mirrored to a `?<global>=<tab>` URL param). Every group sharing a `global` name **must use identical tab labels** — a stored label not present in a group is silently ignored, so mismatched sets fail to sync. So:
 
 - OS pickers use `global="platform"` with exactly these labels: `Mac`, `Windows`, `Linux`, `iOS`, `Android / Graphene`. Put distro/version specifics in `####` sub-sections within a tab, not in extra tabs.
 - Anything that isn't a general OS picker (backup targets, cloud providers, …) gets its own `global` — don't overload `platform`.
@@ -113,6 +124,6 @@ Within a book, use relative paths as usual.
 
 ## Submitting Changes
 
-1. Fork and create a branch
+1. Fork `start-os` and create a branch
 2. Make your changes
 3. Submit a PR against `master`

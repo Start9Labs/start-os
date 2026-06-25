@@ -1,6 +1,8 @@
-# Contributing to Core
+# Contributing to start-core
 
-For general environment setup, cloning, and build system, see the root [CONTRIBUTING.md](../CONTRIBUTING.md).
+The shared Rust backend lib (`start-core`, lib name `startos`) at `shared/crates/start-core`.
+For general environment setup, cloning, and the monorepo build system, see the repo-root
+[CONTRIBUTING.md](../../../CONTRIBUTING.md).
 
 ## Documentation
 
@@ -9,7 +11,7 @@ This sub-tree's docs split across four files:
 - `README.md` — what this is
 - `ARCHITECTURE.md` — how it's built
 - `CONTRIBUTING.md` — this file; how to contribute
-- `CLAUDE.md` — AI-developer operating rules
+- `AGENTS.md` — AI/dev operating rules (`CLAUDE.md` is a one-line `@AGENTS.md` import; don't edit it)
 
 **These docs must be kept up to date.** When you change project structure, conventions, build process, or product context, update the relevant file(s) in the same change — do not defer.
 
@@ -21,11 +23,13 @@ This sub-tree's docs split across four files:
 
 ## Common Commands
 
+Run from the repo root:
+
 ```bash
-cargo check -p start-os                    # Type check
-cargo test --features=test                 # Run tests (or: make test-core)
-make format                                # Format with nightly rustfmt
-cd core && cargo test <test_name> --features=test  # Run a specific test
+cargo check -p start-core                          # Type check
+make test-core                                     # Run the full suite (wraps run-tests.sh)
+make format                                        # Format with nightly rustfmt
+cargo test -p start-core <test_name> --features=test  # Run a specific test
 ```
 
 ## Adding a New RPC Endpoint
@@ -46,12 +50,12 @@ When a Rust type needs to be available in TypeScript (for the web frontend or SD
 2. Use `#[serde(rename_all = "camelCase")]` for JS-friendly field names
 3. For types that don't implement TS (like `DateTime<Utc>`, `exver::Version`), use `#[ts(type = "string")]` overrides
 4. For `u64` fields that should be JS `number` (not `bigint`), use `#[ts(type = "number")]`
-5. Run `make ts-bindings` to regenerate — files appear in `core/bindings/` then sync to `sdk/base/lib/osBindings/`
-6. Rebuild the SDK: `cd sdk && make baseDist dist`
+5. Run `make ts-bindings` to regenerate — files appear in `shared/crates/start-core/bindings/` then sync to `start-sdk/base/lib/osBindings/`
+6. Rebuild the SDK: `cd start-sdk && make baseDist dist`
 
 ## Adding i18n Keys
 
-1. Add the key to `core/locales/i18n.yaml` with all 5 language translations
+1. Add the key to `locales/i18n.yaml` (i.e. `shared/crates/start-core/locales/i18n.yaml`) with all 5 language translations
 2. Use the `t!("your.key.name")` macro in Rust code
 3. Follow existing namespace conventions — match the module path where the key is used
 4. Use kebab-case for multi-word segments

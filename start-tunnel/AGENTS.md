@@ -1,0 +1,96 @@
+# AGENTS.md — start-tunnel
+
+Practical instructions for working on the StartTunnel product inside the
+`start-os` monorepo. Read the root `AGENTS.md` for monorepo-wide conventions
+first; this file is scoped to `start-tunnel/`.
+
+## What this project is
+
+A WireGuard virtual private router with kernel-level clearnet port forwarding.
+This directory is a **thin wrapper**: the binary entry point, the Angular UI, the
+systemd unit, and the docs. The real logic lives in
+`shared/crates/start-core/src/tunnel/` (the `startos::tunnel` module) and the
+entry/CLI dispatch in `shared/crates/start-core/src/bins/tunnel.rs`.
+
+## Layout
+
+- `src/main.rs` — embeds the UI, enables `start-tunnel`/`start-tunneld`, dispatches
+  to `start-core`. Rarely needs changes.
+- `Cargo.toml` — crate `start-tunnel`, bin `tunnelbox`. Depends on `start-core`.
+- `start-tunneld.service` — systemd unit running `/usr/bin/start-tunneld`.
+- `web/` — Angular project `start-tunnel` (registered in `shared/web/angular.json`).
+- `docs/` — mdbook (book title "StartTunnel"), output to `docs/book`.
+
+## Where to make changes
+
+| You want to change…                  | Edit…                                                        |
+| ------------------------------------ | ----------------------------------------------------------- |
+| API methods / RPC commands           | `shared/crates/start-core/src/tunnel/api.rs`                |
+| db schema / state model              | `shared/crates/start-core/src/tunnel/db.rs` (+ a migration) |
+| WireGuard behavior                   | `shared/crates/start-core/src/tunnel/wg.rs`                 |
+| Port forwarding (DNAT, SNI, IGD/PCP) | `shared/crates/start-core/src/tunnel/forward/`             |
+| HTTPS / cert handling                | `shared/crates/start-core/src/tunnel/web.rs`               |
+| daemon startup / shutdown            | `shared/crates/start-core/src/bins/tunnel.rs`              |
+| the UI                               | `web/src/`                                                  |
+| user docs                            | `docs/src/`                                                 |
+
+Almost all backend work happens in `start-core`, not here. The one tunnel-local
+Rust file is `src/main.rs`.
+
+## Build & test (run from repo root)
+
+```bash
+make tunnel                                   # build tunnelbox (UI + daemon)
+cargo build -p start-tunnel --bin tunnelbox   # cargo only (UI must be prebuilt)
+cargo check -p start-tunnel                    # fast type-check
+npm --prefix shared/web run build:tunnel       # build just the Angular UI
+make tunnel-deb                                # build the .deb
+make test-core                                 # backend tests (tunnel logic lives in start-core)
+```
+
+Notes:
+- `cargo check`/`cargo build` here only cover the linux target. The CI matrix
+  also builds `*-apple-darwin` and `riscv64`/`aarch64` musl — platform-specific
+  code (`libc`, resolv-conf, etc.) can pass locally and break darwin. cfg-gate
+  platform-only paths; don't reimplement them cross-platform.
+- `make tunnel` needs the static UI at `web/dist/static/start-tunnel/index.html`;
+  the Makefile target chains the UI build → `compress-uis.sh` automatically.
+- TS bindings for the tunnel API regenerate via `make ts-bindings` into
+  `shared/crates/start-core/bindings/tunnel/`.
+
+## Format
+
+```bash
+make format          # formats the whole repo
+make format-check    # CI check
+```
+
+Rust: `cargo fmt` (edition 2024). Web: prettier via the shared Angular config.
+
+## Gotchas
+
+- **One binary, three names.** `tunnelbox` is multi-call; it's installed as
+  symlinks `start-tunneld` (daemon), `start-tunnel` (CLI), and `tunnelbox`. The
+  active subcommand is chosen by `argv[0]`.
+- **Default listen** is `127.0.59.60:5960` (`TUNNEL_DEFAULT_LISTEN` in
+  `tunnel/mod.rs`). HTTPS is added/removed reactively from the `/webserver` db
+  path — no restart on toggle.
+- **State is PatchDB.** Changes are JSON patches; the daemon subscribes to db
+  paths and reconciles kernel state (WireGuard, iptables). Schema changes need a
+  numbered migration in `tunnel/migrations/` and registration in `mod.rs`.
+- **Runtime deps.** The daemon shells out to `wireguard-tools`, `iptables`,
+  `nftables`, and `conntrack`; the `.deb` declares them. Adding a new external
+  tool means updating the `DEPENDS=` list in the Makefile `tunnel-deb` target.
+- **Port forwarding is Layer 3/4.** It rewrites IP headers (DNAT) and does not
+  decrypt payloads — keep it that way; TLS terminates at the user's service.
+- **CLI and UI share `tunnel_api()`.** Add a method once in `api.rs`; both
+  surfaces get it.
+- **Version bump:** `Cargo.toml` `version` carries a `# VERSION_BUMP` marker —
+  bump it there.
+
+## Docs are part of the change
+
+User-facing changes (UI, CLI flags/output, install flow, subnet/device/forward
+behavior) must update `docs/src/` in the same change. The mdbook is published at
+`start9.com/start-tunnel/`. Reference: `docs/src/cli-reference.md`,
+`installing.md`, `subnets.md`, `devices.md`, `port-forwarding.md`.

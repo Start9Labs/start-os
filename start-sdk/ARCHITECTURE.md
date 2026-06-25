@@ -23,7 +23,7 @@ The Start SDK is split into two npm packages that form a layered architecture: *
 └─────────────────────────────────────────────────────────────┘
 ```
 
-The SDK follows [Semantic Versioning](https://semver.org/) within the `0.4.0-beta.*` pre-release series. The SDK version tracks independently from the StartOS release versions.
+The SDK follows [Semantic Versioning](https://semver.org/) and is versioned independently of StartOS (the current `@start9labs/start-sdk` 2.0.0 targets StartOS 0.4.0-beta.10). Each `CHANGELOG.md` heading records the SDK version and the StartOS release it targets.
 
 ## Base Package (`base/`)
 
@@ -31,7 +31,7 @@ The base package is a self-contained library of types, interfaces, and low-level
 
 ### OS Bindings (`base/lib/osBindings/`)
 
-~325 auto-generated TypeScript files defining every type exchanged between the SDK and the StartOS runtime. These cover the full surface area of the system: manifests, actions, health checks, service interfaces, bind parameters, dependency requirements, SSL, domains, SMTP, networking, images, and more.
+Auto-generated TypeScript files defining every type exchanged between the SDK and the StartOS runtime. They mirror the Rust types in the monorepo's `shared/crates/start-core` (the `startos` lib) and cover the full surface area of the system: manifests, actions, health checks, service interfaces, bind parameters, dependency requirements, SSL, domains, SMTP, networking, images, and more. When the Rust types change, these bindings must be regenerated.
 
 All bindings are re-exported through `base/lib/osBindings/index.ts`.
 

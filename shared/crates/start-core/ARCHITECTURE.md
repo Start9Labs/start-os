@@ -1,31 +1,42 @@
-# Core Architecture
+# start-core Architecture
 
-The Rust backend daemon for StartOS.
+The shared Rust backend library for StartOS. Cargo package `start-core`, library name `startos`,
+rooted at `shared/crates/start-core`. All Start9 product binaries link against it.
 
-## Binaries
+## Library, not a binary
 
-The crate produces a single binary `startbox` that is symlinked under different names for different behavior:
+This crate is a **library** (`src/lib.rs`). It exposes every backend subsystem plus a set of
+entrypoints under `src/bins/`. The product crates are thin wrappers that pick which entrypoints
+to enable via `startos::bins::MultiExecutable` and call `.execute()`:
 
-- `startbox` / `startd` — Main daemon
-- `start-cli` — CLI interface
-- `start-container` — Runs inside LXC containers; communicates with host and manages subcontainers
-- `registrybox` — Registry daemon
-- `tunnelbox` — VPN/tunnel daemon
+| Binary | Wrapper crate / file | Role |
+|--------|----------------------|------|
+| `startbox` / `startd` | `start-os/src/bin/startbox.rs` | Main OS daemon |
+| `start-container` | `start-os/src/bin/start-container.rs` | Runs inside package LXC containers; talks to the host and manages subcontainers |
+| `start-cli` | `start-cli/src/main.rs` | CLI over the daemon's JSON-RPC API |
+| `registrybox` | `start-registry/src/main.rs` | Package registry server |
+| `tunnelbox` | `start-tunnel/src/main.rs` | StartTunnel VPN/forwarding server |
 
-## Crate Structure
-
-- `startos` — Core library that supports building `startbox`
-- `helpers` — Utility functions used across both `startos` and `js-engine`
-- `models` — Types shared across `startos`, `js-engine`, and `helpers`
+`MultiExecutable` also supports invoking a chosen entrypoint by argv[0] (busybox-style), which is
+how `startbox` dispatches to `startd`, `start-cli`, etc. The per-entrypoint logic lives in
+`src/bins/{startd.rs, start_cli.rs, container_cli.rs, registry.rs, tunnel.rs, start_init.rs, …}`.
 
 ## Key Modules
 
+- `src/bins/` — Per-binary entrypoints + `MultiExecutable` dispatch
 - `src/context/` — Context types (RpcContext, CliContext, InitContext, DiagnosticContext)
 - `src/service/` — Service lifecycle management with actor pattern (`service_actor.rs`)
 - `src/db/model/` — Patch-DB models (`public.rs` synced to frontend, `private.rs` backend-only)
-- `src/net/` — Networking (DNS, ACME, WiFi, Tor via Arti, WireGuard)
+- `src/net/` — Networking (DNS, ACME, WiFi, Tor, WireGuard, gateway/NAT)
 - `src/s9pk/` — S9PK package format (merkle archive)
-- `src/registry/` — Package registry management
+- `src/lxc/` — LXC container management for packages
+- `src/install/`, `src/update/` — Package install and OS/package update flows
+- `src/registry/` — Package registry server and management
+- `src/tunnel/` — StartTunnel server logic
+- `src/backup/`, `src/sign/` — Backup and signing
+- `src/os_install/`, `src/init.rs`, `src/setup.rs` — OS install, init, and first-run setup
+- `src/util/` — Shared utilities (process invocation, IO, guards — see `core-rust-patterns.md`)
+- `src/version/` — Migrations and version logic (see `VERSION_BUMP.md`, `exver.md`)
 
 ## RPC Pattern
 
@@ -62,6 +73,19 @@ See [i18n-patterns.md](i18n-patterns.md) for internationalization key convention
 ## Rust Utilities & Patterns
 
 See [core-rust-patterns.md](core-rust-patterns.md) for common utilities (Invoke trait, Guard pattern, mount guards, Apply trait, etc.).
+
+## Cross-layer verification
+
+Rust types marked `#[ts(export)]` are the source of truth for TypeScript consumers (the web UI
+and the package container-runtime, via the SDK). They do **not** propagate automatically. From
+the repo root:
+
+1. `make ts-bindings` — regenerates `shared/crates/start-core/bindings/` (via `build/build-ts.sh`),
+   then rsyncs it into `start-sdk/base/lib/osBindings/`.
+2. `cd start-sdk && make baseDist dist` — rebuilds the SDK bundles that the web app and
+   container-runtime actually import.
+
+Until both steps run, a changed `#[ts(export)]` type is out of sync with everything downstream.
 
 ## Related Documentation
 

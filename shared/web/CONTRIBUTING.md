@@ -4,21 +4,21 @@ For general environment setup (Node.js, cloning, etc.), see the root [CONTRIBUTI
 
 ## Documentation
 
-This sub-tree's docs split across four files:
+This directory's docs split across four files:
 
 - `README.md` — what this is
 - `ARCHITECTURE.md` — how it's built
 - `CONTRIBUTING.md` — this file; how to contribute
-- `CLAUDE.md` — AI-developer operating rules
+- `AGENTS.md` — AI-developer / day-to-day operating rules (`CLAUDE.md` is a one-line `@AGENTS.md` import)
 
 **These docs must be kept up to date.** When you change project structure, conventions, build process, or product context, update the relevant file(s) in the same change — do not defer.
 
 ## Web Setup
 
 ```sh
-cd web
+cd shared/web
 npm ci
-npm run build:deps
+npm run build:deps   # builds start-sdk (make bundle) + patch-db client; both are file: deps
 ```
 
 #### Configure `config.json`
@@ -59,6 +59,20 @@ cp proxy.conf-sample.json proxy.conf.json
 ```sh
 npm run start:ui:proxy
 ```
+
+## Type-checking, formatting & builds
+
+Run from `shared/web`:
+
+```sh
+npm run check          # type-check every project (i18n, shared, marketplace, ui, setup, brochure)
+npm run check:ui       # or a single project (check:shared / check:marketplace / check:setup / check:tunnel / check:brochure)
+npm run format         # prettier --write across the libs and all app dirs
+npm run format:check   # prettier --check (CI)
+npm run build:ui       # production build of a single app (build:setup / build:tunnel / build:brochure)
+```
+
+A pre-commit hook runs `lint-staged` (prettier on staged files). `npm run check:i18n` validates that every language dictionary stays in sync with `en.ts`.
 
 ## Translations
 

@@ -1,45 +1,54 @@
 # Contributing to Container Runtime
 
-For general environment setup (Node, repo clone), see the root [CONTRIBUTING.md](../CONTRIBUTING.md). This file covers only what's specific to the container runtime.
+For general environment setup (Node, repo clone, monorepo layout), see the root [CONTRIBUTING.md](../../CONTRIBUTING.md). This file covers only what's specific to the container runtime.
 
 ## Documentation
 
-This sub-tree's docs split across four files:
+This sub-tree's docs are:
 
-- `README.md` — what this is
-- `ARCHITECTURE.md` — how it's built
-- `CONTRIBUTING.md` — this file; how to contribute
-- `CLAUDE.md` — AI-developer operating rules
+- `README.md` — what this is + quickstart
+- `ARCHITECTURE.md` — how it's structured (modules, RPC boundary, image build)
+- `AGENTS.md` — agent/dev operating rules (imported by `CLAUDE.md`)
+- `CONTRIBUTING.md` — this file
+- `RPCSpec.md` — the JSON-RPC wire protocol
 
-**These docs must be kept up to date.** When you change the runtime's structure, conventions, build process, or RPC surface, update the relevant file(s) in the same change — do not defer.
+**Keep these up to date.** When you change the runtime's structure, conventions, build process, or RPC surface, update the relevant file(s) in the same change — don't defer.
 
 ## Prerequisites
 
-- Node.js v20+ (see root CONTRIBUTING for the recommended version pin)
-- The local SDK build at `../sdk/dist/` — `package.json` references `@start9labs/start-sdk` via `file:../sdk/dist`, so you must run `cd ../sdk && make baseDist dist` first whenever the SDK has changed.
+- Node.js v20+ (see root CONTRIBUTING for the recommended version pin).
+- The **built** SDK at `../../start-sdk/dist`. `package.json` references `@start9labs/start-sdk` via `file:../../start-sdk/dist`, so build the SDK whenever it changes:
+
+  ```bash
+  cd start-sdk && make bundle && cd -      # or: make baseDist dist
+  ```
 
 ## Common commands
 
+Run from the monorepo root:
+
 ```bash
-npm ci                                   # install deps
-npm run check                            # type-check (tsc --noEmit)
-npm run build                            # prettier + clean + tsc to dist/
-npm test                                 # jest
-make -C .. test-container-runtime        # run the same tests via the workspace target
+npm --prefix start-os/container-runtime ci          # install deps
+npm --prefix start-os/container-runtime run check     # type-check (tsc --noEmit)
+npm --prefix start-os/container-runtime run build      # prettier + clean + tsc -> dist/
+npm --prefix start-os/container-runtime test           # jest
+make test-container-runtime                            # build SDK + run jest via Makefile
 ```
+
+Or `cd start-os/container-runtime` first and drop the `--prefix`.
 
 ## Style
 
 Prettier config lives in `package.json`:
 
-- `trailingComma: "all"`, `tabWidth: 2`, `semi: false`, `singleQuote: false` (note: the runtime uses double quotes, unlike the SDK and web).
+- `trailingComma: "all"`, `tabWidth: 2`, `semi: false`, `singleQuote: false`.
 
-`npm run build` runs Prettier with `--write` before compiling, so formatting fixes happen automatically as part of a build.
+The runtime uses **double quotes**, unlike `start-sdk` and `shared/web` (single quotes there) — do not normalize. `npm run build` runs Prettier `--write` before compiling, so formatting is applied automatically during a build.
 
 ## Tests
 
-Jest with `ts-jest`. Config: `jest.config.js`. Place tests next to the code they cover or under a `test/` directory; use the `.test.ts` extension.
+Jest with `ts-jest` (`jest.config.js`, `rootDir: ./src`). The `mime` module is mocked via `__mocks__/mime.js`. Place tests next to the code they cover with the `.test.ts` extension. `SystemForEmbassy` uses snapshot tests (`__snapshots__/`) and fixtures (`__fixtures__/`) — update snapshots deliberately, not blindly.
 
 ## Branch / commit / PR
 
-Follow the conventions in the root [CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages) — Conventional Commits with the `container-runtime` scope, e.g. `fix(container-runtime): ...`.
+Follow the conventions in the root [CONTRIBUTING.md](../../CONTRIBUTING.md#commit-messages) — Conventional Commits with the `container-runtime` scope, e.g. `fix(container-runtime): ...`.

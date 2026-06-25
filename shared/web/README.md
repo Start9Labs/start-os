@@ -1,20 +1,31 @@
 # StartOS Web
 
-[Angular](https://angular.dev/) + TypeScript workspace using the [Taiga UI](https://taiga-ui.dev/) component library.
+The single [Angular](https://angular.dev/) + TypeScript workspace (Angular 22, [Taiga UI 5](https://taiga-ui.dev/)) shared by every Start9 front-end. This directory (`shared/web`) is the workspace **root** — it holds `angular.json`, `package.json`, `tsconfig.json`, and the two shared libraries. The individual app projects live in their product directories and reference these libs.
 
-## Applications
+## Libraries (in this directory)
 
-StartOS serves one of these UIs depending on the state of the system:
+- **`shared/`** — `@start9labs/shared`: API clients, common components, directives, pipes, services, types, and i18n shared by all apps.
+- **`marketplace/`** — `@start9labs/marketplace`: service-discovery / marketplace UI, shared between the StartOS UI and the public marketplace.
 
-- **ui** — Primary admin interface for managing StartOS, served on hosts unique to the instance.
-- **setup-wizard** — Initial setup UI, served on `start.local`.
-- **start-tunnel** — VPN/tunnel management UI.
+## App projects (defined here, rooted elsewhere)
 
-## Libraries
+`angular.json` declares these applications; their `root`/`sourceRoot` point into the product directories:
 
-- **shared** — Common code shared between all web UIs (API clients, components, i18n).
-- **marketplace** — Library code for service discovery, shared between the StartOS UI and the marketplace.
+- **ui** — primary StartOS admin interface — `../../start-os/web/ui`
+- **setup-wizard** — initial-setup UI (`start.local`) — `../../start-os/web/setup-wizard`
+- **start-tunnel** — StartTunnel VPN/forwarding management UI — `../../start-tunnel/web`
+- **brochure** — public marketplace front (marketplace.start9.com); auto-deploys on merge to `master` — `../../brochure`
 
-## Contributing
+All four consume the `shared` and `marketplace` libs from this workspace.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, development server instructions, and translation guides.
+## Quickstart
+
+```sh
+cd shared/web
+npm ci
+npm run build:deps      # builds start-sdk + patch-db client (file: deps)
+cp config-sample.json config.json
+npm run start:ui        # mock-backed dev server
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup, live-server proxying, and translation guides, and [ARCHITECTURE.md](ARCHITECTURE.md) for how the front end is structured.
