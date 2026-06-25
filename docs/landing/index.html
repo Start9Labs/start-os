@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Start9 Docs</title>
+    <style>
+      :root {
+        --bg: #0f1419;
+        --card-bg: #1a1f25;
+        --card-border: #2d333b;
+        --text: #e6edf3;
+        --text-muted: #8b949e;
+        --accent: #58a6ff;
+        --accent-hover: #79b8ff;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+          Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+      }
+
+      h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        text-align: center;
+      }
+
+      .subtitle {
+        color: var(--text-muted);
+        font-size: 1.1rem;
+        margin-bottom: 2.5rem;
+        text-align: center;
+      }
+
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        grid-auto-rows: 1fr;
+        gap: 1.5rem;
+        width: 100%;
+        max-width: 660px;
+      }
+
+      a.card {
+        display: block;
+        background: var(--card-bg);
+        border: 1px solid var(--card-border);
+        border-radius: 12px;
+        padding: 1.5rem;
+        text-decoration: none;
+        color: var(--text);
+        transition:
+          border-color 0.2s,
+          transform 0.2s;
+      }
+
+      @media (max-width: 600px) {
+        .cards {
+          grid-template-columns: 1fr;
+          max-width: 400px;
+        }
+      }
+
+      a.card:hover {
+        border-color: var(--accent);
+        transform: translateY(-2px);
+      }
+
+      .card h2 {
+        font-size: 1.4rem;
+        margin-bottom: 0.5rem;
+        color: var(--accent);
+      }
+
+      .card p {
+        color: var(--text-muted);
+        font-size: 0.95rem;
+        line-height: 1.5;
+      }
+
+      footer {
+        margin-top: 4rem;
+        color: var(--text-muted);
+        font-size: 0.85rem;
+      }
+
+      footer a {
+        color: var(--accent);
+        text-decoration: none;
+      }
+
+      footer a:hover {
+        color: var(--accent-hover);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Start9 Docs</h1>
+    <p class="subtitle">Documentation for Start9 products</p>
+
+    <div class="cards">
+      <a class="card" href="/start-os/">
+        <h2>StartOS v0.4.0</h2>
+        <p>
+          A server operating system optimized for self-hosting services on a
+          personal server.
+        </p>
+      </a>
+
+      <a class="card" href="/0.3.5.x/">
+        <h2>StartOS v0.3.5.1</h2>
+        <p>Documentation for StartOS version 0.3.5.1 and earlier.</p>
+      </a>
+
+      <a class="card" href="/start-tunnel/">
+        <h2>StartTunnel</h2>
+        <p>
+          A self-hosted WireGuard VPN for private remote access and clearnet
+          hosting.
+        </p>
+      </a>
+
+      <a class="card" href="/packaging/">
+        <h2>Service Packaging</h2>
+        <p>Build and publish self-hosted services for StartOS.</p>
+      </a>
+
+      <a class="card" href="/bitcoin-guides/">
+        <h2>Bitcoin Guides</h2>
+        <p>
+          Guides for running Bitcoin, Lightning, and related services on
+          StartOS.
+        </p>
+      </a>
+    </div>
+
+    <footer>
+      <a href="https://start9.com">start9.com</a> &middot;
+      <a href="https://start9.com/contact">Contact Support</a>
+    </footer>
+  </body>
+</html>

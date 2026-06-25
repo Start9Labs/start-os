@@ -1,0 +1,20 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths-ignore: ['*.md']
+    branches: ['master']
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.event.pull_request.draft == false
+    uses: start9labs/shared-workflows/.github/workflows/build.yml@master
+    # with:
+    #   FREE_DISK_SPACE: true
+    secrets:
+      DEV_KEY: ${{ secrets.DEV_KEY }}
