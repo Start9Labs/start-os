@@ -404,8 +404,8 @@ target/$(RUST_ARCH)-unknown-linux-musl/release/tokio-console: ./build/build-carg
 	ARCH=$(ARCH) ./build/build-cargo-dep.sh tokio-console
 	touch $@
 
-target/$(RUST_ARCH)-unknown-linux-musl/release/startos-backup-fs: ./build/build-cargo-dep.sh
-	ARCH=$(ARCH) ./build/build-cargo-dep.sh --git https://github.com/Start9Labs/start-fs.git startos-backup-fs
+target/$(RUST_ARCH)-unknown-linux-musl/release/startos-backup-fs: $(call ls-files, start-os/backup-fs) $(ENVIRONMENT_FILE)
+	ARCH=$(ARCH) PROFILE=release ./shared/crates/start-core/build/build-backup-fs.sh
 	touch $@
 
 target/$(RUST_ARCH)-unknown-linux-musl/release/flamegraph: ./build/build-cargo-dep.sh

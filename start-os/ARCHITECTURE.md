@@ -61,6 +61,14 @@ talks to the host daemon over a Unix-socket JSON-RPC channel. It depends on the
 [README](container-runtime/README.md), [ARCHITECTURE](container-runtime/ARCHITECTURE.md),
 and [AGENTS](container-runtime/AGENTS.md) — read those before editing it.
 
+## Backup filesystem (`backup-fs/`)
+
+`backup-fs/` is the `startos-backup-fs` crate (a workspace member): an encrypted,
+erasure-coded FUSE filesystem used for StartOS backups. It builds to the
+`startos-backup-fs` binary (installed as `/usr/bin/startos-backup-fs` and
+`mount.backup-fs`). It was migrated into the monorepo from the former
+`Start9Labs/start-fs` repo and is no longer an external git dependency.
+
 ## Systemd units and cgroups
 
 - `startd.service` — the main daemon (`Restart=always`, OOM-protected with

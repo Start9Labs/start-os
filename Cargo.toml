@@ -3,6 +3,7 @@ resolver = "3"
 members = [
   "shared/crates/start-core",
   "start-os",
+  "start-os/backup-fs",
   "start-cli",
   "start-registry",
   "start-tunnel",

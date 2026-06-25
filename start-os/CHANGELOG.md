@@ -12,6 +12,9 @@ file tracks notable changes since the move to the monorepo.
 
 ### Changed
 
+- **Migrated `startos-backup-fs` into the monorepo** as the `start-os/backup-fs`
+  workspace member (from the former `Start9Labs/start-fs` repo); it is no longer
+  built as an external `cargo install --git` dependency.
 - **Monorepo reorganization.** `start-os` is now the monorepo for all Start9
   products. The OS product moved into its own `start-os/` directory as a thin
   wrapper: the `startbox` and `start-container` entry points live in
