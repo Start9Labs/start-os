@@ -21,7 +21,10 @@ clean:
 	rm -f package/lib/test/output.ts
 	rm -rf package/node_modules
 	
-bundle: baseDist dist | test check-fmt
+# Build artifacts only — verification (test/check-fmt) is intentionally NOT a
+# prerequisite so consumers (the OS build) don't re-run the jest suite every
+# build. CI and `publish` run test/check-fmt explicitly.
+bundle: baseDist dist
 	touch dist
 
 base/lib/exver/exver.ts: base/node_modules base/lib/exver/exver.pegjs
@@ -79,7 +82,7 @@ base/node_modules: base/package-lock.json
 
 node_modules: package/node_modules base/node_modules
 
-publish: bundle package/package.json README.md LICENSE CHANGELOG.md
+publish: bundle test check-fmt package/package.json README.md LICENSE CHANGELOG.md
 	cd dist && npm publish --access=public --tag=latest $(if $(OTP),--otp=$(OTP))
 
 link: bundle
