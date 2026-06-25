@@ -23,7 +23,7 @@ Each product is a thin top-level wrapper; the bulk of the code lives in shared l
 - **Polyglot repo.** Per-component gotchas live in component-level `AGENTS.md` files — read the relevant one before operating on that component (see Sub-scopes).
 - **Verify cross-layer changes in order.** Rust → ts-bindings → SDK rebuild → web/container-runtime type checks. See [ARCHITECTURE.md](ARCHITECTURE.md#cross-layer-verification). Editing `start-sdk/base/lib/osBindings/*.ts` alone is NOT sufficient — the SDK bundle must be rebuilt before web/container-runtime see the change.
 - **Ask before destructive `make` recipes.** Image flashing, deploy targets (`update*`, `reflash`, `wormhole*`), and `make clean*` consume hours and disk — confirm with the user first.
-- **Use `make` recipes when they exist** rather than re-deriving the underlying commands. Most targets live in the root `Makefile`.
+- **Use `make` recipes when they exist** rather than re-deriving the underlying commands. The root `Makefile` is a thin orchestrator that `include`s `build/common.mk` (shared vars/macros) and one `<project>/build.mk` per product — run everything from the repo root (`make all`, `make registry`, etc.); a product's targets live in its `build.mk`.
 - **Build a single product** with `cargo build -p <crate> --bin <bin>` (bins: `startbox`/`start-container` in package `start-os`; `start-cli`; `registrybox` in `start-registry`; `tunnelbox` in `start-tunnel`).
 - **Stale-path watch.** Old docs referenced `core/`, `web/`, `sdk/`, `container-runtime/`, `patch-db/` at the repo root. Those are gone — use the new locations above.
 
