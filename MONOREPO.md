@@ -1,20 +1,32 @@
 # Monorepo reorganization proposal
 
-Status: **proposal / discussion** — not yet implemented.
+Status: **implemented in this PR.** The directory reorganization, root Cargo
+workspace, build-script/Makefile/CI rewiring, and TS path wiring are done.
+Verified: `cargo check` of the whole workspace (all five bins) passes. The full
+musl/docker image build and the cold Angular/SDK build chain are CI-grade and
+are left for CI to validate (the wiring is updated but not run end-to-end here).
+
+One deviation from the original plan below: the SDK is kept **cohesive** under
+`start-sdk/` (both `base/` and `package/`) rather than splitting `base` into
+`shared/web/sdk-base`. Reason: `start-sdk/package/lib` imports `base` via
+relative paths (`../../base/lib/...`) under a shared tsc `rootDir`, and the
+`dist` bundle places `base/lib` adjacent to the package — splitting them would
+break every such import and violate `rootDir`. Extracting `sdk-base` cleanly is
+a separate refactor (rewrite those imports to a package alias first).
 
 ## Goal
 
 Make `start-os` the monorepo for all Start9 products. Each product gets a
 **top-level folder** that is a thin wrapper — its own `main.rs` (and any
 product-specific frontend/packaging). The bulk of the code lives in shared
-libraries under `shared/`: `libstartos` on the Rust side, a shared Angular
+libraries under `shared/`: `start-core` on the Rust side, a shared Angular
 library + the SDK base on the web side.
 
-Crucially, **`shared/crates/libstartos` can stay a single crate** to begin
+Crucially, **`shared/crates/start-core` can stay a single crate** to begin
 with. We do *not* have to untangle the internal module cycles
 (`s9pk ↔ registry`, `net ↔ tunnel`) to get this layout — the product dirs hold
-only the entry points, and `libstartos` keeps everything else exactly as it is
-today. Splitting `libstartos` into finer crates later is optional cleanup, not a
+only the entry points, and `start-core` keeps everything else exactly as it is
+today. Splitting `start-core` into finer crates later is optional cleanup, not a
 prerequisite.
 
 ## Target layout
@@ -24,8 +36,7 @@ start-os/                          # repo root (monorepo)
 ├── start-os/                      # OS product
 │   ├── src/bin/startbox.rs        #   was core/src/main/startbox.rs
 │   ├── src/bin/start-container.rs #   was core/src/main/start-container.rs
-│   ├── build.rs                   #   resolves WEB_DIST_DIR for include_dir!
-│   ├── Cargo.toml                 #   → depends on libstartos
+│   ├── Cargo.toml                 #   → depends on start-core
 │   ├── web/                       #   ui + setup-wizard (was web/projects/{ui,setup-wizard})
 │   ├── container-runtime/         #   Node LXC service runtime (part of start-os)
 │   ├── debian/ apt/ assets/ build/
@@ -43,30 +54,30 @@ start-os/                          # repo root (monorepo)
 │
 ├── start-tunnel/
 │   ├── src/main.rs                #   was core/src/main/tunnelbox.rs
-│   ├── build.rs                   #   resolves TUNNEL_UI_DIR for include_dir!
 │   ├── web/                       #   was web/projects/start-tunnel
 │   ├── start-tunneld.service
 │   └── Cargo.toml                 #   (absorbs the docs-only start-tunnel repo)
 │
 ├── start-sdk/                     # @start9labs/start-sdk publish package
 │   ├── Makefile  s9pk.mk          #   build wrapper; produces dist/ + baseDist/
+│   ├── base/                      #   was sdk/base (@start9labs/start-sdk-base) — kept here
 │   └── package/                   #   was sdk/package
 │
 ├── brochure/                      # marketing site (was web/projects/brochure)
 │
 ├── shared/
 │   ├── crates/
-│   │   └── libstartos/            # the ENTIRE startos lib, unchanged internally:
+│   │   └── start-core/            # the ENTIRE startos lib (package start-core,
+│   │                              #   lib name `startos`), unchanged internally:
 │   │                              #   src/{bins,registry,tunnel,service,s9pk,net,db,
 │   │                              #   install,update,lxc,os_install,backup,sign,...}/
 │   └── web/
 │       ├── shared/                # shared Angular lib (was web/projects/shared)
-│       ├── marketplace/           # shared lib (was web/projects/marketplace)
-│       └── sdk-base/              # @start9labs/start-sdk-base (was sdk/base)
+│       └── marketplace/           # shared lib (was web/projects/marketplace)
 │
 └── vendor/
-    ├── patch-db/                  # de-submoduled, vendored into the workspace
-    └── openwrt/                   # (if/when start-wrt folds in) stays a submodule
+    └── patch-db/                  # relocated git submodule (still a submodule;
+                                   #   not de-submoduled — see open question #2)
 ```
 
 ## Mapping from today
@@ -78,41 +89,41 @@ start-os/                          # repo root (monorepo)
 | `core/src/main/start-cli.rs` | `start-cli/src/main.rs` |
 | `core/src/main/registrybox.rs` | `start-registry/src/main.rs` |
 | `core/src/main/tunnelbox.rs` | `start-tunnel/src/main.rs` |
-| `core/` (everything else: `src/lib.rs`, `src/bins/`, `src/registry/`, `src/tunnel/`, `src/service/`, …) | `shared/crates/libstartos/` |
+| `core/` (everything else: `src/lib.rs`, `src/bins/`, `src/registry/`, `src/tunnel/`, `src/service/`, …) | `shared/crates/start-core/` |
 | `web/projects/ui`, `web/projects/setup-wizard` | `start-os/web/` |
 | `web/projects/start-tunnel` | `start-tunnel/web/` |
 | `web/projects/marketplace` | `shared/web/marketplace/` |
 | `web/projects/shared` | `shared/web/shared/` |
 | `web/projects/brochure` | `brochure/` |
 | `container-runtime/` | `start-os/container-runtime/` |
-| `sdk/base` | `shared/web/sdk-base/` |
+| `sdk/base` | `start-sdk/base/` |
 | `sdk/package` | `start-sdk/package/` |
 | `patch-db` (submodule) | `vendor/patch-db/` (vendored) |
 
 The `main.rs` entry points are already thin (~30 lines: feature toggles + the
 `include_dir!` UI embed), so each product crate is genuinely a wrapper over
-`libstartos`.
+`start-core`.
 
 ## Build & tooling
 
 - **One root Cargo workspace.** `Cargo.toml` at the repo root, members =
   the product bin crates (`start-os`, `start-cli`, `start-registry`,
-  `start-tunnel`) + `shared/crates/libstartos` + `vendor/patch-db/*`. Single
+  `start-tunnel`) + `shared/crates/start-core` + `vendor/patch-db/*`. Single
   `Cargo.lock`. Build a product with `cargo build -p <product>`.
 - **One root npm workspace.** Workspace members under `shared/web/*` and each
   product's `web/` + `start-os/container-runtime/`. Consumers depend on the
   shared libs **by package name** instead of the current
   `file:../sdk/baseDist` / `file:../patch-db/client` artifact paths.
 - **`include_dir!` web embedding.** `startbox`/`tunnelbox` embed the built UI at
-  compile time via `$CARGO_MANIFEST_DIR/../web/dist`. Moving the entry points
-  out of `core/` breaks those relative paths, so each embedding bin gets a small
-  `build.rs` that resolves the dist dir from an env var (`WEB_DIST_DIR` /
-  `TUNNEL_UI_DIR`) the Makefile sets. The web-build-before-rust ordering is
-  encoded in the top-level Makefile. Non-embedding bins (`start-cli`,
-  `registrybox`, `start-container`) gain clean incremental rebuilds.
+  compile time. Since each app's web now lives inside its product dir, the embed
+  paths were simply repointed to `$CARGO_MANIFEST_DIR/web/dist/static/...` in
+  each bin (e.g. `start-os/web/dist/static/ui`), so no `build.rs` indirection is
+  needed. The web-build-before-rust ordering stays encoded in the Makefile.
+  Non-embedding bins (`start-cli`, `registrybox`, `start-container`) gain clean
+  incremental rebuilds.
 - **sqlx offline.** `sqlx(postgres)` is used in exactly one file
   (`version/v0_3_6_alpha_0.rs`, the legacy embassy DB migration). Run
-  `cargo sqlx prepare` once and commit `shared/crates/libstartos/.sqlx/` so the
+  `cargo sqlx prepare` once and commit `shared/crates/start-core/.sqlx/` so the
   workspace builds with `SQLX_OFFLINE=true` and no live DB.
 - **SDK publish.** `@start9labs/start-sdk` is a public dependency of every
   `*-startos` package, and its dual-artifact output (`baseDist` = base only,
@@ -133,13 +144,13 @@ The `main.rs` entry points are already thin (~30 lines: feature toggles + the
   `Cargo.lock` and the npm version skew the `file:` deps currently mask. Repoint
   CI. No moves yet.
 - **P2 — `git mv` into shape.** Move the entry points into the product dirs,
-  rename `core/` → `shared/crates/libstartos/`, split `web/projects/*` into
+  rename `core/` → `shared/crates/start-core/`, split `web/projects/*` into
   product `web/` dirs vs `shared/web/*`, move `container-runtime/` under
   `start-os/`, move `sdk/{base,package}`. Fix `file:`→name deps, Makefile paths,
   and add the `include_dir` `build.rs` indirection. No code-logic changes.
 
 P0–P2 deliver the full folder-per-product monorepo with git history intact and
-near-zero logic churn. Splitting `libstartos` into finer crates is a later,
+near-zero logic churn. Splitting `start-core` into finer crates is a later,
 optional step.
 
 ## Open questions
