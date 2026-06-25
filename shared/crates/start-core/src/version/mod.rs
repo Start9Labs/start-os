@@ -688,12 +688,12 @@ where
 
 pub const COMMIT_HASH: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../build/env/GIT_HASH.txt"
+    "/../../../build/env/GIT_HASH.txt"
 ));
 
 pub const ENVIRONMENT: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../build/env/ENVIRONMENT.txt"
+    "/../../../build/env/ENVIRONMENT.txt"
 ));
 
 pub fn git_info() -> Result<InternedString, Error> {

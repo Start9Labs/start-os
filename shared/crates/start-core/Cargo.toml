@@ -12,7 +12,7 @@ keywords = [
   "self-hosted",
 ]
 license = "MIT"
-name = "start-os"
+name = "start-core"
 readme = "README.md"
 repository = "https://github.com/Start9Labs/start-os"
 version = "0.4.0-beta.10" # VERSION_BUMP
@@ -20,26 +20,6 @@ version = "0.4.0-beta.10" # VERSION_BUMP
 [lib]
 name = "startos"
 path = "src/lib.rs"
-
-[[bin]]
-name = "startbox"
-path = "src/main/startbox.rs"
-
-[[bin]]
-name = "start-cli"
-path = "src/main/start-cli.rs"
-
-[[bin]]
-name = "start-container"
-path = "src/main/start-container.rs"
-
-[[bin]]
-name = "registrybox"
-path = "src/main/registrybox.rs"
-
-[[bin]]
-name = "tunnelbox"
-path = "src/main/tunnelbox.rs"
 
 [features]
 beta = []
@@ -171,7 +151,7 @@ once_cell = "1.19.0"
 openssh-keys = "0.6.2"
 openssl = { version = "0.10.57", features = ["vendored"] }
 p256 = { version = "0.13.2", features = ["pem"] }
-patch-db = { version = "*", path = "../patch-db/core", features = ["trace"] }
+patch-db = { version = "*", path = "../../../vendor/patch-db/core", features = ["trace"] }
 pbkdf2 = "0.12.2"
 pin-project = "1.1.3"
 pkcs8 = { version = "0.10.2", features = ["std"] }
@@ -245,13 +225,4 @@ clap_mangen = "0.2.33"
 [target.'cfg(target_os = "linux")'.dependencies]
 procfs = "0.18.0"
 pty-process = "0.5.1"
-
-[profile.test]
-opt-level = 3
-
-[profile.dev]
-opt-level = 3
-
-[profile.dev.package.backtrace]
-opt-level = 3
 

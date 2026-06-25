@@ -1,0 +1,26 @@
+[package]
+name = "start-os"
+version = "0.4.0-beta.10" # VERSION_BUMP
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/Start9Labs/start-os"
+
+[[bin]]
+name = "startbox"
+path = "src/bin/startbox.rs"
+
+[[bin]]
+name = "start-container"
+path = "src/bin/start-container.rs"
+
+[features]
+default = []
+beta = ["startos/beta"]
+console = ["startos/console"]
+dev = ["startos/dev"]
+test = ["startos/test"]
+unstable = ["startos/unstable"]
+
+[dependencies]
+startos = { package = "start-core", path = "../shared/crates/start-core" }
+include_dir = "0.7.3"

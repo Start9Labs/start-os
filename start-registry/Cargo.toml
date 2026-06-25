@@ -1,0 +1,21 @@
+[package]
+name = "start-registry"
+version = "0.4.0-beta.10" # VERSION_BUMP
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/Start9Labs/start-os"
+
+[[bin]]
+name = "registrybox"
+path = "src/main.rs"
+
+[features]
+default = []
+beta = ["startos/beta"]
+console = ["startos/console"]
+dev = ["startos/dev"]
+test = ["startos/test"]
+unstable = ["startos/unstable"]
+
+[dependencies]
+startos = { package = "start-core", path = "../shared/crates/start-core" }
