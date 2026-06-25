@@ -4,14 +4,20 @@ import { FormsModule } from '@angular/forms'
 import { ErrorService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import { TuiButton, TuiDataList, TuiDropdown, TuiLoader } from '@taiga-ui/core'
+import {
+  TuiButton,
+  TuiDataList,
+  TuiDropdown,
+  TuiLoader,
+  TuiTitle,
+} from '@taiga-ui/core'
 import {
   TUI_CONFIRM,
   TuiNotificationMiddleService,
   TuiSkeleton,
   TuiSwitch,
 } from '@taiga-ui/kit'
-import { TuiCardLarge } from '@taiga-ui/layout'
+import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
 import { PlaceholderComponent } from 'src/app/routes/home/components/placeholder'
@@ -29,16 +35,13 @@ import { MappedDevice } from './utils'
 @Component({
   template: `
     <div tuiCardLarge="compact" appearance="floating">
-      <header>
-        <h3>Servers</h3>
-        <button
-          tuiButton
-          size="xs"
-          iconStart="@tui.plus"
-          (click)="onAdd('server')"
-        >
-          Add
-        </button>
+      <header tuiHeader="body-l">
+        <h3 tuiTitle>Servers</h3>
+        <aside tuiAccessories>
+          <button tuiButton iconStart="@tui.plus" (click)="onAdd('server')">
+            Add
+          </button>
+        </aside>
       </header>
       <table class="g-table" [tuiSkeleton]="!servers()">
         <thead>
@@ -49,7 +52,7 @@ import { MappedDevice } from './utils'
             <th>DNS Injection</th>
             <th>Auto Port Forward</th>
             <th>WAN</th>
-            <th [style.padding-inline-end.rem]="0.625"></th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -93,7 +96,7 @@ import { MappedDevice } from './utils'
                 </tui-loader>
               </td>
               <td>{{ wanLabel(device.wanIp, 'Use Subnet Default') }}</td>
-              <td>
+              <td [style.padding-inline-end.rem]="0.625">
                 <button
                   tuiIconButton
                   size="xs"
@@ -152,16 +155,13 @@ import { MappedDevice } from './utils'
     </div>
 
     <div tuiCardLarge="compact" appearance="floating">
-      <header>
-        <h3>Clients</h3>
-        <button
-          tuiButton
-          size="xs"
-          iconStart="@tui.plus"
-          (click)="onAdd('client')"
-        >
-          Add
-        </button>
+      <header tuiHeader="body-l">
+        <h3 tuiTitle>Clients</h3>
+        <aside tuiAccessories>
+          <button tuiButton iconStart="@tui.plus" (click)="onAdd('client')">
+            Add
+          </button>
+        </aside>
       </header>
       <table class="g-table" [tuiSkeleton]="!clients()">
         <thead>
@@ -170,7 +170,7 @@ import { MappedDevice } from './utils'
             <th>Subnet</th>
             <th>LAN IP</th>
             <th>WAN</th>
-            <th [style.padding-inline-end.rem]="0.625"></th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -180,7 +180,7 @@ import { MappedDevice } from './utils'
               <td>{{ device.subnet.name }}</td>
               <td>{{ device.ip }}</td>
               <td>{{ wanLabel(device.wanIp, 'Use Subnet Default') }}</td>
-              <td>
+              <td [style.padding-inline-end.rem]="0.625">
                 <button
                   tuiIconButton
                   size="xs"
@@ -244,20 +244,6 @@ import { MappedDevice } from './utils'
       flex-direction: column;
       gap: 1rem;
     }
-
-    header {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    header h3 {
-      margin: 0;
-    }
-
-    header button {
-      margin-inline-start: auto;
-    }
   `,
   imports: [
     FormsModule,
@@ -269,6 +255,8 @@ import { MappedDevice } from './utils'
     TuiSwitch,
     PlaceholderComponent,
     TuiSkeleton,
+    TuiHeader,
+    TuiTitle,
   ],
 })
 export default class Devices {

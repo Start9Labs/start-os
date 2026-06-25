@@ -10,6 +10,7 @@ import {
   TuiDropdown,
   TuiLoader,
   TuiTextfield,
+  TuiTitle,
 } from '@taiga-ui/core'
 import {
   TUI_CONFIRM,
@@ -17,7 +18,7 @@ import {
   TuiSkeleton,
   TuiSwitch,
 } from '@taiga-ui/kit'
-import { TuiCardLarge } from '@taiga-ui/layout'
+import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
 import { PlaceholderComponent } from 'src/app/routes/home/components/placeholder'
@@ -31,11 +32,11 @@ import { mapForwards, MappedDevice, MappedForward } from './utils'
 @Component({
   template: `
     <div tuiCardLarge="compact" appearance="floating">
-      <header>
-        <h3>Manual</h3>
-        <button tuiButton size="xs" iconStart="@tui.plus" (click)="onAdd()">
-          Add
-        </button>
+      <header tuiHeader="body-l">
+        <h3 tuiTitle>Manual</h3>
+        <aside tuiAccessories>
+          <button tuiButton iconStart="@tui.plus" (click)="onAdd()">Add</button>
+        </aside>
       </header>
       <table class="g-table" [tuiSkeleton]="!portForwards()">
         <thead>
@@ -48,7 +49,7 @@ import { mapForwards, MappedDevice, MappedForward } from './utils'
             <th>Device</th>
             <th>Internal Port</th>
             <th>Protocol</th>
-            <th [style.padding-inline-end.rem]="0.625"></th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -78,7 +79,7 @@ import { mapForwards, MappedDevice, MappedForward } from './utils'
               <td>{{ forward.device.name }}</td>
               <td>{{ forward.internalport }}</td>
               <td>TCP/UDP</td>
-              <td>
+              <td [style.padding-inline-end.rem]="0.625">
                 <button
                   tuiIconButton
                   size="xs"
@@ -125,9 +126,7 @@ import { mapForwards, MappedDevice, MappedForward } from './utils'
     </div>
 
     <div tuiCardLarge="compact" appearance="floating">
-      <header>
-        <h3>Automatic</h3>
-      </header>
+      <header tuiHeader="body-l"><h3 tuiTitle>Automatic</h3></header>
       <table class="g-table" [tuiSkeleton]="!portForwards()">
         <thead>
           <tr>
@@ -149,7 +148,7 @@ import { mapForwards, MappedDevice, MappedForward } from './utils'
               <td>{{ forward.device.name }}</td>
               <td>{{ forward.internalport }}</td>
               <td>TCP/UDP</td>
-              <td>
+              <td [style.padding-inline-end.rem]="0.625">
                 <button
                   tuiIconButton
                   size="xs"
@@ -194,20 +193,6 @@ import { mapForwards, MappedDevice, MappedForward } from './utils'
       flex-direction: column;
       gap: 1rem;
     }
-
-    header {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    header h3 {
-      margin: 0;
-    }
-
-    header button {
-      margin-inline-start: auto;
-    }
   `,
   imports: [
     FormsModule,
@@ -220,6 +205,8 @@ import { mapForwards, MappedDevice, MappedForward } from './utils'
     TuiTextfield,
     PlaceholderComponent,
     TuiSkeleton,
+    TuiHeader,
+    TuiTitle,
   ],
 })
 export default class PortForwards {

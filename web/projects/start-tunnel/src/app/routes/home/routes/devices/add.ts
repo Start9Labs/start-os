@@ -14,7 +14,6 @@ import {
   TuiCheckbox,
   TuiDialogContext,
   TuiError,
-  TuiHint,
   TuiIcon,
   TuiInput,
 } from '@taiga-ui/core'
@@ -23,6 +22,7 @@ import {
   TuiDataListWrapper,
   TuiNotificationMiddleService,
   TuiSelect,
+  TuiTooltip,
 } from '@taiga-ui/kit'
 import { TuiElasticContainer, TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
@@ -112,27 +112,29 @@ import {
       <tui-elastic-container>
         @if (!context.data.device && kind === 'server') {
           <label tuiLabel>
-            <input tuiCheckbox type="checkbox" formControlName="dnsInjection" />
+            <input
+              id="dnsInjectionHint"
+              tuiCheckbox
+              type="checkbox"
+              formControlName="dnsInjection"
+            />
             Allow DNS Injection
             <tui-icon
-              icon="@tui.info"
-              [tuiHint]="dnsInjectionHint"
-              [style.cursor]="'help'"
-              [style.font-size.rem]="0.9"
+              tuiTooltipDescribe="dnsInjectionHint"
+              [tuiTooltip]="dnsInjectionHint"
             />
           </label>
           <label tuiLabel>
             <input
+              id="autoPortForward"
               tuiCheckbox
               type="checkbox"
               formControlName="autoPortForward"
             />
             Allow Auto Port Forward
             <tui-icon
-              icon="@tui.info"
-              [tuiHint]="autoPortForwardHint"
-              [style.cursor]="'help'"
-              [style.font-size.rem]="0.9"
+              tuiTooltipDescribe="autoPortForward"
+              [tuiTooltip]="autoPortForwardHint"
             />
           </label>
         }
@@ -151,7 +153,7 @@ import {
     TuiDataListWrapper,
     TuiError,
     TuiForm,
-    TuiHint,
+    TuiTooltip,
     TuiIcon,
     TuiSelect,
     TuiInput,

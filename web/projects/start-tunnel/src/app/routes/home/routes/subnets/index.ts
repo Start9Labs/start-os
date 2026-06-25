@@ -2,13 +2,13 @@ import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { T, utils } from '@start9labs/start-sdk'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import { TuiButton, TuiDataList, TuiDropdown } from '@taiga-ui/core'
+import { TuiButton, TuiDataList, TuiDropdown, TuiTitle } from '@taiga-ui/core'
 import {
   TUI_CONFIRM,
   TuiNotificationMiddleService,
   TuiSkeleton,
 } from '@taiga-ui/kit'
-import { TuiCardLarge } from '@taiga-ui/layout'
+import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
 import { PlaceholderComponent } from 'src/app/routes/home/components/placeholder'
@@ -25,10 +25,11 @@ import { SUBNETS_ADD } from './add'
 @Component({
   template: `
     <div tuiCardLarge="compact" appearance="floating">
-      <header>
-        <button tuiButton size="xs" iconStart="@tui.plus" (click)="onAdd()">
-          Add
-        </button>
+      <header tuiHeader="body-l">
+        <h3 tuiTitle>Subnets</h3>
+        <aside tuiAccessories>
+          <button tuiButton iconStart="@tui.plus" (click)="onAdd()">Add</button>
+        </aside>
       </header>
       <table class="g-table" [tuiSkeleton]="!subnets()">
         <thead>
@@ -37,7 +38,7 @@ import { SUBNETS_ADD } from './add'
             <th>IP Range</th>
             <th>DNS</th>
             <th>WAN</th>
-            <th [style.padding-inline-end.rem]="0.625"></th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -47,7 +48,7 @@ import { SUBNETS_ADD } from './add'
               <td>{{ subnet.range }}</td>
               <td>{{ subnet.dnsLabel }}</td>
               <td>{{ wanLabel(subnet.wanIp, 'Use System Default') }}</td>
-              <td>
+              <td [style.padding-inline-end.rem]="0.625">
                 <button
                   tuiIconButton
                   size="xs"
@@ -99,16 +100,6 @@ import { SUBNETS_ADD } from './add'
       flex-direction: column;
       gap: 1rem;
     }
-
-    header {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    header button {
-      margin-inline-start: auto;
-    }
   `,
   imports: [
     TuiButton,
@@ -117,6 +108,8 @@ import { SUBNETS_ADD } from './add'
     TuiDataList,
     PlaceholderComponent,
     TuiSkeleton,
+    TuiHeader,
+    TuiTitle,
   ],
 })
 export default class Subnets {

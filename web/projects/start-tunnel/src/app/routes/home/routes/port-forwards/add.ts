@@ -15,7 +15,6 @@ import {
   TuiCheckbox,
   TuiDialogContext,
   TuiError,
-  TuiHint,
   TuiIcon,
   TuiInput,
   TuiNumberFormat,
@@ -26,6 +25,7 @@ import {
   TuiInputNumber,
   TuiNotificationMiddleService,
   TuiSelect,
+  TuiTooltip,
 } from '@taiga-ui/kit'
 import { TuiElasticContainer, TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
@@ -90,16 +90,9 @@ import { MappedDevice, PortForwardsData } from './utils'
       </tui-textfield>
       <tui-error formControlName="internalport" />
       <tui-textfield>
-        <label tuiLabel>
-          Hostname (optional)
-          <tui-icon
-            icon="@tui.info"
-            [tuiHint]="hostnameHint"
-            [style.cursor]="'help'"
-            [style.font-size.rem]="0.9"
-          />
-        </label>
+        <label tuiLabel>Hostname (optional)</label>
         <input tuiInput formControlName="sni" placeholder="host.example.com" />
+        <tui-icon [tuiTooltip]="hostnameHint" />
       </tui-textfield>
       <tui-elastic-container>
         @if (show80) {
@@ -130,7 +123,7 @@ import { MappedDevice, PortForwardsData } from './utils'
     TuiCheckbox,
     TuiValueChanges,
     TuiElasticContainer,
-    TuiHint,
+    TuiTooltip,
     TuiIcon,
     TuiInput,
   ],

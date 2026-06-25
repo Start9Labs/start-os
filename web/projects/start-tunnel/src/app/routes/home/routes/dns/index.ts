@@ -8,13 +8,13 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ErrorService } from '@start9labs/shared'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import { TuiButton, TuiDataList, TuiDropdown } from '@taiga-ui/core'
+import { TuiButton, TuiDataList, TuiDropdown, TuiTitle } from '@taiga-ui/core'
 import {
   TUI_CONFIRM,
   TuiNotificationMiddleService,
   TuiSkeleton,
 } from '@taiga-ui/kit'
-import { TuiCardLarge } from '@taiga-ui/layout'
+import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
 import { PlaceholderComponent } from 'src/app/routes/home/components/placeholder'
@@ -27,11 +27,11 @@ import { DNS_ADD } from './add'
 @Component({
   template: `
     <div tuiCardLarge="compact" appearance="floating">
-      <header>
-        <h3>Manual</h3>
-        <button tuiButton size="xs" iconStart="@tui.plus" (click)="onAdd()">
-          Add
-        </button>
+      <header tuiHeader="body-l">
+        <h3 tuiTitle>Manual</h3>
+        <aside tuiAccessories>
+          <button tuiButton iconStart="@tui.plus" (click)="onAdd()">Add</button>
+        </aside>
       </header>
       <table class="g-table" [tuiSkeleton]="!records()">
         <thead>
@@ -40,7 +40,7 @@ import { DNS_ADD } from './add'
             <th>Type</th>
             <th>Value</th>
             <th>TTL</th>
-            <th [style.padding-inline-end.rem]="0.625"></th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -50,7 +50,7 @@ import { DNS_ADD } from './add'
               <td>{{ record.type }}</td>
               <td>{{ record.value }}</td>
               <td>{{ record.ttl }}</td>
-              <td>
+              <td [style.padding-inline-end.rem]="0.625">
                 <button
                   tuiIconButton
                   size="xs"
@@ -90,8 +90,8 @@ import { DNS_ADD } from './add'
     </div>
 
     <div tuiCardLarge="compact" appearance="floating">
-      <header>
-        <h3>Automatic</h3>
+      <header tuiHeader="body-l">
+        <h3 tuiTitle>Automatic</h3>
       </header>
       <table class="g-table" [tuiSkeleton]="!records()">
         <thead>
@@ -158,20 +158,6 @@ import { DNS_ADD } from './add'
       flex-direction: column;
       gap: 1rem;
     }
-
-    header {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    header h3 {
-      margin: 0;
-    }
-
-    header button {
-      margin-inline-start: auto;
-    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
@@ -181,6 +167,8 @@ import { DNS_ADD } from './add'
     TuiDataList,
     PlaceholderComponent,
     TuiSkeleton,
+    TuiHeader,
+    TuiTitle,
   ],
 })
 export default class Dns {
