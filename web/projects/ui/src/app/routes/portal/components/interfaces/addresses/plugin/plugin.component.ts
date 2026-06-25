@@ -20,7 +20,7 @@ import { PluginItemComponent } from './item.component'
           <img [src]="pkgInfo.icon" alt="" />
         </span>
       }
-      {{ 'Plugin' | i18n }}: {{ pluginGroup().pluginName }}
+      {{ pluginGroup().pluginName }}
       @if (pluginGroup().tableAction; as action) {
         <button
           tuiButton
