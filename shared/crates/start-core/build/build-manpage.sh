@@ -30,7 +30,7 @@ if [ "$ARCH" = "riscv64" ]; then
 	RUST_ARCH="riscv64gc"
 fi
 
-cd ../..
+cd ../../../..
 FEATURES="$(echo $ENVIRONMENT | sed 's/-/,/g')"
 RUSTFLAGS=""
 if [[ "${ENVIRONMENT}" =~ (^|-)console($|-) ]]; then
@@ -38,7 +38,7 @@ if [[ "${ENVIRONMENT}" =~ (^|-)console($|-) ]]; then
 fi
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-rust-zig-builder cargo test --manifest-path=./core/Cargo.toml --lib $BUILD_FLAGS --features test,$FEATURES --locked 'export_manpage_'
-if [ "$(ls -nd "core/man" | awk '{ print $3 }')" != "$UID" ]; then
-  rust-zig-builder sh -c "chown -R $UID:$UID core/target && chown -R $UID:$UID core/man && chown -R $UID:$UID  /usr/local/cargo"
+rust-zig-builder cargo test --manifest-path=./Cargo.toml -p start-core --lib $BUILD_FLAGS --features test,$FEATURES --locked 'export_manpage_'
+if [ "$(ls -nd "shared/crates/start-core/man" | awk '{ print $3 }')" != "$UID" ]; then
+  rust-zig-builder sh -c "chown -R $UID:$UID target && chown -R $UID:$UID shared/crates/start-core/man && chown -R $UID:$UID  /usr/local/cargo"
 fi

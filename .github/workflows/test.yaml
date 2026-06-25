@@ -59,14 +59,14 @@ jobs:
       # build's `npm i` which silently rewrites it. This is the lockfile-drift gate.
       - name: Validate SDK lockfiles
         run: |
-          npm --prefix sdk/base ci
-          npm --prefix sdk/package ci
-      # web resolves the SDK via file:../sdk/baseDist, so baseDist must exist for web's npm ci.
+          npm --prefix start-sdk/base ci
+          npm --prefix start-sdk/package ci
+      # web resolves the SDK via file:../start-sdk/baseDist, so baseDist must exist for web's npm ci.
       - name: Build SDK (baseDist)
-        run: cd sdk && make baseDist
+        run: cd start-sdk && make baseDist
       - name: Validate web lockfile
-        run: npm --prefix web ci
+        run: npm --prefix shared/web ci
       - name: Check formatting
         run: |
-          npm --prefix web run format:check
-          cd sdk && npx --prefix base prettier "**/*.ts" --check
+          npm --prefix shared/web run format:check
+          cd start-sdk && npx --prefix base prettier "**/*.ts" --check

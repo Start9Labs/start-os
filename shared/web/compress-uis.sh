@@ -1,11 +1,12 @@
 #!/bin/bash
 
-cd "$(dirname "${BASH_SOURCE[0]}")"
-
 set -e
 
-STATIC_DIR=dist/static/$1
-RAW_DIR=dist/raw/$1
+APP=$1
+WEB_DIR=${2:?usage: compress-uis.sh <app> <web-dir>}
+
+STATIC_DIR=$WEB_DIR/dist/static/$APP
+RAW_DIR=$WEB_DIR/dist/raw/$APP
 
 mkdir -p $STATIC_DIR
 rm -rf $STATIC_DIR

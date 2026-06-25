@@ -89,5 +89,5 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: start-cli_${{ matrix.triple }}
-          path: core/target/${{ matrix.triple }}/release/start-cli
+          path: target/${{ matrix.triple }}/release/start-cli
           retention-days: 14

@@ -30,7 +30,7 @@ if [ "$ARCH" = "riscv64" ]; then
   RUST_ARCH="riscv64gc"
 fi
 
-cd ../..
+cd ../../../..
 FEATURES="$(echo $ENVIRONMENT | sed 's/-/,/g')"
 RUSTFLAGS=""
 
@@ -44,7 +44,7 @@ fi
 
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-rust-zig-builder cargo zigbuild --manifest-path=./core/Cargo.toml $BUILD_FLAGS --features=$FEATURES --locked --bin startbox --target=$RUST_ARCH-unknown-linux-musl
-if [ "$(ls -nd "core/target/$RUST_ARCH-unknown-linux-musl/$PROFILE/startbox" | awk '{ print $3 }')" != "$UID" ]; then
-  rust-zig-builder sh -c "chown -R $UID:$UID core/target && chown -R $UID:$UID  /usr/local/cargo"
+rust-zig-builder cargo zigbuild --manifest-path=./Cargo.toml $BUILD_FLAGS --features=$FEATURES --locked -p start-os --bin startbox --target=$RUST_ARCH-unknown-linux-musl
+if [ "$(ls -nd "target/$RUST_ARCH-unknown-linux-musl/$PROFILE/startbox" | awk '{ print $3 }')" != "$UID" ]; then
+  rust-zig-builder sh -c "chown -R $UID:$UID target && chown -R $UID:$UID  /usr/local/cargo"
 fi
