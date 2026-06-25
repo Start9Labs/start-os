@@ -157,7 +157,7 @@ export default {
   162: 'Validando registro',
   163: '¿Estás seguro de que deseas eliminar este registro?',
   164: 'Agregar registro personalizado',
-  165: 'Una URL completamente calificada del registro personalizado',
+  165: 'El dominio o la URL del registro personalizado',
   166: 'Debe ser una URL válida',
   167: 'instalado desde',
   168: 'instalado manualmente',

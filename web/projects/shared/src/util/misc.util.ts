@@ -54,6 +54,15 @@ export function toUrl(text: string | null | undefined): string {
   }
 }
 
+export function registryUrl(input: string): string {
+  const trimmed = input.trim()
+  const hasScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)
+  // Domain-only input is allowed: default to https, but http for .onion hosts.
+  const url = new URL(hasScheme ? trimmed : `https://${trimmed}`)
+  if (!hasScheme && url.hostname.endsWith('.onion')) url.protocol = 'http:'
+  return url.origin + '/'
+}
+
 export type WithId<T> = T & { id: string }
 
 export type OptionalProperty<T, K extends keyof T> = Omit<T, K> &

@@ -224,9 +224,9 @@ export class MarketplaceRegistrySelectComponent {
         .openPrompt<string>({
           label: 'Add Custom Registry',
           data: {
-            message: 'A fully-qualified URL of the custom registry',
+            message: 'The domain or URL of the custom registry',
             label: 'URL',
-            placeholder: 'e.g. https://example.org',
+            placeholder: 'e.g. registry.example.com',
             buttonText: 'Save',
           },
         })

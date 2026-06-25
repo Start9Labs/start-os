@@ -157,7 +157,7 @@ export default {
   162: 'Validation de la bibliothèque',
   163: 'Voulez-vous vraiment supprimer cette bibliothèque ?',
   164: 'Ajouter une bibliothèque personnalisée',
-  165: 'Une URL complète de la bibliothèque personnalisée',
+  165: 'Le domaine ou l’URL de la bibliothèque personnalisée',
   166: 'Doit être une URL valide',
   167: 'installé depuis',
   168: 'installé manuellement',
