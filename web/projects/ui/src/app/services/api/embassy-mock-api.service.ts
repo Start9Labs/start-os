@@ -81,6 +81,21 @@ const PROGRESS: T.FullProgress = {
   ],
 }
 
+// A service's own install-time progress (setInitProgress). The host nests this
+// inside the install's finalization ("Installing") phase as a FullProgress — but
+// only once finalization begins; until then that phase is null (waiting), so the
+// sub-phases must not appear before the download/validation phases finish.
+// installProgress injects this then. An indeterminate sub-phase (like HA's
+// "Generating Home Assistant configuration", a value-less animated bar) plus a
+// determinate one exercise both render branches of the install card's sub-phases.
+const INIT_PROGRESS: T.FullProgress = {
+  overall: { done: 0, total: 8, units: 'steps' },
+  phases: [
+    { name: 'Generating configuration', progress: false },
+    { name: 'Migrating data', progress: { done: 0, total: 8, units: 'steps' } },
+  ],
+}
+
 @Injectable()
 export class MockApiService extends ApiService {
   readonly mockWsSource$ = new Subject<Revision>()
@@ -1799,11 +1814,38 @@ export class MockApiService extends ApiService {
     id: string,
     finalManifest?: T.Manifest,
   ): Promise<void> {
-    // Cast to any: same reasoning as initProgress above.
+    // Cast to any: the finalization phase becomes a nested FullProgress at
+    // runtime (a service's setInitProgress, injected by installInitProgress).
     const progress: any = JSON.parse(JSON.stringify(PROGRESS))
 
     for (let [i, phase] of progress.phases.entries() as [number, any][]) {
-      if (!phase.progress || phase.progress === true || !phase.progress.total) {
+      // The last phase is finalization ("Installing"): the service reports its
+      // own progress via setInitProgress, which the host nests here — but only
+      // now, once download/validation are done. Inject it then, and animate it.
+      if (i === progress.phases.length - 1) {
+        await this.installInitProgress(id, i)
+
+        if (
+          progress.overall &&
+          typeof progress.overall === 'object' &&
+          progress.overall.total
+        ) {
+          progress.overall.done +=
+            progress.overall.total / progress.phases.length
+
+          this.mockRevision([
+            {
+              op: PatchOp.REPLACE,
+              path: `/packageData/${id}/stateInfo/installingInfo/progress/overall/done`,
+              value: progress.overall.done,
+            },
+          ])
+        }
+      } else if (
+        !phase.progress ||
+        phase.progress === true ||
+        !phase.progress.total
+      ) {
         await pauseFor(2000)
 
         const patches: Operation<any>[] = [
@@ -1902,6 +1944,81 @@ export class MockApiService extends ApiService {
       },
     ]
     this.mockRevision(patch2)
+  }
+
+  // Drives a service's nested init progress at the install's finalization
+  // ("Installing") phase. Injects INIT_PROGRESS in place of the not-started
+  // (null) phase — every sub-phase starting "waiting" — then starts each in
+  // turn: an indeterminate sub-phase sits "in progress" for a beat, a
+  // determinate one climbs its percentage, and both — and the nested overall —
+  // complete. Mirrors the host: the sub-phases appear only now, not earlier.
+  private async installInitProgress(
+    id: string,
+    parentIdx: number,
+  ): Promise<void> {
+    const base = `/packageData/${id}/stateInfo/installingInfo/progress/phases/${parentIdx}/progress`
+    const init: any = JSON.parse(JSON.stringify(INIT_PROGRESS))
+
+    this.mockRevision([
+      {
+        op: PatchOp.REPLACE,
+        path: base,
+        value: {
+          overall: init.overall,
+          phases: init.phases.map((p: any) => ({ ...p, progress: null })),
+        },
+      },
+    ])
+
+    for (let [j, sub] of init.phases.entries() as [number, any][]) {
+      // start this sub-phase (it has been showing "waiting")
+      this.mockRevision([
+        {
+          op: PatchOp.REPLACE,
+          path: `${base}/phases/${j}/progress`,
+          value: sub.progress,
+        },
+      ])
+
+      if (
+        sub.progress &&
+        typeof sub.progress === 'object' &&
+        sub.progress.total
+      ) {
+        const step = sub.progress.total / 4
+
+        while (sub.progress.done < sub.progress.total) {
+          await pauseFor(600)
+          sub.progress.done += step
+          this.mockRevision([
+            {
+              op: PatchOp.REPLACE,
+              path: `${base}/phases/${j}/progress/done`,
+              value: sub.progress.done,
+            },
+          ])
+        }
+      } else {
+        // indeterminate (false) — let the value-less bar animate before completing
+        await pauseFor(3000)
+      }
+
+      this.mockRevision([
+        {
+          op: PatchOp.REPLACE,
+          path: `${base}/phases/${j}/progress`,
+          value: true,
+        },
+      ])
+    }
+
+    this.mockRevision([
+      {
+        op: PatchOp.REPLACE,
+        path: `${base}/overall`,
+        value: true,
+      },
+    ])
   }
 
   private async updateOSProgress() {
