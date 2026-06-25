@@ -77,33 +77,18 @@ ingredients: $(INGREDIENTS)
 	@echo "   Re-evaluating ingredients..."
 
 install: | check-deps check-init
-	@HOST=$$(awk -F'/' '/^host:/ {print $$3}' ~/.startos/config.yaml); \
-	if [ -z "$$HOST" ]; then \
-		echo "Error: You must define \"host: http://server-name.local\" in ~/.startos/config.yaml"; \
-		exit 1; \
-	fi; \
-	if [ -z "$$(ls *.s9pk 2>/dev/null)" ]; then \
+	@if [ -z "$$(ls *.s9pk 2>/dev/null)" ]; then \
 		echo "Error: No .s9pk file found. Run 'make' first."; \
 		exit 1; \
 	fi; \
 	S9PK=$$(start-cli s9pk select) || exit 1; \
-	printf "\n🚀 Installing %s to %s ...\n" "$$S9PK" "$$HOST"; \
+	printf "\n🚀 Installing %s ...\n" "$$S9PK"; \
 	start-cli package install -s "$$S9PK"
 
 publish: | all
-	@REGISTRY=$$(awk -F'/' '/^registry:/ {print $$3}' ~/.startos/config.yaml); \
-	if [ -z "$$REGISTRY" ]; then \
-		echo "Error: You must define \"registry: https://my-registry.tld\" in ~/.startos/config.yaml"; \
-		exit 1; \
-	fi; \
-	S3BASE=$$(awk -F'/' '/^s9pk-s3base:/ {print $$3}' ~/.startos/config.yaml); \
-	if [ -z "$$S3BASE" ]; then \
-		echo "Error: You must define \"s3base: https://s9pks.my-s3-bucket.tld\" in ~/.startos/config.yaml"; \
-		exit 1; \
-	fi; \
-	command -v s3cmd >/dev/null || \
+	@command -v s3cmd >/dev/null || \
 		(echo "Error: s3cmd not found. It must be installed to publish using s3." && exit 1); \
-	printf "\n🚀 Publishing to %s; indexing on %s ...\n" "$$S3BASE" "$$REGISTRY"; \
+	printf "\n🚀 Publishing ...\n"; \
 	for s9pk in *.s9pk; do \
 		age=$$(( $$(date +%s) - $$(stat -c %Y "$$s9pk") )); \
 		if [ "$$age" -gt 3600 ]; then \
