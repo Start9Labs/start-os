@@ -157,7 +157,7 @@ export default {
   162: 'Register wird überprüft',
   163: 'Möchten Sie dieses Register wirklich löschen?',
   164: 'Benutzerdefiniertes Register hinzufügen',
-  165: 'Vollständige URL des benutzerdefinierten Registers',
+  165: 'Die Domain oder URL des benutzerdefinierten Registers',
   166: 'Muss eine gültige URL sein',
   167: 'installiert von',
   168: 'manuell installiert',

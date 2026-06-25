@@ -157,7 +157,7 @@ export default {
   162: 'Weryfikowanie katalogu',
   163: 'Czy na pewno chcesz usunąć ten katalog?',
   164: 'Dodaj niestandardowy katalog',
-  165: 'Pełny adres URL niestandardowego katalogu',
+  165: 'Domena lub adres URL niestandardowego katalogu',
   166: 'Musi być poprawnym adresem URL',
   167: 'zainstalowano z',
   168: 'zainstalowano ręcznie',

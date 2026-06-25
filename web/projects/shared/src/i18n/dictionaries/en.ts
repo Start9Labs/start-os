@@ -156,7 +156,7 @@ export const ENGLISH: Record<string, number> = {
   'Validating registry': 162,
   'Are you sure you want to delete this registry?': 163,
   'Add Custom Registry': 164,
-  'A fully-qualified URL of the custom registry': 165,
+  'The domain or URL of the custom registry': 165,
   'Must be a valid URL': 166,
   'installed from': 167,
   'sideloaded': 168, // as in, the application was installed by sideloading

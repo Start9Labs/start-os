@@ -7,7 +7,13 @@ import {
   StoreDataWithUrl,
   StoreIdentity,
 } from '@start9labs/marketplace'
-import { defaultRegistries, Exver, i18nPipe, sameUrl } from '@start9labs/shared'
+import {
+  defaultRegistries,
+  Exver,
+  i18nPipe,
+  registryUrl,
+  sameUrl,
+} from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import {
   BehaviorSubject,
@@ -117,7 +123,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
   }
 
   async add(rawUrl: string): Promise<string> {
-    const url = new URL(rawUrl).origin + '/'
+    const url = registryUrl(rawUrl)
 
     if (
       (await firstValueFrom(this.registries$)).some(r => sameUrl(r.url, url))
