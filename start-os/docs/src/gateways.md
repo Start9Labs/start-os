@@ -29,3 +29,7 @@ Every gateway routes outbound traffic from your server to the Internet. Some gat
    StartOS will automatically detect the gateway type:
    - **StartTunnel** config files are recognized and marked as _inbound/outbound_ gateways.
    - **All other** WireGuard configs are marked as _outbound-only_ gateways.
+
+## Updating a Gateway's Config
+
+To re-import a gateway's WireGuard config — for example, a StartTunnel config re-issued with new settings — open the gateway's `⋮` menu, choose "Update config", and paste or upload the new file. The config is replaced **in place**: the gateway keeps its identity, so its port forwards and private/public domains are preserved. (Re-adding via "Add" would instead create a separate gateway.)

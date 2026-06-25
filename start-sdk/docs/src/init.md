@@ -288,6 +288,90 @@ urllib.request.urlopen(req)`,
 ]
 ```
 
+## Reporting Init Progress
+
+Init progress is surfaced in the **Installing** / **Updating** phase of the install, so a long first-run setup (migrations, bootstrapping a server, downloading assets) shows a moving bar instead of an apparent stall. This mirrors backup progress reporting.
+
+You never call the progress effect directly. The init harness builds one `FullProgressTracker` and passes it to **every** init handler as a third argument. Each handler adds its own phases (with its own names) to the shared tracker, unaware of the others. Add phases and update them — **every update auto-reports to the host in the background**, so there's nothing to flush by hand.
+
+`progress.addPhase(name, contribution)` returns a `PhaseHandle` with `start()`, `setTotal(n)`, `setDone(n)`, `setUnits('steps' | 'bytes')`, and `complete()`. Just update the handle; the report follows automatically.
+
+```typescript
+export const initializeService = sdk.setupOnInit(
+  async (effects, kind, progress) => {
+    if (kind !== 'install') return
+
+    const phase = progress.addPhase('Seeding files', 1)
+    phase.setUnits('steps')
+    phase.setTotal(seedFiles.length)
+
+    for (let i = 0; i < seedFiles.length; i++) {
+      await seedFiles[i](effects)
+      phase.setDone(i + 1) // auto-reports in the background
+    }
+
+    phase.complete()
+  },
+)
+```
+
+Auto-sync is coalesced — at most one report is in flight and one queued, so a tight update loop collapses to the latest snapshot instead of stacking up calls. If you ever need to guarantee the latest state has landed before doing something else, `await progress.sync()` flushes the in-flight and queued reports (the harness already does this when your handler returns).
+
+> [!NOTE]
+> Progress reporting is a no-op outside the install / update / restore transition, so updating phases on a plain container rebuild is harmless. If you need to construct a tracker yourself (rare), it's available as `utils.FullProgressTracker`; no deep import.
+
+### Reporting Progress From a Migration
+
+Migrations receive the same kind of tracker through their opts, so a slow data migration shows progress during an update instead of stalling the bar:
+
+```typescript
+// versions/v2_0_0.ts
+import { VersionInfo, IMPOSSIBLE } from '@start9labs/start-sdk'
+import { i18n } from '../i18n'
+
+export const v2_0_0 = VersionInfo.of({
+  version: '2.0.0:0',
+  releaseNotes: i18n('Reticulated splines'),
+  migrations: {
+    up: async ({ effects, progress }) => {
+      const records = await loadRecordsToReencode()
+      const phase = progress.addPhase('Re-encoding records', 1)
+      phase.setUnits('steps')
+      phase.setTotal(records.length)
+
+      for (let i = 0; i < records.length; i++) {
+        await reencode(records[i])
+        phase.setDone(i + 1) // auto-reports in the background
+      }
+
+      phase.complete()
+    },
+    down: IMPOSSIBLE,
+  },
+})
+```
+
+### Multi-phase Handlers
+
+For a handler with several distinct sub-tasks, add one phase per task. The tracker weights them by their `contribution` and reports a combined percentage:
+
+```typescript
+export const bootstrap = sdk.setupOnInit(async (effects, kind, progress) => {
+  if (kind !== 'install') return
+
+  const dbPhase = progress.addPhase('Initializing database', 1)
+  const seedPhase = progress.addPhase('Seeding admin user', 1)
+
+  dbPhase.start()
+  await initDatabase(effects)
+  dbPhase.complete()
+
+  seedPhase.start()
+  await seedAdminUser(effects)
+  seedPhase.complete()
+})
+```
+
 ## Common Patterns
 
 ### Generate Random Password

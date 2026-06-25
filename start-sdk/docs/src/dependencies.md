@@ -63,7 +63,8 @@ export const setDependencies = sdk.setupDependencies(async ({ effects }) => {
   await sdk.action.createTask(effects, 'dependency-id', someAction, 'critical', {
     input: {
       kind: 'partial',
-      value: { /* fields matching the action's input spec */ },
+      accept: [{ /* one or more acceptable partial inputs */ }],
+      set: { /* the value to pre-fill when none are accepted */ },
     },
     when: { condition: 'input-not-matches', once: false },
     reason: i18n('Human-readable reason shown to user'),
@@ -88,7 +89,7 @@ sdk.action.createTask(
   action: ActionDefinition,  // imported from the dependency package
   severity: 'critical' | 'high' | 'medium' | 'low',
   options?: {
-    input?: { kind: 'partial', value: Partial<InputSpec> },
+    input?: { kind: 'partial', accept: Partial<InputSpec>[], set: Partial<InputSpec> },
     when?: { condition: 'input-not-matches', once: boolean },
     reason: string,
     replayId?: string,       // prevents duplicate task execution

@@ -14,7 +14,7 @@ StartTunnel is a virtual private router (VPR) — a minimal, self-hosted router 
 
 - **Create Subnets** — Each subnet is a private LAN, just like the one your home router creates
 - **Add Devices** — Servers, phones, laptops join the LAN and get an IP address and WireGuard config
-- **Forward Ports** — Expose specific ports on specific devices to the public Internet, just like port forwarding on a home router
+- **Forward Ports** — Expose specific ports on specific devices to the public Internet, just like port forwarding on a home router. StartTunnel also acts as a port-control gateway (PCP and UPnP), so a StartOS device can open its own ports automatically
 
 ## How StartTunnel Compares
 

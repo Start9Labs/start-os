@@ -60,11 +60,13 @@ StartOS tests DNS automatically when you add or enable a public domain, and will
 
 To expose a public domain to the Internet, the appropriate port must be forwarded in the corresponding gateway. StartOS tests port forwarding automatically when you add or enable a public domain, and will guide you through the setup if the test fails.
 
+When a public address is enabled, StartOS first **attempts to open the port automatically** on the corresponding gateway, using PCP (preferred), then NAT-PMP, then UPnP. If the gateway supports one of these (and it is enabled), no manual step is required — and when the address is later disabled or deleted, StartOS removes the port forward it created. This is best-effort: if the gateway supports none of them, the automatic test will fail and you create the rule manually as described below.
+
 > [!TIP]
 > Most websites and APIs on the Internet are hosted on port `443`. Port `443` is so common, in fact, that apps and browsers _infer_ its presence. The _absence_ of a port _means_ the port is `443`. With rare exceptions, domains on StartOS also use port `443`, and that is why your domains usually do not display a port. The port forwarding rule needed for these standard domains is always the same, which means you only have to do it once!
 
 How you create a port forwarding rule depends on the type of gateway.
 
-- **Routers**: Port forwarding is supported by all routers and easy to do. Refer to your router's manual for instructions.
+- **Routers**: Port forwarding is supported by all routers and easy to do. Many routers also support PCP, NAT-PMP, or UPnP, in which case StartOS opens the port for you automatically. If none is available or they are disabled, refer to your router's manual to add the rule manually.
 
-- **StartTunnel**: Refer to the [StartTunnel Port Forwarding guide](/start-tunnel/port-forwarding.html).
+- **StartTunnel**: StartTunnel supports PCP and UPnP over the tunnel, so StartOS opens the required port automatically. To add or manage forwards manually, refer to the [StartTunnel Port Forwarding guide](/start-tunnel/port-forwarding.html).

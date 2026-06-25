@@ -2,14 +2,14 @@
 
 A private domain works like your server's [mDNS address](mdns.md), except it also works over [VPN](inbound-vpn.md) and it can be _anything_. It can be a real domain you control, a made up domain, or even a domain controlled by someone else.
 
-Private domains can only be added to wired (Ethernet) or wireless (WiFi) gateways — not WireGuard (StartTunnel) gateways. They can only be accessed when connected to the same LAN as your server, either physically or via VPN, and they require trusting your server's Root CA.
+Private domains can be added to any gateway: wired (Ethernet), wireless (WiFi), or WireGuard ([StartTunnel](/start-tunnel/)). They can only be accessed when connected to the same network as your server — your LAN, or a VPN / tunnel — and they require trusting your server's Root CA.
 
 ## Adding a Private Domain
 
-> [!WARNING]
-> Private domains can only be added to **Ethernet** and **Wireless** gateways. They cannot be added to WireGuard (StartTunnel) gateways. This is because private domains rely on your local network's DNS configuration, which WireGuard gateways do not control.
+> [!NOTE]
+> How a private domain is made to resolve depends on the gateway type. On an **Ethernet** or **WiFi** gateway, you point your router's DNS at this server. On a **WireGuard ([StartTunnel](/start-tunnel/))** gateway, you either enable **DNS Injection** for this server in StartTunnel or point the tunnel subnet's DNS at this server. See [DNS for Private Domains](#dns-for-private-domains) below.
 
-1. If you haven't already, assign a static IP address to your server on the LAN. Refer to your router's user manual for detailed instructions.
+1. For an Ethernet or WiFi gateway, assign a static IP address to your server on the LAN if you haven't already (refer to your router's user manual). A WireGuard gateway already uses a fixed tunnel address, so this step does not apply.
 
 1. On the service interface page, click "Add Domain" on the desired gateway table and select "Private Domain".
 
@@ -21,15 +21,24 @@ Private domains can only be added to wired (Ethernet) or wireless (WiFi) gateway
 
 ## DNS for Private Domains
 
-Private domains require your gateway to use StartOS for DNS. StartOS will test this automatically when you add a private domain and guide you through the setup if needed.
+A private domain resolves only when the gateway's DNS serves its record. StartOS tests this automatically when you add a private domain and guides you through the setup if needed. How you configure it depends on the gateway type.
+
+### Ethernet & WiFi gateways
 
 Set StartOS as your router's primary DNS server. All routers support this feature. Refer to your router's user manual for detailed instructions.
 
 > [!WARNING]
 > It is possible that StartOS is already using your router for DNS. In this case, you cannot instruct your router to use StartOS for DNS, as this would be circular. If StartOS detects a potential circular DNS situation, it will warn you. To resolve this, switch to [static DNS servers](dns.md#static-dns-servers) so StartOS no longer relies on your router.
 
+### WireGuard (StartTunnel) gateways
+
+StartTunnel runs the DNS resolver for the tunnel, so you have two options:
+
+- **DNS Injection** (simplest): in StartTunnel, enable the **DNS Injection** toggle for this server. StartOS then publishes the domain's record directly to StartTunnel's resolver — there is nothing else to configure.
+- **Point the subnet at this server**: in StartTunnel, set the DNS for this server's subnet to this server's tunnel address. StartTunnel then forwards DNS for the subnet to StartOS.
+
 > [!TIP]
-> If your private domain is a real domain that you control, you can alternatively configure its DNS record at your registrar to resolve to your server's _LAN IP address_. In this case, the StartOS DNS server is not needed.
+> If your private domain is a real domain that you control, you can alternatively configure its DNS record at your registrar to resolve to your server's address on that network — its _LAN IP address_ for an Ethernet or WiFi gateway, or its _tunnel address_ for a WireGuard gateway. In this case, the StartOS DNS server is not needed.
 
 ## Split DNS: the Same Domain, Public and Private
 

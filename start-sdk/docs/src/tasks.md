@@ -68,7 +68,8 @@ export const setDependencies = sdk.setupDependencies(async ({ effects }) => {
   await sdk.action.createTask(effects, 'dependency-id', someAction, 'critical', {
     input: {
       kind: 'partial',
-      value: { /* fields matching the action's input spec */ },
+      accept: [{ /* one or more acceptable partial inputs */ }],
+      set: { /* the value to pre-fill when none are accepted */ },
     },
     when: { condition: 'input-not-matches', once: false },
     reason: i18n('Configure the dependency for use with this service'),
@@ -98,10 +99,12 @@ export const setDependencies = sdk.setupDependencies(async ({ effects }) => {
 
 | Field      | Type                                                  | Description                                                      |
 | ---------- | ----------------------------------------------------- | ---------------------------------------------------------------- |
-| `input`    | `{ kind: 'partial', value: Partial<InputSpec> }`      | Pre-fill fields in the action's input form                       |
-| `when`     | `{ condition: 'input-not-matches', once: boolean }`   | Re-trigger until the action's input matches the provided values  |
+| `input`    | `{ kind: 'partial', accept: Partial<InputSpec>[], set: Partial<InputSpec> }` | `accept` lists the partial inputs that satisfy the task; `set` pre-fills the action's input form when none of them match |
+| `when`     | `{ condition: 'input-not-matches', once: boolean }`   | Re-trigger until the action's input matches one of the `accept` values |
 | `reason`   | `string`                                              | Human-readable explanation shown to the user                     |
 | `replayId` | `string` (optional)                                   | Overrides the default idempotency key (see below)                |
+
+With `condition: 'input-not-matches'`, the task is **satisfied** when the action's current input is a superset of **any** entry in `accept` (each entry is matched partially — only the fields you list must agree). When none match, the task is shown and the action form is pre-filled with `set`. Use multiple `accept` entries to tolerate several already-good configurations while still steering the user to one recommended value; for the common case where any value but one specific target is unacceptable, pass a single `accept` entry equal to `set`.
 
 > [!NOTE]
 > The dependency must be listed in your `package.json` so the action can be imported (e.g., `"synapse-startos": "file:../synapse-wrapper"`). See [Dependencies](./dependencies.md) for more on cross-service integration.
