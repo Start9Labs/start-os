@@ -1,17 +1,17 @@
-# Contributing to StartOS
+# Contributing
 
-This guide is for contributing to the StartOS. If you are interested in packaging a service for StartOS, visit the [service packaging guide](https://github.com/Start9Labs/ai-service-packaging). If you are interested in promoting, providing technical support, creating tutorials, or helping in other ways, please visit the [Start9 website](https://start9.com/contribute).
+This guide is for contributing to the Start9 monorepo (StartOS and the other products that live here). If you are interested in packaging a service for StartOS, visit the [service packaging guide](https://github.com/Start9Labs/ai-service-packaging). If you are interested in promoting, providing technical support, creating tutorials, or helping in other ways, please visit the [Start9 website](https://start9.com/contribute).
 
 ## Documentation
 
-This repo's docs split across four files:
+The repo root's docs split across four files:
 
 - `README.md` — what this is
-- `ARCHITECTURE.md` — how it's built
+- `ARCHITECTURE.md` — how it's built (the monorepo layout)
 - `CONTRIBUTING.md` — this file; how to contribute
-- `CLAUDE.md` — AI-developer operating rules
+- `AGENTS.md` — AI-developer/agent operating rules (`CLAUDE.md` is a one-line `@AGENTS.md` import)
 
-**These docs must be kept up to date.** When you change project structure, conventions, build process, or product context, update the relevant file(s) in the same change — do not defer. Sub-trees may have their own copies when they have distinct conventions, build steps, or test surfaces.
+**These docs must be kept up to date.** When you change project structure, conventions, build process, or product context, update the relevant file(s) in the same change — do not defer. Each component keeps its own `AGENTS.md`/`ARCHITECTURE.md` when it has distinct conventions, build steps, or test surfaces — see `shared/crates/start-core/`, `shared/web/`, `start-os/container-runtime/`, and `start-sdk/`.
 
 ## Collaboration
 
@@ -176,23 +176,27 @@ PLATFORM=$(uname -m) ENVIRONMENT=dev make iso
 
 ```bash
 make test                    # All tests
-make test-core               # Rust tests (via ./core/run-tests.sh)
+make test-core               # Rust tests (via ./shared/crates/start-core/run-tests.sh)
 make test-sdk                # SDK tests
 make test-container-runtime  # Container runtime tests
 
-# Run specific Rust test
-cd core && cargo test <test_name> --features=test
+# Run a specific Rust test
+cd shared/crates/start-core && cargo test <test_name> --features=test
 ```
 
 ## Code Formatting
 
 ```bash
-# Rust (requires nightly)
+# Everything (Rust nightly fmt + web prettier + SDK)
 make format
 
-# TypeScript/HTML/SCSS (web)
-cd web && npm run format
+# Or scope it:
+cd shared/crates/start-core && cargo +nightly fmt   # Rust
+npm --prefix shared/web run format                  # TypeScript/HTML/SCSS
+cd start-sdk && make fmt                             # SDK
 ```
+
+CI runs `make format-check` (read-only prettier `--check` for web + SDK).
 
 ## Code Style Guidelines
 
