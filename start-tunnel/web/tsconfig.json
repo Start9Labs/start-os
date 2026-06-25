@@ -1,13 +1,14 @@
+/* To learn more about this file see: https://angular.io/config/tsconfig. */
 {
-  "extends": "../../tsconfig.json",
+  "extends": "../../shared/web/tsconfig.json",
   "compilerOptions": {
     "paths": {
       "*": ["./*"],
-      "@start9labs/marketplace": ["../marketplace/index"],
-      "@start9labs/shared": ["../shared/src/public-api"]
+      "@start9labs/marketplace": ["../../shared/web/marketplace/index"],
+      "@start9labs/shared": ["../../shared/web/shared/src/public-api"]
     }
   },
-  "files": ["src/main.ts", "src/polyfills.ts"],
+  "files": ["src/main.ts"],
   "include": ["src/**/*.d.ts"],
   "angularCompilerOptions": {
     "extendedDiagnostics": {
