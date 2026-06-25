@@ -7,7 +7,7 @@ const {
   useMocks,
   ui: { api, mocks },
   defaultRegistry,
-} = require('../../../../../config.json') as WorkspaceConfig
+} = require('../../../../../../config.json') as WorkspaceConfig
 
 @Injectable({
   providedIn: 'root',
@@ -20,7 +20,7 @@ export class ConfigService {
   host = this.document.location.host
   // includes ":" (e.g. "http:")
   protocol = this.document.location.protocol
-  version = require('../../../../../package.json').version as string
+  version = require('../../../../../../package.json').version as string
   useMocks = useMocks
   mocks = mocks
   gitHash = gitHash

@@ -19,7 +19,7 @@ BUILD_SRC := $(call ls-files, build/lib) build/lib/depends build/lib/conflicts $
 IMAGE_RECIPE_SRC := $(call ls-files, build/image-recipe/)
 STARTD_SRC := start-os/startd.service start-os/services.slice start-os/startos-shutdown.service start-os/startos-restart.service $(BUILD_SRC)
 CORE_SRC := $(call ls-files, shared/crates/start-core) $(shell git ls-files --recurse-submodules vendor/patch-db) $(GIT_HASH_FILE)
-WEB_SHARED_SRC := $(call ls-files, shared/web/shared) $(call ls-files, shared/web/marketplace) $(shell ls -p shared/web/ | grep -v / | sed 's|^|shared/web/|g') shared/web/node_modules/.package-lock.json shared/web/config.json vendor/patch-db/client/dist/index.js start-sdk/baseDist/package.json start-os/web/patchdb-ui-seed.json start-sdk/dist/package.json
+WEB_SHARED_SRC := $(call ls-files, shared/web/shared) $(call ls-files, shared/web/marketplace) $(shell ls -p shared/web/ | grep -v / | sed 's|^|shared/web/|g') package.json angular.json tsconfig.json tsconfig.lib.json node_modules/.package-lock.json config.json vendor/patch-db/client/dist/index.js start-sdk/baseDist/package.json start-os/web/patchdb-ui-seed.json start-sdk/dist/package.json
 WEB_UI_SRC := $(call ls-files, start-os/web/ui)
 WEB_SETUP_WIZARD_SRC := $(call ls-files, start-os/web/setup-wizard)
 WEB_START_TUNNEL_SRC := $(call ls-files, start-tunnel/web)
@@ -73,9 +73,9 @@ metadata: $(VERSION_FILE) $(PLATFORM_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
 clean:
 	rm -rf target
 	rm -rf shared/crates/start-core/bindings
-	rm -rf shared/web/.angular
-	rm -f shared/web/config.json
-	rm -rf shared/web/node_modules
+	rm -rf .angular
+	rm -f config.json
+	rm -rf node_modules
 	rm -rf start-os/web/dist
 	rm -rf start-tunnel/web/dist
 	rm -rf brochure/dist
@@ -96,12 +96,12 @@ clean:
 
 format:
 	cd shared/crates/start-core && cargo +nightly fmt
-	npm --prefix shared/web run format
+	npm --prefix . run format
 	cd start-sdk && make fmt
 
 # Read-only formatting verification (prettier --check for web + sdk). Used by CI.
 format-check:
-	npm --prefix shared/web run format:check
+	npm --prefix . run format:check
 	cd start-sdk && make check-fmt
 
 test: | test-core test-sdk test-container-runtime
@@ -340,33 +340,33 @@ target/$(RUST_ARCH)-unknown-linux-musl/release/start-container: $(CORE_SRC) $(EN
 	ARCH=$(ARCH) ./shared/crates/start-core/build/build-start-container.sh
 	touch target/$(RUST_ARCH)-unknown-linux-musl/release/start-container
 
-shared/web/package-lock.json: shared/web/package.json start-sdk/baseDist/package.json
-	npm --prefix shared/web i
-	touch shared/web/package-lock.json
+package-lock.json: package.json start-sdk/baseDist/package.json
+	npm --prefix . i
+	touch package-lock.json
 
-shared/web/node_modules/.package-lock.json: shared/web/package-lock.json
-	npm --prefix shared/web ci
-	touch shared/web/node_modules/.package-lock.json
+node_modules/.package-lock.json: package-lock.json
+	npm --prefix . ci
+	touch node_modules/.package-lock.json
 
-shared/web/.angular/.updated: vendor/patch-db/client/dist/index.js start-sdk/baseDist/package.json shared/web/node_modules/.package-lock.json
-	rm -rf shared/web/.angular
-	mkdir -p shared/web/.angular
-	touch shared/web/.angular/.updated
+.angular/.updated: vendor/patch-db/client/dist/index.js start-sdk/baseDist/package.json node_modules/.package-lock.json
+	rm -rf .angular
+	mkdir -p .angular
+	touch .angular/.updated
 
-shared/web/.i18n-checked: $(WEB_SHARED_SRC) $(WEB_UI_SRC) $(WEB_SETUP_WIZARD_SRC) $(WEB_START_TUNNEL_SRC)
-	npm --prefix shared/web run check:i18n
-	touch shared/web/.i18n-checked
+.i18n-checked: $(WEB_SHARED_SRC) $(WEB_UI_SRC) $(WEB_SETUP_WIZARD_SRC) $(WEB_START_TUNNEL_SRC)
+	npm --prefix . run check:i18n
+	touch .i18n-checked
 
-start-os/web/dist/raw/ui/index.html: $(WEB_UI_SRC) $(WEB_SHARED_SRC) shared/web/.angular/.updated shared/web/.i18n-checked
-	npm --prefix shared/web run build:ui
+start-os/web/dist/raw/ui/index.html: $(WEB_UI_SRC) $(WEB_SHARED_SRC) .angular/.updated .i18n-checked
+	npm --prefix . run build:ui
 	touch start-os/web/dist/raw/ui/index.html
 
-start-os/web/dist/raw/setup-wizard/index.html: $(WEB_SETUP_WIZARD_SRC) $(WEB_SHARED_SRC) shared/web/.angular/.updated shared/web/.i18n-checked
-	npm --prefix shared/web run build:setup
+start-os/web/dist/raw/setup-wizard/index.html: $(WEB_SETUP_WIZARD_SRC) $(WEB_SHARED_SRC) .angular/.updated .i18n-checked
+	npm --prefix . run build:setup
 	touch start-os/web/dist/raw/setup-wizard/index.html
 
-start-tunnel/web/dist/raw/start-tunnel/index.html: $(WEB_START_TUNNEL_SRC) $(WEB_SHARED_SRC) shared/web/.angular/.updated shared/web/.i18n-checked
-	npm --prefix shared/web run build:tunnel
+start-tunnel/web/dist/raw/start-tunnel/index.html: $(WEB_START_TUNNEL_SRC) $(WEB_SHARED_SRC) .angular/.updated .i18n-checked
+	npm --prefix . run build:tunnel
 	touch start-tunnel/web/dist/raw/start-tunnel/index.html
 
 start-os/web/dist/static/%/index.html: start-os/web/dist/raw/%/index.html
@@ -375,7 +375,7 @@ start-os/web/dist/static/%/index.html: start-os/web/dist/raw/%/index.html
 start-tunnel/web/dist/static/%/index.html: start-tunnel/web/dist/raw/%/index.html
 	./shared/web/compress-uis.sh $* start-tunnel/web
 
-shared/web/config.json: $(GIT_HASH_FILE) $(ENVIRONMENT_FILE) shared/web/config-sample.json shared/web/update-config.sh
+config.json: $(GIT_HASH_FILE) $(ENVIRONMENT_FILE) shared/web/config-sample.json shared/web/update-config.sh
 	./shared/web/update-config.sh	
 
 vendor/patch-db/client/node_modules/.package-lock.json: vendor/patch-db/client/package.json

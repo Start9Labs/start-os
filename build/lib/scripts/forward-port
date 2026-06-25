@@ -2,7 +2,7 @@
 
 # Manage a single port-forward (or contiguous port range) as native nftables
 # rules in `table ip startos`. Invoked once per (sip, sport -> dip:dport,
-# src_subnet) tuple by core/src/net/forward.rs. All rules for one forward share
+# src_subnet) tuple by shared/crates/start-core/src/net/forward.rs. All rules for one forward share
 # a comment tag so the whole forward can be torn down by handle without
 # disturbing other forwards or the rules StartOS installs from Rust.
 #

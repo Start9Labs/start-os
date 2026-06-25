@@ -2,7 +2,7 @@
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-FE_VERSION="$(cat ../../web/package.json | grep '"version"' | sed 's/[ \t]*"version":[ \t]*"\([^"]*\)",/\1/')"
+FE_VERSION="$(cat ../../shared/web/package.json | grep '"version"' | sed 's/[ \t]*"version":[ \t]*"\([^"]*\)",/\1/')"
 
 # TODO: Validate other version sources - backend/Cargo.toml, backend/src/version/mod.rs
 

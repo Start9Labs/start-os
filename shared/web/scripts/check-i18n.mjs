@@ -10,7 +10,7 @@ const root = join(__dirname, '..')
 // Extract dictionary keys from en.ts
 const enPath = join(
   root,
-  'projects/shared/src/i18n/dictionaries/en.ts',
+  'shared/src/i18n/dictionaries/en.ts',
 )
 const enSource = readFileSync(enPath, 'utf-8')
 const validKeys = new Set()
@@ -41,8 +41,17 @@ function walk(dir, files = []) {
   return files
 }
 
-const projectsDir = join(root, 'projects')
-const files = walk(projectsDir)
+// Projects are scattered across the monorepo: shared libs live here under
+// shared/web, app projects live in their product dirs.
+const scanDirs = [
+  'shared',
+  'marketplace',
+  '../../start-os/web/ui',
+  '../../start-os/web/setup-wizard',
+  '../../start-tunnel/web',
+  '../../brochure',
+].map(d => join(root, d))
+const files = scanDirs.flatMap(d => walk(d))
 
 const errors = []
 
@@ -97,7 +106,7 @@ for (const match of enSource.matchAll(/^\s+'[^']+?':\s*(\d+)/gm)) {
   enNumericKeys.add(Number(match[1]))
 }
 
-const dictDir = join(root, 'projects/shared/src/i18n/dictionaries')
+const dictDir = join(root, 'shared/src/i18n/dictionaries')
 const otherLangs = ['de', 'es', 'fr', 'pl']
 const dictErrors = []
 

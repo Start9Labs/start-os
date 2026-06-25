@@ -20,7 +20,7 @@ secrets.db
 /compiled-*.tar
 /build/lib/firmware
 tmp
-shared/web/.i18n-checked
+/.i18n-checked
 docs/USER.md
 CLAUDE.local.md
 *.s9pk
@@ -38,3 +38,9 @@ CLAUDE.local.md
 /start-tunnel/docs/book/
 /start-sdk/docs/book/
 /docs/docs/
+
+# Angular workspace now rooted at repo root
+/node_modules
+/.angular
+/out-tsc
+/config.json

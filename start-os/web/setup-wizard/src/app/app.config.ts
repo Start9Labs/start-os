@@ -41,9 +41,9 @@ import { MockApiService } from './services/mock-api.service'
 const {
   useMocks,
   ui: { api },
-} = require('../../../../config.json') as WorkspaceConfig
+} = require('../../../../../config.json') as WorkspaceConfig
 
-const version = require('../../../../package.json').version
+const version = require('../../../../../package.json').version
 
 export const APP_CONFIG: ApplicationConfig = {
   providers: [

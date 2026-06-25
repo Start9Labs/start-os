@@ -6,8 +6,8 @@
     "ui": {
       "projectType": "application",
       "schematics": {},
-      "root": "../../start-os/web/ui",
-      "sourceRoot": "../../start-os/web/ui/src",
+      "root": "start-os/web/ui",
+      "sourceRoot": "start-os/web/ui/src",
       "prefix": "app",
       "architect": {
         "build": {
@@ -15,18 +15,18 @@
           "options": {
             "preserveSymlinks": true,
             "outputPath": {
-              "base": "../../start-os/web/dist/raw/ui",
+              "base": "start-os/web/dist/raw/ui",
               "browser": ""
             },
-            "index": "../../start-os/web/ui/src/index.html",
-            "browser": "../../start-os/web/ui/src/main.ts",
-            "polyfills": ["zone.js", "../../start-os/web/ui/src/polyfills.ts"],
-            "tsConfig": "../../start-os/web/ui/tsconfig.json",
+            "index": "start-os/web/ui/src/index.html",
+            "browser": "start-os/web/ui/src/main.ts",
+            "polyfills": ["zone.js", "start-os/web/ui/src/polyfills.ts"],
+            "tsConfig": "start-os/web/ui/tsconfig.json",
             "inlineStyleLanguage": "scss",
             "assets": [
               {
                 "glob": "**/*",
-                "input": "shared/assets",
+                "input": "shared/web/shared/assets",
                 "output": "assets"
               },
               {
@@ -44,23 +44,23 @@
                 "input": "node_modules/@taiga-ui/icons/src",
                 "output": "assets/taiga-ui/icons"
               },
-              "../../start-os/web/ui/src/manifest.webmanifest"
+              "start-os/web/ui/src/manifest.webmanifest"
             ],
             "styles": [
               "node_modules/@taiga-ui/styles/taiga-ui-theme.less",
-              "shared/styles/taiga.scss",
-              "shared/styles/shared.scss",
-              "../../start-os/web/ui/src/styles.scss"
+              "shared/web/shared/styles/taiga.scss",
+              "shared/web/shared/styles/shared.scss",
+              "start-os/web/ui/src/styles.scss"
             ],
             "scripts": [],
             "loader": {
               ".md": "text"
             },
-            "serviceWorker": "../../start-os/web/ui/ngsw-config.json"
+            "serviceWorker": "start-os/web/ui/ngsw-config.json"
           },
           "configurations": {
             "production": {
-              "serviceWorker": "../../start-os/web/ui/ngsw-config.json",
+              "serviceWorker": "start-os/web/ui/ngsw-config.json",
               "budgets": [
                 {
                   "type": "initial",
@@ -70,8 +70,8 @@
               ],
               "fileReplacements": [
                 {
-                  "replace": "../../start-os/web/ui/src/environments/environment.ts",
-                  "with": "../../start-os/web/ui/src/environments/environment.prod.ts"
+                  "replace": "start-os/web/ui/src/environments/environment.ts",
+                  "with": "start-os/web/ui/src/environments/environment.prod.ts"
                 }
               ],
               "outputHashing": "all",
@@ -114,8 +114,8 @@
           "builder": "@angular-eslint/builder:lint",
           "options": {
             "lintFilePatterns": [
-              "../../start-os/web/ui/src/**/*.ts",
-              "../../start-os/web/ui/src/**/*.html"
+              "start-os/web/ui/src/**/*.ts",
+              "start-os/web/ui/src/**/*.html"
             ]
           }
         }
@@ -124,26 +124,26 @@
     "setup-wizard": {
       "projectType": "application",
       "schematics": {},
-      "root": "../../start-os/web/setup-wizard",
-      "sourceRoot": "../../start-os/web/setup-wizard/src",
+      "root": "start-os/web/setup-wizard",
+      "sourceRoot": "start-os/web/setup-wizard/src",
       "prefix": "app",
       "architect": {
         "build": {
           "builder": "@angular/build:application",
           "options": {
             "outputPath": {
-              "base": "../../start-os/web/dist/raw/setup-wizard",
+              "base": "start-os/web/dist/raw/setup-wizard",
               "browser": ""
             },
-            "index": "../../start-os/web/setup-wizard/src/index.html",
-            "browser": "../../start-os/web/setup-wizard/src/main.ts",
+            "index": "start-os/web/setup-wizard/src/index.html",
+            "browser": "start-os/web/setup-wizard/src/main.ts",
             "polyfills": ["zone.js"],
-            "tsConfig": "../../start-os/web/setup-wizard/tsconfig.json",
+            "tsConfig": "start-os/web/setup-wizard/tsconfig.json",
             "inlineStyleLanguage": "scss",
             "assets": [
               {
                 "glob": "**/*",
-                "input": "shared/assets",
+                "input": "shared/web/shared/assets",
                 "output": "assets"
               },
               {
@@ -159,9 +159,9 @@
             ],
             "styles": [
               "node_modules/@taiga-ui/styles/taiga-ui-theme.less",
-              "shared/styles/taiga.scss",
-              "shared/styles/shared.scss",
-              "../../start-os/web/setup-wizard/src/styles.scss"
+              "shared/web/shared/styles/taiga.scss",
+              "shared/web/shared/styles/shared.scss",
+              "start-os/web/setup-wizard/src/styles.scss"
             ],
             "scripts": []
           },
@@ -176,8 +176,8 @@
               ],
               "fileReplacements": [
                 {
-                  "replace": "../../start-os/web/setup-wizard/src/environments/environment.ts",
-                  "with": "../../start-os/web/setup-wizard/src/environments/environment.prod.ts"
+                  "replace": "start-os/web/setup-wizard/src/environments/environment.ts",
+                  "with": "start-os/web/setup-wizard/src/environments/environment.prod.ts"
                 }
               ],
               "outputHashing": "all"
@@ -219,8 +219,8 @@
           "builder": "@angular-eslint/builder:lint",
           "options": {
             "lintFilePatterns": [
-              "../../start-os/web/setup-wizard/src/**/*.ts",
-              "../../start-os/web/setup-wizard/src/**/*.html"
+              "start-os/web/setup-wizard/src/**/*.ts",
+              "start-os/web/setup-wizard/src/**/*.html"
             ]
           }
         }
@@ -229,26 +229,26 @@
     "start-tunnel": {
       "projectType": "application",
       "schematics": {},
-      "root": "../../start-tunnel/web",
-      "sourceRoot": "../../start-tunnel/web/src",
+      "root": "start-tunnel/web",
+      "sourceRoot": "start-tunnel/web/src",
       "prefix": "app",
       "architect": {
         "build": {
           "builder": "@angular/build:application",
           "options": {
             "outputPath": {
-              "base": "../../start-tunnel/web/dist/raw/start-tunnel",
+              "base": "start-tunnel/web/dist/raw/start-tunnel",
               "browser": ""
             },
-            "index": "../../start-tunnel/web/src/index.html",
-            "browser": "../../start-tunnel/web/src/main.ts",
+            "index": "start-tunnel/web/src/index.html",
+            "browser": "start-tunnel/web/src/main.ts",
             "polyfills": [],
-            "tsConfig": "../../start-tunnel/web/tsconfig.json",
+            "tsConfig": "start-tunnel/web/tsconfig.json",
             "inlineStyleLanguage": "scss",
             "assets": [
               {
                 "glob": "**/*",
-                "input": "shared/assets",
+                "input": "shared/web/shared/assets",
                 "output": "assets"
               },
               {
@@ -260,8 +260,8 @@
             "styles": [
               "node_modules/@taiga-ui/styles/taiga-ui-theme.less",
               "node_modules/@taiga-ui/styles/taiga-ui-fonts.less",
-              "shared/styles/shared.scss",
-              "../../start-tunnel/web/src/styles.scss"
+              "shared/web/shared/styles/shared.scss",
+              "start-tunnel/web/src/styles.scss"
             ],
             "scripts": []
           },
@@ -318,8 +318,8 @@
           "builder": "@angular-eslint/builder:lint",
           "options": {
             "lintFilePatterns": [
-              "../../start-tunnel/web/src/**/*.ts",
-              "../../start-tunnel/web/src/**/*.html"
+              "start-tunnel/web/src/**/*.ts",
+              "start-tunnel/web/src/**/*.html"
             ]
           }
         }
@@ -328,8 +328,8 @@
     "brochure": {
       "projectType": "application",
       "schematics": {},
-      "root": "../../brochure",
-      "sourceRoot": "../../brochure/src",
+      "root": "brochure",
+      "sourceRoot": "brochure/src",
       "prefix": "app",
       "architect": {
         "build": {
@@ -337,23 +337,23 @@
           "options": {
             "preserveSymlinks": true,
             "outputPath": {
-              "base": "../../brochure/dist/raw/brochure",
+              "base": "brochure/dist/raw/brochure",
               "browser": ""
             },
-            "index": "../../brochure/src/index.html",
-            "browser": "../../brochure/src/main.ts",
+            "index": "brochure/src/index.html",
+            "browser": "brochure/src/main.ts",
             "polyfills": ["zone.js"],
-            "tsConfig": "../../brochure/tsconfig.json",
+            "tsConfig": "brochure/tsconfig.json",
             "inlineStyleLanguage": "scss",
             "assets": [
               {
                 "glob": "**/*",
-                "input": "shared/assets",
+                "input": "shared/web/shared/assets",
                 "output": "assets"
               },
               {
                 "glob": "**/*",
-                "input": "../../brochure/src/assets/img",
+                "input": "brochure/src/assets/img",
                 "output": "img"
               },
               {
@@ -364,9 +364,9 @@
             ],
             "styles": [
               "node_modules/@taiga-ui/styles/taiga-ui-theme.less",
-              "shared/styles/taiga.scss",
-              "shared/styles/shared.scss",
-              "../../brochure/src/styles.scss"
+              "shared/web/shared/styles/taiga.scss",
+              "shared/web/shared/styles/shared.scss",
+              "brochure/src/styles.scss"
             ],
             "scripts": [],
             "loader": {
@@ -389,8 +389,8 @@
               ],
               "fileReplacements": [
                 {
-                  "replace": "../../brochure/src/environments/environment.ts",
-                  "with": "../../brochure/src/environments/environment.prod.ts"
+                  "replace": "brochure/src/environments/environment.ts",
+                  "with": "brochure/src/environments/environment.prod.ts"
                 }
               ],
               "outputHashing": "all"
@@ -432,8 +432,8 @@
           "builder": "@angular-eslint/builder:lint",
           "options": {
             "lintFilePatterns": [
-              "../../brochure/src/**/*.ts",
-              "../../brochure/src/**/*.html"
+              "brochure/src/**/*.ts",
+              "brochure/src/**/*.html"
             ]
           }
         }
@@ -441,14 +441,14 @@
     },
     "marketplace": {
       "projectType": "library",
-      "root": "marketplace",
-      "sourceRoot": "marketplace/src",
+      "root": "shared/web/marketplace",
+      "sourceRoot": "shared/web/marketplace/src",
       "prefix": "lib",
       "architect": {
         "build": {
           "builder": "@angular/build:ng-packagr",
           "options": {
-            "project": "marketplace/ng-package.json"
+            "project": "shared/web/marketplace/ng-package.json"
           },
           "configurations": {
             "production": {
@@ -461,14 +461,14 @@
     },
     "shared": {
       "projectType": "library",
-      "root": "shared",
-      "sourceRoot": "shared/src",
+      "root": "shared/web/shared",
+      "sourceRoot": "shared/web/shared/src",
       "prefix": "lib",
       "architect": {
         "build": {
           "builder": "@angular/build:ng-packagr",
           "options": {
-            "project": "shared/ng-package.json"
+            "project": "shared/web/shared/ng-package.json"
           },
           "configurations": {
             "production": {
