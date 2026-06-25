@@ -25,6 +25,7 @@ export abstract class ApiService {
   abstract setSubnetDns(
     params: T.Tunnel.SubnetParams & T.Tunnel.SetSubnetDnsParams,
   ): Promise<null> // subnet.set-dns
+  abstract setSubnetWan(params: T.Tunnel.SetSubnetWanParams): Promise<null> // subnet.set-wan
   // devices
   abstract addDevice(params: T.Tunnel.AddDeviceParams): Promise<null> // device.add
   abstract editDevice(params: T.Tunnel.AddDeviceParams): Promise<null> // device.edit
@@ -32,6 +33,19 @@ export abstract class ApiService {
   abstract showDeviceConfig(
     params: T.Tunnel.RemoveDeviceParams,
   ): Promise<string> // device.show-config
+  abstract setDnsInjection(
+    params: T.Tunnel.SetDnsInjectionParams,
+  ): Promise<null> // device.set-dns-injection
+  abstract setAutoPortForward(
+    params: T.Tunnel.SetAutoPortForwardParams,
+  ): Promise<null> // device.set-auto-port-forward
+  abstract setDeviceWan(params: T.Tunnel.SetDeviceWanParams): Promise<null> // device.set-wan
+  abstract setDeviceKind(params: T.Tunnel.SetDeviceKindParams): Promise<null> // device.set-kind
+  // dns
+  abstract addDnsRecord(params: T.Tunnel.AddDnsRecordParams): Promise<null> // dns.add
+  abstract removeDnsRecord(
+    params: T.Tunnel.RemoveDnsRecordParams,
+  ): Promise<null> // dns.remove
   // forwards
   abstract addForward(params: T.Tunnel.AddPortForwardParams): Promise<null> // port-forward.add
   abstract deleteForward(

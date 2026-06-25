@@ -5,7 +5,6 @@ use imbl_value::InternedString;
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
-use tokio::process::Command;
 use ts_rs::TS;
 
 use crate::GatewayId;
@@ -15,8 +14,6 @@ use crate::db::model::public::{
 };
 use crate::net::host::all_hosts;
 use crate::prelude::*;
-use crate::util::Invoke;
-use crate::util::io::{TmpDir, write_file_atomic};
 
 pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -31,6 +28,13 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(remove_tunnel)
                 .no_display()
                 .with_about("about.remove-tunnel")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "update",
+            from_fn_async(update_tunnel)
+                .no_display()
+                .with_about("about.update-tunnel")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -49,23 +53,6 @@ pub struct AddTunnelParams {
     gateway_type: Option<GatewayType>,
     #[arg(long, help = "help.arg.set-as-default-outbound")]
     set_as_default_outbound: bool,
-}
-
-fn sanitize_config(config: &str) -> String {
-    let mut res = String::with_capacity(config.len());
-    for line in config.lines() {
-        if line
-            .trim()
-            .strip_prefix("AllowedIPs")
-            .map_or(false, |l| l.trim().starts_with("="))
-        {
-            res.push_str("AllowedIPs = 0.0.0.0/0, ::/0");
-        } else {
-            res.push_str(line);
-        }
-        res.push('\n');
-    }
-    res
 }
 
 pub async fn add_tunnel(
@@ -126,19 +113,7 @@ pub async fn add_tunnel(
         )
         .await;
 
-    let tmpdir = TmpDir::new().await?;
-    let conf = tmpdir.join(&iface).with_extension("conf");
-    write_file_atomic(&conf, &sanitize_config(&config)).await?;
-    Command::new("nmcli")
-        .arg("connection")
-        .arg("import")
-        .arg("type")
-        .arg("wireguard")
-        .arg("file")
-        .arg(&conf)
-        .invoke(ErrorKind::Network)
-        .await?;
-    tmpdir.delete().await?;
+    crate::net::gateway::add_wireguard_config(iface.as_str(), &config).await?;
 
     sub.recv().await;
 
@@ -304,4 +279,52 @@ pub async fn remove_tunnel(
     }
 
     Ok(())
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[ts(export)]
+pub struct UpdateTunnelParams {
+    #[arg(help = "help.arg.gateway-id")]
+    id: GatewayId,
+    #[arg(help = "help.arg.wireguard-config")]
+    config: String,
+}
+
+/// Replace the WireGuard config behind an existing gateway interface in place,
+/// keeping the gateway id and everything keyed to it (forwards, private/public
+/// domains). Used to re-issue a config — e.g. one that now carries a `DNS =`
+/// line. Applied via D-Bus Update2 + Device.Reapply, so the wg device is never
+/// torn down and the gateway (and the request riding its tunnel) survives.
+pub async fn update_tunnel(
+    ctx: RpcContext,
+    UpdateTunnelParams { id, config }: UpdateTunnelParams,
+) -> Result<(), Error> {
+    let Some(existing) = ctx
+        .db
+        .peek()
+        .await
+        .into_public()
+        .into_server_info()
+        .into_network()
+        .into_gateways()
+        .into_idx(&id)
+        .and_then(|e| e.into_ip_info().transpose())
+    else {
+        return Err(Error::new(eyre!("unknown gateway: {id}"), ErrorKind::NotFound));
+    };
+
+    if existing.as_deref().as_device_type().de()? != Some(NetworkInterfaceType::Wireguard) {
+        return Err(Error::new(
+            eyre!("network interface {id} is not a proxy"),
+            ErrorKind::InvalidRequest,
+        ));
+    }
+
+    // Apply the new config in place (Update2 + Reapply) rather than deleting and
+    // re-importing the connection. The wg device is never torn down, so updating
+    // the gateway that carries this very request doesn't drop its own transport —
+    // and if the handler is cancelled, the gateway is simply left on its old (or
+    // new) config, never in a half-deleted state.
+    crate::net::gateway::update_wireguard_config(id.as_str(), &config).await
 }

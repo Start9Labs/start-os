@@ -22,6 +22,11 @@ export default [
         title: 'Port forwards',
       },
       {
+        path: 'dns',
+        loadComponent: () => import('./routes/dns'),
+        title: 'DNS',
+      },
+      {
         path: 'settings',
         loadComponent: () => import('./routes/settings'),
         title: 'Settings',

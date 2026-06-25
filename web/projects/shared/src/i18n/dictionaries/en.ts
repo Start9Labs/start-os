@@ -672,6 +672,7 @@ export const ENGLISH: Record<string, number> = {
   'as its DNS server': 752,
   'DNS Server': 753,
   'View port forwards': 754,
+  'Update config': 879,
   'Interface(s)': 755,
   'No port forwarding rules': 756,
   'Port forwarding rules required on gateway': 757,
@@ -786,4 +787,6 @@ export const ENGLISH: Record<string, number> = {
   'Get a Start9 server': 876,
   'Could not reach registry': 877,
   'You will need to repeat this on every device you use to connect to your server.': 878,
+  'Or enable DNS Injection for this device on the gateway.': 880,
+  'Or enable automatic port forwarding (UPnP / NAT-PMP / PCP) on the gateway.': 881,
 }

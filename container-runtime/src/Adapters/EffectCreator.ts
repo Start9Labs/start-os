@@ -315,7 +315,9 @@ export function makeEffects(context: EffectContext): Effects {
         T.Effects["setHealth"]
       >
     },
-    setBackupProgress(...[options]: Parameters<T.Effects["setBackupProgress"]>) {
+    setBackupProgress(
+      ...[options]: Parameters<T.Effects["setBackupProgress"]>
+    ) {
       return rpcRound("set-backup-progress", options) as ReturnType<
         T.Effects["setBackupProgress"]
       >

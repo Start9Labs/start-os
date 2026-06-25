@@ -6,4 +6,9 @@ export type WgSubnetConfig = {
   name: string
   clients: WgSubnetClients
   dns: DnsConfig
+  /**
+   * SNAT this subnet's egress to this WAN IP instead of `masquerade`. `None`
+   * keeps the default masquerade; a per-device `wan_ip` overrides this.
+   */
+  wanIp: string | null
 }

@@ -10,6 +10,7 @@ pub mod auth;
 pub mod context;
 pub mod db;
 pub mod dns;
+pub mod forward;
 pub(crate) mod migrations;
 pub mod update;
 pub mod web;

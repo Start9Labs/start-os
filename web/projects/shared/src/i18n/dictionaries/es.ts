@@ -785,4 +785,7 @@ export default {
   876: 'Consigue un servidor Start9',
   877: 'No se pudo acceder al registro',
   878: 'Tendrás que repetir esto en cada dispositivo que uses para conectarte a tu servidor.',
+  879: 'Actualizar configuración',
+  880: 'O habilite DNS Injection para este dispositivo en la puerta de enlace.',
+  881: 'O habilite el reenvío de puertos automático (UPnP / NAT-PMP / PCP) en la puerta de enlace.',
 } satisfies i18n

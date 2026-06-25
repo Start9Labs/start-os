@@ -1,6 +1,8 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::str::FromStr;
 
 use clap::{Parser, ValueEnum};
+use hickory_server::proto::rr::{Name, RecordType};
 use imbl_value::InternedString;
 use ipnet::Ipv4Net;
 use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
@@ -10,11 +12,13 @@ use ts_rs::TS;
 use crate::context::CliContext;
 use crate::db::model::public::NetworkInterfaceType;
 use crate::net::forward::nft_rule;
+use crate::net::dns_update::rfc2136::InjectedRecord;
 use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
-use crate::tunnel::db::PortForwardEntry;
+use crate::net::port_map::server::GatewayBackend;
+use crate::tunnel::db::{DnsRecordEntry, PortForward};
 use crate::tunnel::wg::{
-    DnsConfig, WIREGUARD_INTERFACE_NAME, WgConfig, WgSubnetClients, WgSubnetConfig,
+    DnsConfig, WIREGUARD_INTERFACE_NAME, WgClientKind, WgConfig, WgSubnetClients, WgSubnetConfig,
 };
 use crate::util::serde::{HandlerExtSerde, display_serializable};
 
@@ -39,6 +43,10 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "device",
             device_api::<C>().with_about("about.add-remove-or-list-devices-in-subnets"),
+        )
+        .subcommand(
+            "dns",
+            dns_api::<C>().with_about("about.view-or-edit-injected-dns-records"),
         )
         .subcommand(
             "port-forward",
@@ -147,6 +155,14 @@ pub fn subnet_api<C: Context>() -> ParentHandler<C, SubnetParams> {
                 .with_about("about.set-subnet-dns")
                 .with_call_remote::<CliContext>(),
         )
+        .subcommand(
+            "set-wan",
+            from_fn_async(set_subnet_wan)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("about.set-subnet-wan")
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 pub fn device_api<C: Context>() -> ParentHandler<C> {
@@ -197,6 +213,289 @@ pub fn device_api<C: Context>() -> ParentHandler<C> {
                 .with_about("about.show-wireguard-configuration-for-device")
                 .with_call_remote::<CliContext>(),
         )
+        .subcommand(
+            "set-dns-injection",
+            from_fn_async(set_dns_injection)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("about.allow-or-deny-device-dns-injection")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "set-auto-port-forward",
+            from_fn_async(set_auto_port_forward)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("about.allow-or-deny-device-auto-port-forward")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "set-wan",
+            from_fn_async(set_device_wan)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("about.set-device-wan")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "set-kind",
+            from_fn_async(set_device_kind)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("about.promote-or-demote-device-kind")
+                .with_call_remote::<CliContext>(),
+        )
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[serde(rename_all = "camelCase")]
+pub struct SetDnsInjectionParams {
+    #[ts(type = "string")]
+    subnet: Ipv4Net,
+    #[ts(type = "string")]
+    ip: Ipv4Addr,
+    #[arg(long)]
+    enabled: bool,
+}
+
+/// Allow/deny a device to inject DNS records via RFC 2136. Off by default: an
+/// allowed device can add records the whole tunnel resolves, so trust only.
+pub async fn set_dns_injection(
+    ctx: TunnelContext,
+    SetDnsInjectionParams {
+        subnet,
+        ip,
+        enabled,
+    }: SetDnsInjectionParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_wg_mut()
+                .as_subnets_mut()
+                .as_idx_mut(&subnet)
+                .or_not_found(&subnet)?
+                .as_clients_mut()
+                .as_idx_mut(&ip)
+                .or_not_found(&ip)?
+                .as_allow_dns_injection_mut()
+                .ser(&enabled)
+        })
+        .await
+        .result?;
+    ctx.dns_allowed.mutate(|s| {
+        if enabled {
+            s.insert(IpAddr::V4(ip));
+        } else {
+            s.remove(&IpAddr::V4(ip));
+        }
+    });
+    Ok(())
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[serde(rename_all = "camelCase")]
+pub struct SetAutoPortForwardParams {
+    #[ts(type = "string")]
+    subnet: Ipv4Net,
+    #[ts(type = "string")]
+    ip: Ipv4Addr,
+    #[arg(long)]
+    enabled: bool,
+}
+
+/// Allow/deny a device to auto-create port forwards via PCP/IGD. Off by
+/// default; paired with DNS injection under the gateway-autoconfig toggle.
+/// `is_known_client` reads this live, so no cache to update here.
+pub async fn set_auto_port_forward(
+    ctx: TunnelContext,
+    SetAutoPortForwardParams {
+        subnet,
+        ip,
+        enabled,
+    }: SetAutoPortForwardParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_wg_mut()
+                .as_subnets_mut()
+                .as_idx_mut(&subnet)
+                .or_not_found(&subnet)?
+                .as_clients_mut()
+                .as_idx_mut(&ip)
+                .or_not_found(&ip)?
+                .as_allow_auto_port_forward_mut()
+                .ser(&enabled)
+        })
+        .await
+        .result?;
+    Ok(())
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[serde(rename_all = "camelCase")]
+pub struct SetDeviceKindParams {
+    #[ts(type = "string")]
+    subnet: Ipv4Net,
+    #[ts(type = "string")]
+    ip: Ipv4Addr,
+    #[arg(long, value_enum)]
+    kind: WgClientKind,
+}
+
+/// Promote a device to Server or demote to Client. The role is sticky, but the
+/// transition resets both capability flags to the kind's default (Server: both
+/// on; Client: both off), since a Client has no autoconfig.
+pub async fn set_device_kind(
+    ctx: TunnelContext,
+    SetDeviceKindParams { subnet, ip, kind }: SetDeviceKindParams,
+) -> Result<(), Error> {
+    let autoconfig = matches!(kind, WgClientKind::Server);
+    ctx.db
+        .mutate(|db| {
+            db.as_wg_mut()
+                .as_subnets_mut()
+                .as_idx_mut(&subnet)
+                .or_not_found(&subnet)?
+                .as_clients_mut()
+                .as_idx_mut(&ip)
+                .or_not_found(&ip)?
+                .as_kind_mut()
+                .ser(&kind)?;
+            db.as_wg_mut()
+                .as_subnets_mut()
+                .as_idx_mut(&subnet)
+                .or_not_found(&subnet)?
+                .as_clients_mut()
+                .as_idx_mut(&ip)
+                .or_not_found(&ip)?
+                .as_allow_dns_injection_mut()
+                .ser(&autoconfig)?;
+            db.as_wg_mut()
+                .as_subnets_mut()
+                .as_idx_mut(&subnet)
+                .or_not_found(&subnet)?
+                .as_clients_mut()
+                .as_idx_mut(&ip)
+                .or_not_found(&ip)?
+                .as_allow_auto_port_forward_mut()
+                .ser(&autoconfig)
+        })
+        .await
+        .result?;
+    ctx.dns_allowed.mutate(|s| {
+        if autoconfig {
+            s.insert(IpAddr::V4(ip));
+        } else {
+            s.remove(&IpAddr::V4(ip));
+        }
+    });
+    Ok(())
+}
+
+pub fn dns_api<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand(
+            "list",
+            from_fn_async(list_dns_records)
+                .with_display_serializable()
+                .with_about("about.list-injected-dns-records")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "add",
+            from_fn_async(add_dns_record)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("about.add-or-replace-a-dns-record")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "remove",
+            from_fn_async(remove_dns_record)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("about.remove-a-dns-record")
+                .with_call_remote::<CliContext>(),
+        )
+}
+
+pub async fn list_dns_records(ctx: TunnelContext) -> Result<Vec<DnsRecordEntry>, Error> {
+    Ok(ctx
+        .dns_injector
+        .list()
+        .iter()
+        .map(|r| {
+            let (name, rtype, value, ttl, source) = r.to_parts();
+            DnsRecordEntry {
+                name,
+                rtype,
+                value,
+                ttl,
+                source: source.map(|s| s.to_string()),
+            }
+        })
+        .collect())
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[serde(rename_all = "camelCase")]
+pub struct AddDnsRecordParams {
+    name: String,
+    #[serde(rename = "type")]
+    #[arg(long = "type")]
+    rtype: String,
+    value: String,
+    #[arg(long)]
+    ttl: Option<u32>,
+}
+
+pub async fn add_dns_record(
+    ctx: TunnelContext,
+    AddDnsRecordParams {
+        name,
+        rtype,
+        value,
+        ttl,
+    }: AddDnsRecordParams,
+) -> Result<(), Error> {
+    let record = InjectedRecord::from_parts(
+        &name,
+        &rtype,
+        &value,
+        ttl.unwrap_or(300),
+        IpAddr::V4(Ipv4Addr::UNSPECIFIED),
+    )?;
+    ctx.dns_injector.upsert(record);
+    Ok(())
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[serde(rename_all = "camelCase")]
+pub struct RemoveDnsRecordParams {
+    name: String,
+    #[serde(rename = "type")]
+    #[arg(long = "type")]
+    rtype: Option<String>,
+}
+
+pub async fn remove_dns_record(
+    ctx: TunnelContext,
+    RemoveDnsRecordParams { name, rtype }: RemoveDnsRecordParams,
+) -> Result<(), Error> {
+    let mut fqdn = Name::from_utf8(&name).with_kind(ErrorKind::ParseUrl)?;
+    fqdn.set_fqdn(true);
+    let rtype = rtype
+        .as_deref()
+        .map(|s| RecordType::from_str(&s.to_ascii_uppercase()))
+        .transpose()
+        .with_kind(ErrorKind::InvalidRequest)?;
+    ctx.dns_injector.delete(&fqdn, rtype);
+    Ok(())
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -245,30 +544,8 @@ pub async fn add_subnet(
         })
         .await
         .result?;
+    // sync_network → resync_egress installs this subnet's postrouting rule.
     ctx.sync_network(&server).await?;
-
-    for iface in ctx.net_iface.peek(|i| {
-        i.iter()
-            .filter(|(_, info)| {
-                info.ip_info.as_ref().map_or(false, |i| {
-                    i.device_type != Some(NetworkInterfaceType::Loopback)
-                })
-            })
-            .map(|(name, _)| name)
-            .filter(|id| id.as_str() != WIREGUARD_INTERFACE_NAME)
-            .cloned()
-            .collect::<Vec<_>>()
-    }) {
-        let net = subnet.trunc();
-        nft_rule(
-            "postrouting",
-            &format!("tunnel-masq-{net}-{iface}"),
-            false,
-            false,
-            &format!("ip saddr {net} oifname \"{iface}\" masquerade"),
-        )
-        .await?;
-    }
 
     Ok(())
 }
@@ -278,7 +555,7 @@ pub async fn remove_subnet(
     _: Empty,
     SubnetParams { subnet }: SubnetParams,
 ) -> Result<(), Error> {
-    let (server, keep) = ctx
+    let (server, (keep, dropped_sni)) = ctx
         .db
         .mutate(|db| {
             db.as_wg_mut().as_subnets_mut().remove(&subnet)?;
@@ -287,7 +564,7 @@ pub async fn remove_subnet(
         .await
         .result?;
     ctx.sync_network(&server).await?;
-    ctx.gc_forwards(&keep).await?;
+    ctx.gc_forwards(&keep, &dropped_sni).await?;
 
     for iface in ctx.net_iface.peek(|i| {
         i.iter()
@@ -315,8 +592,8 @@ pub async fn remove_subnet(
     Ok(())
 }
 
-/// Which upstream a subnet's DNS proxy forwards to. Companion fields on
-/// [`SetSubnetDnsParams`] supply the data for the `Device`/`Custom` modes.
+/// Which upstream a subnet's DNS proxy forwards to. `Device`/`Custom` draw
+/// their data from companion fields on [`SetSubnetDnsParams`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, TS, ValueEnum)]
 #[serde(rename_all = "camelCase")]
 pub enum DnsMode {
@@ -341,7 +618,7 @@ pub struct SetSubnetDnsParams {
     servers: Vec<String>,
 }
 
-/// Parse a custom DNS upstream entry: a bare IP (port defaults to 53) or `ip:port`.
+/// Parse a DNS upstream; a bare IP defaults to port 53.
 fn parse_dns_server(s: &str) -> Result<SocketAddr, Error> {
     if let Ok(ip) = s.parse::<IpAddr>() {
         return Ok(SocketAddr::new(ip, 53));
@@ -411,10 +688,82 @@ pub async fn set_subnet_dns(
         .await
         .result?;
 
-    // The DNS line in client configs always points at the subnet's `.1`, so the
-    // WireGuard config is unchanged by a mode switch — only the proxy's upstreams
-    // change. No `server.sync()` / wg-quick bounce needed.
-    ctx.dns_proxy.sync(&server).await
+    // Client configs always point DNS at the subnet's `.1`, so a mode switch
+    // only changes the proxy's upstreams — no `server.sync()` / wg-quick bounce.
+    ctx.dns_proxy.sync(&server, ctx.dns_injector.clone()).await
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[serde(rename_all = "camelCase")]
+pub struct SetSubnetWanParams {
+    #[ts(type = "string")]
+    subnet: Ipv4Net,
+    #[arg(long)]
+    #[ts(type = "string | null")]
+    wan_ip: Option<Ipv4Addr>,
+}
+
+/// Pin the WAN IP a subnet's egress SNATs to; `null` falls back to masquerade.
+/// Per-device overrides still take precedence.
+pub async fn set_subnet_wan(
+    ctx: TunnelContext,
+    SetSubnetWanParams { subnet, wan_ip }: SetSubnetWanParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_wg_mut()
+                .as_subnets_mut()
+                .as_idx_mut(&subnet)
+                .or_not_found(&subnet)?
+                .as_wan_ip_mut()
+                .ser(&wan_ip)
+        })
+        .await
+        .result?;
+    ctx.resync_egress().await?;
+    ctx.resync_forward_keys().await
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[serde(rename_all = "camelCase")]
+pub struct SetDeviceWanParams {
+    #[ts(type = "string")]
+    subnet: Ipv4Net,
+    #[ts(type = "string")]
+    ip: Ipv4Addr,
+    #[arg(long)]
+    #[ts(type = "string | null")]
+    wan_ip: Option<Ipv4Addr>,
+}
+
+/// Pin the WAN IP a device's egress SNATs to, overriding its subnet's `wan_ip`.
+/// `null` falls back to the subnet rule / masquerade.
+pub async fn set_device_wan(
+    ctx: TunnelContext,
+    SetDeviceWanParams {
+        subnet,
+        ip,
+        wan_ip,
+    }: SetDeviceWanParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_wg_mut()
+                .as_subnets_mut()
+                .as_idx_mut(&subnet)
+                .or_not_found(&subnet)?
+                .as_clients_mut()
+                .as_idx_mut(&ip)
+                .or_not_found(&ip)?
+                .as_wan_ip_mut()
+                .ser(&wan_ip)
+        })
+        .await
+        .result?;
+    ctx.resync_egress().await?;
+    ctx.resync_forward_keys().await
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -426,11 +775,20 @@ pub struct AddDeviceParams {
     name: InternedString,
     #[ts(type = "string | null")]
     ip: Option<Ipv4Addr>,
+    /// Client (no autoconfig) or Server (gateway-autoconfig on by default).
+    #[serde(default)]
+    #[arg(long, value_enum, default_value = "client")]
+    kind: WgClientKind,
 }
 
 pub async fn add_device(
     ctx: TunnelContext,
-    AddDeviceParams { subnet, name, ip }: AddDeviceParams,
+    AddDeviceParams {
+        subnet,
+        name,
+        ip,
+        kind,
+    }: AddDeviceParams,
 ) -> Result<(), Error> {
     let server = ctx
         .db
@@ -469,7 +827,7 @@ pub async fn add_device(
                     }
                     let client = clients
                         .entry(ip)
-                        .or_insert_with(|| WgConfig::generate(name.clone()));
+                        .or_insert_with(|| WgConfig::generate(name.clone(), kind));
                     client.name = name;
 
                     Ok(())
@@ -495,7 +853,7 @@ pub async fn remove_device(
     ctx: TunnelContext,
     RemoveDeviceParams { subnet, ip }: RemoveDeviceParams,
 ) -> Result<(), Error> {
-    let (server, keep) = ctx
+    let (server, (keep, dropped_sni)) = ctx
         .db
         .mutate(|db| {
             db.as_wg_mut()
@@ -510,7 +868,7 @@ pub async fn remove_device(
         .await
         .result?;
     ctx.sync_network(&server).await?;
-    ctx.gc_forwards(&keep).await
+    ctx.gc_forwards(&keep, &dropped_sni).await
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -606,37 +964,48 @@ pub async fn show_config(
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct AddPortForwardParams {
-    #[ts(type = "string")]
-    source: SocketAddrV4,
+    /// External (WAN) port to forward. The external IP is fixed to the target's
+    /// WAN so return traffic stays symmetric.
+    external_port: u16,
     #[ts(type = "string")]
     target: SocketAddrV4,
     #[arg(long)]
     label: Option<String>,
+    /// Hostnames to SNI-demux on the shared external port. Empty = normal DNAT.
+    #[arg(long = "sni")]
+    #[serde(default)]
+    sni: Vec<String>,
 }
 
 pub async fn add_forward(
     ctx: TunnelContext,
     AddPortForwardParams {
-        source,
+        external_port,
         target,
         label,
+        sni,
     }: AddPortForwardParams,
 ) -> Result<(), Error> {
-    let prefix = ctx
-        .net_iface
-        .peek(|i| {
-            i.iter()
-                .find_map(|(_, i)| {
-                    i.ip_info.as_ref().and_then(|i| {
-                        i.subnets
-                            .iter()
-                            .find(|s| s.contains(&IpAddr::from(*target.ip())))
-                    })
-                })
-                .cloned()
-        })
-        .map(|s| s.prefix_len())
-        .unwrap_or(32);
+    let external_ip = ctx.external_ipv4(*target.ip()).await.ok_or_else(|| {
+        Error::new(
+            eyre!("no WAN IP available for device {}", target.ip()),
+            ErrorKind::Network,
+        )
+    })?;
+    let source = SocketAddrV4::new(external_ip, external_port);
+    if !sni.is_empty() {
+        ctx.add_sni_forward(source, target, &sni, None)
+            .await
+            .map_err(|code| {
+                Error::new(
+                    eyre!("SNI registration failed (code {code})"),
+                    ErrorKind::InvalidRequest,
+                )
+            })?;
+        return Ok(());
+    }
+
+    let prefix = crate::tunnel::forward::igd::prefix_for(&ctx, target.ip()).await;
     let rc = ctx
         .forward
         .add_forward(source, target, prefix, None)
@@ -645,10 +1014,12 @@ pub async fn add_forward(
         m.insert(source, rc);
     });
 
-    let entry = PortForwardEntry {
+    let entry = PortForward::Dnat {
         target,
         label,
         enabled: true,
+        count: 1,
+        auto: false,
     };
 
     ctx.db
@@ -678,21 +1049,52 @@ pub async fn add_forward(
 pub struct RemovePortForwardParams {
     #[ts(type = "string")]
     source: SocketAddrV4,
+    /// Remove a single SNI route on `source`; omit to remove the whole forward.
+    #[arg(long)]
+    #[serde(default)]
+    hostname: Option<String>,
 }
 
 pub async fn remove_forward(
     ctx: TunnelContext,
-    RemovePortForwardParams { source, .. }: RemovePortForwardParams,
+    RemovePortForwardParams { source, hostname }: RemovePortForwardParams,
 ) -> Result<(), Error> {
-    ctx.db
-        .mutate(|db| db.as_port_forwards_mut().remove(&source))
+    let entry = ctx
+        .db
+        .peek()
         .await
-        .result?;
-    if let Some(rc) = ctx.active_forwards.mutate(|m| m.remove(&source)) {
-        drop(rc);
-        ctx.forward.gc().await?;
+        .as_port_forwards()
+        .de()?
+        .0
+        .get(&source)
+        .cloned();
+    match entry {
+        Some(PortForward::Sni { routes }) => {
+            let to_remove: Vec<(String, SocketAddrV4)> = match &hostname {
+                Some(h) => routes
+                    .get(h)
+                    .map(|r| vec![(h.clone(), r.target)])
+                    .unwrap_or_default(),
+                None => routes.iter().map(|(h, r)| (h.clone(), r.target)).collect(),
+            };
+            for (h, route_target) in to_remove {
+                ctx.remove_sni_forward(source, route_target, &[h]).await;
+            }
+            Ok(())
+        }
+        Some(PortForward::Dnat { .. }) => {
+            ctx.db
+                .mutate(|db| db.as_port_forwards_mut().remove(&source))
+                .await
+                .result?;
+            if let Some(rc) = ctx.active_forwards.mutate(|m| m.remove(&source)) {
+                drop(rc);
+                ctx.forward.gc().await?;
+            }
+            Ok(())
+        }
+        None => Ok(()),
     }
-    Ok(())
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -702,11 +1104,19 @@ pub struct UpdatePortForwardLabelParams {
     #[ts(type = "string")]
     source: SocketAddrV4,
     label: Option<String>,
+    /// Label a single SNI route on `source`; omit to label the DNAT forward.
+    #[arg(long)]
+    #[serde(default)]
+    hostname: Option<String>,
 }
 
 pub async fn update_forward_label(
     ctx: TunnelContext,
-    UpdatePortForwardLabelParams { source, label }: UpdatePortForwardLabelParams,
+    UpdatePortForwardLabelParams {
+        source,
+        label,
+        hostname,
+    }: UpdatePortForwardLabelParams,
 ) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
@@ -717,8 +1127,28 @@ pub async fn update_forward_label(
                         ErrorKind::NotFound,
                     )
                 })?;
-                entry.label = label;
-                Ok(())
+                match entry {
+                    PortForward::Dnat { label: l, .. } => {
+                        *l = label;
+                        Ok(())
+                    }
+                    PortForward::Sni { routes } => {
+                        let hostname = hostname.ok_or_else(|| {
+                            Error::new(
+                                eyre!("--hostname is required to label an SNI route"),
+                                ErrorKind::InvalidRequest,
+                            )
+                        })?;
+                        let route = routes.get_mut(&hostname).ok_or_else(|| {
+                            Error::new(
+                                eyre!("No SNI route for {hostname} on {source}"),
+                                ErrorKind::NotFound,
+                            )
+                        })?;
+                        route.label = label;
+                        Ok(())
+                    }
+                }
             })
         })
         .await
@@ -733,13 +1163,27 @@ pub struct SetPortForwardEnabledParams {
     source: SocketAddrV4,
     #[arg(long)]
     enabled: bool,
+    /// Toggle a single SNI route on `source`; omit for a DNAT forward.
+    #[arg(long)]
+    #[serde(default)]
+    hostname: Option<String>,
+}
+
+/// Carries what the db.mutate selected so the dataplane action runs after it.
+enum ForwardToggle {
+    Dnat(SocketAddrV4),
+    Sni { hostname: String, target: SocketAddrV4 },
 }
 
 pub async fn set_forward_enabled(
     ctx: TunnelContext,
-    SetPortForwardEnabledParams { source, enabled }: SetPortForwardEnabledParams,
+    SetPortForwardEnabledParams {
+        source,
+        enabled,
+        hostname,
+    }: SetPortForwardEnabledParams,
 ) -> Result<(), Error> {
-    let target = ctx
+    let toggle = ctx
         .db
         .mutate(|db| {
             db.as_port_forwards_mut().mutate(|pf| {
@@ -749,40 +1193,68 @@ pub async fn set_forward_enabled(
                         ErrorKind::NotFound,
                     )
                 })?;
-                entry.enabled = enabled;
-                Ok(entry.target)
+                match entry {
+                    PortForward::Dnat {
+                        enabled: e, target, ..
+                    } => {
+                        *e = enabled;
+                        Ok(ForwardToggle::Dnat(*target))
+                    }
+                    PortForward::Sni { routes } => {
+                        let hostname = hostname.clone().ok_or_else(|| {
+                            Error::new(
+                                eyre!("--hostname is required to toggle an SNI route"),
+                                ErrorKind::InvalidRequest,
+                            )
+                        })?;
+                        let route = routes.get_mut(&hostname).ok_or_else(|| {
+                            Error::new(
+                                eyre!("No SNI route for {hostname} on {source}"),
+                                ErrorKind::NotFound,
+                            )
+                        })?;
+                        route.enabled = enabled;
+                        Ok(ForwardToggle::Sni {
+                            hostname,
+                            target: route.target,
+                        })
+                    }
+                }
             })
         })
         .await
         .result?;
 
-    if enabled {
-        let prefix = ctx
-            .net_iface
-            .peek(|i| {
-                i.iter()
-                    .find_map(|(_, i)| {
-                        i.ip_info.as_ref().and_then(|i| {
-                            i.subnets
-                                .iter()
-                                .find(|s| s.contains(&IpAddr::from(*target.ip())))
-                        })
-                    })
-                    .cloned()
-            })
-            .map(|s| s.prefix_len())
-            .unwrap_or(32);
-        let rc = ctx
-            .forward
-            .add_forward(source, target, prefix, None)
-            .await?;
-        ctx.active_forwards.mutate(|m| {
-            m.insert(source, rc);
-        });
-    } else {
-        if let Some(rc) = ctx.active_forwards.mutate(|m| m.remove(&source)) {
-            drop(rc);
-            ctx.forward.gc().await?;
+    match toggle {
+        ForwardToggle::Dnat(target) => {
+            if enabled {
+                let prefix = crate::tunnel::forward::igd::prefix_for(&ctx, target.ip()).await;
+                let rc = ctx
+                    .forward
+                    .add_forward(source, target, prefix, None)
+                    .await?;
+                ctx.active_forwards.mutate(|m| {
+                    m.insert(source, rc);
+                });
+            } else if let Some(rc) = ctx.active_forwards.mutate(|m| m.remove(&source)) {
+                drop(rc);
+                ctx.forward.gc().await?;
+            }
+        }
+        ForwardToggle::Sni { hostname, target } => {
+            if enabled {
+                ctx.sni()
+                    .register(*source.ip(), source.port(), &[hostname], target, None)
+                    .map_err(|code| {
+                        Error::new(
+                            eyre!("SNI registration failed (code {code})"),
+                            ErrorKind::InvalidRequest,
+                        )
+                    })?;
+            } else {
+                ctx.sni()
+                    .unregister(*source.ip(), source.port(), &[hostname], target);
+            }
         }
     }
 

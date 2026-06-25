@@ -10,6 +10,7 @@ import { DnsGateway } from './dns.component'
 
 export type PrivateDnsValidationData = {
   gateway: DnsGateway
+  fqdn: string
   initialResults?: { configured: boolean }
 }
 
@@ -31,6 +32,7 @@ export type PrivateDnsValidationData = {
         {{
           'In StartTunnel, set the DNS for this subnet to this server.' | i18n
         }}
+        {{ 'Or enable DNS Injection for this device on the gateway.' | i18n }}
       </p>
     } @else {
       <p>
@@ -243,6 +245,7 @@ export class PrivateDnsValidationComponent {
     try {
       const result = await this.api.checkDns({
         gateway: this.context.data.gateway.id,
+        fqdn: this.context.data.fqdn,
       })
 
       this.pass.set(result)

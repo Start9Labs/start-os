@@ -157,3 +157,13 @@ qr-code {
 ng-component {
   display: block;
 }
+
+[tuiCardLarge] {
+  overflow: auto !important;
+  scrollbar-width: none;
+
+  [tuiHeader] {
+    position: sticky;
+    inset-inline-start: 0;
+  }
+}

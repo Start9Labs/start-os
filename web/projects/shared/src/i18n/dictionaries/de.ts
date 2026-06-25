@@ -785,4 +785,7 @@ export default {
   876: 'Einen Start9-Server holen',
   877: 'Register konnte nicht erreicht werden',
   878: 'Dies müssen Sie auf jedem Gerät wiederholen, mit dem Sie eine Verbindung zum Server herstellen.',
+  879: 'Konfiguration aktualisieren',
+  880: 'Oder aktivieren Sie DNS Injection für dieses Gerät auf dem Gateway.',
+  881: 'Oder aktivieren Sie die automatische Portweiterleitung (UPnP / NAT-PMP / PCP) auf dem Gateway.',
 } satisfies i18n

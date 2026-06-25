@@ -16,12 +16,14 @@ use crate::db::model::Database;
 use crate::db::model::public::GatewayType;
 use crate::hostname::ServerHostname;
 use crate::net::dns::DnsController;
+use crate::net::dns_update::DnsUpdateController;
 use crate::net::forward::{
     ForwardRequirements, InterfacePortForwardController, START9_BRIDGE_IFACE, nft_rule,
 };
 use crate::net::gateway::NetworkInterfaceController;
 use crate::net::host::binding::{AddSslOptions, BindId, BindOptions, RangeGatewayAccess};
 use crate::net::host::{Host, Hosts, host_for};
+use crate::net::port_map::{PortMapController, candidate_gateways};
 use crate::net::service_interface::HostnameMetadata;
 use crate::net::socks::SocksController;
 use crate::net::vhost::{AlpnInfo, DynVHostTarget, ProxyTarget, VHostController};
@@ -38,7 +40,9 @@ pub struct NetController {
     pub(super) tls_client_config: Arc<TlsClientConfig>,
     pub(crate) net_iface: Arc<NetworkInterfaceController>,
     pub(super) dns: DnsController,
+    pub(super) dns_update: DnsUpdateController,
     pub(super) forward: InterfacePortForwardController,
+    pub(crate) port_map: PortMapController,
     pub(super) socks: SocksController,
     pub(crate) callbacks: Arc<ServiceCallbacks>,
 }
@@ -82,6 +86,9 @@ impl NetController {
         let hostname = peek.as_public().as_server_info().as_hostname().de()?;
         drop(peek);
         let branding = crate::net::ssl::CertBranding::start_os(&hostname);
+        // One PortMapController shared by the forward and vhost controllers so a
+        // single query answers "is this port automatically forwarded?".
+        let port_map = PortMapController::new();
         Ok(Self {
             db: db.clone(),
             vhost: VHostController::new(
@@ -91,10 +98,27 @@ impl NetController {
                 branding,
                 passthroughs,
                 max_proxy_conns_per_target,
+                port_map.clone(),
             ),
             tls_client_config,
             dns: DnsController::init(db, &net_iface.watcher).await?,
-            forward: InterfacePortForwardController::new(net_iface.watcher.subscribe()),
+            dns_update: DnsUpdateController::new(
+                net_iface.watcher.subscribe(),
+                Arc::new(|gw: GatewayId| -> std::pin::Pin<
+                    Box<dyn std::future::Future<Output = Result<Option<[u8; 32]>, ()>> + Send>,
+                > {
+                    Box::pin(async move {
+                        crate::net::gateway::wireguard_psk(gw.as_str())
+                            .await
+                            .map_err(|_| ())
+                    })
+                }),
+            ),
+            forward: InterfacePortForwardController::new(
+                net_iface.watcher.subscribe(),
+                port_map.clone(),
+            ),
+            port_map,
             net_iface,
             socks,
             callbacks: Arc::new(ServiceCallbacks::default()),
@@ -163,6 +187,11 @@ struct HostBinds {
     forwards: BTreeMap<u16, (SocketAddrV4, u16, ForwardRequirements, Arc<()>)>,
     vhosts: BTreeMap<(Option<InternedString>, u16), (ProxyTarget, Arc<()>)>,
     private_dns: BTreeMap<InternedString, Arc<()>>,
+    /// Device LAN IPs for which we've asked the upstream gateway to map external
+    /// 80 -> 443 (the HTTP→HTTPS redirect — a pure PortMapController mapping with
+    /// no LAN forward, since StartOS serves 80/443 itself). Tracked so the
+    /// mapping is withdrawn when 443 stops being publicly exposed.
+    redirect_maps: BTreeSet<Ipv4Addr>,
 }
 
 pub struct NetServiceData {
@@ -333,6 +362,16 @@ impl NetServiceData {
                     .flat_map(|a| a.metadata.gateways())
                     .cloned()
                     .collect();
+                // Declare which address makes each gateway public, so a stray
+                // auto-port-map can be traced back to the exposure driving it.
+                for a in enabled_addresses.iter().filter(|a| a.public) {
+                    tracing::debug!(
+                        "port {external}: public address {} (ip={}) on gateway(s) {:?}",
+                        a.hostname,
+                        a.metadata.is_ip(),
+                        a.metadata.gateways().collect::<Vec<_>>(),
+                    );
+                }
                 let fwd_private: BTreeSet<IpAddr> = enabled_addresses
                     .iter()
                     .filter(|a| !a.public)
@@ -455,6 +494,56 @@ impl NetServiceData {
             }
         }
 
+        // Best-effort HTTP→HTTPS redirect: when something is publicly exposed on
+        // 443, ask the upstream gateway(s) to map external 80 -> the host's 443
+        // (PCP/NAT-PMP/UPnP) so plain http:// auto-redirects to https. This is a
+        // pure upstream port-map via PortMapController, NOT an nft LAN forward:
+        // StartOS already listens on 80/443 itself, so there is no container to
+        // DNAT to (unlike a service forward, this is the one case where external
+        // != internal). Best-effort; skipped if 80 is a real forward.
+        let mut redirect_ips: BTreeSet<Ipv4Addr> = BTreeSet::new();
+        if !forwards.contains_key(&80) {
+            let mut redirect_gateways: BTreeSet<GatewayId> = BTreeSet::new();
+            if let Some((_, _, reqs)) = forwards.get(&443) {
+                redirect_gateways.extend(reqs.public_gateways.iter().cloned());
+            }
+            for ((_, port), target) in &vhosts {
+                if *port == 443 {
+                    redirect_gateways.extend(target.public.iter().cloned());
+                }
+            }
+            for gw_id in &redirect_gateways {
+                let Some(info) = net_ifaces.get(gw_id) else {
+                    continue;
+                };
+                let Some(ip_info) = &info.ip_info else {
+                    continue;
+                };
+                let gws = candidate_gateways(info);
+                if gws.is_empty() {
+                    continue;
+                }
+                for subnet in ip_info.subnets.iter() {
+                    if let IpAddr::V4(ip) = subnet.addr() {
+                        if redirect_ips.insert(ip) {
+                            ctrl.port_map.ensure(ip, 80, 443, gws.clone());
+                        }
+                    }
+                }
+            }
+        }
+        // Withdraw redirect maps that no longer apply (443 unexposed, or 80 became
+        // a real forward).
+        let stale: Vec<Ipv4Addr> = binds
+            .redirect_maps
+            .difference(&redirect_ips)
+            .copied()
+            .collect();
+        for ip in stale {
+            ctrl.port_map.remove(ip, 80);
+        }
+        binds.redirect_maps = redirect_ips;
+
         // ── Phase 3: Reconcile ──
         let all = binds
             .forwards
@@ -501,6 +590,45 @@ impl NetServiceData {
         }
         ctrl.forward.gc().await?;
 
+        // PCP HOSTNAME mappings come only from PUBLIC domain vhosts: each binds
+        // its FQDN on the shared external port so the gateway demultiplexes
+        // inbound TLS by SNI. Computed before the drain loop consumes `vhosts`.
+        let mut hostname_maps: BTreeMap<(Ipv4Addr, u16), (u16, Vec<Ipv4Addr>, Vec<String>)> =
+            BTreeMap::new();
+        for ((maybe_host, external), target) in vhosts.iter() {
+            let Some(hostname) = maybe_host else { continue };
+            if target.public.is_empty() {
+                continue;
+            }
+            for gw_id in &target.public {
+                let Some(info) = net_ifaces.get(gw_id) else {
+                    continue;
+                };
+                if matches!(info.gateway_type, Some(GatewayType::OutboundOnly)) {
+                    continue;
+                }
+                let Some(ip_info) = &info.ip_info else { continue };
+                let gateways = candidate_gateways(info);
+                if gateways.is_empty() {
+                    continue;
+                }
+                for subnet in &ip_info.subnets {
+                    let IpAddr::V4(local_ip) = subnet.addr() else {
+                        continue;
+                    };
+                    let entry = hostname_maps
+                        .entry((local_ip, *external))
+                        .or_insert_with(|| (*external, gateways.clone(), Vec::new()));
+                    let name = hostname.to_string();
+                    if !entry.2.contains(&name) {
+                        entry.2.push(name);
+                    }
+                }
+            }
+        }
+        ctrl.vhost
+            .sync_hostname_mappings((self.id.clone(), id.clone()), hostname_maps);
+
         let all = binds
             .vhosts
             .keys()
@@ -540,11 +668,15 @@ impl NetServiceData {
             }
         });
         for (fqdn, gateways) in private_dns {
+            // Best-effort: also publish the record to the gateway's own DNS via
+            // RFC 2136 so LAN devices not using StartOS's resolver can resolve it.
+            ctrl.dns_update.add(fqdn.clone(), gateways.clone());
             binds
                 .private_dns
                 .insert(fqdn.clone(), ctrl.dns.add_private_domain(fqdn, gateways)?);
         }
         ctrl.dns.gc_private_domains(&rm)?;
+        ctrl.dns_update.gc(rm);
 
         Ok(())
     }

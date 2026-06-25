@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt;
-use std::net::{IpAddr, SocketAddr, SocketAddrV6};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV6};
 use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Weak};
@@ -43,6 +43,7 @@ use crate::net::ssl::{CertBranding, CertStore, RootCaTlsHandler};
 use crate::net::tls::{
     ChainedHandler, TlsHandler, TlsHandlerAction, TlsListener, TlsMetadata,
 };
+use crate::net::port_map::PortMapController;
 use crate::net::utils::{bind_mio_listener, ipv6_is_link_local, is_private_ip};
 use crate::net::web_server::{Accept, AcceptStream, ExtractVisitor, TcpMetadata, extract};
 use crate::prelude::*;
@@ -51,7 +52,12 @@ use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::ReadWriter;
 use crate::util::serde::{HandlerExtSerde, MaybeUtf8String, display_serializable};
 use crate::util::sync::{SyncMutex, Watch};
-use crate::{GatewayId, ResultExt};
+use crate::{GatewayId, HostId, PackageId, ResultExt};
+
+/// Identifies which service+host contributed a set of SNI hostname mappings, so
+/// each can be reconciled independently — a service only ever adds or removes
+/// *its own* hostnames on a shared external port, never another's.
+type HostMapOwner = (Option<PackageId>, HostId);
 
 #[derive(Debug, Clone, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
@@ -255,6 +261,11 @@ pub struct VHostController {
     max_proxy_conns_per_target: usize,
     servers: SyncMutex<BTreeMap<u16, VHostServer<VHostBindListener>>>,
     passthrough_handles: SyncMutex<BTreeMap<(InternedString, u16), PassthroughHandle>>,
+    port_map: PortMapController,
+    /// Per-owner set of `(ext_ip, ext_port, hostname)` SNI routes this controller
+    /// has asked the port-mapper to maintain. Keyed by owner so one service's
+    /// reconcile only adds/removes its own hostnames on a shared port.
+    hostname_mappings: SyncMutex<BTreeMap<HostMapOwner, BTreeSet<(Ipv4Addr, u16, String)>>>,
 }
 impl VHostController {
     pub fn new(
@@ -264,6 +275,7 @@ impl VHostController {
         branding: CertBranding,
         passthroughs: Vec<PassthroughInfo>,
         max_proxy_conns_per_target: usize,
+        port_map: PortMapController,
     ) -> Self {
         let controller = Self {
             db,
@@ -274,6 +286,8 @@ impl VHostController {
             max_proxy_conns_per_target,
             servers: SyncMutex::new(BTreeMap::new()),
             passthrough_handles: SyncMutex::new(BTreeMap::new()),
+            port_map,
+            hostname_mappings: SyncMutex::new(BTreeMap::new()),
         };
         for pt in passthroughs {
             if let Err(e) = controller.add_passthrough(
@@ -415,6 +429,47 @@ impl VHostController {
                 }
             }
         })
+    }
+
+    /// Reconcile best-effort PCP HOSTNAME port mappings for `owner`'s public
+    /// domain vhosts. `desired` maps `(box IP to map from, external port)` to
+    /// `(internal port, candidate gateways, FQDNs)`. Each hostname is mapped
+    /// independently — the gateway treats the hostname as part of the mapping's
+    /// identity and demultiplexes the shared external port by TLS SNI — so one
+    /// service adding or removing a hostname never disturbs another service's
+    /// hostnames on the same port. Like the rest of the port-map layer this is
+    /// best-effort: a gateway that can't honor it just leaves the user on a
+    /// manual forward.
+    pub fn sync_hostname_mappings(
+        &self,
+        owner: HostMapOwner,
+        desired: BTreeMap<(Ipv4Addr, u16), (u16, Vec<Ipv4Addr>, Vec<String>)>,
+    ) {
+        let want: BTreeSet<(Ipv4Addr, u16, String)> = desired
+            .iter()
+            .flat_map(|((ip, port), (_, _, hostnames))| {
+                hostnames.iter().map(move |h| (*ip, *port, h.clone()))
+            })
+            .collect();
+        let had = self
+            .hostname_mappings
+            .peek(|owners| owners.get(&owner).cloned().unwrap_or_default());
+        for (ip, port, hostname) in had.difference(&want) {
+            self.port_map.remove_hostname(*ip, *port, hostname.clone());
+        }
+        for ((ip, port), (internal, gateways, hostnames)) in &desired {
+            for hostname in hostnames {
+                self.port_map
+                    .ensure_hostname(*ip, *port, *internal, gateways.clone(), hostname.clone());
+            }
+        }
+        self.hostname_mappings.mutate(|owners| {
+            if want.is_empty() {
+                owners.remove(&owner);
+            } else {
+                owners.insert(owner, want);
+            }
+        });
     }
 }
 
@@ -780,12 +835,26 @@ where
         &'a self,
         mut prev: ServerConfig,
         hello: &'a ClientHello<'a>,
-        _: &'a <A as Accept>::Metadata,
+        metadata: &'a <A as Accept>::Metadata,
     ) -> Option<(ServerConfig, Self::PreprocessRes)> {
-        let tcp_stream = TcpStream::connect(self.addr)
-            .await
-            .with_ctx(|_| (ErrorKind::Network, self.addr))
-            .log_err()?;
+        let peer = extract::<TcpMetadata, _>(metadata).map(|m| m.peer_addr);
+        let tcp_stream = match (self.passthrough, peer, self.addr) {
+            // Passthrough (service handles its own TLS): open the internal leg
+            // from the client's own source address so the backend sees the real
+            // peer (RFC §4.6). Non-passthrough/terminating targets keep the plain
+            // connect — they don't preserve source IP.
+            (true, Some(SocketAddr::V4(client)), SocketAddr::V4(target)) => {
+                crate::net::transparent::ensure_divert_infra_once().await;
+                crate::net::transparent::transparent_connect(client, target)
+                    .await
+                    .with_ctx(|_| (ErrorKind::Network, self.addr))
+                    .log_err()?
+            }
+            _ => TcpStream::connect(self.addr)
+                .await
+                .with_ctx(|_| (ErrorKind::Network, self.addr))
+                .log_err()?,
+        };
         if let Err(e) = socket2::SockRef::from(&tcp_stream)
             .set_tcp_keepalive(&crate::net::utils::default_keepalive())
         {

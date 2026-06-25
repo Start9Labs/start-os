@@ -15,6 +15,7 @@ import {
   TuiCheckbox,
   TuiDialogContext,
   TuiError,
+  TuiIcon,
   TuiInput,
   TuiNumberFormat,
 } from '@taiga-ui/core'
@@ -24,6 +25,7 @@ import {
   TuiInputNumber,
   TuiNotificationMiddleService,
   TuiSelect,
+  TuiTooltip,
 } from '@taiga-ui/kit'
 import { TuiElasticContainer, TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
@@ -39,23 +41,6 @@ import { MappedDevice, PortForwardsData } from './utils'
         <input tuiInput formControlName="label" />
       </tui-textfield>
       <tui-error formControlName="label" />
-      <tui-textfield tuiChevron [tuiTextfieldCleaner]="false">
-        <label tuiLabel>External IP</label>
-        @if (mobile) {
-          <select
-            tuiSelect
-            formControlName="externalip"
-            placeholder="Select IP"
-            [items]="context.data.ips()"
-          ></select>
-        } @else {
-          <input tuiSelect formControlName="externalip" />
-        }
-        @if (!mobile) {
-          <tui-data-list-wrapper *tuiDropdown [items]="context.data.ips()" />
-        }
-      </tui-textfield>
-      <tui-error formControlName="externalip" />
       <tui-textfield>
         <label tuiLabel>External Port</label>
         <input
@@ -104,6 +89,11 @@ import { MappedDevice, PortForwardsData } from './utils'
         />
       </tui-textfield>
       <tui-error formControlName="internalport" />
+      <tui-textfield>
+        <label tuiLabel>Hostname (optional)</label>
+        <input tuiInput formControlName="sni" placeholder="host.example.com" />
+        <tui-icon [tuiTooltip]="hostnameHint" />
+      </tui-textfield>
       <tui-elastic-container>
         @if (show80) {
           <label tuiLabel>
@@ -133,6 +123,8 @@ import { MappedDevice, PortForwardsData } from './utils'
     TuiCheckbox,
     TuiValueChanges,
     TuiElasticContainer,
+    TuiTooltip,
+    TuiIcon,
     TuiInput,
   ],
 })
@@ -143,21 +135,19 @@ export class PortForwardsAdd {
 
   show80 = false
 
+  protected readonly hostnameHint =
+    'Only supported for SSL/TLS services — the gateway routes by the TLS SNI, so several hostnames can share one external port. Leave blank for a plain port forward.'
+
   protected readonly mobile = inject(WA_IS_MOBILE)
   protected readonly context =
     injectContext<TuiDialogContext<void, PortForwardsData>>()
 
   protected readonly form = inject(NonNullableFormBuilder).group({
     label: ['', Validators.required],
-    externalip: [
-      this.context.data.ips().length === 1
-        ? (this.context.data.ips().at(0) ?? '')
-        : '',
-      Validators.required,
-    ],
     externalport: [null as number | null, Validators.required],
     device: [null as MappedDevice | null, Validators.required],
     internalport: [null as number | null, Validators.required],
+    sni: [''],
     also80: [true],
   })
 
@@ -178,21 +168,27 @@ export class PortForwardsAdd {
 
     const loader = this.loading.open('').subscribe()
 
-    const { label, externalip, externalport, device, internalport, also80 } =
+    const { label, externalport, device, internalport, sni, also80 } =
       this.form.getRawValue()
 
+    const hostname = sni.trim()
+
     try {
+      // One hostname per entry; the external IP is fixed server-side to the
+      // target device's WAN.
       await this.api.addForward({
-        source: `${externalip}:${externalport}`,
+        externalPort: externalport!,
         target: `${device!.ip}:${internalport}`,
         label,
+        sni: hostname ? [hostname] : [],
       })
 
-      if (externalport === 443 && internalport === 443 && also80) {
+      if (!hostname && externalport === 443 && internalport === 443 && also80) {
         await this.api.addForward({
-          source: `${externalip}:80`,
+          externalPort: 80,
           target: `${device!.ip}:443`,
           label: `${label} (HTTP redirect)`,
+          sni: [],
         })
       }
     } catch (e: any) {

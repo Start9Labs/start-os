@@ -73,7 +73,12 @@ export class MockApiService extends ApiService {
       {
         op: PatchOp.ADD,
         path: `/wg/subnets/${replaceSlashes(params.subnet)}`,
-        value: { name: params.name, clients: {}, dns: { type: 'default' } },
+        value: {
+          name: params.name,
+          clients: {},
+          dns: { type: 'default' },
+          wanIp: null,
+        },
       },
     ]
     this.mockRevision(patch)
@@ -98,6 +103,21 @@ export class MockApiService extends ApiService {
         op: PatchOp.REPLACE,
         path: `/wg/subnets/${replaceSlashes(params.subnet)}/dns`,
         value: dns,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async setSubnetWan(params: T.Tunnel.SetSubnetWanParams): Promise<null> {
+    await pauseFor(1000)
+
+    const patch: ReplaceOperation<string | null>[] = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/wg/subnets/${replaceSlashes(params.subnet)}/wanIp`,
+        value: params.wanIp,
       },
     ]
     this.mockRevision(patch)
@@ -143,7 +163,15 @@ export class MockApiService extends ApiService {
       {
         op: PatchOp.ADD,
         path: `/wg/subnets/${replaceSlashes(params.subnet)}/clients/${params.ip}`,
-        value: { name: params.name, key: '', psk: '' },
+        value: {
+          name: params.name,
+          key: '',
+          psk: '',
+          kind: params.kind,
+          allowDnsInjection: params.kind === 'server',
+          allowAutoPortForward: params.kind === 'server',
+          wanIp: null,
+        },
       },
     ]
     this.mockRevision(patch)
@@ -186,17 +214,85 @@ export class MockApiService extends ApiService {
     return MOCK_CONFIG
   }
 
-  async addForward(params: T.Tunnel.AddPortForwardParams): Promise<null> {
+  async setDnsInjection(params: T.Tunnel.SetDnsInjectionParams): Promise<null> {
     await pauseFor(1000)
 
-    const patch: AddOperation<T.Tunnel.PortForwardEntry>[] = [
+    const patch: ReplaceOperation<boolean>[] = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/wg/subnets/${replaceSlashes(params.subnet)}/clients/${params.ip}/allowDnsInjection`,
+        value: params.enabled,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async setAutoPortForward(
+    params: T.Tunnel.SetAutoPortForwardParams,
+  ): Promise<null> {
+    await pauseFor(1000)
+
+    const patch: ReplaceOperation<boolean>[] = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/wg/subnets/${replaceSlashes(params.subnet)}/clients/${params.ip}/allowAutoPortForward`,
+        value: params.enabled,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async setDeviceWan(params: T.Tunnel.SetDeviceWanParams): Promise<null> {
+    await pauseFor(1000)
+
+    const patch: ReplaceOperation<string | null>[] = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/wg/subnets/${replaceSlashes(params.subnet)}/clients/${params.ip}/wanIp`,
+        value: params.wanIp,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async setDeviceKind(params: T.Tunnel.SetDeviceKindParams): Promise<null> {
+    await pauseFor(1000)
+
+    const base = `/wg/subnets/${replaceSlashes(params.subnet)}/clients/${params.ip}`
+    const auto = params.kind === 'server'
+    const patch: ReplaceOperation<string | boolean>[] = [
+      { op: PatchOp.REPLACE, path: `${base}/kind`, value: params.kind },
+      { op: PatchOp.REPLACE, path: `${base}/allowDnsInjection`, value: auto },
+      {
+        op: PatchOp.REPLACE,
+        path: `${base}/allowAutoPortForward`,
+        value: auto,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async addDnsRecord(params: T.Tunnel.AddDnsRecordParams): Promise<null> {
+    await pauseFor(1000)
+
+    const patch: AddOperation<T.Tunnel.DnsRecordEntry>[] = [
       {
         op: PatchOp.ADD,
-        path: `/portForwards/${params.source}`,
+        path: `/dnsRecords/-`,
         value: {
-          target: params.target,
-          label: params.label || null,
-          enabled: true,
+          name: params.name,
+          type: params.type,
+          value: params.value,
+          ttl: params.ttl ?? 300,
+          source: null,
         },
       },
     ]
@@ -205,19 +301,117 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async removeDnsRecord(params: T.Tunnel.RemoveDnsRecordParams): Promise<null> {
+    await pauseFor(1000)
+
+    const index = mockTunnelData.dnsRecords.findIndex(
+      r => r.name === params.name && (!params.type || r.type === params.type),
+    )
+    if (index >= 0) {
+      const patch: RemoveOperation[] = [
+        { op: PatchOp.REMOVE, path: `/dnsRecords/${index}` },
+      ]
+      this.mockRevision(patch)
+    }
+
+    return null
+  }
+
+  async addForward(params: T.Tunnel.AddPortForwardParams): Promise<null> {
+    await pauseFor(1000)
+
+    // The external IP is fixed server-side to the target device's WAN.
+    const source = `${this.deviceWan(params.target)}:${params.externalPort}`
+    const forwards = mockTunnelData.portForwards
+    const existing = forwards[source]
+
+    if (params.sni.length) {
+      const routes: { [hostname: string]: T.Tunnel.SniRoute } =
+        existing?.kind === 'sni' ? { ...existing.routes } : {}
+
+      for (const hostname of params.sni) {
+        routes[hostname] = {
+          target: params.target,
+          label: params.label || null,
+          enabled: true,
+          auto: false,
+        }
+      }
+
+      const value: T.Tunnel.PortForward = { kind: 'sni', routes }
+      forwards[source] = value
+      this.mockRevision([
+        {
+          op: existing ? PatchOp.REPLACE : PatchOp.ADD,
+          path: `/portForwards/${source}`,
+          value,
+        },
+      ])
+    } else {
+      const value: T.Tunnel.PortForward = {
+        kind: 'dnat',
+        target: params.target,
+        label: params.label || null,
+        enabled: true,
+        count: 1,
+        auto: false,
+      }
+      forwards[source] = value
+      this.mockRevision([
+        {
+          op: existing ? PatchOp.REPLACE : PatchOp.ADD,
+          path: `/portForwards/${source}`,
+          value,
+        },
+      ])
+    }
+
+    return null
+  }
+
+  /** The WAN IP a device's traffic egresses (device override > subnet > default). */
+  private deviceWan(target: string): string {
+    const ip = target.split(':')[0] ?? ''
+    for (const subnet of Object.values(mockTunnelData.wg.subnets)) {
+      const client = subnet.clients[ip]
+      if (client) return client.wanIp ?? subnet.wanIp ?? this.defaultWan()
+    }
+    return this.defaultWan()
+  }
+
+  private defaultWan(): string {
+    const gw = Object.values(mockTunnelData.gateways)[0]
+    return gw?.ipInfo?.subnets[0]?.split('/')[0] ?? '0.0.0.0'
+  }
+
   async updateForwardLabel(
     params: T.Tunnel.UpdatePortForwardLabelParams,
   ): Promise<null> {
     await pauseFor(1000)
 
-    const patch: ReplaceOperation<string | null>[] = [
-      {
-        op: PatchOp.REPLACE,
-        path: `/portForwards/${params.source}/label`,
-        value: params.label,
-      },
-    ]
-    this.mockRevision(patch)
+    const entry = mockTunnelData.portForwards[params.source]
+    if (!entry) return null
+
+    if (params.hostname && entry.kind === 'sni') {
+      const route = entry.routes[params.hostname]
+      if (route) route.label = params.label
+      this.mockRevision([
+        {
+          op: PatchOp.REPLACE,
+          path: `/portForwards/${params.source}/routes/${params.hostname}/label`,
+          value: params.label,
+        },
+      ])
+    } else if (entry.kind === 'dnat') {
+      entry.label = params.label
+      this.mockRevision([
+        {
+          op: PatchOp.REPLACE,
+          path: `/portForwards/${params.source}/label`,
+          value: params.label,
+        },
+      ])
+    }
 
     return null
   }
@@ -227,14 +421,29 @@ export class MockApiService extends ApiService {
   ): Promise<null> {
     await pauseFor(1000)
 
-    const patch: ReplaceOperation<boolean>[] = [
-      {
-        op: PatchOp.REPLACE,
-        path: `/portForwards/${params.source}/enabled`,
-        value: params.enabled,
-      },
-    ]
-    this.mockRevision(patch)
+    const entry = mockTunnelData.portForwards[params.source]
+    if (!entry) return null
+
+    if (params.hostname && entry.kind === 'sni') {
+      const route = entry.routes[params.hostname]
+      if (route) route.enabled = params.enabled
+      this.mockRevision([
+        {
+          op: PatchOp.REPLACE,
+          path: `/portForwards/${params.source}/routes/${params.hostname}/enabled`,
+          value: params.enabled,
+        },
+      ])
+    } else if (entry.kind === 'dnat') {
+      entry.enabled = params.enabled
+      this.mockRevision([
+        {
+          op: PatchOp.REPLACE,
+          path: `/portForwards/${params.source}/enabled`,
+          value: params.enabled,
+        },
+      ])
+    }
 
     return null
   }
@@ -242,13 +451,31 @@ export class MockApiService extends ApiService {
   async deleteForward(params: T.Tunnel.RemovePortForwardParams): Promise<null> {
     await pauseFor(1000)
 
-    const patch: RemoveOperation[] = [
-      {
-        op: PatchOp.REMOVE,
-        path: `/portForwards/${params.source}`,
-      },
-    ]
-    this.mockRevision(patch)
+    const entry = mockTunnelData.portForwards[params.source]
+    if (!entry) return null
+
+    if (params.hostname && entry.kind === 'sni') {
+      delete entry.routes[params.hostname]
+
+      if (Object.keys(entry.routes).length) {
+        this.mockRevision([
+          {
+            op: PatchOp.REMOVE,
+            path: `/portForwards/${params.source}/routes/${params.hostname}`,
+          },
+        ])
+      } else {
+        delete mockTunnelData.portForwards[params.source]
+        this.mockRevision([
+          { op: PatchOp.REMOVE, path: `/portForwards/${params.source}` },
+        ])
+      }
+    } else {
+      delete mockTunnelData.portForwards[params.source]
+      this.mockRevision([
+        { op: PatchOp.REMOVE, path: `/portForwards/${params.source}` },
+      ])
+    }
 
     return null
   }

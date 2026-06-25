@@ -100,7 +100,8 @@ futures = "0.3.28"
 gpt = "4.1.0"
 hashing-serializer = "0.1.1"
 hex = "0.4.3"
-hickory-server = { version = "0.26.1", features = ["resolver"] }
+hickory-server = { version = "0.26.1", features = ["resolver", "dnssec-ring"] }
+hkdf = "0.12"
 hmac = "0.12.1"
 http = "1.0.0"
 http-body-util = "0.1"
@@ -234,6 +235,9 @@ uuid = { version = "1.4.1", features = ["v4"] }
 visit-rs = "0.1.1"
 x25519-dalek = { version = "2.0.1", features = ["static_secrets"] }
 zbus = "5.1.1"
+igd-next = { version = "0.17.1", default-features = false, features = ["aio_tokio"] }
+xmltree = "0.10"
+crab_nat = { git = "https://github.com/Start9Labs/crab_nat.git", branch = "feat/custom-pcp-options" }
 
 [dev-dependencies]
 clap_mangen = "0.2.33"

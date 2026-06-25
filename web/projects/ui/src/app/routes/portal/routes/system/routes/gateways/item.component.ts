@@ -72,6 +72,9 @@ import { PORT_FORWARDS_MODAL } from './port-forwards.component'
               </button>
             }
             @if (gateway.ipInfo.deviceType === 'wireguard') {
+              <button tuiOption (click)="updateConfig()">
+                {{ 'Update config' | i18n }}
+              </button>
               <button tuiOption class="g-negative" (click)="remove()">
                 {{ 'Delete' | i18n }}
               </button>
@@ -194,6 +197,71 @@ export class GatewaysItemComponent {
             text: 'Save',
             handler: (value: typeof renameSpec._TYPE) =>
               this.update(id, value.label),
+          },
+        ],
+      },
+    })
+  }
+
+  async updateConfig() {
+    const { id } = this.gateway()
+    const spec = ISB.InputSpec.of({
+      config: ISB.Value.union({
+        name: this.i18n.transform('WireGuard Config File'),
+        default: 'paste',
+        variants: ISB.Variants.of({
+          paste: {
+            name: this.i18n.transform('Copy/Paste'),
+            spec: ISB.InputSpec.of({
+              file: ISB.Value.textarea({
+                name: this.i18n.transform('File Contents'),
+                default: null,
+                required: true,
+                minRows: 8,
+                maxRows: 8,
+              }),
+            }),
+          },
+          select: {
+            name: this.i18n.transform('Upload'),
+            spec: ISB.InputSpec.of({
+              file: ISB.Value.file({
+                name: this.i18n.transform('File'),
+                required: true,
+                extensions: ['.conf'],
+              }),
+            }),
+          },
+        }),
+      }),
+    })
+
+    this.formDialog.open(FormComponent, {
+      label: 'Update Gateway Config',
+      data: {
+        spec: await configBuilderToSpec(spec),
+        buttons: [
+          {
+            text: this.i18n.transform('Save'),
+            handler: async (input: typeof spec._TYPE) => {
+              const loader = this.loader.open('Saving').subscribe()
+
+              try {
+                await this.api.updateTunnelConfig({
+                  id,
+                  config:
+                    input.config.selection === 'paste'
+                      ? input.config.value.file
+                      : await (input.config.value.file as any as File).text(),
+                })
+                return true
+              } catch (e: any) {
+                this.errorService.handleError(e)
+                return false
+              } finally {
+                loader.unsubscribe()
+              }
+            },
           },
         ],
       },

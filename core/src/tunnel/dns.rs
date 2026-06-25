@@ -15,6 +15,7 @@ use tokio::net::{TcpListener, UdpSocket};
 use crate::net::dns::{
     DNS_RESPONSE_BUFFER_SIZE, forward_name_server, name_server_socket_addr, parse_resolv_conf,
 };
+use crate::net::dns_update::rfc2136::{DnsInjector, InjectingHandler};
 use crate::prelude::*;
 use crate::tunnel::wg::{DnsConfig, WgServer};
 use crate::util::future::NonDetachingJoinHandle;
@@ -42,7 +43,7 @@ impl DnsProxyController {
     /// rebuild keeps this race-free against the `wg-quick` down/up cycle that
     /// re-creates the interface addresses; callers MUST invoke this *after*
     /// `WgServer::sync()` so the `.1` addresses exist to bind to.
-    pub async fn sync(&self, server: &WgServer) -> Result<(), Error> {
+    pub async fn sync(&self, server: &WgServer, injector: Arc<DnsInjector>) -> Result<(), Error> {
         // Drop the old listeners and wait for their tasks to finish so the
         // sockets are released before we rebind the same addresses.
         let old = self.listeners.mutate(std::mem::take);
@@ -64,7 +65,7 @@ impl DnsProxyController {
                 tracing::warn!("no DNS upstreams for subnet {subnet}; proxy not started");
                 continue;
             }
-            match bind_proxy(subnet.addr(), upstreams).await {
+            match bind_proxy(subnet.addr(), upstreams, injector.clone()).await {
                 Ok(handle) => {
                     listeners.insert(*subnet, handle);
                 }
@@ -132,6 +133,7 @@ fn resolv_conf_upstreams(config: &ResolverConfig) -> Vec<SocketAddr> {
 async fn bind_proxy(
     addr: Ipv4Addr,
     upstreams: Vec<SocketAddr>,
+    injector: Arc<DnsInjector>,
 ) -> Result<NonDetachingJoinHandle<()>, Error> {
     let listen = SocketAddrV4::new(addr, DNS_PORT);
     let udp = UdpSocket::bind(listen).await.with_kind(ErrorKind::Network)?;
@@ -139,7 +141,7 @@ async fn bind_proxy(
         .await
         .with_kind(ErrorKind::Network)?;
 
-    let mut server = Server::new(forwarding_catalog(upstreams)?);
+    let mut server = Server::new(InjectingHandler::new(injector, forwarding_catalog(upstreams)?));
     server.register_socket(udp);
     server.register_listener(tcp, FORWARD_TIMEOUT, DNS_RESPONSE_BUFFER_SIZE);
 

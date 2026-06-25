@@ -122,6 +122,12 @@ export type DomainValidationData = {
       {{ 'In your gateway' | i18n }} "{{ gatewayName }}",
       {{ 'create this port forwarding rule' | i18n }}
     </p>
+    <p>
+      {{
+        'Or enable automatic port forwarding (UPnP / NAT-PMP / PCP) on the gateway.'
+          | i18n
+      }}
+    </p>
 
     @let portRes = portResult();
 

@@ -76,6 +76,10 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'subnet.set-dns', params })
   }
 
+  async setSubnetWan(params: T.Tunnel.SetSubnetWanParams): Promise<null> {
+    return this.rpcRequest({ method: 'subnet.set-wan', params })
+  }
+
   // devices
 
   async addDevice(params: T.Tunnel.AddDeviceParams): Promise<null> {
@@ -92,6 +96,34 @@ export class LiveApiService extends ApiService {
 
   async showDeviceConfig(params: T.Tunnel.RemoveDeviceParams): Promise<string> {
     return this.rpcRequest({ method: 'device.show-config', params })
+  }
+
+  async setDnsInjection(params: T.Tunnel.SetDnsInjectionParams): Promise<null> {
+    return this.rpcRequest({ method: 'device.set-dns-injection', params })
+  }
+
+  async setAutoPortForward(
+    params: T.Tunnel.SetAutoPortForwardParams,
+  ): Promise<null> {
+    return this.rpcRequest({ method: 'device.set-auto-port-forward', params })
+  }
+
+  async setDeviceWan(params: T.Tunnel.SetDeviceWanParams): Promise<null> {
+    return this.rpcRequest({ method: 'device.set-wan', params })
+  }
+
+  async setDeviceKind(params: T.Tunnel.SetDeviceKindParams): Promise<null> {
+    return this.rpcRequest({ method: 'device.set-kind', params })
+  }
+
+  // dns
+
+  async addDnsRecord(params: T.Tunnel.AddDnsRecordParams): Promise<null> {
+    return this.rpcRequest({ method: 'dns.add', params })
+  }
+
+  async removeDnsRecord(params: T.Tunnel.RemoveDnsRecordParams): Promise<null> {
+    return this.rpcRequest({ method: 'dns.remove', params })
   }
 
   // forwards

@@ -785,4 +785,7 @@ export default {
   876: 'Zdobądź serwer Start9',
   877: 'Nie można połączyć z katalogiem',
   878: 'Będziesz musiał powtórzyć tę czynność na każdym urządzeniu, którego używasz do łączenia się z serwerem.',
+  879: 'Zaktualizuj konfigurację',
+  880: 'Lub włącz DNS Injection dla tego urządzenia w bramie.',
+  881: 'Lub włącz automatyczne przekierowanie portów (UPnP / NAT-PMP / PCP) w bramie.',
 } satisfies i18n

@@ -376,6 +376,10 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'net.gateway.set-name', params })
   }
 
+  async updateTunnelConfig(params: T.UpdateTunnelParams): Promise<null> {
+    return this.rpcRequest({ method: 'net.tunnel.update', params })
+  }
+
   async removeTunnel(params: T.RemoveTunnelParams): Promise<null> {
     return this.rpcRequest({ method: 'net.tunnel.remove', params })
   }

@@ -3,4 +3,8 @@
 export type UpdatePortForwardLabelParams = {
   source: string
   label: string | null
+  /**
+   * Label a single SNI route on `source`; omit to label the DNAT forward.
+   */
+  hostname: string | null
 }

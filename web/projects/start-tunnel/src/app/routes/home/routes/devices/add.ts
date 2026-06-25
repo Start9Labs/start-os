@@ -6,17 +6,32 @@ import {
 } from '@angular/forms'
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import { ErrorService } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiAutoFocus, tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
-import { TuiButton, TuiDialogContext, TuiError, TuiInput } from '@taiga-ui/core'
+import {
+  TuiButton,
+  TuiCheckbox,
+  TuiDialogContext,
+  TuiError,
+  TuiIcon,
+  TuiInput,
+} from '@taiga-ui/core'
 import {
   TuiChevron,
   TuiDataListWrapper,
   TuiNotificationMiddleService,
   TuiSelect,
+  TuiTooltip,
 } from '@taiga-ui/kit'
 import { TuiElasticContainer, TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import {
+  matchWan,
+  toWanItems,
+  WanItem,
+  wanLabel,
+} from 'src/app/routes/home/components/wan'
 import { ApiService } from 'src/app/services/api/api.service'
 
 import { DEVICES_CONFIG } from './config'
@@ -76,6 +91,55 @@ import {
           <tui-error formControlName="ip" />
         }
       }
+
+      <tui-textfield
+        tuiChevron
+        [identityMatcher]="matchWan"
+        [stringify]="stringifyWan"
+        [tuiTextfieldCleaner]="false"
+      >
+        <label tuiLabel>WAN IP</label>
+        @if (mobile) {
+          <select tuiSelect formControlName="wanIp" [items]="wanItems"></select>
+        } @else {
+          <input tuiSelect formControlName="wanIp" />
+        }
+        @if (!mobile) {
+          <tui-data-list-wrapper *tuiDropdown [items]="wanItems" />
+        }
+      </tui-textfield>
+
+      <tui-elastic-container>
+        @if (!context.data.device && kind === 'server') {
+          <label tuiLabel>
+            <input
+              id="dnsInjectionHint"
+              tuiCheckbox
+              type="checkbox"
+              formControlName="dnsInjection"
+            />
+            Allow DNS Injection
+            <tui-icon
+              tuiTooltipDescribe="dnsInjectionHint"
+              [tuiTooltip]="dnsInjectionHint"
+            />
+          </label>
+          <label tuiLabel>
+            <input
+              id="autoPortForward"
+              tuiCheckbox
+              type="checkbox"
+              formControlName="autoPortForward"
+            />
+            Allow Auto Port Forward
+            <tui-icon
+              tuiTooltipDescribe="autoPortForward"
+              [tuiTooltip]="autoPortForwardHint"
+            />
+          </label>
+        }
+      </tui-elastic-container>
+
       <footer>
         <button tuiButton (click)="onSave()">Save</button>
       </footer>
@@ -85,9 +149,12 @@ import {
     ReactiveFormsModule,
     TuiAutoFocus,
     TuiButton,
+    TuiCheckbox,
     TuiDataListWrapper,
     TuiError,
     TuiForm,
+    TuiTooltip,
+    TuiIcon,
     TuiSelect,
     TuiInput,
     TuiChevron,
@@ -104,12 +171,14 @@ export class DevicesAdd {
   protected readonly context =
     injectContext<TuiDialogContext<void, DeviceData>>()
 
+  private readonly fb = inject(NonNullableFormBuilder)
+
   private readonly autoSubnet =
     !this.context.data.device && this.context.data.subnets().length === 1
       ? this.context.data.subnets().at(0)
       : undefined
 
-  protected readonly form = inject(NonNullableFormBuilder).group({
+  protected readonly form = this.fb.group({
     name: [this.context.data.device?.name || '', Validators.required],
     subnet: [
       this.context.data.device?.subnet ?? this.autoSubnet,
@@ -122,10 +191,29 @@ export class DevicesAdd {
         ? [Validators.required, ipInSubnetValidator(this.autoSubnet.range)]
         : [],
     ],
+    wanIp: this.fb.control<WanItem>({
+      ip: this.context.data.device?.wanIp ?? null,
+    }),
+    dnsInjection: [this.context.data.device?.allowDnsInjection ?? true],
+    autoPortForward: [this.context.data.device?.allowAutoPortForward ?? true],
   })
+
+  // Inferred from which "Add" button opened the dialog, not user-selectable.
+  protected readonly kind: T.Tunnel.WgClientKind =
+    this.context.data.kind ?? this.context.data.device?.kind ?? 'client'
+
+  protected readonly dnsInjectionHint =
+    'The device can add/update the DNS records the tunnel serves for every peer to resolve. Only enable for devices you trust.'
+  protected readonly autoPortForwardHint =
+    'The device can request port forwards on the gateway (via PCP). Only enable for devices you trust.'
+
+  protected readonly wanItems = toWanItems(this.context.data.wanOptions)
 
   protected readonly stringify = ({ range, name }: MappedSubnet) =>
     range ? `${name} (${range})` : ''
+  protected readonly stringifyWan = ({ ip }: WanItem) =>
+    wanLabel(ip, 'Use Subnet Default')
+  protected readonly matchWan = matchWan
 
   protected onSubnet(subnet: MappedSubnet) {
     this.form.controls.ip.clearValidators()
@@ -152,15 +240,46 @@ export class DevicesAdd {
     }
 
     const loader = this.loading.open('').subscribe()
-    const { ip, name, subnet } = this.form.getRawValue()
+    const { ip, name, subnet, wanIp, dnsInjection, autoPortForward } =
+      this.form.getRawValue()
     const data = { ip, name, subnet: subnet?.range || '' }
+    const device = this.context.data.device
+    const kind = this.kind
 
     try {
-      if (this.context.data.device) {
-        await this.api.editDevice(data)
+      if (device) {
+        await this.api.editDevice({ ...data, kind: device.kind })
       } else {
-        await this.api.addDevice(data)
+        await this.api.addDevice({ ...data, kind })
+      }
 
+      if (wanIp.ip !== (device?.wanIp ?? null)) {
+        await this.api.setDeviceWan({
+          subnet: data.subnet,
+          ip,
+          wanIp: wanIp.ip,
+        })
+      }
+
+      // addDevice sets both flags on for a server; only sync the ones unchecked.
+      if (!device && kind === 'server') {
+        if (!dnsInjection) {
+          await this.api.setDnsInjection({
+            subnet: data.subnet,
+            ip,
+            enabled: false,
+          })
+        }
+        if (!autoPortForward) {
+          await this.api.setAutoPortForward({
+            subnet: data.subnet,
+            ip,
+            enabled: false,
+          })
+        }
+      }
+
+      if (!device) {
         const config = await this.api.showDeviceConfig({
           subnet: data.subnet,
           ip,
