@@ -15,14 +15,14 @@ The `start-container` binary (built from package `start-os`, see `shared/crates/
 
 ## Source layout (`src/`)
 
-| Path                       | Responsibility                                                          |
-| -------------------------- | ---------------------------------------------------------------------- |
-| `index.ts`                 | Entry point — wires `getSystem` into the `RpcListener` and starts it    |
-| `Adapters/RpcListener.ts`  | Listens on `service.sock`, dispatches JSON-RPC methods                  |
-| `Adapters/EffectCreator.ts`| Builds the effects object passed to package procedures                  |
-| `Adapters/Systems/`        | System backends: `SystemForStartOs` (current) + `SystemForEmbassy` (legacy compat shim, including config-spec/manifest transforms) |
-| `Interfaces/`              | `System`, `GetDependency`, `AllGetDependencies` contracts              |
-| `Models/`                  | Domain types — `Effects`, `CallbackHolder`, `Volume`, `DockerProcedure`, `JsonPath`, `Duration` |
+| Path                        | Responsibility                                                                                                                     |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `index.ts`                  | Entry point — wires `getSystem` into the `RpcListener` and starts it                                                               |
+| `Adapters/RpcListener.ts`   | Listens on `service.sock`, dispatches JSON-RPC methods                                                                             |
+| `Adapters/EffectCreator.ts` | Builds the effects object passed to package procedures                                                                             |
+| `Adapters/Systems/`         | System backends: `SystemForStartOs` (current) + `SystemForEmbassy` (legacy compat shim, including config-spec/manifest transforms) |
+| `Interfaces/`               | `System`, `GetDependency`, `AllGetDependencies` contracts                                                                          |
+| `Models/`                   | Domain types — `Effects`, `CallbackHolder`, `Volume`, `DockerProcedure`, `JsonPath`, `Duration`                                    |
 
 `SystemForEmbassy` carries the bulk of the legacy-package compatibility logic (manifest matching, config-spec transformation, effect polyfills) and ships with fixtures and snapshot/unit tests.
 
