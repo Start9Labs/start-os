@@ -32,3 +32,9 @@ CLAUDE.local.md
 /start-os/web/dist/
 /start-tunnel/web/dist/
 /brochure/dist/
+
+# migrated mdbook standalone build outputs
+/start-os/docs/book/
+/start-tunnel/docs/book/
+/start-sdk/docs/book/
+/docs/docs/

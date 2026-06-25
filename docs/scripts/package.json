@@ -1,0 +1,19 @@
+{
+  "name": "@start9/docs-scripts",
+  "version": "1.0.0",
+  "description": "Build and validation scripts for Start9 docs",
+  "type": "module",
+  "scripts": {
+    "generate-llms-txt": "npx tsx generate-llms-txt.ts",
+    "prepare": "cd .. && husky"
+  },
+  "dependencies": {
+    "glob": "^10.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "husky": "^9.0.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0"
+  }
+}
