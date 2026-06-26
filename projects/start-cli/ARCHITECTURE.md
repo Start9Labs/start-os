@@ -71,8 +71,9 @@ developer key path, root CAs, and the `--insecure` toggle. The loaded config bec
 
 ## Man pages
 
-`start_cli.rs` has a `#[test] export_manpage_start_cli` that runs `clap_mangen` to write man
-pages into `./man/start-cli`. Run it with `cargo test -p start-core export_manpage_start_cli`.
+`start_cli.rs` (in `start-core`) has a `#[test] export_manpage_start_cli` that runs `clap_mangen`
+to write the committed man pages into this project's `man/` dir
+(`projects/start-cli/man/`). Run it with `cargo test -p start-core export_manpage_start_cli`.
 
 ## Where to make changes
 

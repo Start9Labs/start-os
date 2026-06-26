@@ -42,6 +42,8 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
 
 #[test]
 fn export_manpage_start_container() {
-    std::fs::create_dir_all("./man/start-container").unwrap();
-    clap_mangen::generate_to(app().into_command(), "./man/start-container").unwrap();
+    // start-container is part of the start-os product; anchored to start-core's crate dir.
+    let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/../../../projects/start-os/man");
+    std::fs::create_dir_all(dir).unwrap();
+    clap_mangen::generate_to(app().into_command(), dir).unwrap();
 }

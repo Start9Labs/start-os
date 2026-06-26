@@ -32,6 +32,8 @@ Operating rules for AI developers working in `start-os/`. See the root
 - Build the UI: `make ui` (or `make uis` for ui + setup-wizard).
 - Tests: `make test` (Rust + SDK + container-runtime), or `make test-core`.
 - Format: `make format` / `make format-check`.
+- Regenerate `start-container` man pages (committed under `man/`):
+  `cargo test -p start-core export_manpage_start_container`.
 
 ## Gotchas
 

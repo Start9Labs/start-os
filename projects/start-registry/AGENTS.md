@@ -52,7 +52,7 @@ Defaults: listen `127.0.0.1:5959`, datadir `/var/lib/startos` (state in `<datadi
 - **`registry_api` is shared by server and CLI.** Adding a subcommand in `registry/mod.rs` with `with_call_remote::<CliContext>()` exposes it both over RPC and through the `start-registry` CLI.
 - **Auth:** the RPC route uses local + signature auth; admin-only commands (e.g. metrics) are tagged `with_metadata("admin", true)`.
 - **Cross-platform builds.** CI builds musl targets for x86_64/aarch64/riscv64; local `cargo check` is host-only, so platform-specific breaks can slip through (verify against `start-core` CI when touching deps/platform APIs).
-- **Manpages:** `cargo test export_manpage_start_registry` (in `bins/registry.rs`) regenerates `./man/start-registry`.
+- **Manpages:** `cargo test export_manpage_start_registry` (in `start-core`'s `bins/registry.rs`) regenerates this project's committed `man/` pages (`projects/start-registry/man/`).
 
 ## Docs to update with changes
 

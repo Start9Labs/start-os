@@ -87,6 +87,9 @@ Rust: `cargo fmt` (edition 2024). Web: prettier via the shared Angular config.
   surfaces get it.
 - **Version bump:** `Cargo.toml` `version` carries a `# VERSION_BUMP` marker —
   bump it there.
+- **Manpages** for `start-tunnel` are generated (and committed) into this
+  project's `man/` dir by `cargo test -p start-core export_manpage_start_tunnel`
+  (the generator lives in `start-core`'s `bins/tunnel.rs`).
 
 ## Docs are part of the change
 
