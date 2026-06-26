@@ -38,5 +38,5 @@ done
 truncate -s 0 /tmp/combined/etc/machine-id
 
 rm -f rootfs.${ARCH}.squashfs
-mkdir -p ../../build/lib/container-runtime
+mkdir -p ../build/lib/container-runtime
 mksquashfs /tmp/combined rootfs.${ARCH}.squashfs

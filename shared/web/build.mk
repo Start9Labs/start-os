@@ -1,3 +1,10 @@
+WEB_SHARED_SRC := $(call ls-files, shared/web/shared) $(call ls-files, shared/web/marketplace) $(shell ls -p shared/web/ | grep -v / | sed 's|^|shared/web/|g') package.json angular.json tsconfig.json tsconfig.lib.json node_modules/.package-lock.json config.json vendor/patch-db/client/dist/index.js start-sdk/baseDist/package.json start-os/web/patchdb-ui-seed.json start-sdk/dist/package.json
+WEB_UI_SRC := $(call ls-files, start-os/web/ui)
+WEB_SETUP_WIZARD_SRC := $(call ls-files, start-os/web/setup-wizard)
+WEB_START_TUNNEL_SRC := $(call ls-files, start-tunnel/web)
+WEB_UIS := start-os/web/dist/raw/ui/index.html start-os/web/dist/raw/setup-wizard/index.html
+COMPRESSED_WEB_UIS := start-os/web/dist/static/ui/index.html start-os/web/dist/static/setup-wizard/index.html
+
 package-lock.json: package.json start-sdk/baseDist/package.json
 	npm --prefix . i
 	touch package-lock.json

@@ -1,3 +1,5 @@
+TUNNEL_TARGETS := target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox start-tunnel/start-tunneld.service
+
 tunnel: target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox
 
 install-tunnel: target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox start-tunnel/start-tunneld.service

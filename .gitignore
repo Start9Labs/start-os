@@ -18,13 +18,15 @@ secrets.db
 /dpkg-workdir
 /compiled.tar
 /compiled-*.tar
-/build/lib/firmware
+/start-os/build/lib/firmware
 tmp
 /.i18n-checked
 docs/USER.md
 CLAUDE.local.md
 *.s9pk
-/build/lib/migration-images
+/start-os/build/lib/migration-images
+/start-os/build/lib/depends
+/start-os/build/lib/conflicts
 .claude/*
 !.claude/settings.json
 

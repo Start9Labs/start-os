@@ -1,3 +1,5 @@
+REGISTRY_TARGETS := target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/registrybox start-registry/start-registryd.service
+
 registry: target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/registrybox
 
 install-registry: $(REGISTRY_TARGETS)

@@ -38,12 +38,12 @@ clean:
 	rm -rf dpkg-workdir
 	rm -rf image-recipe/deb
 	rm -rf results
-	rm -rf build/lib/firmware
+	rm -rf start-os/build/lib/firmware
 	rm -rf start-os/container-runtime/dist
 	rm -rf start-os/container-runtime/node_modules
 	rm -f start-os/container-runtime/*.squashfs
 	(cd start-sdk && make clean)
-	rm -rf build/lib/migration-images
+	rm -rf start-os/build/lib/migration-images
 	rm -f env/*.txt
 
 format:

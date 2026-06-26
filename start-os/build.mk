@@ -1,3 +1,20 @@
+IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo iso; fi)
+FIRMWARE_ROMS := start-os/build/lib/firmware/$(PLATFORM) $(shell jq --raw-output '.[] | select(.platform[] | contains("$(PLATFORM)")) | "./start-os/build/lib/firmware/$(PLATFORM)/" + .id + ".rom.gz"' start-os/build/lib/firmware.json)
+BUILD_SRC := $(call ls-files, start-os/build/lib) build/lib/scripts/forward-port start-os/build/lib/depends start-os/build/lib/conflicts $(FIRMWARE_ROMS) start-os/build/lib/migration-images/.done
+IMAGE_RECIPE_SRC := $(call ls-files, start-os/build/image-recipe/)
+STARTD_SRC := start-os/startd.service start-os/services.slice start-os/startos-shutdown.service start-os/startos-restart.service $(BUILD_SRC)
+COMPILED_TARGETS := target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox target/$(RUST_ARCH)-unknown-linux-musl/release/start-container start-os/container-runtime/rootfs.$(ARCH).squashfs
+STARTOS_TARGETS := $(STARTD_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE) $(COMPILED_TARGETS) target/$(RUST_ARCH)-unknown-linux-musl/release/startos-backup-fs $(PLATFORM_FILE) \
+	$(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then \
+		echo target/aarch64-unknown-linux-musl/release/pi-beep; \
+	fi) \
+	$(shell /bin/bash -c 'if [[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]; then \
+		echo target/$(RUST_ARCH)-unknown-linux-musl/release/flamegraph; \
+	fi') \
+	$(shell /bin/bash -c 'if [[ "${ENVIRONMENT}" =~ (^|-)console($$|-) ]]; then \
+		echo target/$(RUST_ARCH)-unknown-linux-musl/release/tokio-console; \
+	fi')
+
 .PHONY: startos
 # Build all StartOS OS-product artifacts (bins + web + container-runtime image).
 startos: $(STARTOS_TARGETS)
@@ -5,8 +22,8 @@ startos: $(STARTOS_TARGETS)
 test-container-runtime: start-os/container-runtime/node_modules/.package-lock.json $(call ls-files, start-os/container-runtime/src) start-os/container-runtime/package.json start-os/container-runtime/tsconfig.json 
 	cd start-os/container-runtime && npm test
 
-build/lib/migration-images/.done: build/save-migration-images.sh
-	ARCH=$(ARCH) ./build/save-migration-images.sh build/lib/migration-images
+start-os/build/lib/migration-images/.done: start-os/build/save-migration-images.sh
+	ARCH=$(ARCH) ./start-os/build/save-migration-images.sh start-os/build/lib/migration-images
 	touch $@
 
 startos-deb: results/$(BASENAME).deb
@@ -19,7 +36,7 @@ startos-$(IMAGE_TYPE): results/$(BASENAME).$(IMAGE_TYPE)
 startos-squashfs: results/$(BASENAME).squashfs
 
 results/$(BASENAME).$(IMAGE_TYPE) results/$(BASENAME).squashfs: $(IMAGE_RECIPE_SRC) results/$(BASENAME).deb
-	ARCH=$(ARCH) ./build/image-recipe/run-local-build.sh "results/$(BASENAME).deb"
+	ARCH=$(ARCH) ./start-os/build/image-recipe/run-local-build.sh "results/$(BASENAME).deb"
 
 # For creating os images. DO NOT USE
 install-startos: $(STARTOS_TARGETS)
@@ -49,7 +66,8 @@ install-startos: $(STARTOS_TARGETS)
 
 	$(call mkdir,$(DESTDIR)/usr/lib)
 	$(call rm,$(DESTDIR)/usr/lib/startos)
-	$(call cp,build/lib,$(DESTDIR)/usr/lib/startos)
+	$(call cp,start-os/build/lib,$(DESTDIR)/usr/lib/startos)
+	$(call cp,build/lib/scripts/forward-port,$(DESTDIR)/usr/lib/startos/scripts/forward-port)
 	$(call mkdir,$(DESTDIR)/usr/lib/startos/container-runtime)
 	$(call cp,start-os/container-runtime/rootfs.$(ARCH).squashfs,$(DESTDIR)/usr/lib/startos/container-runtime/rootfs.squashfs)
 
@@ -88,7 +106,7 @@ startos-update: $(STARTOS_TARGETS)
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	$(call ssh,'sudo /usr/lib/startos/scripts/chroot-and-upgrade --create')
 	$(MAKE) install-startos REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/startos/next PLATFORM=$(PLATFORM)
-	$(call ssh,'sudo /media/startos/next/usr/lib/startos/scripts/chroot-and-upgrade --no-sync "apt-get install -y $(shell cat ./build/lib/depends)"')
+	$(call ssh,'sudo /media/startos/next/usr/lib/startos/scripts/chroot-and-upgrade --no-sync "apt-get install -y $(shell cat ./start-os/build/lib/depends)"')
 
 startos-update-startbox: target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox # only update binary (faster than full update)
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
@@ -117,10 +135,10 @@ startos-emulate-reflash: $(STARTOS_TARGETS)
 	$(call ssh,'sudo /usr/lib/startos/scripts/chroot-and-upgrade --create')
 	$(MAKE) install-startos REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/startos/next PLATFORM=$(PLATFORM)
 	$(call ssh,'sudo rm -f /media/startos/config/disk.guid /media/startos/config/overlay/etc/hostname')
-	$(call ssh,'sudo /media/startos/next/usr/lib/startos/scripts/chroot-and-upgrade --no-sync "apt-get install -y $(shell cat ./build/lib/depends)"')
+	$(call ssh,'sudo /media/startos/next/usr/lib/startos/scripts/chroot-and-upgrade --no-sync "apt-get install -y $(shell cat ./start-os/build/lib/depends)"')
 
 startos-upload-ota: results/$(BASENAME).squashfs
-	TARGET=$(TARGET) KEY=$(KEY) ./build/upload-ota.sh
+	TARGET=$(TARGET) KEY=$(KEY) ./start-os/build/upload-ota.sh
 
 start-os/container-runtime/debian.$(ARCH).squashfs: ./start-os/container-runtime/download-base-image.sh
 	ARCH=$(ARCH) ./start-os/container-runtime/download-base-image.sh
@@ -144,11 +162,11 @@ start-os/container-runtime/dist/node_modules/.package-lock.json start-os/contain
 start-os/container-runtime/rootfs.$(ARCH).squashfs: start-os/container-runtime/debian.$(ARCH).squashfs start-os/container-runtime/container-runtime.service start-os/container-runtime/update-image.sh start-os/container-runtime/update-image-local.sh start-os/container-runtime/deb-install.sh start-os/container-runtime/dist/index.js start-os/container-runtime/dist/node_modules/.package-lock.json target/$(RUST_ARCH)-unknown-linux-musl/release/start-container
 	ARCH=$(ARCH) ./start-os/container-runtime/update-image-local.sh
 
-build/lib/depends build/lib/conflicts: $(ENVIRONMENT_FILE) $(PLATFORM_FILE) $(shell ls build/dpkg-deps/*)
-	PLATFORM=$(PLATFORM) ARCH=$(ARCH) build/dpkg-deps/generate.sh
+start-os/build/lib/depends start-os/build/lib/conflicts: $(ENVIRONMENT_FILE) $(PLATFORM_FILE) $(shell ls start-os/build/dpkg-deps/*)
+	PLATFORM=$(PLATFORM) ARCH=$(ARCH) start-os/build/dpkg-deps/generate.sh
 
-$(FIRMWARE_ROMS): build/lib/firmware.json ./build/download-firmware.sh $(PLATFORM_FILE)
-	./build/download-firmware.sh $(PLATFORM)
+$(FIRMWARE_ROMS): start-os/build/lib/firmware.json ./start-os/build/download-firmware.sh $(PLATFORM_FILE)
+	./start-os/build/download-firmware.sh $(PLATFORM)
 
 target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox: $(CORE_SRC) $(COMPRESSED_WEB_UIS) start-os/web/patchdb-ui-seed.json $(ENVIRONMENT_FILE)
 	ARCH=$(ARCH) PROFILE=$(PROFILE) ./shared/crates/start-core/build/build-startbox.sh
@@ -164,4 +182,16 @@ compiled-$(ARCH).tar: $(COMPILED_TARGETS) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $
 
 target/$(RUST_ARCH)-unknown-linux-musl/release/startos-backup-fs: $(call ls-files, start-os/backup-fs) $(ENVIRONMENT_FILE)
 	ARCH=$(ARCH) PROFILE=release ./shared/crates/start-core/build/build-backup-fs.sh
+	touch $@
+
+# --- external cargo tools bundled into the OS image ---
+target/aarch64-unknown-linux-musl/release/pi-beep: ./build/build-cargo-dep.sh
+	ARCH=aarch64 ./build/build-cargo-dep.sh pi-beep
+
+target/$(RUST_ARCH)-unknown-linux-musl/release/tokio-console: ./build/build-cargo-dep.sh
+	ARCH=$(ARCH) ./build/build-cargo-dep.sh tokio-console
+	touch $@
+
+target/$(RUST_ARCH)-unknown-linux-musl/release/flamegraph: ./build/build-cargo-dep.sh
+	ARCH=$(ARCH) ./build/build-cargo-dep.sh flamegraph
 	touch $@

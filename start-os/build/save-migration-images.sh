@@ -4,7 +4,7 @@
 set -e
 
 ARCH="${ARCH:-x86_64}"
-DESTDIR="${1:-build/lib/migration-images}"
+DESTDIR="${1:-start-os/build/lib/migration-images}"
 
 if [ "$ARCH" = "x86_64" ]; then
     DOCKER_PLATFORM="linux/amd64"

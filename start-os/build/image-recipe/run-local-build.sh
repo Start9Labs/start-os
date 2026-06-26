@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+cd "$(dirname "${BASH_SOURCE[0]}")/../../.."
 
 BASEDIR="$(pwd -P)"
 
@@ -12,7 +12,7 @@ if tty -s; then
   USE_TTY="-it"
 fi
 
-dockerfile_hash=$(sha256sum ${BASEDIR}/build/image-recipe/Dockerfile | head -c 7)
+dockerfile_hash=$(sha256sum ${BASEDIR}/start-os/build/image-recipe/Dockerfile | head -c 7)
 
 docker_img_name="start9/build-iso:${SUITE}-${dockerfile_hash}"
 
@@ -25,10 +25,10 @@ case $ARCH in
 esac
 
 if ! docker run --rm --platform=$platform "${docker_img_name}" true 2> /dev/null; then
-	docker buildx build --load --platform=$platform --build-arg=SUITE=${SUITE} -t "${docker_img_name}" ./build/image-recipe
+	docker buildx build --load --platform=$platform --build-arg=SUITE=${SUITE} -t "${docker_img_name}" ./start-os/build/image-recipe
 fi
 
-docker run $USE_TTY --rm --platform=$platform --privileged -v "$(pwd)/build/image-recipe:/root/image-recipe" -v "$(pwd)/results:/root/results" \
+docker run $USE_TTY --rm --platform=$platform --privileged -v "$(pwd)/start-os/build/image-recipe:/root/image-recipe" -v "$(pwd)/results:/root/results" \
 	-e IB_SUITE="$SUITE" \
 	-e IB_UID="$UID" \
 	-e IB_INCLUDE \
