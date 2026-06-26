@@ -2,7 +2,7 @@
 
 `start-cli` is the command-line client for StartOS. It is a thin `bin` crate over
 [`start-core`](../shared/crates/start-core) (the shared Rust backend, crate `start-core`,
-lib name `startos`). The CLI surfaces the same RPC API the StartOS server exposes, plus
+lib name `start_core`). The CLI surfaces the same RPC API the StartOS server exposes, plus
 local developer tooling for building and signing `.s9pk` packages.
 
 Most subcommands are *remote* calls: you point `start-cli` at a running StartOS server

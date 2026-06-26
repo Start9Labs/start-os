@@ -15,12 +15,12 @@ path = "src/bin/start-container.rs"
 
 [features]
 default = []
-beta = ["startos/beta"]
-console = ["startos/console"]
-dev = ["startos/dev"]
-test = ["startos/test"]
-unstable = ["startos/unstable"]
+beta = ["start-core/beta"]
+console = ["start-core/console"]
+dev = ["start-core/dev"]
+test = ["start-core/test"]
+unstable = ["start-core/unstable"]
 
 [dependencies]
-startos = { package = "start-core", path = "../shared/crates/start-core" }
+start-core = { path = "../shared/crates/start-core" }
 include_dir = "0.7.3"

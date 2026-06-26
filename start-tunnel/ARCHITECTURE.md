@@ -21,7 +21,7 @@ shared `start-core` crate.
 | User & reference docs (mdbook)  | `start-tunnel/docs/`                                  |
 
 `src/main.rs` embeds the compiled UI (`web/dist/static/start-tunnel`) via
-`include_dir!` into `startos::tunnel::context::TUNNEL_UI_CELL`, then hands off to
+`include_dir!` into `start_core::tunnel::context::TUNNEL_UI_CELL`, then hands off to
 `MultiExecutable`, enabling the `start-tunnel` (CLI) and `start-tunneld`
 (daemon) subcommands. One binary, dispatched by `argv[0]` (busybox-style).
 

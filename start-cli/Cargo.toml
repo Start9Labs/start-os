@@ -11,12 +11,12 @@ path = "src/main.rs"
 
 [features]
 default = []
-beta = ["startos/beta"]
-console = ["startos/console"]
-dev = ["startos/dev"]
-test = ["startos/test"]
-unstable = ["startos/unstable"]
+beta = ["start-core/beta"]
+console = ["start-core/console"]
+dev = ["start-core/dev"]
+test = ["start-core/test"]
+unstable = ["start-core/unstable"]
 
 [dependencies]
-startos = { package = "start-core", path = "../shared/crates/start-core" }
+start-core = { path = "../shared/crates/start-core" }
 tracing = "0.1.40"

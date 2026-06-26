@@ -1,4 +1,4 @@
-use startos::bins::MultiExecutable;
+use start_core::bins::MultiExecutable;
 
 fn main() {
     MultiExecutable::default()

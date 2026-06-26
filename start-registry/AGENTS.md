@@ -5,7 +5,7 @@ Product wrapper for the **Start Registry** server inside the `start-os` monorepo
 ## Layout
 
 - `src/main.rs` — `MultiExecutable` wiring (`enable_start_registry` + `enable_start_registryd`).
-- `Cargo.toml` — crate metadata; `[[bin]] name = "registrybox"`; depends on `startos = { package = "start-core", path = "../shared/crates/start-core" }`.
+- `Cargo.toml` — crate metadata; `[[bin]] name = "registrybox"`; depends on `start-core = { path = "../shared/crates/start-core" }`.
 - `start-registryd.service` — systemd unit (`ExecStart=/usr/bin/start-registryd`).
 - **Real implementation:** `shared/crates/start-core/src/bins/registry.rs` (server `main` + CLI `cli`) and `shared/crates/start-core/src/registry/` (context, db, info, os, package, admin, metrics, signer, migrations, asset).
 - **UI:** `shared/web/marketplace/` (`@start9labs/marketplace`) — not built or served by this crate.

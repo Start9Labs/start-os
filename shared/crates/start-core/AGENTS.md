@@ -1,6 +1,6 @@
 # AGENTS.md — start-core
 
-The shared Rust backend lib (`start-core`, lib name `startos`) at `shared/crates/start-core`.
+The shared Rust backend lib (`start-core`, lib name `start_core`) at `shared/crates/start-core`.
 All five product bins (`startbox`/`startd`, `start-container`, `start-cli`, `registrybox`,
 `tunnelbox`) link against it; the bins themselves are thin wrappers in the product crates.
 

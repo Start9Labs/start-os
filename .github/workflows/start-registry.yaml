@@ -171,7 +171,7 @@ jobs:
 
           VOLUME /var/lib/startos
 
-          ENV RUST_LOG=warn,startos=debug
+          ENV RUST_LOG=warn,start_core=debug
 
           ENTRYPOINT ["start-registryd"]
 

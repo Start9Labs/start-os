@@ -1,10 +1,10 @@
 # Architecture — start-registry
 
-`start-registry` is one of the product wrappers in the `start-os` monorepo. The wrapper itself is tiny; nearly all logic lives in the shared backend crate `start-core` (`shared/crates/start-core`, package `start-core`, lib name `startos`).
+`start-registry` is one of the product wrappers in the `start-os` monorepo. The wrapper itself is tiny; nearly all logic lives in the shared backend crate `start-core` (`shared/crates/start-core`, package `start-core`, lib name `start_core`).
 
 ## Binary: `registrybox`
 
-`src/main.rs` builds a `MultiExecutable` (from `startos::bins`) and registers two entry points:
+`src/main.rs` builds a `MultiExecutable` (from `start_core::bins`) and registers two entry points:
 
 ```rust
 MultiExecutable::default()

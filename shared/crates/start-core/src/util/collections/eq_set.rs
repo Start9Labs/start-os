@@ -30,7 +30,7 @@ impl<T: Eq> EqSet<T> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqSet;
+    /// use start_core::util::collections::EqSet;
     ///
     /// let set = EqSet::from([1, 2, 3]);
     /// assert_eq!(set.get(&2), Some(&2));
@@ -50,7 +50,7 @@ impl<T: Eq> EqSet<T> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqSet;
+    /// use start_core::util::collections::EqSet;
     ///
     /// let mut set = EqSet::new();
     /// set.insert("a");
@@ -70,7 +70,7 @@ impl<T: Eq> EqSet<T> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqSet;
+    /// use start_core::util::collections::EqSet;
     ///
     /// let mut set = EqSet::new();
     /// set.insert("a");
@@ -95,7 +95,7 @@ impl<T: Eq> EqSet<T> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqSet;
+    /// use start_core::util::collections::EqSet;
     ///
     /// let mut set = EqSet::new();
     /// assert_eq!(set.insert("a"), None);
@@ -123,7 +123,7 @@ impl<T: Eq> EqSet<T> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqSet;
+    /// use start_core::util::collections::EqSet;
     ///
     /// let mut set = EqSet::new();
     /// assert!(set.try_insert("a"));
@@ -147,7 +147,7 @@ impl<T: Eq> EqSet<T> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqSet;
+    /// use start_core::util::collections::EqSet;
     ///
     /// let mut set = EqSet::new();
     /// set.insert("a");
@@ -179,7 +179,7 @@ impl<T: Eq> EqSet<T> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqSet;
+    /// use start_core::util::collections::EqSet;
     ///
     /// let mut set: EqSet<i32> = (0..8).collect();
     /// // Keep only the elements with even-numbered values.
@@ -202,7 +202,7 @@ impl<T: Eq> EqSet<T> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqSet;
+    /// use start_core::util::collections::EqSet;
     ///
     /// let mut a = EqSet::new();
     /// a.insert("a");
@@ -244,7 +244,7 @@ impl<T: Eq> EqSet<T> {
     // /// Splitting a set into even and odd values, reusing the original set:
     // ///
     // /// ```
-    // /// use startos::util::collections::EqSet;
+    // /// use start_core::util::collections::EqSet;
     // ///
     // /// let mut set: EqSet<(i32, i32)> = (0..8).map(|x| (x, x)).collect();
     // /// let evens: EqSet<_, _> = set.extract_if(|k, _v| k % 2 == 0).collect();
@@ -266,7 +266,7 @@ impl<T: Eq> EqSet<T> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqSet;
+    /// use start_core::util::collections::EqSet;
     ///
     /// let mut set = EqSet::new();
     /// set.insert("c");
@@ -289,7 +289,7 @@ impl<T: Eq> EqSet<T> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqSet;
+    /// use start_core::util::collections::EqSet;
     ///
     /// let mut a = EqSet::new();
     /// assert_eq!(a.len(), 0);
@@ -306,7 +306,7 @@ impl<T: Eq> EqSet<T> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqSet;
+    /// use start_core::util::collections::EqSet;
     ///
     /// let mut a = EqSet::new();
     /// assert!(a.is_empty());
@@ -363,7 +363,7 @@ impl<T: Eq, const N: usize> From<[T; N]> for EqSet<T> {
     /// Converts a `[T; N]` into a `EqSet<T>`.
     ///
     /// ```
-    /// use startos::util::collections::EqSet;
+    /// use start_core::util::collections::EqSet;
     ///
     /// let set1 = EqSet::from([(1, 2), (3, 4)]);
     /// let set2: EqSet<_> = [(1, 2), (3, 4)].into();

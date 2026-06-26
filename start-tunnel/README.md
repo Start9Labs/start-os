@@ -35,7 +35,7 @@ start-tunnel/
 └── docs/                   # mdbook (book "StartTunnel")
 ```
 
-- **Backend**: `shared/crates/start-core/src/tunnel/` (module `startos::tunnel`)
+- **Backend**: `shared/crates/start-core/src/tunnel/` (module `start_core::tunnel`)
   holds the daemon, JSON-RPC API, WireGuard control, port-forward engine, DNS,
   auth, and the embedded web server.
 - **CLI/daemon entry**: `shared/crates/start-core/src/bins/tunnel.rs` provides

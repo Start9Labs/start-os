@@ -7,7 +7,7 @@ rooted at `shared/crates/start-core`. All Start9 product binaries link against i
 
 This crate is a **library** (`src/lib.rs`). It exposes every backend subsystem plus a set of
 entrypoints under `src/bins/`. The product crates are thin wrappers that pick which entrypoints
-to enable via `startos::bins::MultiExecutable` and call `.execute()`:
+to enable via `start_core::bins::MultiExecutable` and call `.execute()`:
 
 | Binary | Wrapper crate / file | Role |
 |--------|----------------------|------|

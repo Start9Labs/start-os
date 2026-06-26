@@ -1,6 +1,6 @@
 # Contributing to start-core
 
-The shared Rust backend lib (`start-core`, lib name `startos`) at `shared/crates/start-core`.
+The shared Rust backend lib (`start-core`, lib name `start_core`) at `shared/crates/start-core`.
 For general environment setup, cloning, and the monorepo build system, see the repo-root
 [CONTRIBUTING.md](../../../CONTRIBUTING.md).
 

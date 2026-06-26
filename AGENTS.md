@@ -14,7 +14,7 @@ Each product is a thin top-level wrapper; the bulk of the code lives in shared l
 - `start-tunnel/` — `tunnelbox` bin + `web/` (StartTunnel UI).
 - `start-sdk/` — `@start9labs/start-sdk` (`base/` + `package/`, kept cohesive) + `Makefile`/`s9pk.mk` + `docs/` (packaging mdbook).
 - `brochure/` — marketing/landing Angular app.
-- `shared/crates/start-core/` — the **entire** Rust backend lib (package `start-core`, lib name `startos`). All five bins depend on it. Internally unchanged from the old `core/` crate.
+- `shared/crates/start-core/` — the **entire** Rust backend lib (package `start-core`, lib name `start_core`). All five bins depend on it. Internally unchanged from the old `core/` crate.
 - `shared/web/` — single Angular workspace root (`angular.json`, `package.json`) + shared libs `shared/` (`@start9labs/shared`) and `marketplace/` (`@start9labs/marketplace`). Product apps reference these by package name.
 - `vendor/patch-db/` — git submodule (Rust patch-db core + TS client), consumed by `start-core` and web.
 

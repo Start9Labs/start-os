@@ -25,7 +25,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// map.insert(1, "a");
@@ -48,7 +48,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// map.insert(1, "a");
@@ -71,7 +71,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// map.insert(1, "a");
@@ -94,7 +94,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// map.insert(1, "a");
@@ -115,7 +115,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// map.insert(1, "a");
@@ -138,7 +138,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// map.insert(1, "a");
@@ -161,7 +161,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// map.insert(1, "a");
@@ -190,7 +190,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// assert_eq!(map.insert(37, "a"), None);
@@ -222,7 +222,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// assert_eq!(map.try_insert(37, "a").unwrap(), &"a");
@@ -251,7 +251,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// map.insert(1, "a");
@@ -275,7 +275,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// map.insert(1, "a");
@@ -303,7 +303,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map: EqMap<i32, i32> = (0..8).map(|x| (x, x*10)).collect();
     /// // Keep only the elements with even-numbered keys.
@@ -327,7 +327,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut a = EqMap::new();
     /// a.insert(1, "a");
@@ -365,7 +365,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut count: EqMap<&str, usize> = EqMap::new();
     ///
@@ -408,7 +408,7 @@ impl<K: Eq, V> EqMap<K, V> {
     // /// Splitting a map into even and odd keys, reusing the original map:
     // ///
     // /// ```
-    // /// use startos::util::collections::EqMap;
+    // /// use start_core::util::collections::EqMap;
     // ///
     // /// let mut map: EqMap<i32, i32> = (0..8).map(|x| (x, x)).collect();
     // /// let evens: EqMap<_, _> = map.extract_if(|k, _v| k % 2 == 0).collect();
@@ -432,7 +432,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut a = EqMap::new();
     /// a.insert(2, "b");
@@ -453,7 +453,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut a = EqMap::new();
     /// a.insert(1, "hello");
@@ -476,7 +476,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map = EqMap::new();
     /// map.insert(3, "c");
@@ -499,7 +499,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map = EqMap::from([
     ///    ("a", 1),
@@ -525,7 +525,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut a = EqMap::new();
     /// a.insert(2, "b");
@@ -543,7 +543,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut a = EqMap::new();
     /// a.insert(1, "hello");
@@ -561,7 +561,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut a = EqMap::new();
     /// a.insert(1, String::from("hello"));
@@ -586,7 +586,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut a = EqMap::new();
     /// assert_eq!(a.len(), 0);
@@ -603,7 +603,7 @@ impl<K: Eq, V> EqMap<K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut a = EqMap::new();
     /// assert!(a.is_empty());
@@ -694,7 +694,7 @@ impl<K: Eq, V, const N: usize> From<[(K, V); N]> for EqMap<K, V> {
     /// Converts a `[(K, V); N]` into a `EqMap<(K, V)>`.
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let map1 = EqMap::from([(1, 2), (3, 4)]);
     /// let map2: EqMap<_, _> = [(1, 2), (3, 4)].into();
@@ -809,7 +809,7 @@ impl<'a, K: Eq, V> Entry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     /// map.entry("poneyland").or_insert(12);
@@ -829,7 +829,7 @@ impl<'a, K: Eq, V> Entry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map: EqMap<&str, String> = EqMap::new();
     /// let s = "hoho".to_string();
@@ -855,7 +855,7 @@ impl<'a, K: Eq, V> Entry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     ///
@@ -879,7 +879,7 @@ impl<'a, K: Eq, V> Entry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     /// assert_eq!(map.entry("poneyland").key(), &"poneyland");
@@ -897,7 +897,7 @@ impl<'a, K: Eq, V> Entry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     ///
@@ -932,7 +932,7 @@ impl<'a, K: Eq, V: Default> Entry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map: EqMap<&str, Option<usize>> = EqMap::new();
     /// map.entry("poneyland").or_default();
@@ -954,7 +954,7 @@ impl<'a, K: Eq, V> VacantEntry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     /// assert_eq!(map.entry("poneyland").key(), &"poneyland");
@@ -968,8 +968,8 @@ impl<'a, K: Eq, V> VacantEntry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
-    /// use startos::util::collections::eq_map::Entry;
+    /// use start_core::util::collections::EqMap;
+    /// use start_core::util::collections::eq_map::Entry;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     ///
@@ -987,8 +987,8 @@ impl<'a, K: Eq, V> VacantEntry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
-    /// use startos::util::collections::eq_map::Entry;
+    /// use start_core::util::collections::EqMap;
+    /// use start_core::util::collections::eq_map::Entry;
     ///
     /// let mut map: EqMap<&str, u32> = EqMap::new();
     ///
@@ -1009,7 +1009,7 @@ impl<'a, K: Eq, V> OccupiedEntry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
+    /// use start_core::util::collections::EqMap;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     /// map.entry("poneyland").or_insert(12);
@@ -1025,8 +1025,8 @@ impl<'a, K: Eq, V> OccupiedEntry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
-    /// use startos::util::collections::eq_map::Entry;
+    /// use start_core::util::collections::EqMap;
+    /// use start_core::util::collections::eq_map::Entry;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     /// map.entry("poneyland").or_insert(12);
@@ -1048,8 +1048,8 @@ impl<'a, K: Eq, V> OccupiedEntry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
-    /// use startos::util::collections::eq_map::Entry;
+    /// use start_core::util::collections::EqMap;
+    /// use start_core::util::collections::eq_map::Entry;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     /// map.entry("poneyland").or_insert(12);
@@ -1073,8 +1073,8 @@ impl<'a, K: Eq, V> OccupiedEntry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
-    /// use startos::util::collections::eq_map::Entry;
+    /// use start_core::util::collections::EqMap;
+    /// use start_core::util::collections::eq_map::Entry;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     /// map.entry("poneyland").or_insert(12);
@@ -1102,8 +1102,8 @@ impl<'a, K: Eq, V> OccupiedEntry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
-    /// use startos::util::collections::eq_map::Entry;
+    /// use start_core::util::collections::EqMap;
+    /// use start_core::util::collections::eq_map::Entry;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     /// map.entry("poneyland").or_insert(12);
@@ -1125,8 +1125,8 @@ impl<'a, K: Eq, V> OccupiedEntry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
-    /// use startos::util::collections::eq_map::Entry;
+    /// use start_core::util::collections::EqMap;
+    /// use start_core::util::collections::eq_map::Entry;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     /// map.entry("poneyland").or_insert(12);
@@ -1145,8 +1145,8 @@ impl<'a, K: Eq, V> OccupiedEntry<'a, K, V> {
     /// # Examples
     ///
     /// ```
-    /// use startos::util::collections::EqMap;
-    /// use startos::util::collections::eq_map::Entry;
+    /// use start_core::util::collections::EqMap;
+    /// use start_core::util::collections::eq_map::Entry;
     ///
     /// let mut map: EqMap<&str, usize> = EqMap::new();
     /// map.entry("poneyland").or_insert(12);

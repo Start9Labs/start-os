@@ -52,7 +52,7 @@ Server state lives in `<datadir>/registry.db` (PatchDB) plus a SQLite metrics da
 
 ## Where things are
 
-- `Cargo.toml` — crate `start-registry`, bin `registrybox`, depends on `start-core` (package name `start-core`, lib `startos`).
+- `Cargo.toml` — crate `start-registry`, bin `registrybox`, depends on `start-core` (package name `start-core`, lib `start_core`).
 - `src/main.rs` — wires up the `MultiExecutable` (`enable_start_registry` + `enable_start_registryd`).
 - `start-registryd.service` — systemd unit.
 - Server/CLI/API/data model: `shared/crates/start-core/src/registry/`.

@@ -2,13 +2,13 @@
 
 `start-cli` is intentionally tiny. Almost all behavior lives in the shared
 [`start-core`](../shared/crates/start-core) crate (cargo package `start-core`, lib name
-`startos`); this crate is just the `start-cli` entrypoint plus build/feature wiring.
+`start_core`); this crate is just the `start-cli` entrypoint plus build/feature wiring.
 
 ## Place in the monorepo
 
 ```
 start-os/                      monorepo root (one Cargo workspace, one Cargo.lock)
-├── shared/crates/start-core/  the entire Rust backend (lib `startos`)
+├── shared/crates/start-core/  the entire Rust backend (lib `start_core`)
 ├── start-cli/        ← THIS CRATE — bin `start-cli`
 ├── start-os/         OS product (bins startbox, start-container)
 ├── start-registry/   registrybox bin
@@ -18,7 +18,7 @@ start-os/                      monorepo root (one Cargo workspace, one Cargo.loc
 
 All product bins (`startbox`, `start-container`, `start-cli`, `registrybox`, `tunnelbox`)
 depend on `start-core`. `start-cli` declares it as
-`startos = { package = "start-core", path = "../shared/crates/start-core" }`.
+`start-core = { path = "../shared/crates/start-core" }`.
 
 ## What this crate contains
 
@@ -27,7 +27,7 @@ depend on `start-core`. `start-cli` declares it as
 - `src/main.rs` — the entrypoint. It:
   1. Reads `STARTOS_USE_PODMAN`; if unset/false it sets `PREFER_DOCKER` (so local
      `s9pk` packaging uses Docker by default).
-  2. Builds a `startos::bins::MultiExecutable`, enables the `start-cli` subcommand,
+  2. Builds a `start_core::bins::MultiExecutable`, enables the `start-cli` subcommand,
      sets it as the default, and `execute()`s.
 
 `MultiExecutable` is the same multiplexer the OS uses for `startbox`: a single binary that

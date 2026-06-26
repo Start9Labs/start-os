@@ -1,5 +1,5 @@
-use startos::bins::MultiExecutable;
-use startos::s9pk::v2::pack::PREFER_DOCKER;
+use start_core::bins::MultiExecutable;
+use start_core::s9pk::v2::pack::PREFER_DOCKER;
 
 fn main() {
     if !std::env::var("STARTOS_USE_PODMAN").map_or(false, |v| {

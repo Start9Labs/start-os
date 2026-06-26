@@ -67,8 +67,8 @@ start-os/                          # repo root (monorepo)
 │
 ├── shared/
 │   ├── crates/
-│   │   └── start-core/            # the ENTIRE startos lib (package start-core,
-│   │                              #   lib name `startos`), unchanged internally:
+│   │   └── start-core/            # the ENTIRE backend lib (package start-core,
+│   │                              #   lib name `start_core`), unchanged internally:
 │   │                              #   src/{bins,registry,tunnel,service,s9pk,net,db,
 │   │                              #   install,update,lxc,os_install,backup,sign,...}/
 │   └── web/

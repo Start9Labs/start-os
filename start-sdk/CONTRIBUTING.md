@@ -207,7 +207,7 @@ Decide where new code belongs:
 
 ### Adding OS Bindings
 
-Types in `base/lib/osBindings/` mirror Rust types from the monorepo's `shared/crates/start-core` (the `startos` lib). When those Rust types change, the corresponding TypeScript bindings need regenerating. These are re-exported through `base/lib/osBindings/index.ts`.
+Types in `base/lib/osBindings/` mirror Rust types from the monorepo's `shared/crates/start-core` (the `start_core` lib). When those Rust types change, the corresponding TypeScript bindings need regenerating. These are re-exported through `base/lib/osBindings/index.ts`.
 
 ### Writing Tests
 

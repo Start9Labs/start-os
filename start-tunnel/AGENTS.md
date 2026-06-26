@@ -9,7 +9,7 @@ first; this file is scoped to `start-tunnel/`.
 A WireGuard virtual private router with kernel-level clearnet port forwarding.
 This directory is a **thin wrapper**: the binary entry point, the Angular UI, the
 systemd unit, and the docs. The real logic lives in
-`shared/crates/start-core/src/tunnel/` (the `startos::tunnel` module) and the
+`shared/crates/start-core/src/tunnel/` (the `start_core::tunnel` module) and the
 entry/CLI dispatch in `shared/crates/start-core/src/bins/tunnel.rs`.
 
 ## Layout

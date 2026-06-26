@@ -1,7 +1,7 @@
-use startos::bins::MultiExecutable;
+use start_core::bins::MultiExecutable;
 
 fn main() {
-    startos::tunnel::context::TUNNEL_UI_CELL
+    start_core::tunnel::context::TUNNEL_UI_CELL
         .set(include_dir::include_dir!(
             "$CARGO_MANIFEST_DIR/web/dist/static/start-tunnel"
         ))

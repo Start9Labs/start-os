@@ -8,7 +8,7 @@ Operating rules for AI developers working in `start-os/`. See the root
 
 - `src/bin/startbox.rs`, `src/bin/start-container.rs` — the only Rust in this
   dir. They are thin entry points; backend logic lives in
-  `../shared/crates/start-core` (crate `start-core`, lib `startos`).
+  `../shared/crates/start-core` (crate `start-core`, lib `start_core`).
 - `web/ui`, `web/setup-wizard` — Angular apps; part of the workspace at
   `../shared/web`. Run web commands from `../shared/web`, not from here.
 - `container-runtime/` — Node.js LXC runtime with its **own** AGENTS/CLAUDE;

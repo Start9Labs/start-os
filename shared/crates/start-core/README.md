@@ -5,7 +5,7 @@ The shared Rust backend library for StartOS. Cargo package **`start-core`**, lib
 Every Start9 product binary links against this crate. It holds the entire backend: service
 management, the s9pk package format, networking, the patch-db data model, the registry, the
 tunnel server, install/update, backup, signing, and more. The product binaries themselves are
-thin wrappers that select which entrypoints to enable from `startos::bins`.
+thin wrappers that select which entrypoints to enable from `start_core::bins`.
 
 ## Place in the monorepo
 
@@ -19,7 +19,7 @@ This crate lives at `shared/crates/start-core` and is the lib that all five prod
 | `registrybox` | `start-registry/src/main.rs` | Package registry server |
 | `tunnelbox` | `start-tunnel/src/main.rs` | StartTunnel VPN/forwarding server |
 
-Each wrapper builds a `startos::bins::MultiExecutable`, enables the entrypoints it wants
+Each wrapper builds a `start_core::bins::MultiExecutable`, enables the entrypoints it wants
 (`enable_startd`, `enable_start_cli`, `enable_start_container`, `enable_start_registry`,
 `enable_start_tunnel`, …), and calls `.execute()`.
 

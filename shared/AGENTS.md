@@ -6,7 +6,7 @@ read its own `AGENTS.md` first.
 
 ## Where things are
 
-- `crates/start-core/` — Rust backend lib (`start-core`, lib name `startos`).
+- `crates/start-core/` — Rust backend lib (`start-core`, lib name `start_core`).
   Has its own `AGENTS.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, plus topic notes
   (`core-rust-patterns.md`, `i18n-patterns.md`, `patchdb.md`, `rpc-toolkit.md`,
   `s9pk-structure.md`, `exver.md`, `VERSION_BUMP.md`).

@@ -8,7 +8,7 @@ here on its own.
 ## Layout
 
 - **`crates/start-core/`** — the entire Rust backend, packaged as the `start-core`
-  crate (lib name `startos`). Every product binary (`startbox`/`start-container`,
+  crate (lib name `start_core`). Every product binary (`startbox`/`start-container`,
   `start-cli`, `registrybox`, `tunnelbox`) depends on it. See
   [`crates/start-core/README.md`](crates/start-core/README.md).
 

@@ -4,7 +4,7 @@ This repo is the **monorepo for all Start9 products**. Each product is a thin to
 
 ## Tech Stack
 
-- Backend: Rust (async/Tokio, Axum) — one library crate (`start-core`, lib name `startos`) shared by all bins
+- Backend: Rust (async/Tokio, Axum) — one library crate (`start-core`, lib name `start_core`) shared by all bins
 - Frontend: Angular 22 + TypeScript + Taiga UI 5 — one workspace rooted at `shared/web`
 - Container runtime: Node.js/TypeScript with LXC
 - Database/State: Patch-DB (git submodule at `vendor/patch-db`) — diff-based store with reactive frontend sync
@@ -30,7 +30,7 @@ start-os/                          # repo root (monorepo)
 ├── start-sdk/                     # @start9labs/start-sdk (base/ + package/) + Makefile/s9pk.mk + docs/
 ├── brochure/                      # marketing/landing Angular app
 ├── shared/
-│   ├── crates/start-core/         # the ENTIRE startos lib (package start-core, lib name startos)
+│   ├── crates/start-core/         # the ENTIRE backend lib (package start-core, lib name start_core)
 │   └── web/                       # Angular workspace root (angular.json, package.json)
 │       ├── shared/                #   @start9labs/shared
 │       └── marketplace/           #   @start9labs/marketplace

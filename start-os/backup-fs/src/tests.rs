@@ -2332,7 +2332,7 @@ fn measure_compression_ratio() {
         let mut n = 0u64;
         while out.len() < bytes {
             let line = format!(
-                "2026-05-28T12:{:02}:{:02}.{:03}Z INFO  startos::backup::worker[{}]: \
+                "2026-05-28T12:{:02}:{:02}.{:03}Z INFO  start_core::backup::worker[{}]: \
                  transferred chunk seq={} size=1048576 retries=0 host=backup-target.local ok\n",
                 (n / 60) % 60, n % 60, n % 1000, n % 8, n
             );

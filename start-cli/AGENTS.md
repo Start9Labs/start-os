@@ -5,7 +5,7 @@ Agent/dev notes for the `start-cli` crate. Read the root
 
 ## What this is
 
-A thin `bin` crate (`start-cli`) over `start-core` (cargo package `start-core`, lib `startos`,
+A thin `bin` crate (`start-cli`) over `start-core` (cargo package `start-core`, lib `start_core`,
 at `shared/crates/start-core`). All CLI logic lives in `start-core`; this crate is just the
 entrypoint (`src/main.rs`) and feature/bin wiring (`Cargo.toml`).
 
@@ -28,9 +28,9 @@ generator is `cargo test -p start-core export_manpage_start_cli`.
 - **Don't add command logic here.** New/changed subcommands go in `start-core` —
   `main_api()` in `shared/crates/start-core/src/lib.rs` plus the relevant `src/<area>/` module.
   This crate changes only for entrypoint, feature, or bin-wiring edits.
-- **`start-core` is referenced via the `startos` package alias** in `Cargo.toml`
-  (`startos = { package = "start-core", path = "../shared/crates/start-core" }`). `src/main.rs`
-  imports `startos::...`, not `start_core::...`.
+- **`start-core` is depended on by package name** in `Cargo.toml`
+  (`start-core = { path = "../shared/crates/start-core" }`). `src/main.rs`
+  imports it as `start_core::...` (the crate's lib name).
 - **Feature flags forward to `start-core`** (`beta`, `console`, `dev`, `test`, `unstable`);
   none on by default. Keep them in sync with `start-core`'s features when adding new ones.
 - **`STARTOS_USE_PODMAN`** controls the local container backend for `s9pk` packaging. Unset or

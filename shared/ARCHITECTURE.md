@@ -8,7 +8,7 @@ how the two pieces relate to the rest of the monorepo.
 ## `crates/start-core` — Rust backend
 
 The complete StartOS backend, published as Cargo package `start-core` with lib
-name `startos` (`[lib] name = "startos"`). It is part of the single root Cargo
+name `start_core` (`[lib] name = "start_core"`). It is part of the single root Cargo
 workspace and shares the one `Cargo.lock`.
 
 All product binaries are thin wrappers that depend on this crate:
