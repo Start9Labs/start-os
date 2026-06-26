@@ -91,7 +91,7 @@ async fn info<C: CtrlContext>(ctx: C) -> Result<SystemInfoResponse, Error> {
 }
 
 /// Default registry URL used when no UCI config override exists.
-pub(crate) const DEFAULT_REGISTRY_URL: &str = "http://startwrt-registry.start9.com";
+pub(crate) const DEFAULT_REGISTRY_URL: &str = "https://startwrt-registry.start9.com";
 
 async fn newer_versions(_ctx: ServerContext) -> Result<Vec<VersionInfo>, Error> {
     // Read registry URL from UCI config (fallback to default)

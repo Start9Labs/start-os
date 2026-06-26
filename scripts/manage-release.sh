@@ -20,7 +20,7 @@ REPO="Start9Labs/start-wrt"
 REGISTRY="https://startwrt-registry.start9.com"
 S3_BUCKET="s3://startwrt-images"
 S3_CDN="https://startwrt-images.nyc3.cdn.digitaloceanspaces.com"
-PLATFORM="riscv64"
+PLATFORM="spacemit,k1-x"
 
 # Registry asset slots this board publishes (as start-cli knows them). The
 # sdcard image lives in the "img" slot; the OTA payload lives in the "squashfs"
