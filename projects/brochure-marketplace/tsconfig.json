@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "*": ["./*"],
+      "@start9labs/marketplace": ["../../shared-libs/web/marketplace/index"],
+      "@start9labs/shared": ["../../shared-libs/web/shared/src/public-api"]
+    }
+  },
+  "files": ["src/main.ts"],
+  "include": ["src/**/*.d.ts"],
+  "angularCompilerOptions": {
+    "extendedDiagnostics": {
+      "checks": {
+        "nullishCoalescingNotNullable": "suppress",
+        "optionalChainNotNullable": "suppress"
+      }
+    }
+  }
+}

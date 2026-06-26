@@ -59,9 +59,9 @@ jobs:
       # build's `npm i` which silently rewrites it. This is the lockfile-drift gate.
       - name: Validate SDK lockfiles
         run: |
-          npm --prefix start-sdk/base ci
-          npm --prefix start-sdk/package ci
-      # web resolves the SDK via file:../start-sdk/baseDist, so baseDist must exist for web's npm ci.
+          npm --prefix projects/start-sdk/base ci
+          npm --prefix projects/start-sdk/package ci
+      # web resolves the SDK via file:../projects/start-sdk/baseDist, so baseDist must exist for web's npm ci.
       - name: Build SDK (baseDist)
         run: cd start-sdk && make baseDist
       - name: Validate web lockfile

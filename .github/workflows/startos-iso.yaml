@@ -230,22 +230,22 @@ jobs:
       - name: Prevent rebuild of compiled artifacts
         run: |
           mkdir -p node_modules
-          mkdir -p start-os/web/dist/raw
-          mkdir -p start-tunnel/web/dist/raw
-          mkdir -p shared/crates/start-core/bindings
-          mkdir -p start-sdk/base/lib/osBindings
-          mkdir -p start-os/container-runtime/node_modules
-          mkdir -p start-os/container-runtime/dist
-          mkdir -p start-os/container-runtime/dist/node_modules
-          mkdir -p start-sdk/dist
-          mkdir -p start-sdk/baseDist
+          mkdir -p projects/start-os/web/dist/raw
+          mkdir -p projects/start-tunnel/web/dist/raw
+          mkdir -p shared-libs/crates/start-core/bindings
+          mkdir -p projects/start-sdk/base/lib/osBindings
+          mkdir -p projects/start-os/container-runtime/node_modules
+          mkdir -p projects/start-os/container-runtime/dist
+          mkdir -p projects/start-os/container-runtime/dist/node_modules
+          mkdir -p projects/start-sdk/dist
+          mkdir -p projects/start-sdk/baseDist
           mkdir -p vendor/patch-db/client/node_modules
           mkdir -p vendor/patch-db/client/dist
           mkdir -p .angular
-          mkdir -p start-os/web/dist/raw/ui
-          mkdir -p start-os/web/dist/raw/setup-wizard
-          mkdir -p start-os/web/dist/static/ui
-          mkdir -p start-os/web/dist/static/setup-wizard
+          mkdir -p projects/start-os/web/dist/raw/ui
+          mkdir -p projects/start-os/web/dist/raw/setup-wizard
+          mkdir -p projects/start-os/web/dist/static/ui
+          mkdir -p projects/start-os/web/dist/static/setup-wizard
           PLATFORM=${{ matrix.platform }} make -t compiled-${{ env.ARCH }}.tar
 
       - run: git status

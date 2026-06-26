@@ -4,10 +4,10 @@ on:
   push:
     branches: ["master"]
     paths:
-      - "docs/**"
-      - "start-os/docs/**"
-      - "start-tunnel/docs/**"
-      - "start-sdk/docs/**"
+      - "projects/start-docs/**"
+      - "projects/start-os/docs/**"
+      - "projects/start-tunnel/docs/**"
+      - "projects/start-sdk/docs/**"
   workflow_dispatch:
 
 permissions:
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: docs
+        working-directory: projects/start-docs
     steps:
       - uses: actions/checkout@v4
 

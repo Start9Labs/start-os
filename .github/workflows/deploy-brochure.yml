@@ -8,15 +8,15 @@ on:
   push:
     branches: ["master"]
     paths:
-      - "brochure/**"
-      - "shared/web/shared/**"
-      - "shared/web/marketplace/**"
+      - "projects/brochure-marketplace/**"
+      - "shared-libs/web/shared/**"
+      - "shared-libs/web/marketplace/**"
       - "angular.json"
       - "package.json"
       - "package-lock.json"
       - "tsconfig.json"
       - "tsconfig.lib.json"
-      - "start-sdk/**"
+      - "projects/start-sdk/**"
       - "vendor/patch-db"
       - ".github/workflows/deploy-brochure.yml"
       # Doc-only edits under the allowlisted paths (e.g. sdk/**) shouldn't redeploy.
@@ -48,11 +48,11 @@ jobs:
           cache: npm
           cache-dependency-path: "**/package-lock.json"
 
-      # web resolves the SDK via file:../start-sdk/baseDist, so baseDist must exist
+      # web resolves the SDK via file:../projects/start-sdk/baseDist, so baseDist must exist
       # before web's `npm ci` and the brochure build.
       - name: Build SDK (baseDist)
         run: |
-          npm --prefix start-sdk/base ci
+          npm --prefix projects/start-sdk/base ci
           cd start-sdk && make baseDist
 
       # brochure transitively bundles patch-db-client (file:../vendor/patch-db/client),
@@ -68,7 +68,7 @@ jobs:
       - name: Build brochure
         run: |
           npm run build:brochure
-          test -f brochure/dist/raw/brochure/index.html
+          test -f projects/brochure-marketplace/dist/raw/projects/brochure-marketplace/index.html
 
       - name: Configure SSH
         run: |
@@ -85,4 +85,4 @@ jobs:
           EOF
 
       - name: Deploy to VPS
-        run: rsync -az --delete brochure/dist/raw/brochure/ marketplace-vps:/var/www/html/marketplace.start9.com/
+        run: rsync -az --delete projects/brochure-marketplace/dist/raw/projects/brochure-marketplace/ marketplace-vps:/var/www/html/marketplace.start9.com/
