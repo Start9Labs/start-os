@@ -5,8 +5,15 @@ set -e
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 PROJECT=${PROJECT:-"startos"}
+if [ "${PROJECT}" = "startos" ]; then
+    INSTALL_TARGET="install-startos"
+    PROJECT_DIR="projects/start-os"
+else
+    INSTALL_TARGET="install-${PROJECT#start-}"
+    PROJECT_DIR="projects/${PROJECT}"
+fi
 BASENAME=${BASENAME:-"$(./build/env/basename.sh)"}
-VERSION=${VERSION:-$(grep -m1 '^version' "projects/$PROJECT_DIR/Cargo.toml" | sed -E 's/^version *= *"([^"]*)".*/\1/')}
+VERSION=${VERSION:-$(grep -m1 '^version' "${PROJECT_DIR}/Cargo.toml" | sed -E 's/^version *= *"([^"]*)".*/\1/')}
 if [ "$PLATFORM" = "x86_64" ] || [ "$PLATFORM" = "x86_64-nonfree" ] || [ "$PLATFORM" = "x86_64-nvidia" ]; then
     DEB_ARCH=amd64
 elif [ "$PLATFORM" = "aarch64" ] || [ "$PLATFORM" = "aarch64-nonfree" ] || [ "$PLATFORM" = "aarch64-nvidia" ] || [ "$PLATFORM" = "raspberrypi" ] || [ "$PLATFORM" = "rockchip64" ]; then
@@ -20,13 +27,6 @@ fi
 rm -rf dpkg-workdir/$BASENAME
 mkdir -p dpkg-workdir/$BASENAME
 
-if [ "${PROJECT}" = "startos" ]; then
-    INSTALL_TARGET="install-startos"
-    PROJECT_DIR="projects/start-os"
-else
-    INSTALL_TARGET="install-${PROJECT#start-}"
-    PROJECT_DIR="projects/${PROJECT}"
-fi
 make "${INSTALL_TARGET}" DESTDIR=dpkg-workdir/$BASENAME REMOTE=
 
 if [ -f dpkg-workdir/$BASENAME/usr/lib/$PROJECT/depends ]; then
@@ -41,7 +41,9 @@ if [ -f dpkg-workdir/$BASENAME/usr/lib/$PROJECT/conflicts ]; then
     fi
     CONFLICTS="${CONFLICTS}$(cat dpkg-workdir/$BASENAME/usr/lib/$PROJECT/conflicts | tr $'\n' ',' | sed 's/,,\+/,/g' | sed 's/,$//')"
 fi
-CONFLICTS=${CONFLICTS:-"$(cat dpkg-workdir/$BASENAME/usr/lib/startos/conflicts | tr $'\n' ',' | sed 's/,,\+/,/g' | sed 's/,$//')"}
+if [ -z "$CONFLICTS" ] && [ -f dpkg-workdir/$BASENAME/usr/lib/startos/conflicts ]; then
+    CONFLICTS="$(cat dpkg-workdir/$BASENAME/usr/lib/startos/conflicts | tr $'\n' ',' | sed 's/,,\+/,/g' | sed 's/,$//')"
+fi
 
 if [ -d "${PROJECT_DIR}/debian" ]; then
     cp -r "${PROJECT_DIR}/debian" dpkg-workdir/$BASENAME/DEBIAN
