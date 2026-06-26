@@ -68,7 +68,7 @@ jobs:
       - name: Build brochure
         run: |
           npm run build:brochure
-          test -f projects/brochure-marketplace/dist/raw/projects/brochure-marketplace/index.html
+          test -f projects/brochure-marketplace/dist/raw/brochure-marketplace/index.html
 
       - name: Configure SSH
         run: |
@@ -85,4 +85,4 @@ jobs:
           EOF
 
       - name: Deploy to VPS
-        run: rsync -az --delete projects/brochure-marketplace/dist/raw/projects/brochure-marketplace/ marketplace-vps:/var/www/html/marketplace.start9.com/
+        run: rsync -az --delete projects/brochure-marketplace/dist/raw/brochure-marketplace/ marketplace-vps:/var/www/html/marketplace.start9.com/
