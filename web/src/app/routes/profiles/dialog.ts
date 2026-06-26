@@ -1,11 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  effect,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, computed, effect, inject, signal } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import {
   AbstractControl,
@@ -354,7 +347,6 @@ function nonEmptyList(control: AbstractControl): ValidationErrors | null {
     }
   `,
   hostDirectives: [ModalHelp],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
     provideHelp('/profiles/dialog'),
     provideTranslatedValidationErrors({

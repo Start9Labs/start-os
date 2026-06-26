@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  OnInit,
-} from '@angular/core'
+import { Component, computed, inject, OnInit } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import {
   AbstractControl,
@@ -265,7 +259,6 @@ const IP: Record<string, string> = {
     TuiAnimated,
     i18nPipe,
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PublishPortDialog implements OnInit {
   private readonly i18n = inject(i18nPipe)

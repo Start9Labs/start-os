@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  Injectable,
-  signal,
-} from '@angular/core'
+import { Component, inject, Injectable, signal } from '@angular/core'
 import { TuiLoader, TuiNotificationService, TuiTitle } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { fromEvent, merge, Subscription } from 'rxjs'
@@ -79,7 +73,6 @@ export interface DisruptionOptions {
       align-items: center;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [i18nPipe, TuiLoader, TuiTitle],
 })
 class DisconnectedToast {

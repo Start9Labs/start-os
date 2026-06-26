@@ -75,7 +75,6 @@ The API URL resolves to `document.location.origin + /rpc/v1`.
     </form>
   `,
   providers: [provideFormService(MyFeatureService)],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [/* Taiga + shared components */],
 })
 export default class MyFeature { ... }
@@ -120,7 +119,6 @@ export class MyFeatureService extends FormService<MyData> {
       </footer>
     </form>
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MyDialog {
   protected readonly context = injectContext<TuiDialogContext<ResultType, InputType>>()
@@ -180,6 +178,5 @@ When you're unsure how to use a Taiga component:
 
 - All components are standalone (no NgModules)
 - Templates and styles are inline in `@Component` (no separate `.html` / `.css` files)
-- Always `ChangeDetectionStrategy.OnPush`
 - Always `NonNullableFormBuilder` (never `FormBuilder`)
 - Styling uses `g-*` global utility classes and Taiga CSS variables — no Tailwind

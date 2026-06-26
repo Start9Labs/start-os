@@ -1,10 +1,5 @@
 import { DatePipe } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, inject, signal } from '@angular/core'
 import {
   TUI_TABLE_PAGINATION_TEXTS,
   TuiTable,
@@ -133,7 +128,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
     Placeholder,
     i18nPipe,
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class Activity {
   private readonly api = inject(ApiService)

@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-} from '@angular/core'
+import { Component, computed, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NavigationEnd, Router } from '@angular/router'
 import { TuiScrollbar } from '@taiga-ui/core'
@@ -57,7 +52,6 @@ import { MarkdownPipe } from 'src/app/pipes/markdown.pipe'
     }
   `,
   host: { '[attr.inert]': '!open() || null' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiScrollbar, MarkdownPipe, NgDompurifyPipe],
 })
 export class Aside {

@@ -1,11 +1,5 @@
 import { KeyValuePipe } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, computed, inject, signal } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
 import { TuiDropdownSheet } from '@taiga-ui/addon-mobile'
@@ -130,7 +124,6 @@ import { I18N } from 'src/app/i18n/i18n.providers'
       filter: invert(1);
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     FormsModule,
     RouterLink,

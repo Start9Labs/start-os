@@ -15,13 +15,13 @@ import {
   TuiTextfield,
   tuiTextfieldOptionsProvider,
 } from '@taiga-ui/core'
-import { provideTranslatedValidationErrors } from 'src/app/i18n/validation-errors'
 import { TuiTextarea } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { provideHelp } from 'src/app/help/help'
 import { ModalHelp } from 'src/app/help/modal-help'
 import { i18nPipe } from 'src/app/i18n/i18n.pipe'
+import { provideTranslatedValidationErrors } from 'src/app/i18n/validation-errors'
 
 function publicKeyValidator(control: AbstractControl): ValidationErrors | null {
   const value = control.value?.trim()

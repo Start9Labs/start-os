@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, computed, inject, signal } from '@angular/core'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiButton, TuiTitle } from '@taiga-ui/core'
 import { TuiSkeleton } from '@taiga-ui/kit'
@@ -46,7 +40,6 @@ import { confirmVpnExposedPort } from 'src/app/services/vpn-exposed-port'
     ></table>
   `,
   providers: [provideFormService(PublishedPortsService)],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiHeader,
     TuiTitle,

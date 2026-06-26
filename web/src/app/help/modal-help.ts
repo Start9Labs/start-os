@@ -9,13 +9,13 @@ import {
 import { FormsModule } from '@angular/forms'
 import { TuiAnimated } from '@taiga-ui/cdk'
 import { TuiPopup, TuiPopupService, TuiScrollbar } from '@taiga-ui/core'
+import { NgDompurifyPipe } from '@taiga-ui/dompurify'
 import { TuiBlock, TuiSwitch } from '@taiga-ui/kit'
 import {
   injectContext,
   PolymorpheusComponent,
   provideContext,
 } from '@taiga-ui/polymorpheus'
-import { NgDompurifyPipe } from '@taiga-ui/dompurify'
 import { HELP_OPEN, HELP_URL, HelpService } from 'src/app/help/help'
 import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 import { MarkdownPipe } from 'src/app/pipes/markdown.pipe'

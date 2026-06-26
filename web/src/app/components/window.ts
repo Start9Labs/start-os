@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import {
   AbstractControl,
   NonNullableFormBuilder,
@@ -114,7 +114,6 @@ export type WindowData = ScheduleWindow & {
         'Schedule covers the whole week — disable WiFi/WAN directly instead',
     }),
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
     TuiForm,

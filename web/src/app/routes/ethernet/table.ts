@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  input,
-} from '@angular/core'
+import { Component, inject, input } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
@@ -114,7 +109,6 @@ import { EthernetPortView, EthernetService } from './service'
     Placeholder,
     i18nPipe,
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EthernetTable {
   protected readonly service = inject(EthernetService)

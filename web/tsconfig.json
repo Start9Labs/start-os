@@ -3,7 +3,6 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
-    "baseUrl": "./",
     "strict": true,
     "noImplicitOverride": true,
     "noPropertyAccessFromIndexSignature": true,
@@ -16,7 +15,8 @@
     "target": "ES2022",
     "module": "preserve",
     "paths": {
-      "@taiga-ui/icons/*": ["node_modules/@taiga-ui/icons/*"]
+      "*": ["./*"],
+      "@taiga-ui/icons/*": ["./node_modules/@taiga-ui/icons/*"]
     }
   },
   "angularCompilerOptions": {

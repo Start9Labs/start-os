@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, inject, signal } from '@angular/core'
 import {
   AbstractControl,
   NonNullableFormBuilder,
@@ -77,7 +72,6 @@ export interface ClientDialogData {
       </footer>
     </form>
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   hostDirectives: [ModalHelp],
   providers: [
     provideHelp('/inbound/client/dialog-add'),

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core'
+import { Component, signal } from '@angular/core'
 import { TuiButton, TuiDialogContext } from '@taiga-ui/core'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { ScheduleComponent } from 'src/app/components/schedule'
@@ -27,7 +27,6 @@ import type { ScheduleWindow } from 'src/app/services/api/api.service'
   hostDirectives: [ModalHelp],
   viewProviders: [provideHelp('/profiles/blackout')],
   providers: [provideHelp('/profiles/schedule')],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ScheduleComponent, TuiButton, i18nPipe],
 })
 class ProfilesScheduleComponent {

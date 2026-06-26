@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import {
   NonNullableFormBuilder,
   ReactiveFormsModule,
@@ -38,7 +38,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
   `,
   hostDirectives: [ModalHelp],
   providers: [provideHelp('/inbound/client/dialog-rename')],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
     TuiForm,

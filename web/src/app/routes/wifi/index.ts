@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { Component } from '@angular/core'
 import {
   RouterLink,
   RouterLinkActive,
@@ -29,7 +29,6 @@ import { WifiService } from './service'
     </tui-tabs>
     <router-outlet />
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterOutlet,
     RouterLink,

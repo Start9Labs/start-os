@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  effect,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, effect, inject, signal } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
@@ -57,7 +51,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
   ],
   host: { class: 'g-page' },
   providers: [provideFormService(WanIpv6Service)],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class WanIpv6 {
   protected readonly builder = inject(NonNullableFormBuilder)

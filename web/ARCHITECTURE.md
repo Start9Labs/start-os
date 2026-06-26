@@ -133,7 +133,6 @@ export default [
     </form>
   `,
   providers: [provideFormService(MyService)],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class MyPage {
   protected readonly service = injectFormService<MyForm>()
@@ -177,7 +176,6 @@ Key details:
       </footer>
     </form>
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MyDialog {
   protected readonly context =

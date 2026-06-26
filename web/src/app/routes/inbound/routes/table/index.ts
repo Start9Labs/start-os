@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, computed, inject, signal } from '@angular/core'
 import { Router, RouterLink } from '@angular/router'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiTable } from '@taiga-ui/addon-table'
@@ -167,7 +161,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
       text-align: end;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'g-page' },
   imports: [
     TuiHeader,

@@ -1,7 +1,6 @@
-import { CdkCopyToClipboard, Clipboard } from '@angular/cdk/clipboard'
-import { Component, inject, input, linkedSignal, signal } from '@angular/core'
-import { tuiInjectElement } from '@taiga-ui/cdk'
-import { TUI_ICON_END, TuiButton, TuiNotificationService } from '@taiga-ui/core'
+import { CdkCopyToClipboard } from '@angular/cdk/clipboard'
+import { Component, inject, input, linkedSignal } from '@angular/core'
+import { TuiButton, TuiNotificationService } from '@taiga-ui/core'
 import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({

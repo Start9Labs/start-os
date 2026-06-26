@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-} from '@angular/core'
+import { Component, computed, inject } from '@angular/core'
 import { RouterLink, Routes } from '@angular/router'
 import { WA_WINDOW } from '@ng-web-apis/common'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
@@ -142,7 +137,6 @@ import { ProfilesService } from './service'
       text-align: end;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'g-page' },
   imports: [
     TuiHeader,

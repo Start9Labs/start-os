@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-} from '@angular/core'
+import { Component, computed, inject } from '@angular/core'
 import { TuiIcon } from '@taiga-ui/core'
 import { TuiAvatar, TuiAvatarLabeled, TuiBadge, TuiStatus } from '@taiga-ui/kit'
 import { Summary } from 'src/app/components/summary'
@@ -89,7 +84,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
     TuiIcon,
     i18nPipe,
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VPNSummary {
   protected readonly parent = inject(OutboundVPN)

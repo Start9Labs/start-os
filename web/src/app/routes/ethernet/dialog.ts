@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { Component } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { TuiButton, TuiDialogContext, TuiTitle } from '@taiga-ui/core'
 import {
@@ -61,7 +61,6 @@ import type { EthernetPortView } from './service'
     TuiStringifyContentPipe,
     i18nPipe,
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ChangeWanDialog {
   readonly context =

@@ -1,9 +1,8 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { Component } from '@angular/core'
 import { RouterOutlet, Routes } from '@angular/router'
 
 @Component({
   template: '<router-outlet />',
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RouterOutlet],
 })
 class Outbound {}

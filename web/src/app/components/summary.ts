@@ -1,11 +1,5 @@
 import { CdkCopyToClipboard } from '@angular/cdk/clipboard'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  input,
-  ViewEncapsulation,
-} from '@angular/core'
+import { Component, inject, input, ViewEncapsulation } from '@angular/core'
 import {
   TUI_APPEARANCE_OPTIONS,
   TuiAppearance,
@@ -71,7 +65,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
     tuiButtonOptionsProvider({ size: 'xs', appearance: 'icon' }),
     { provide: TUI_APPEARANCE_OPTIONS, useValue: { appearance: 'neutral' } },
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
   imports: [TuiButton, CdkCopyToClipboard, i18nPipe],
 })

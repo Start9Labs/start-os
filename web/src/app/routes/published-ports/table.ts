@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  input,
-  output,
-} from '@angular/core'
+import { Component, inject, input, output } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiTable, TuiTableDirective } from '@taiga-ui/addon-table'
@@ -201,7 +195,6 @@ const PROTOCOL_LABELS = {
     Copy,
     i18nPipe,
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PublishedPortsTable {
   private readonly service = inject(PublishedPortsService)

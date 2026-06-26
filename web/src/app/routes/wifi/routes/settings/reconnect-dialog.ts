@@ -1,11 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  OnDestroy,
-  OnInit,
-  signal,
-} from '@angular/core'
+import { Component, inject, OnDestroy, OnInit, signal } from '@angular/core'
 import {
   TuiDialogContext,
   TuiLoader,
@@ -57,7 +50,6 @@ const OVERALL_TIMEOUT_MS = 120_000
       }
     </div>
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiLoader, i18nPipe],
 })
 export class ReconnectDialog implements OnInit, OnDestroy {

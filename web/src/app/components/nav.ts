@@ -1,5 +1,5 @@
 import { KeyValuePipe } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { TuiIcon } from '@taiga-ui/core'
 import { TuiNavigation } from '@taiga-ui/layout'
@@ -109,7 +109,6 @@ const MENU = {
       margin-inline-start: auto !important;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiIcon, RouterLink, KeyValuePipe, TuiNavigation, i18nPipe],
 })
 export class Nav {

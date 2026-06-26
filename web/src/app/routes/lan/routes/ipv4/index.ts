@@ -1,11 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  effect,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, computed, effect, inject, signal } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { WA_WINDOW } from '@ng-web-apis/common'
@@ -73,7 +66,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
     provideFormService(LanIpv4Service),
     tuiNumberFormatProvider({ precision: 0 }),
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class LanIpv4 {
   protected readonly builder = inject(NonNullableFormBuilder)

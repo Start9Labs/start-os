@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  effect,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, effect, inject, signal } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { MaskitoDirective } from '@maskito/angular'
@@ -111,7 +105,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
     tuiNumberFormatProvider({ precision: 0 }),
     provideTranslatedValidationErrors(PREFIX_VALIDATION_ERRORS),
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class LanIpv6 {
   protected readonly builder = inject(NonNullableFormBuilder)

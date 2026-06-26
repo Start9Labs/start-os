@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed } from '@angular/core'
+import { Component, computed } from '@angular/core'
 import { TuiBadge, TuiStatus } from '@taiga-ui/kit'
 import { Summary } from 'src/app/components/summary'
 import { injectFormService } from 'src/app/services/form.service'
@@ -38,7 +38,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
     </section>
   `,
   imports: [TuiBadge, TuiStatus, Summary, i18nPipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LanIpv6Summary {
   protected readonly service = injectFormService<LanIpv6Data>()

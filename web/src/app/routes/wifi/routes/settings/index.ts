@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  effect,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, effect, inject, signal } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
@@ -111,7 +105,6 @@ import { ReconnectDialog } from './reconnect-dialog'
       max-width: 16rem;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [tuiTextfieldOptionsProvider({ cleaner: signal(false) })],
   host: { class: 'g-page' },
   imports: [

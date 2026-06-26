@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, inject, signal } from '@angular/core'
 import {
   NonNullableFormBuilder,
   ReactiveFormsModule,
@@ -118,7 +113,6 @@ export interface WifiPasswordDialogResult {
       </footer>
     </form>
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   hostDirectives: [ModalHelp],
   providers: [
     provideHelp('/wifi/passwords/dialog'),

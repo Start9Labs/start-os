@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  effect,
-  inject,
-} from '@angular/core'
+import { Component, computed, effect, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { TuiAnimated, tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
@@ -107,7 +101,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
     i18nPipe,
   ],
   providers: [provideFormService(DdnsService)],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class Ddns {
   protected readonly builder = inject(NonNullableFormBuilder)

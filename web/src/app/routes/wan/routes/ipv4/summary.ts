@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-} from '@angular/core'
+import { Component, computed, inject } from '@angular/core'
 import { Summary } from 'src/app/components/summary'
 import { injectFormService } from 'src/app/services/form.service'
 import { WanIpv4Form, IPV4_LABELS, netmaskFromPrefix } from './utils'
@@ -37,7 +32,6 @@ type SummaryField = (typeof SUMMARY_FIELDS)[number]
     </section>
   `,
   imports: [Summary, i18nPipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WanIpv4Summary {
   protected readonly service = injectFormService<WanIpv4Form>()

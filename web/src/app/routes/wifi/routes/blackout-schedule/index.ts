@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { ScheduleComponent } from 'src/app/components/schedule'
 import { provideHelp } from 'src/app/help/help'
 import { BlackoutService } from './service'
@@ -17,7 +17,6 @@ import { BlackoutService } from './service'
     }
   `,
   providers: [provideHelp('/wifi/blackout-schedule/dialog')],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'g-page' },
   imports: [ScheduleComponent],
 })

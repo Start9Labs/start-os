@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiButton } from '@taiga-ui/core'
 import { TUI_CONFIRM } from '@taiga-ui/kit'
@@ -24,7 +24,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
   `,
   host: { class: 'g-page' },
   imports: [TuiCardLarge, TuiButton, i18nPipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class Advanced {
   private readonly api = inject(ApiService)

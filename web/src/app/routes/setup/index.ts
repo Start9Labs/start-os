@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  linkedSignal,
-  signal,
-} from '@angular/core'
+import { Component, inject, linkedSignal, signal } from '@angular/core'
 import {
   AbstractControl,
   NonNullableFormBuilder,
@@ -96,7 +90,6 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
     }
   `,
   hostDirectives: [TuiCardLarge],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
     provideTranslatedValidationErrors({
       required: 'This field is required',

@@ -1,11 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  OnInit,
-  signal,
-} from '@angular/core'
+import { Component, computed, inject, OnInit, signal } from '@angular/core'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiTable } from '@taiga-ui/addon-table'
 import { TuiButton } from '@taiga-ui/core'
@@ -81,7 +74,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
   `,
   host: { class: 'g-page' },
   imports: [TuiButton, TuiTable, TuiSkeleton, Placeholder, i18nPipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class SshKeys implements OnInit {
   private readonly api = inject(ApiService)

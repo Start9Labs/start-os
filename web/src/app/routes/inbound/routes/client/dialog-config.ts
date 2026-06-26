@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core'
+import { Component, signal } from '@angular/core'
 import {
   TuiButton,
   TuiDialogContext,
@@ -77,7 +77,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
   `,
   hostDirectives: [ModalHelp],
   providers: [provideHelp('/inbound/client/dialog-config')],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     QrCodeComponent,
     TuiButton,

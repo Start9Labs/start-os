@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, inject, signal } from '@angular/core'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiButton, TuiTitle } from '@taiga-ui/core'
 import { TUI_CONFIRM, TuiBlock } from '@taiga-ui/kit'
@@ -72,27 +67,12 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
     </section>
   `,
   styles: `
-    // TODO: Remove in Taiga 5.7.0
     [tuiBlock] {
-      margin-bottom: 0.25rem;
       vertical-align: bottom;
-
-      &:has(:focus-visible) {
-        outline-color: var(--tui-border-focus);
-      }
-
-      &::before {
-        margin: -0.125rem;
-      }
-
-      input {
-        opacity: 0;
-      }
     }
   `,
   host: { class: 'g-page' },
   imports: [TuiCardLarge, TuiButton, TuiHeader, TuiTitle, TuiBlock, i18nPipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class Backup {
   private readonly api = inject(ApiService)

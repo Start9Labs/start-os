@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core'
+import { Component, input } from '@angular/core'
 import { ReactiveFormsModule } from '@angular/forms'
 import { TuiError, TuiInput, TuiTextfield } from '@taiga-ui/core'
 import { provideTranslatedValidationErrors } from 'src/app/i18n/validation-errors'
@@ -34,7 +34,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
   viewProviders: [FORM],
   hostDirectives: [TuiForm, TuiCardLarge],
   providers: [provideTranslatedValidationErrors(DDNS_VALIDATION_ERRORS)],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ReactiveFormsModule, TuiTextfield, TuiError, TuiInput, i18nPipe],
 })
 export class DdnsFields {

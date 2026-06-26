@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed } from '@angular/core'
+import { Component, computed } from '@angular/core'
 import { Summary } from 'src/app/components/summary'
 import { injectFormService } from 'src/app/services/form.service'
 import { buildNetworkBlock, buildRouterIp, LanIpv4Form } from './utils'
@@ -17,7 +17,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
     </section>
   `,
   imports: [Summary, i18nPipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LanIpv4Summary {
   protected readonly service = injectFormService<LanIpv4Form>()

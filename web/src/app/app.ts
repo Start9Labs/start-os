@@ -1,5 +1,4 @@
 import {
-  ChangeDetectionStrategy,
   Component,
   effect,
   ElementRef,
@@ -68,11 +67,6 @@ import { Language } from 'src/app/utils/languages'
           clip-path: inset(0 0 0 2rem);
         }
       }
-
-      // TODO: Remove after Taiga UI 5.5.0
-      aside {
-        min-block-size: 0;
-      }
     }
 
     main {
@@ -127,7 +121,6 @@ import { Language } from 'src/app/utils/languages'
       max-width: calc(100vw - 3rem);
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     Header,
     Nav,

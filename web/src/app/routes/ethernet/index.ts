@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiButton, TuiTitle } from '@taiga-ui/core'
 import { TuiSkeleton } from '@taiga-ui/kit'
@@ -38,7 +38,6 @@ import { EthernetPortView, EthernetService } from './service'
   `,
   host: { class: 'g-page' },
   providers: [provideFormService(EthernetService)],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiHeader,
     TuiTitle,

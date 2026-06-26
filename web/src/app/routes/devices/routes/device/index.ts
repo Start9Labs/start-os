@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  effect,
-  inject,
-} from '@angular/core'
+import { Component, computed, effect, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { ActivatedRoute, Router, RouterLink } from '@angular/router'
@@ -127,7 +121,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
       max-width: 50rem;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'g-page' },
   providers: [provideTranslatedValidationErrors(DEVICE_VALIDATION_ERRORS)],
   imports: [

@@ -1,5 +1,4 @@
 import {
-  ChangeDetectionStrategy,
   Component,
   computed,
   DestroyRef,
@@ -63,7 +62,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
   `,
   host: { class: 'g-page' },
   imports: [TuiButton, i18nPipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class Logs {
   private readonly api = inject(ApiService)

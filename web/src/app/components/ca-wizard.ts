@@ -1,11 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  DOCUMENT,
-  inject,
-  OnInit,
-  signal,
-} from '@angular/core'
+import { Component, DOCUMENT, inject, OnInit, signal } from '@angular/core'
 import { TuiButton, TuiIcon } from '@taiga-ui/core'
 import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
@@ -135,7 +128,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
       margin-top: 0.5rem;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButton, TuiIcon, i18nPipe],
 })
 export class CaWizard implements OnInit {

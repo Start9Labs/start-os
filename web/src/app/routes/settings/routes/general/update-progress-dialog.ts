@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  effect,
-  inject,
-  OnInit,
-} from '@angular/core'
+import { Component, effect, inject, OnInit } from '@angular/core'
 import {
   TuiDialogContext,
   TuiLoader,
@@ -44,7 +38,6 @@ import { SystemService } from 'src/app/services/system.service'
       text-align: center;
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiLoader, i18nPipe],
 })
 export class UpdateProgressDialog implements OnInit {

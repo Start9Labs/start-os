@@ -1,6 +1,5 @@
 import { DecimalPipe } from '@angular/common'
 import {
-  ChangeDetectionStrategy,
   Component,
   computed,
   inject,
@@ -227,7 +226,6 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
     }
   `,
   hostDirectives: [TuiCardLarge],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
     provideTranslatedValidationErrors({
       required: 'This field is required',

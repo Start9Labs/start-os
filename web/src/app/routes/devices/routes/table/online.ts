@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core'
+import { Component, input } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { TuiTable } from '@taiga-ui/addon-table'
 import { TuiFormatNumberPipe, TuiLink } from '@taiga-ui/core'
@@ -118,7 +118,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
     i18nPipe,
   ],
   host: { class: 'g-table' },
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DevicesOnline {
   readonly devicesOnline = input<readonly DeviceTableItem[]>([])

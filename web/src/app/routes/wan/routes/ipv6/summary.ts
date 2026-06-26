@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-} from '@angular/core'
+import { Component, computed, inject } from '@angular/core'
 import { TuiBadge, TuiStatus } from '@taiga-ui/kit'
 import { Summary } from 'src/app/components/summary'
 import { injectFormService } from 'src/app/services/form.service'
@@ -55,7 +50,6 @@ const SUMMARY_FIELDS = [
     </section>
   `,
   imports: [TuiBadge, TuiStatus, Summary, i18nPipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WanIpv6Summary {
   protected readonly service = injectFormService<WanIpv6Form>()

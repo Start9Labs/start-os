@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, computed, inject, signal } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { TuiTable } from '@taiga-ui/addon-table'
 import { TuiInput, TuiTextfield, TuiTitle } from '@taiga-ui/core'
@@ -68,7 +62,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'g-page' },
   imports: [
     FormsModule,

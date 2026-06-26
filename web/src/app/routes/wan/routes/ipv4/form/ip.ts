@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ReactiveFormsModule } from '@angular/forms'
 import { MaskitoDirective } from '@maskito/angular'
@@ -96,7 +96,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
   viewProviders: [FORM],
   hostDirectives: [TuiForm, TuiCardLarge],
   providers: [provideTranslatedValidationErrors(IPV4_VALIDATION_ERRORS)],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
     TuiHeader,

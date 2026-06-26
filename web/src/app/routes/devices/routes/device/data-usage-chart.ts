@@ -1,5 +1,4 @@
 import {
-  ChangeDetectionStrategy,
   Component,
   computed,
   effect,
@@ -164,7 +163,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
     TuiStatus,
     i18nPipe,
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DataUsageChart {
   private readonly i18n = inject(i18nPipe)

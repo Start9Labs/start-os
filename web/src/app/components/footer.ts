@@ -1,10 +1,5 @@
 import { AsyncPipe } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  input,
-} from '@angular/core'
+import { Component, inject, input } from '@angular/core'
 import { FormGroupDirective } from '@angular/forms'
 import { TuiAnimated } from '@taiga-ui/cdk'
 import { TuiButton, TuiHint } from '@taiga-ui/core'
@@ -34,7 +29,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
   host: { class: 'g-footer' },
   hostDirectives: [TuiAnimated],
   imports: [TuiButton, TuiHint, AsyncPipe, i18nPipe],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Footer {
   readonly blocked = input<string | null>(null)

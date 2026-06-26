@@ -1,11 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  effect,
-  inject,
-  signal,
-} from '@angular/core'
+import { Component, computed, effect, inject, signal } from '@angular/core'
 import {
   NonNullableFormBuilder,
   ReactiveFormsModule,
@@ -151,7 +144,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
       }
     </form>
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'g-page' },
   providers: [
     tuiTextfieldOptionsProvider({ cleaner: signal(false) }),

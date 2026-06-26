@@ -1,5 +1,4 @@
 import {
-  ChangeDetectionStrategy,
   Component,
   computed,
   DestroyRef,
@@ -276,7 +275,6 @@ const THEMES: Theme[] = ['system', 'dark', 'light']
     TuiAnimated,
     i18nPipe,
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class General {
   private readonly api = inject(ApiService)

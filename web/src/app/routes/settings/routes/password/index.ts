@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import {
   AbstractControl,
   NonNullableFormBuilder,
@@ -87,7 +87,6 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
     Footer,
     i18nPipe,
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class Password {
   private readonly api = inject(ApiService)

@@ -1,5 +1,4 @@
 import {
-  ChangeDetectionStrategy,
   Component,
   computed,
   inject,
@@ -179,7 +178,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
       }
     }
   `,
-  changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(change)': 'save()' },
   imports: [TuiTimeline, TuiAutoColorPipe, TuiButton, i18nPipe],
 })

@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  inject,
-} from '@angular/core'
+import { Component, computed, inject } from '@angular/core'
 import { ReactiveFormsModule } from '@angular/forms'
 import { MaskitoDirective } from '@maskito/angular'
 import { TUI_FALSE_HANDLER, TuiAnimated } from '@taiga-ui/cdk'
@@ -95,7 +90,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
   viewProviders: [FORM],
   hostDirectives: [TuiForm, TuiCardLarge],
   providers: [provideTranslatedValidationErrors(IPV6_VALIDATION_ERRORS)],
-  changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
     TuiHeader,
