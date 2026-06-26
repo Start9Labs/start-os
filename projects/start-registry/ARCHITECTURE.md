@@ -69,7 +69,7 @@ Package and OS indexes (`registry/package/index.rs`, `registry/os/index.rs`) hol
 
 ## Frontend
 
-The registry has no bundled UI of its own; the browsing/search/download UI is the shared Angular library **`@start9labs/marketplace`** at `shared-libs/web/marketplace/`. App projects (StartOS web, etc.) consume that library and point it at a registry's RPC endpoints. The library is source-consumed via tsconfig paths within the `shared-libs/web` Angular workspace.
+The registry has no bundled UI of its own; the browsing/search/download UI is the shared Angular library **`@start9labs/marketplace`** at `shared-libs/ts-modules/marketplace/`. App projects (StartOS web, etc.) consume that library and point it at a registry's RPC endpoints. The library is source-consumed via tsconfig paths within the `shared-libs/ts-modules` Angular workspace.
 
 ## Place in the monorepo
 
@@ -78,7 +78,7 @@ start-os/ (monorepo root)
 ├── start-registry/                 ← this wrapper (registrybox bin + service)
 ├── shared-libs/crates/start-core/       ← all backend logic, incl. src/registry/
 │   └── src/bins/registry.rs        ← server + CLI entry points
-├── shared-libs/web/marketplace/         ← @start9labs/marketplace UI library
+├── shared-libs/ts-modules/marketplace/         ← @start9labs/marketplace UI library
 ├── Makefile                        ← registry / install-registry / .deb targets
 └── Cargo.toml                      ← single workspace + Cargo.lock
 ```

@@ -28,7 +28,7 @@ cargo fmt -p start-core              # rustfmt config: crates/start-core/rustfmt
 Web (`web/`):
 
 ```bash
-cd shared-libs/web
+cd shared-libs/ts-modules
 npm ci
 npm run build:deps                   # builds start-sdk bundle + patch-db client (required before typecheck/build)
 npm run check                        # typechecks i18n, shared, marketplace, ui, setup, brochure

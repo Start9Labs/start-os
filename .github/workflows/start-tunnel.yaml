@@ -35,7 +35,7 @@ on:
     paths:
       - "projects/start-tunnel/**"
       - "shared-libs/crates/**"
-      - "shared-libs/web/**"
+      - "shared-libs/ts-modules/**"
       - "Cargo.toml"
       - "Cargo.lock"
       - "angular.json"
@@ -53,7 +53,7 @@ on:
     paths:
       - "projects/start-tunnel/**"
       - "shared-libs/crates/**"
-      - "shared-libs/web/**"
+      - "shared-libs/ts-modules/**"
       - "Cargo.toml"
       - "Cargo.lock"
       - "angular.json"

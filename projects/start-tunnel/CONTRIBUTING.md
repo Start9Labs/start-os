@@ -18,7 +18,7 @@ covers what is specific to building, testing, and changing StartTunnel.
 make tunnel                                   # full daemon build (UI + tunnelbox)
 cargo build -p start-tunnel --bin tunnelbox   # cargo only (UI must be prebuilt)
 cargo check -p start-tunnel                    # fast type-check
-npm --prefix shared-libs/web run build:tunnel       # build just the Angular UI
+npm --prefix shared-libs/ts-modules run build:tunnel       # build just the Angular UI
 make tunnel-deb                                # Debian package
 ```
 

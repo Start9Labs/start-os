@@ -43,10 +43,10 @@ Two Angular 22 apps live under `web/`:
 - `ui/` — the admin dashboard (Angular project `ui`).
 - `setup-wizard/` — the first-boot setup flow (project `setup-wizard`).
 
-They are part of the single Angular workspace rooted at `../../shared-libs/web`
+They are part of the single Angular workspace rooted at `../../shared-libs/ts-modules`
 (`angular.json` there points each project's `root` at `../../start-os/web/...`).
 They consume the shared `@start9labs/shared` and `@start9labs/marketplace` libs
-from `../../shared-libs/web` and the SDK base from `../start-sdk`. The frontend talks to
+from `../../shared-libs/ts-modules` and the SDK base from `../start-sdk`. The frontend talks to
 the backend exclusively over JSON-RPC, with reactive state via Patch-DB.
 
 `web/patchdb-ui-seed.json` / `patchdb-ui-seed.beta.json` seed initial UI state
@@ -108,7 +108,7 @@ start-core (Rust)
 | 1 | `cargo check -p start-os` | Verify the OS bins compile |
 | 2 | `make ts-bindings` | Export ts-rs types from `start-core` |
 | 3 | `cd projects/start-sdk && make bundle` | Build SDK `baseDist` + `dist` |
-| 4 | `cd shared-libs/web && npm run check:ui && npm run check:setup` | Type-check the apps |
+| 4 | `cd shared-libs/ts-modules && npm run check:ui && npm run check:setup` | Type-check the apps |
 | 5 | `cd projects/start-os/container-runtime && npm run check` | Type-check the runtime |
 
 Editing the generated bindings under `start-sdk/base/lib/osBindings/*.ts` alone
@@ -130,5 +130,5 @@ resolving, so the UI is always eventually consistent with the backend.
 ## Further reading
 
 - [../../shared-libs/crates/start-core](../../shared-libs/crates/start-core) — Rust backend
-- [../../shared-libs/web](../../shared-libs/web) — shared Angular libraries + workspace
+- [../../shared-libs/ts-modules](../../shared-libs/ts-modules) — shared Angular libraries + workspace
 - [container-runtime/ARCHITECTURE.md](container-runtime/ARCHITECTURE.md) — runtime

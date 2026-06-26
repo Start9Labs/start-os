@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Relocated into the `start-os` monorepo as the `start-tunnel` product. The
   daemon and API now build from the shared `start-core` crate
   (`shared-libs/crates/start-core/src/tunnel/`); the Angular UI is a project in the
-  shared `shared-libs/web` workspace.
+  shared `shared-libs/ts-modules` workspace.
 
 ## [0.4.0-beta.10]
 

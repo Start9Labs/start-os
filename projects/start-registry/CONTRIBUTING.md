@@ -8,7 +8,7 @@ Start with the root [`CONTRIBUTING.md`](../../CONTRIBUTING.md) and [`AGENTS.md`]
 
 - **Server/CLI entry, RPC API, data model, persistence, migrations** → `shared-libs/crates/start-core/src/registry/` and `shared-libs/crates/start-core/src/bins/registry.rs`.
 - **Bin wiring, systemd unit, docs** → this directory (`start-registry/`).
-- **Browsing/search/download UI** → `shared-libs/web/marketplace/` (`@start9labs/marketplace`).
+- **Browsing/search/download UI** → `shared-libs/ts-modules/marketplace/` (`@start9labs/marketplace`).
 
 If you find yourself adding registry logic directly to `start-registry/src`, it almost certainly belongs in `start-core` instead.
 

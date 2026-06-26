@@ -35,7 +35,7 @@ cd shared-libs/crates/start-core && cargo test
 Web:
 
 ```bash
-cd shared-libs/web
+cd shared-libs/ts-modules
 npm ci
 npm run build:deps                   # build start-sdk bundle + patch-db client
 npm run check                        # typecheck all projects

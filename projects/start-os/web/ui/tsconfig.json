@@ -3,8 +3,8 @@
   "compilerOptions": {
     "paths": {
       "*": ["./*"],
-      "@start9labs/marketplace": ["../../../../shared-libs/web/marketplace/index"],
-      "@start9labs/shared": ["../../../../shared-libs/web/shared/src/public-api"]
+      "@start9labs/marketplace": ["../../../../shared-libs/ts-modules/marketplace/index"],
+      "@start9labs/shared": ["../../../../shared-libs/ts-modules/shared/src/public-api"]
     }
   },
   "files": ["src/main.ts", "src/polyfills.ts"],

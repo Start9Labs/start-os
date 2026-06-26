@@ -26,7 +26,7 @@
             "assets": [
               {
                 "glob": "**/*",
-                "input": "shared-libs/web/shared/assets",
+                "input": "shared-libs/ts-modules/shared/assets",
                 "output": "assets"
               },
               {
@@ -48,8 +48,8 @@
             ],
             "styles": [
               "node_modules/@taiga-ui/styles/taiga-ui-theme.less",
-              "shared-libs/web/shared/styles/taiga.scss",
-              "shared-libs/web/shared/styles/shared.scss",
+              "shared-libs/ts-modules/shared/styles/taiga.scss",
+              "shared-libs/ts-modules/shared/styles/shared.scss",
               "projects/start-os/web/ui/src/styles.scss"
             ],
             "scripts": [],
@@ -143,7 +143,7 @@
             "assets": [
               {
                 "glob": "**/*",
-                "input": "shared-libs/web/shared/assets",
+                "input": "shared-libs/ts-modules/shared/assets",
                 "output": "assets"
               },
               {
@@ -159,8 +159,8 @@
             ],
             "styles": [
               "node_modules/@taiga-ui/styles/taiga-ui-theme.less",
-              "shared-libs/web/shared/styles/taiga.scss",
-              "shared-libs/web/shared/styles/shared.scss",
+              "shared-libs/ts-modules/shared/styles/taiga.scss",
+              "shared-libs/ts-modules/shared/styles/shared.scss",
               "projects/start-os/web/setup-wizard/src/styles.scss"
             ],
             "scripts": []
@@ -248,7 +248,7 @@
             "assets": [
               {
                 "glob": "**/*",
-                "input": "shared-libs/web/shared/assets",
+                "input": "shared-libs/ts-modules/shared/assets",
                 "output": "assets"
               },
               {
@@ -260,7 +260,7 @@
             "styles": [
               "node_modules/@taiga-ui/styles/taiga-ui-theme.less",
               "node_modules/@taiga-ui/styles/taiga-ui-fonts.less",
-              "shared-libs/web/shared/styles/shared.scss",
+              "shared-libs/ts-modules/shared/styles/shared.scss",
               "projects/start-tunnel/web/src/styles.scss"
             ],
             "scripts": []
@@ -348,7 +348,7 @@
             "assets": [
               {
                 "glob": "**/*",
-                "input": "shared-libs/web/shared/assets",
+                "input": "shared-libs/ts-modules/shared/assets",
                 "output": "assets"
               },
               {
@@ -364,8 +364,8 @@
             ],
             "styles": [
               "node_modules/@taiga-ui/styles/taiga-ui-theme.less",
-              "shared-libs/web/shared/styles/taiga.scss",
-              "shared-libs/web/shared/styles/shared.scss",
+              "shared-libs/ts-modules/shared/styles/taiga.scss",
+              "shared-libs/ts-modules/shared/styles/shared.scss",
               "projects/brochure-marketplace/src/styles.scss"
             ],
             "scripts": [],
@@ -441,14 +441,14 @@
     },
     "marketplace": {
       "projectType": "library",
-      "root": "shared-libs/web/marketplace",
-      "sourceRoot": "shared-libs/web/marketplace/src",
+      "root": "shared-libs/ts-modules/marketplace",
+      "sourceRoot": "shared-libs/ts-modules/marketplace/src",
       "prefix": "lib",
       "architect": {
         "build": {
           "builder": "@angular/build:ng-packagr",
           "options": {
-            "project": "shared-libs/web/marketplace/ng-package.json"
+            "project": "shared-libs/ts-modules/marketplace/ng-package.json"
           },
           "configurations": {
             "production": {
@@ -461,14 +461,14 @@
     },
     "shared": {
       "projectType": "library",
-      "root": "shared-libs/web/shared",
-      "sourceRoot": "shared-libs/web/shared/src",
+      "root": "shared-libs/ts-modules/shared",
+      "sourceRoot": "shared-libs/ts-modules/shared/src",
       "prefix": "lib",
       "architect": {
         "build": {
           "builder": "@angular/build:ng-packagr",
           "options": {
-            "project": "shared-libs/web/shared/ng-package.json"
+            "project": "shared-libs/ts-modules/shared/ng-package.json"
           },
           "configurations": {
             "production": {

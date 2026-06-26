@@ -9,8 +9,8 @@ on:
     branches: ["master"]
     paths:
       - "projects/brochure-marketplace/**"
-      - "shared-libs/web/shared/**"
-      - "shared-libs/web/marketplace/**"
+      - "shared-libs/ts-modules/shared/**"
+      - "shared-libs/ts-modules/marketplace/**"
       - "angular.json"
       - "package.json"
       - "package-lock.json"

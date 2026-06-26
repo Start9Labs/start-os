@@ -21,9 +21,9 @@ file tracks notable changes since the move to the monorepo.
   `src/bin/`, the admin UI and setup wizard in `web/`, and the container runtime
   in `container-runtime/`. Backend logic moved from the old `core/` crate to the
   shared `start-core` crate (`shared-libs/crates/start-core`); shared Angular
-  libraries moved to `shared-libs/web`; the SDK to `start-sdk`; and the `patch-db`
+  libraries moved to `shared-libs/ts-modules`; the SDK to `start-sdk`; and the `patch-db`
   submodule to `shared-libs/crates/patch-db`. Builds now run against the root Cargo and
-  Angular workspaces (`cargo build -p start-os`, web from `shared-libs/web`).
+  Angular workspaces (`cargo build -p start-os`, web from `shared-libs/ts-modules`).
 
 ## [0.4.0-beta.10]
 

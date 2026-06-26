@@ -16,7 +16,7 @@ Each product lives under `projects/` as a thin wrapper; the bulk of the code liv
 - `projects/brochure-marketplace/` — public marketplace/landing Angular app (deploys to marketplace.start9.com).
 - `projects/start-docs/` — the documentation website (build infra + landing + Bitcoin guides; each product's own book lives in its `docs/`).
 - `shared-libs/crates/start-core/` — the **entire** Rust backend lib (package `start-core`, lib name `start_core`). All five bins depend on it. Internally unchanged from the old `core/` crate.
-- `shared-libs/web/` — the shared Angular libs `shared/` (`@start9labs/shared`) and `marketplace/` (`@start9labs/marketplace`); the Angular workspace itself is rooted at the repo root (`angular.json`/`package.json`). Product apps reference the libs by package name.
+- `shared-libs/ts-modules/` — the shared Angular libs `shared/` (`@start9labs/shared`) and `marketplace/` (`@start9labs/marketplace`); the Angular workspace itself is rooted at the repo root (`angular.json`/`package.json`). Product apps reference the libs by package name.
 - Top level also holds the shared build infra (`build/`, `Makefile`), `apt/`, the shared `debian/build.sh`, repo-level `scripts/`, `rfcs/` (protocol drafts), and `shared-libs/crates/patch-db/` (first-party crate, consumed by `start-core` and web).
 
 ## Operating rules
@@ -54,5 +54,5 @@ Already enforced or checked elsewhere (listed here for completeness; documented 
 - [`projects/start-sdk/AGENTS.md`](projects/start-sdk/AGENTS.md) — TypeScript service-packaging SDK (packaging mdbook: [`docs/AGENTS.md`](projects/start-sdk/docs/AGENTS.md))
 - [`projects/brochure-marketplace/AGENTS.md`](projects/brochure-marketplace/AGENTS.md) — public marketplace site
 - [`projects/start-docs/AGENTS.md`](projects/start-docs/AGENTS.md) — documentation website
-- [`shared-libs/AGENTS.md`](shared-libs/AGENTS.md) — shared libs container: [`crates/start-core`](shared-libs/crates/start-core/AGENTS.md) (Rust backend), [`web`](shared-libs/web/AGENTS.md) (Angular workspace + UI/setup-wizard/shared libs)
+- [`shared-libs/AGENTS.md`](shared-libs/AGENTS.md) — shared libs container: [`crates/start-core`](shared-libs/crates/start-core/AGENTS.md) (Rust backend), [`web`](shared-libs/ts-modules/AGENTS.md) (Angular workspace + UI/setup-wizard/shared libs)
 - `shared-libs/crates/patch-db/` — first-party crate (upstream: github.com/Start9Labs/patch-db)

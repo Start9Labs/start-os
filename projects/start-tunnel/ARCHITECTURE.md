@@ -88,7 +88,7 @@ The `start-tunnel` CLI builds an `rpc-toolkit` `CliApp` against the same
 ## Frontend
 
 The Angular app (`web/`) is the project `start-tunnel` in the shared Angular
-workspace at `shared-libs/web/`. It is **zoneless**, uses Taiga UI, and talks to the
+workspace at `shared-libs/ts-modules/`. It is **zoneless**, uses Taiga UI, and talks to the
 daemon over the same JSON-RPC API.
 
 - `web/src/app/app.routes.ts` — `home` (authed) vs `login` routes.
@@ -97,11 +97,11 @@ daemon over the same JSON-RPC API.
 - `web/src/app/services/patch-db/` — PatchDB client; UI state mirrors the daemon
   db via the patch stream.
 - `web/tsconfig.json` resolves `@start9labs/shared` and
-  `@start9labs/marketplace` to `shared-libs/web/`.
+  `@start9labs/marketplace` to `shared-libs/ts-modules/`.
 
-Build output: `npm --prefix shared-libs/web run build:tunnel` →
+Build output: `npm --prefix shared-libs/ts-modules run build:tunnel` →
 `web/dist/raw/start-tunnel/` → compressed to `web/dist/static/start-tunnel/`
-(`shared-libs/web/compress-uis.sh`), which the Rust binary embeds.
+(`shared-libs/ts-modules/compress-uis.sh`), which the Rust binary embeds.
 
 ## Build & packaging
 

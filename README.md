@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="shared-libs/web/shared/assets/img/icon.png" alt="StartOS Logo" width="16%" />
+  <img src="shared-libs/ts-modules/shared/assets/img/icon.png" alt="StartOS Logo" width="16%" />
   <h1 style="margin-top: 0;">Start9 Technologies</h1>
   <a href="https://github.com/Start9Labs/start-os/releases">
     <img alt="GitHub release (with filter)" src="https://img.shields.io/github/v/release/start9labs/start-os?logo=github">
@@ -34,7 +34,7 @@ All products share a single Rust backend library (`start-core`) and a single Ang
 | `projects/brochure-marketplace/` | Marketplace site | Public marketplace/landing site (marketplace.start9.com)                                                  |
 | `projects/start-docs/`           | Docs site        | The documentation website (docs.start9.com)                                                               |
 | `shared-libs/crates/start-core/` | —                | The entire Rust backend library shared by all bins                                                        |
-| `shared-libs/web/`               | —                | Shared Angular libraries (the Angular workspace is rooted at the repo root)                               |
+| `shared-libs/ts-modules/`        | —                | Shared Angular libraries (the Angular workspace is rooted at the repo root)                               |
 | `shared-libs/crates/patch-db/`   | —                | Diff-based reactive state store (first-party crate)                                                       |
 
 **Tech stack:** Rust backend (Tokio/Axum), Angular frontend (Taiga UI), Node.js container runtime with LXC, and a custom diff-based database ([Patch-DB](https://github.com/Start9Labs/patch-db)) for reactive state synchronization. Services run in isolated LXC containers, packaged as S9PKs — a signed, merkle-archived format supporting partial downloads and cryptographic verification.

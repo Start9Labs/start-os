@@ -31,7 +31,7 @@ cd shared-libs/crates/start-core && ./run-tests.sh
 The single Angular workspace root for every front end in the monorepo.
 
 ```bash
-cd shared-libs/web
+cd shared-libs/ts-modules
 npm ci
 npm run build:deps                      # build start-sdk bundle + patch-db client (required first)
 npm run check                           # typecheck i18n, shared, marketplace, ui, setup, brochure

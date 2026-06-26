@@ -42,7 +42,7 @@ function walk(dir, files = []) {
 }
 
 // Projects are scattered across the monorepo: shared libs live here under
-// shared-libs/web, app projects live in their product dirs.
+// shared-libs/ts-modules, app projects live in their product dirs.
 const scanDirs = [
   'shared',
   'marketplace',

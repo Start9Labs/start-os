@@ -7,13 +7,13 @@
   "scripts": {
     "ng": "ng",
     "check": "npm run check:i18n && npm run check:shared && npm run check:marketplace && npm run check:ui && npm run check:setup && npm run check:brochure",
-    "check:shared": "tsc --project shared-libs/web/shared/tsconfig.json --noEmit --skipLibCheck",
-    "check:marketplace": "tsc --project shared-libs/web/marketplace/tsconfig.json --noEmit --skipLibCheck",
+    "check:shared": "tsc --project shared-libs/ts-modules/shared/tsconfig.json --noEmit --skipLibCheck",
+    "check:marketplace": "tsc --project shared-libs/ts-modules/marketplace/tsconfig.json --noEmit --skipLibCheck",
     "check:setup": "tsc --project projects/start-os/web/setup-wizard/tsconfig.json --noEmit --skipLibCheck",
     "check:ui": "tsc --project projects/start-os/web/ui/tsconfig.json --noEmit --skipLibCheck",
     "check:tunnel": "tsc --project projects/start-tunnel/web/tsconfig.json --noEmit --skipLibCheck",
     "check:brochure": "tsc --project projects/brochure-marketplace/tsconfig.json --noEmit --skipLibCheck",
-    "check:i18n": "node shared-libs/web/scripts/check-i18n.mjs",
+    "check:i18n": "node shared-libs/ts-modules/scripts/check-i18n.mjs",
     "build:deps": "rimraf .angular/cache && (cd projects/start-sdk && make bundle) && (cd shared-libs/crates/patch-db/client && npm ci && npm run build)",
     "build:setup": "ng run setup-wizard:build",
     "build:ui": "ng run ui:build",
@@ -27,9 +27,9 @@
     "start:tunnel": "ng serve --project start-tunnel --host 0.0.0.0",
     "start:brochure": "ng serve --project brochure-marketplace --host 0.0.0.0",
     "start:ui:proxy": "npm run-script build-config && ng serve --project ui --host 0.0.0.0 --proxy-config proxy.conf.json",
-    "build-config": "node shared-libs/web/build-config.js",
-    "format": "prettier --write shared-libs/web/shared/ shared-libs/web/marketplace/ projects/start-os/web/ projects/start-tunnel/web/ projects/brochure-marketplace/",
-    "format:check": "prettier --check shared-libs/web/shared/ shared-libs/web/marketplace/ projects/start-os/web/ projects/start-tunnel/web/ projects/brochure-marketplace/"
+    "build-config": "node shared-libs/ts-modules/build-config.js",
+    "format": "prettier --write shared-libs/ts-modules/shared/ shared-libs/ts-modules/marketplace/ projects/start-os/web/ projects/start-tunnel/web/ projects/brochure-marketplace/",
+    "format:check": "prettier --check shared-libs/ts-modules/shared/ shared-libs/ts-modules/marketplace/ projects/start-os/web/ projects/start-tunnel/web/ projects/brochure-marketplace/"
   },
   "dependencies": {
     "@angular/cdk": "^22.0.0",

@@ -16,13 +16,13 @@ wrapper that ships the OS:
 
 The bulk of the backend logic lives in the shared `start-core` crate
 (`../../shared-libs/crates/start-core`), and the Angular apps here consume the shared web
-libraries under `../../shared-libs/web` and the SDK base from `../start-sdk`.
+libraries under `../../shared-libs/ts-modules` and the SDK base from `../start-sdk`.
 
 ## Tech stack
 
 - **Backend:** Rust (Tokio async, Axum), built on the `start-core` crate.
 - **Frontend:** Angular 22 + Taiga UI 5 (apps live under `web/`, shared libs
-  under `../../shared-libs/web`).
+  under `../../shared-libs/ts-modules`).
 - **Container runtime:** Node.js/TypeScript managing LXC service containers.
 - **State/sync:** Patch-DB (`../../shared-libs/crates/patch-db`) — diff-based store that pushes
   CBOR diffs to the frontend over WebSocket for reactive, poll-free UI updates.

@@ -21,10 +21,10 @@
     "module": "es2020",
     "useDefineForClassFields": false,
     "paths": {
-      /* baseUrl removed for TS6; lib paths resolve relative to this file (web/).
+      /* baseUrl removed for TS6; lib paths resolve relative to this file (repo root).
          Apps redeclare paths (incl. "*": ["./*"]) relative to their own dir. */
-      "@start9labs/marketplace": ["./shared-libs/web/marketplace/index"],
-      "@start9labs/shared": ["./shared-libs/web/shared/src/public-api"]
+      "@start9labs/marketplace": ["./shared-libs/ts-modules/marketplace/index"],
+      "@start9labs/shared": ["./shared-libs/ts-modules/shared/src/public-api"]
     },
     "typeRoots": ["node_modules/@types"],
     "types": ["node"]

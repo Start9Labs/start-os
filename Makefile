@@ -5,7 +5,7 @@
 
 include build/common.mk
 include shared-libs/crates/start-core/build.mk
-include shared-libs/web/build.mk
+include shared-libs/ts-modules/build.mk
 include projects/start-sdk/build.mk
 include projects/start-cli/build.mk
 include projects/start-registry/build.mk

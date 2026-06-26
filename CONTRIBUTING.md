@@ -11,7 +11,7 @@ The repo root's docs split across four files:
 - `CONTRIBUTING.md` — this file; how to contribute
 - `AGENTS.md` — AI-developer/agent operating rules (`CLAUDE.md` is a one-line `@AGENTS.md` import)
 
-**These docs must be kept up to date.** When you change project structure, conventions, build process, or product context, update the relevant file(s) in the same change — do not defer. Each component keeps its own `AGENTS.md`/`ARCHITECTURE.md` when it has distinct conventions, build steps, or test surfaces — see `shared-libs/crates/start-core/`, `shared-libs/web/`, `start-os/container-runtime/`, and `start-sdk/`.
+**These docs must be kept up to date.** When you change project structure, conventions, build process, or product context, update the relevant file(s) in the same change — do not defer. Each component keeps its own `AGENTS.md`/`ARCHITECTURE.md` when it has distinct conventions, build steps, or test surfaces — see `shared-libs/crates/start-core/`, `shared-libs/ts-modules/`, `start-os/container-runtime/`, and `start-sdk/`.
 
 ## Collaboration
 
@@ -192,7 +192,7 @@ make format
 
 # Or scope it:
 cd shared-libs/crates/start-core && cargo +nightly fmt   # Rust
-npm --prefix shared-libs/web run format                  # TypeScript/HTML/SCSS
+npm --prefix shared-libs/ts-modules run format                  # TypeScript/HTML/SCSS
 cd projects/start-sdk && make fmt                             # SDK
 ```
 

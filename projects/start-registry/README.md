@@ -56,6 +56,6 @@ Server state lives in `<datadir>/registry.db` (PatchDB) plus a SQLite metrics da
 - `src/main.rs` — wires up the `MultiExecutable` (`enable_start_registry` + `enable_start_registryd`).
 - `start-registryd.service` — systemd unit.
 - Server/CLI/API/data model: `shared-libs/crates/start-core/src/registry/`.
-- Marketplace UI library: `shared-libs/web/marketplace/` (`@start9labs/marketplace`).
+- Marketplace UI library: `shared-libs/ts-modules/marketplace/` (`@start9labs/marketplace`).
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for module-level detail, [AGENTS.md](./AGENTS.md) for build/test instructions, and [CONTRIBUTING.md](./CONTRIBUTING.md) for the contribution workflow.

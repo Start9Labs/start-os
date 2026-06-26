@@ -8,7 +8,7 @@ Product wrapper for the **Start Registry** server inside the `start-os` monorepo
 - `Cargo.toml` — crate metadata; `[[bin]] name = "registrybox"`; depends on `start-core = { path = "../../shared-libs/crates/start-core" }`.
 - `start-registryd.service` — systemd unit (`ExecStart=/usr/bin/start-registryd`).
 - **Real implementation:** `shared-libs/crates/start-core/src/bins/registry.rs` (server `main` + CLI `cli`) and `shared-libs/crates/start-core/src/registry/` (context, db, info, os, package, admin, metrics, signer, migrations, asset).
-- **UI:** `shared-libs/web/marketplace/` (`@start9labs/marketplace`) — not built or served by this crate.
+- **UI:** `shared-libs/ts-modules/marketplace/` (`@start9labs/marketplace`) — not built or served by this crate.
 
 ## Multi-call binary
 

@@ -4,10 +4,10 @@
 
 ## Place in the monorepo
 
-This is one application project in the single Angular workspace rooted at `shared-libs/web`. It does not have its own `angular.json` or `package.json` — both live in `shared-libs/web`, and `brochure` is registered there as the `brochure` project (`shared-libs/web/angular.json`). Its `tsconfig.json` extends `shared-libs/web/tsconfig.json` and maps the shared libs:
+This is one application project in the single Angular workspace rooted at `shared-libs/ts-modules`. It does not have its own `angular.json` or `package.json` — both live in `shared-libs/ts-modules`, and `brochure` is registered there as the `brochure` project (`shared-libs/ts-modules/angular.json`). Its `tsconfig.json` extends `shared-libs/ts-modules/tsconfig.json` and maps the shared libs:
 
-- `@start9labs/marketplace` → `shared-libs/web/marketplace`
-- `@start9labs/shared` → `shared-libs/web/shared`
+- `@start9labs/marketplace` → `shared-libs/ts-modules/marketplace`
+- `@start9labs/shared` → `shared-libs/ts-modules/shared`
 - `@start9labs/start-sdk` → built from `start-sdk` (baseDist bundle)
 
 Because brochure renders the same `@start9labs/marketplace` library used by the in-OS `ui` app, the marketplace experience is identical whether viewed here or inside a server.
@@ -49,7 +49,7 @@ src/
 
 ## UI stack
 
-Taiga UI 5 + the shared marketplace/shared libraries. The app is dark-themed (`tuiTheme="dark"`, `provideTaiga({ mode: 'dark' })`). User-facing strings go through the `i18n` pipe (`I18N_PROVIDERS`), with dictionaries living in `shared-libs/web/shared/src/i18n`.
+Taiga UI 5 + the shared marketplace/shared libraries. The app is dark-themed (`tuiTheme="dark"`, `provideTaiga({ mode: 'dark' })`). User-facing strings go through the `i18n` pipe (`I18N_PROVIDERS`), with dictionaries living in `shared-libs/ts-modules/shared/src/i18n`.
 
 ## Build & deploy
 
