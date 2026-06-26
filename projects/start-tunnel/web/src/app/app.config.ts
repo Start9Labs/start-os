@@ -29,7 +29,7 @@ import { MockApiService } from './services/api/mock-api.service'
 const {
   useMocks,
   ui: { api },
-} = require('../../../../config.json') as WorkspaceConfig
+} = require('../../../../../config.json') as WorkspaceConfig
 
 export const appConfig: ApplicationConfig = {
   providers: [

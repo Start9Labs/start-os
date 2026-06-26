@@ -63,10 +63,10 @@ jobs:
           npm --prefix projects/start-sdk/package ci
       # web resolves the SDK via file:../projects/start-sdk/baseDist, so baseDist must exist for web's npm ci.
       - name: Build SDK (baseDist)
-        run: cd start-sdk && make baseDist
+        run: cd projects/start-sdk && make baseDist
       - name: Validate web lockfile
         run: npm ci
       - name: Check formatting
         run: |
           npm run format:check
-          cd start-sdk && npx --prefix base prettier "**/*.ts" --check
+          cd projects/start-sdk && npx --prefix base prettier "**/*.ts" --check

@@ -89,7 +89,7 @@ import { ROUTES } from './app.routes'
 const {
   useMocks,
   ui: { api },
-} = require('../../../../../config.json') as WorkspaceConfig
+} = require('../../../../../../config.json') as WorkspaceConfig
 
 export const APP_CONFIG: ApplicationConfig = {
   providers: [

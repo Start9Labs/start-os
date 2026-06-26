@@ -53,7 +53,7 @@ jobs:
       - name: Build SDK (baseDist)
         run: |
           npm --prefix projects/start-sdk/base ci
-          cd start-sdk && make baseDist
+          cd projects/start-sdk && make baseDist
 
       # brochure transitively bundles patch-db-client (file:../shared-libs/crates/patch-db/client),
       # so its dist must be built too.
