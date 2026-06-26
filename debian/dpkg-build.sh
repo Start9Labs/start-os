@@ -21,7 +21,7 @@ rm -rf dpkg-workdir/$BASENAME
 mkdir -p dpkg-workdir/$BASENAME
 
 if [ "${PROJECT}" = "startos" ]; then
-    INSTALL_TARGET="install"
+    INSTALL_TARGET="install-startos"
 else
     INSTALL_TARGET="install-${PROJECT#start-}"
 fi

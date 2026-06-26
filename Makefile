@@ -13,9 +13,9 @@ include start-tunnel/build.mk
 include start-os/build.mk
 include docs/build.mk
 
-.PHONY: all metadata install clean format format-check install-cli cli uis ui reflash deb $(IMAGE_TYPE) squashfs wormhole wormhole-deb test test-core test-sdk test-container-runtime registry install-registry tunnel install-tunnel ts-bindings
+.PHONY: all startos metadata install-startos clean format format-check install-cli cli uis ui startos-emulate-reflash startos-deb startos-$(IMAGE_TYPE) startos-squashfs startos-wormhole startos-wormhole-deb startos-update test test-core test-sdk test-container-runtime registry install-registry tunnel install-tunnel ts-bindings
 
-all: $(STARTOS_TARGETS)
+all: startos
 
 touch:
 	touch $(STARTOS_TARGETS)

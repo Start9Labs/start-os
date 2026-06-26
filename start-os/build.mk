@@ -1,3 +1,7 @@
+.PHONY: startos
+# Build all StartOS OS-product artifacts (bins + web + container-runtime image).
+startos: $(STARTOS_TARGETS)
+
 test-container-runtime: start-os/container-runtime/node_modules/.package-lock.json $(call ls-files, start-os/container-runtime/src) start-os/container-runtime/package.json start-os/container-runtime/tsconfig.json 
 	cd start-os/container-runtime && npm test
 
@@ -5,20 +9,20 @@ build/lib/migration-images/.done: build/save-migration-images.sh
 	ARCH=$(ARCH) ./build/save-migration-images.sh build/lib/migration-images
 	touch $@
 
-deb: results/$(BASENAME).deb
+startos-deb: results/$(BASENAME).deb
 
 results/$(BASENAME).deb: debian/dpkg-build.sh $(call ls-files,debian/startos) $(STARTOS_TARGETS)
 	PLATFORM=$(PLATFORM) REQUIRES=debian ./build/os-compat/run-compat.sh ./debian/dpkg-build.sh
 
-$(IMAGE_TYPE): results/$(BASENAME).$(IMAGE_TYPE)
+startos-$(IMAGE_TYPE): results/$(BASENAME).$(IMAGE_TYPE)
 
-squashfs: results/$(BASENAME).squashfs
+startos-squashfs: results/$(BASENAME).squashfs
 
 results/$(BASENAME).$(IMAGE_TYPE) results/$(BASENAME).squashfs: $(IMAGE_RECIPE_SRC) results/$(BASENAME).deb
 	ARCH=$(ARCH) ./build/image-recipe/run-local-build.sh "results/$(BASENAME).deb"
 
 # For creating os images. DO NOT USE
-install: $(STARTOS_TARGETS)
+install-startos: $(STARTOS_TARGETS)
 	$(call mkdir,$(DESTDIR)/usr/bin)
 	$(call mkdir,$(DESTDIR)/usr/sbin)
 	$(call cp,target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox,$(DESTDIR)/usr/bin/startbox)
@@ -54,52 +58,52 @@ install: $(STARTOS_TARGETS)
 	$(call cp,build/env/GIT_HASH.txt,$(DESTDIR)/usr/lib/startos/GIT_HASH.txt)
 	$(call cp,build/env/VERSION.txt,$(DESTDIR)/usr/lib/startos/VERSION.txt)
 
-update-overlay: $(STARTOS_TARGETS)
+startos-update-overlay: $(STARTOS_TARGETS)
 	@echo "\033[33m!!! THIS WILL ONLY REFLASH YOUR DEVICE IN MEMORY !!!\033[0m"
 	@echo "\033[33mALL CHANGES WILL BE REVERTED IF YOU RESTART THE DEVICE\033[0m"
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	@if [ "`ssh $(REMOTE) 'cat /usr/lib/startos/VERSION.txt'`" != "`cat $(VERSION_FILE)`" ]; then >&2 echo "StartOS requires migrations: update-overlay is unavailable." && false; fi
 	$(call ssh,"sudo systemctl stop startd")
-	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) PLATFORM=$(PLATFORM)
+	$(MAKE) install-startos REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) PLATFORM=$(PLATFORM)
 	$(call ssh,"sudo systemctl start startd")
 
-wormhole: target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox
+startos-wormhole: target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox
 	@echo "Paste the following command into the shell of your StartOS server:"
 	@echo
 	@wormhole send target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo /usr/lib/startos/scripts/chroot-and-upgrade \"cd /usr/bin && rm startbox && wormhole receive --accept-file %s && chmod +x startbox\"\n", $$3 }'
 
-wormhole-deb: results/$(BASENAME).deb
+startos-wormhole-deb: results/$(BASENAME).deb
 	@echo "Paste the following command into the shell of your StartOS server:"
 	@echo
 	@wormhole send results/$(BASENAME).deb 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo /usr/lib/startos/scripts/chroot-and-upgrade '"'"'cd $$(mktemp -d) && wormhole receive --accept-file %s && apt-get install -y --reinstall ./$(BASENAME).deb'"'"'\n", $$3 }'
 
-wormhole-squashfs: results/$(BASENAME).squashfs
+startos-wormhole-squashfs: results/$(BASENAME).squashfs
 	$(eval SQFS_SUM := $(shell b3sum results/$(BASENAME).squashfs | head -c 32))
 	$(eval SQFS_SIZE := $(shell du -s --bytes results/$(BASENAME).squashfs | awk '{print $$1}'))
 	@echo "Paste the following command into the shell of your StartOS server:"
 	@echo
 	@wormhole send results/$(BASENAME).squashfs 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo sh -c '"'"'/usr/lib/startos/scripts/prune-images $(SQFS_SIZE) && /usr/lib/startos/scripts/prune-boot && cd /media/startos/images && wormhole receive --accept-file %s && CHECKSUM=$(SQFS_SUM) /usr/lib/startos/scripts/upgrade ./$(BASENAME).squashfs'"'"'\n", $$3 }'
 
-update: $(STARTOS_TARGETS)
+startos-update: $(STARTOS_TARGETS)
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	$(call ssh,'sudo /usr/lib/startos/scripts/chroot-and-upgrade --create')
-	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/startos/next PLATFORM=$(PLATFORM)
+	$(MAKE) install-startos REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/startos/next PLATFORM=$(PLATFORM)
 	$(call ssh,'sudo /media/startos/next/usr/lib/startos/scripts/chroot-and-upgrade --no-sync "apt-get install -y $(shell cat ./build/lib/depends)"')
 
-update-startbox: target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox # only update binary (faster than full update)
+startos-update-startbox: target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox # only update binary (faster than full update)
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	$(call ssh,'sudo /usr/lib/startos/scripts/chroot-and-upgrade --create')
 	$(call cp,target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox,/media/startos/next/usr/bin/startbox)
 	$(call ssh,'sudo /media/startos/next/usr/lib/startos/scripts/chroot-and-upgrade --no-sync true')
 
-update-deb: results/$(BASENAME).deb # better than update, but only available from debian
+startos-update-deb: results/$(BASENAME).deb # better than update, but only available from debian
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	$(call ssh,'sudo /usr/lib/startos/scripts/chroot-and-upgrade --create')
 	$(call mkdir,/media/startos/next/var/tmp/startos-deb)
 	$(call cp,results/$(BASENAME).deb,/media/startos/next/var/tmp/startos-deb/$(BASENAME).deb)
 	$(call ssh,'sudo /media/startos/next/usr/lib/startos/scripts/chroot-and-upgrade --no-sync "apt-get install -y --reinstall /var/tmp/startos-deb/$(BASENAME).deb"')
 
-update-squashfs: results/$(BASENAME).squashfs
+startos-update-squashfs: results/$(BASENAME).squashfs
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	$(eval SQFS_SUM := $(shell b3sum results/$(BASENAME).squashfs | head -c 32))
 	$(eval SQFS_SIZE := $(shell du -s --bytes results/$(BASENAME).squashfs | awk '{print $$1}'))
@@ -108,14 +112,14 @@ update-squashfs: results/$(BASENAME).squashfs
 	$(call cp,results/$(BASENAME).squashfs,/media/startos/images/next.rootfs)
 	$(call ssh,'sudo CHECKSUM=$(SQFS_SUM) /usr/lib/startos/scripts/upgrade /media/startos/images/next.rootfs')
 
-emulate-reflash: $(STARTOS_TARGETS)
+startos-emulate-reflash: $(STARTOS_TARGETS)
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	$(call ssh,'sudo /usr/lib/startos/scripts/chroot-and-upgrade --create')
-	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/startos/next PLATFORM=$(PLATFORM)
+	$(MAKE) install-startos REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/startos/next PLATFORM=$(PLATFORM)
 	$(call ssh,'sudo rm -f /media/startos/config/disk.guid /media/startos/config/overlay/etc/hostname')
 	$(call ssh,'sudo /media/startos/next/usr/lib/startos/scripts/chroot-and-upgrade --no-sync "apt-get install -y $(shell cat ./build/lib/depends)"')
 
-upload-ota: results/$(BASENAME).squashfs
+startos-upload-ota: results/$(BASENAME).squashfs
 	TARGET=$(TARGET) KEY=$(KEY) ./build/upload-ota.sh
 
 start-os/container-runtime/debian.$(ARCH).squashfs: ./start-os/container-runtime/download-base-image.sh

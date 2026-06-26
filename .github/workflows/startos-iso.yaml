@@ -251,11 +251,11 @@ jobs:
       - run: git status
 
       - name: Run iso build
-        run: PLATFORM=${{ matrix.platform }} make iso
+        run: PLATFORM=${{ matrix.platform }} make startos-iso
         if: ${{ matrix.platform != 'raspberrypi' }}
 
       - name: Run img build
-        run: PLATFORM=${{ matrix.platform }} make img
+        run: PLATFORM=${{ matrix.platform }} make startos-img
         if: ${{ matrix.platform == 'raspberrypi' }}
 
       - uses: actions/upload-artifact@v7
