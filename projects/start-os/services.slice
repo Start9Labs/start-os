@@ -16,7 +16,7 @@ Before=startd.service
 # pressure (or swap exhaustion) oomd kills the heaviest *container* cgroup in
 # this slice, turning what used to be a whole-host swap-death wedge into a
 # single failed install. The host plane is spared — system.slice / user.slice
-# carry MemoryMin reservations (debian/startos/postinst) and startd.service
+# carry MemoryMin reservations (projects/start-os/debian/postinst) and startd.service
 # sets ManagedOOMPreference=avoid.
 Delegate=yes
 MemoryAccounting=yes

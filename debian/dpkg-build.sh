@@ -22,8 +22,10 @@ mkdir -p dpkg-workdir/$BASENAME
 
 if [ "${PROJECT}" = "startos" ]; then
     INSTALL_TARGET="install-startos"
+    PROJECT_DIR="projects/start-os"
 else
     INSTALL_TARGET="install-${PROJECT#start-}"
+    PROJECT_DIR="projects/${PROJECT}"
 fi
 make "${INSTALL_TARGET}" DESTDIR=dpkg-workdir/$BASENAME REMOTE=
 
@@ -41,8 +43,8 @@ if [ -f dpkg-workdir/$BASENAME/usr/lib/$PROJECT/conflicts ]; then
 fi
 CONFLICTS=${CONFLICTS:-"$(cat dpkg-workdir/$BASENAME/usr/lib/startos/conflicts | tr $'\n' ',' | sed 's/,,\+/,/g' | sed 's/,$//')"}
 
-if [ -d debian/${PROJECT} ]; then
-    cp -r debian/${PROJECT} dpkg-workdir/$BASENAME/DEBIAN
+if [ -d "${PROJECT_DIR}/debian" ]; then
+    cp -r "${PROJECT_DIR}/debian" dpkg-workdir/$BASENAME/DEBIAN
 else
     mkdir -p dpkg-workdir/$BASENAME/DEBIAN
 fi

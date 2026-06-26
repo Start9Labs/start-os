@@ -5,7 +5,7 @@ set -euo pipefail
 # packages on the target to have the same category assignments.
 #
 # Usage:
-#   ./scripts/copy-categories.sh <source-registry-url> <target-registry-url>
+#   ./projects/start-registry/scripts/copy-categories.sh <source-registry-url> <target-registry-url>
 #
 # Requires: start-cli, jq
 

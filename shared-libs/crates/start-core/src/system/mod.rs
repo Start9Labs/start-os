@@ -95,7 +95,7 @@ const CONTAINER_SLICE: &str = "services.slice";
 /// `HOST_RESERVE_MIB` is a constant, not a fraction of RAM: the host plane's
 /// footprint (~210 MiB idle + install/admin headroom) doesn't scale with box
 /// size. It is kept in lock-step with the `MemoryMin` drop-ins shipped by
-/// `debian/startos/postinst` (`system.slice` 768M + `user.slice` 256M = 1 GiB).
+/// `projects/start-os/debian/postinst` (`system.slice` 768M + `user.slice` 256M = 1 GiB).
 pub async fn limit_container_memory() -> Result<(), Error> {
     const HOST_RESERVE_MIB: u64 = 1024;
     let total_mib = get_mem_info().await?.total.0 as u64;

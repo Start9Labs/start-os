@@ -147,7 +147,7 @@ sudo su $USER
 virt-manager
 ```
 
-Follow the screenshot walkthrough in [`assets/create-vm/`](assets/create-vm/) to create a new virtual machine. Key steps:
+Follow the screenshot walkthrough in [`projects/start-os/assets/create-vm/`](projects/start-os/assets/create-vm/) to create a new virtual machine. Key steps:
 
 1. Create a new virtual machine
 2. Browse for the ISO — create a storage pool pointing to your `results/` directory

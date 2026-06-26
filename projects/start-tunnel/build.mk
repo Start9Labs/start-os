@@ -24,5 +24,5 @@ target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox: $(CORE_SRC) $(ENVIR
 
 tunnel-deb: results/$(TUNNEL_BASENAME).deb
 
-results/$(TUNNEL_BASENAME).deb: debian/dpkg-build.sh $(call ls-files,debian/start-tunnel) $(TUNNEL_TARGETS) build/lib/scripts/forward-port
+results/$(TUNNEL_BASENAME).deb: debian/dpkg-build.sh $(call ls-files,projects/start-tunnel/debian) $(TUNNEL_TARGETS) build/lib/scripts/forward-port
 	PROJECT=start-tunnel PLATFORM=$(ARCH) REQUIRES=debian DEPENDS=wireguard-tools,iptables,nftables,conntrack ./build/os-compat/run-compat.sh ./debian/dpkg-build.sh
