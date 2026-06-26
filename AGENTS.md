@@ -28,6 +28,22 @@ Each product lives under `projects/` as a thin wrapper; the bulk of the code liv
 - **Build a single product** with `cargo build -p <crate> --bin <bin>` (bins: `startbox`/`start-container` in package `start-os`; `start-cli`; `registrybox` in `start-registry`; `tunnelbox` in `start-tunnel`).
 - **Stale-path watch.** Old docs referenced `core/`, `web/`, `sdk/`, `container-runtime/`, `patch-db/` at the repo root, and the products + `shared/` directly at the root. Those are gone — products now live under `projects/`, the shared libs under `shared-libs/`; use the locations above.
 
+## Coupled changes (keep in sync)
+
+Some pairs of files mirror each other by hand — nothing enforces them, so a change to one half is incomplete until you update the other. Update both in the **same** commit:
+
+- **A product's CI `paths:` filter ↔ its `build.mk` prerequisites.** Each `.github/workflows/<product>.yaml` only triggers on the paths that product's build actually depends on. Those `paths:` allowlists are a hand-maintained mirror of the prerequisites in `projects/<product>/build.mk` (the project dir, `shared-libs/**` or the specific crates it pulls in, `Cargo.*`, `build/**`, `debian/**`, the web config for products with a UI, …). When you add or drop a build input in a `build.mk`, update that product's workflow `paths:` (both the `push:` and `pull_request:` blocks) — otherwise CI will silently stop running on changes that affect the build. Affected pairs: `start-cli`, `start-registry`, `start-tunnel`, `startos-iso`.
+- **The reusable service-package CI ↔ the SDK package-template ↔ the packaging docs.** `.github/workflows/{build,release,tagAndRelease}.yml` (the `workflow_call` CI that external `*-startos` service repos consume) are mirrored by the copies under `projects/start-sdk/docs/package-template/.github/workflows/` and the examples in `projects/start-sdk/docs/src/project-structure.md`. Change the reusable-workflow surface (inputs, action names, file layout) in all three.
+- **Adding a product or crate.** A new crate must be added to the root `Cargo.toml` `members`; a new *product* also needs its `projects/<product>/build.mk` `include`d in the root `Makefile`, a path-gated `.github/workflows/<product>.yaml`, and — if it ships a UI — an `angular.json` project plus `package.json` scripts.
+
+Already enforced or checked elsewhere (listed here for completeness; documented at their own scope):
+
+- **Exported Rust types → `make ts-bindings` → SDK rebuild → web/container-runtime.** See [ARCHITECTURE.md](ARCHITECTURE.md#cross-layer-verification); editing `osBindings/*.ts` alone is not enough.
+- **User-facing strings ↔ all five locale dictionaries** (`en_US`/`de_DE`/`es_ES`/`fr_FR`/`pl_PL`) — compile-checked for `start-core`; `npm run check:i18n` for the web libs.
+- **`patchdb-ui-seed.json` ↔ `patchdb-ui-seed.beta.json`** — keep both seeds in sync (see [`projects/start-os/AGENTS.md`](projects/start-os/AGENTS.md)).
+- **A crate's `version` bump ↔ its `CHANGELOG.md`** — versions are read from each manifest; bump the changelog in the same change.
+- **User-facing changes ↔ that product's `docs/`** — docs are part of the change (see each product's AGENTS/CONTRIBUTING).
+
 ## Sub-scopes
 
 - [`projects/start-os/AGENTS.md`](projects/start-os/AGENTS.md) — OS product

@@ -26,6 +26,8 @@ on:
           - x86_64
           - aarch64
           - riscv64
+  # `paths:` below mirror projects/start-tunnel/build.mk's build inputs — keep
+  # both in sync (see root AGENTS.md "Coupled changes").
   push:
     branches:
       - master

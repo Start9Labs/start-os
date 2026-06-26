@@ -1,3 +1,6 @@
+# When this product's build inputs change, mirror them into the `paths:` filter
+# of .github/workflows/start-registry.yaml (see root AGENTS.md "Coupled changes").
+
 REGISTRY_TARGETS := target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/registrybox projects/start-registry/start-registryd.service
 
 registry: target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/registrybox

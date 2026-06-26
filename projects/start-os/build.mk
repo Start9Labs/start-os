@@ -1,3 +1,6 @@
+# When this product's build inputs change, mirror them into the `paths:` filter
+# of .github/workflows/startos-iso.yaml (see root AGENTS.md "Coupled changes").
+
 IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo iso; fi)
 FIRMWARE_ROMS := projects/start-os/build/lib/firmware/$(PLATFORM) $(shell jq --raw-output '.[] | select(.platform[] | contains("$(PLATFORM)")) | "./projects/start-os/build/lib/firmware/$(PLATFORM)/" + .id + ".rom.gz"' projects/start-os/build/lib/firmware.json)
 BUILD_SRC := $(call ls-files, projects/start-os/build/lib) build/lib/scripts/forward-port projects/start-os/build/lib/depends projects/start-os/build/lib/conflicts $(FIRMWARE_ROMS) projects/start-os/build/lib/migration-images/.done

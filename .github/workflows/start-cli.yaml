@@ -28,6 +28,8 @@ on:
           - aarch64
           - aarch64-apple
           - riscv64
+  # `paths:` below mirror projects/start-cli/build.mk's build inputs — keep both
+  # in sync (see root AGENTS.md "Coupled changes").
   push:
     branches:
       - master

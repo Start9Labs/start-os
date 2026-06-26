@@ -1,3 +1,6 @@
+# When this product's build inputs change, mirror them into the `paths:` filter
+# of .github/workflows/start-tunnel.yaml (see root AGENTS.md "Coupled changes").
+
 TUNNEL_TARGETS := target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox projects/start-tunnel/start-tunneld.service
 
 tunnel: target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox
