@@ -28,8 +28,8 @@ projects/start-os/build/lib/migration-images/.done: projects/start-os/build/save
 
 startos-deb: results/$(BASENAME).deb
 
-results/$(BASENAME).deb: debian/dpkg-build.sh $(call ls-files,projects/start-os/debian) $(STARTOS_TARGETS)
-	PLATFORM=$(PLATFORM) REQUIRES=debian ./build/os-compat/run-compat.sh ./debian/dpkg-build.sh
+results/$(BASENAME).deb: debian/build.sh $(call ls-files,projects/start-os/debian) $(STARTOS_TARGETS)
+	PLATFORM=$(PLATFORM) REQUIRES=debian ./build/os-compat/run-compat.sh ./debian/build.sh
 
 startos-$(IMAGE_TYPE): results/$(BASENAME).$(IMAGE_TYPE)
 

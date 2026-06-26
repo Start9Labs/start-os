@@ -16,5 +16,5 @@ target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/registrybox: $(CORE_SRC) $(ENV
 
 registry-deb: results/$(REGISTRY_BASENAME).deb
 
-results/$(REGISTRY_BASENAME).deb: debian/dpkg-build.sh $(call ls-files,projects/start-registry/debian) $(REGISTRY_TARGETS)
-	PROJECT=start-registry PLATFORM=$(ARCH) REQUIRES=debian DEPENDS=ca-certificates ./build/os-compat/run-compat.sh ./debian/dpkg-build.sh
+results/$(REGISTRY_BASENAME).deb: debian/build.sh $(call ls-files,projects/start-registry/debian) $(REGISTRY_TARGETS)
+	PROJECT=start-registry PLATFORM=$(ARCH) REQUIRES=debian DEPENDS=ca-certificates ./build/os-compat/run-compat.sh ./debian/build.sh

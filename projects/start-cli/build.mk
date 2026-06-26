@@ -8,7 +8,7 @@ $(CLI_TARGETS): $(CORE_SRC) $(ENVIRONMENT_FILE)
 	ARCH=$(ARCH) PROFILE=$(PROFILE) ./shared-libs/crates/start-core/build/build-cli.sh
 	touch $@
 
-# Stage the binary into DESTDIR (used by dpkg-build.sh and for a system install).
+# Stage the binary into DESTDIR (used by debian/build.sh and for a system install).
 # For a local PATH install instead, run build-cli.sh --install.
 install-cli: $(CLI_TARGETS)
 	$(call mkdir,$(DESTDIR)/usr/bin)
@@ -16,5 +16,5 @@ install-cli: $(CLI_TARGETS)
 
 cli-deb: results/$(CLI_BASENAME).deb
 
-results/$(CLI_BASENAME).deb: debian/dpkg-build.sh $(CLI_TARGETS)
-	PROJECT=start-cli PLATFORM=$(ARCH) REQUIRES=debian ./build/os-compat/run-compat.sh ./debian/dpkg-build.sh
+results/$(CLI_BASENAME).deb: debian/build.sh $(CLI_TARGETS)
+	PROJECT=start-cli PLATFORM=$(ARCH) REQUIRES=debian ./build/os-compat/run-compat.sh ./debian/build.sh
