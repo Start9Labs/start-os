@@ -11,11 +11,11 @@ on:
       - "brochure/**"
       - "shared/web/shared/**"
       - "shared/web/marketplace/**"
-      - "shared/web/angular.json"
-      - "shared/web/package.json"
-      - "shared/web/package-lock.json"
-      - "shared/web/tsconfig.json"
-      - "shared/web/tsconfig.lib.json"
+      - "angular.json"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "tsconfig.lib.json"
       - "start-sdk/**"
       - "vendor/patch-db"
       - ".github/workflows/deploy-brochure.yml"
@@ -59,15 +59,15 @@ jobs:
       # so its dist must be built too.
       - name: Build patch-db client
         run: |
-          npm --prefix vendor/vendor/patch-db/client ci
-          npm --prefix vendor/vendor/patch-db/client run build
+          npm --prefix vendor/patch-db/client ci
+          npm --prefix vendor/patch-db/client run build
 
       - name: Install web dependencies
-        run: npm --prefix shared/web ci
+        run: npm ci
 
       - name: Build brochure
         run: |
-          npm --prefix shared/web run build:brochure
+          npm run build:brochure
           test -f brochure/dist/raw/brochure/index.html
 
       - name: Configure SSH

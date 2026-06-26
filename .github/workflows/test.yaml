@@ -65,8 +65,8 @@ jobs:
       - name: Build SDK (baseDist)
         run: cd start-sdk && make baseDist
       - name: Validate web lockfile
-        run: npm --prefix shared/web ci
+        run: npm ci
       - name: Check formatting
         run: |
-          npm --prefix shared/web run format:check
+          npm run format:check
           cd start-sdk && npx --prefix base prettier "**/*.ts" --check

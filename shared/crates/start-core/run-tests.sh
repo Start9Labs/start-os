@@ -30,7 +30,7 @@ if tty -s; then
 	USE_TTY="-it"
 fi
 
-cd ..
+cd ../../..
 FEATURES="$(echo $ENVIRONMENT | sed 's/-/,/g')"
 RUSTFLAGS=""
 
@@ -41,5 +41,5 @@ fi
 
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-rust-zig-builder cargo test --manifest-path=./core/Cargo.toml $BUILD_FLAGS --features=test,$FEATURES --workspace --locked --lib -- --skip export_
-rust-zig-builder sh -c "chown -R $UID:$UID core/target && chown -R $UID:$UID /usr/local/cargo"
+rust-zig-builder cargo test --manifest-path=./Cargo.toml $BUILD_FLAGS --features=test,$FEATURES -p start-core --locked --lib -- --skip export_
+rust-zig-builder sh -c "chown -R $UID:$UID target && chown -R $UID:$UID /usr/local/cargo"
