@@ -1953,69 +1953,85 @@ export class MockApiService extends ApiService {
 
   // Drives a service's nested init progress at the install's finalization
   // ("Installing") phase. Injects INIT_PROGRESS in place of the not-started
-  // (null) phase — every sub-phase starting "waiting" — then starts each in
-  // turn: an indeterminate sub-phase sits "in progress" for a beat, a
-  // determinate one climbs its percentage, and both — and the nested overall —
-  // complete. Mirrors the host: the sub-phases appear only now, not earlier.
+  // (null) phase — every sub-phase starting "waiting" — then runs them all at
+  // once (sub-phases can execute concurrently): an indeterminate sub-phase sits
+  // "in progress" for a beat, a determinate one climbs its percentage, and each
+  // completion advances the nested overall (the parent row's bar). Mirrors the
+  // host: the sub-phases appear only now, not earlier.
   private async installInitProgress(
     id: string,
     parentIdx: number,
   ): Promise<void> {
     const base = `/packageData/${id}/stateInfo/installingInfo/progress/phases/${parentIdx}/progress`
     const init: any = JSON.parse(JSON.stringify(INIT_PROGRESS))
+    const overall = init.overall
 
     this.mockRevision([
       {
         op: PatchOp.REPLACE,
         path: base,
         value: {
-          overall: init.overall,
+          overall,
           phases: init.phases.map((p: any) => ({ ...p, progress: null })),
         },
       },
     ])
 
-    for (let [j, sub] of init.phases.entries() as [number, any][]) {
-      // start this sub-phase (it has been showing "waiting")
-      this.mockRevision([
-        {
-          op: PatchOp.REPLACE,
-          path: `${base}/phases/${j}/progress`,
-          value: sub.progress,
-        },
-      ])
+    await Promise.all(
+      init.phases.map(async (sub: any, j: number) => {
+        // start this sub-phase (it has been showing "waiting")
+        this.mockRevision([
+          {
+            op: PatchOp.REPLACE,
+            path: `${base}/phases/${j}/progress`,
+            value: sub.progress,
+          },
+        ])
 
-      if (
-        sub.progress &&
-        typeof sub.progress === 'object' &&
-        sub.progress.total
-      ) {
-        const step = sub.progress.total / 4
+        if (
+          sub.progress &&
+          typeof sub.progress === 'object' &&
+          sub.progress.total
+        ) {
+          const step = sub.progress.total / 4
 
-        while (sub.progress.done < sub.progress.total) {
-          await pauseFor(600)
-          sub.progress.done += step
+          while (sub.progress.done < sub.progress.total) {
+            await pauseFor(600)
+            sub.progress.done += step
+            this.mockRevision([
+              {
+                op: PatchOp.REPLACE,
+                path: `${base}/phases/${j}/progress/done`,
+                value: sub.progress.done,
+              },
+            ])
+          }
+        } else {
+          // indeterminate (false) — let the value-less bar animate before completing
+          await pauseFor(3000)
+        }
+
+        this.mockRevision([
+          {
+            op: PatchOp.REPLACE,
+            path: `${base}/phases/${j}/progress`,
+            value: true,
+          },
+        ])
+
+        // advance the nested overall as each sub-phase finishes
+        if (overall && typeof overall === 'object' && overall.total) {
+          overall.done += overall.total / init.phases.length
           this.mockRevision([
             {
               op: PatchOp.REPLACE,
-              path: `${base}/phases/${j}/progress/done`,
-              value: sub.progress.done,
+              path: `${base}/overall/done`,
+              value: overall.done,
             },
           ])
         }
-      } else {
-        // indeterminate (false) — let the value-less bar animate before completing
-        await pauseFor(3000)
-      }
-
-      this.mockRevision([
-        {
-          op: PatchOp.REPLACE,
-          path: `${base}/phases/${j}/progress`,
-          value: true,
-        },
-      ])
-    }
+      }),
+    )
 
     this.mockRevision([
       {
