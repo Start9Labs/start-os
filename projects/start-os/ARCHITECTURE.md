@@ -1,7 +1,7 @@
 # Architecture — StartOS OS product
 
 This document covers the **OS product** (`start-os/`). For the monorepo as a
-whole, see [../../ARCHITECTURE.md](../../ARCHITECTURE.md) and [../../MONOREPO.md](../../MONOREPO.md).
+whole, see [../../ARCHITECTURE.md](../../ARCHITECTURE.md).
 For the Rust backend internals, see the `start-core` crate at
 [../../shared-libs/crates/start-core](../../shared-libs/crates/start-core).
 
@@ -132,4 +132,3 @@ resolving, so the UI is always eventually consistent with the backend.
 - [../../shared-libs/crates/start-core](../../shared-libs/crates/start-core) — Rust backend
 - [../../shared-libs/web](../../shared-libs/web) — shared Angular libraries + workspace
 - [container-runtime/ARCHITECTURE.md](container-runtime/ARCHITECTURE.md) — runtime
-- [../../MONOREPO.md](../../MONOREPO.md) — monorepo layout and rationale
