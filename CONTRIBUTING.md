@@ -11,7 +11,7 @@ The repo root's docs split across four files:
 - `CONTRIBUTING.md` — this file; how to contribute
 - `AGENTS.md` — AI-developer/agent operating rules (`CLAUDE.md` is a one-line `@AGENTS.md` import)
 
-**These docs must be kept up to date.** When you change project structure, conventions, build process, or product context, update the relevant file(s) in the same change — do not defer. Each component keeps its own `AGENTS.md`/`ARCHITECTURE.md` when it has distinct conventions, build steps, or test surfaces — see `shared/crates/start-core/`, `shared/web/`, `start-os/container-runtime/`, and `start-sdk/`.
+**These docs must be kept up to date.** When you change project structure, conventions, build process, or product context, update the relevant file(s) in the same change — do not defer. Each component keeps its own `AGENTS.md`/`ARCHITECTURE.md` when it has distinct conventions, build steps, or test surfaces — see `shared-libs/crates/start-core/`, `shared-libs/web/`, `start-os/container-runtime/`, and `start-sdk/`.
 
 ## Collaboration
 
@@ -49,7 +49,7 @@ nvm alias default 24 # this prevents your machine from reverting back to another
 
 ```sh
 git clone --recursive https://github.com/Start9Labs/start-os.git
-cd start-os
+cd projects/start-os
 ```
 
 StartOS has 4 major branches for integration. `master` is for the current release. If the current latest release is a pre-release (i.e. "beta.X"), PRs for new features and bugfixes should go here. Otherwise we have `next/` branches depending on which release of StartOS the changes should be included in; `next/patch` for the next patch release, `next/minor` for the next minor release, and `next/major` for the next major release. If you are unsure which branch to target, ask a maintainer.
@@ -176,12 +176,12 @@ PLATFORM=$(uname -m) ENVIRONMENT=dev make iso
 
 ```bash
 make test                    # All tests
-make test-core               # Rust tests (via ./shared/crates/start-core/run-tests.sh)
+make test-core               # Rust tests (via ./shared-libs/crates/start-core/run-tests.sh)
 make test-sdk                # SDK tests
 make test-container-runtime  # Container runtime tests
 
 # Run a specific Rust test
-cd shared/crates/start-core && cargo test <test_name> --features=test
+cd shared-libs/crates/start-core && cargo test <test_name> --features=test
 ```
 
 ## Code Formatting
@@ -191,9 +191,9 @@ cd shared/crates/start-core && cargo test <test_name> --features=test
 make format
 
 # Or scope it:
-cd shared/crates/start-core && cargo +nightly fmt   # Rust
-npm --prefix shared/web run format                  # TypeScript/HTML/SCSS
-cd start-sdk && make fmt                             # SDK
+cd shared-libs/crates/start-core && cargo +nightly fmt   # Rust
+npm --prefix shared-libs/web run format                  # TypeScript/HTML/SCSS
+cd projects/start-sdk && make fmt                             # SDK
 ```
 
 CI runs `make format-check` (read-only prettier `--check` for web + SDK).

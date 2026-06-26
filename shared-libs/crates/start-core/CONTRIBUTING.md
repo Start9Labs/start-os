@@ -1,6 +1,6 @@
 # Contributing to start-core
 
-The shared Rust backend lib (`start-core`, lib name `start_core`) at `shared/crates/start-core`.
+The shared Rust backend lib (`start-core`, lib name `start_core`) at `shared-libs/crates/start-core`.
 For general environment setup, cloning, and the monorepo build system, see the repo-root
 [CONTRIBUTING.md](../../../CONTRIBUTING.md).
 
@@ -50,12 +50,12 @@ When a Rust type needs to be available in TypeScript (for the web frontend or SD
 2. Use `#[serde(rename_all = "camelCase")]` for JS-friendly field names
 3. For types that don't implement TS (like `DateTime<Utc>`, `exver::Version`), use `#[ts(type = "string")]` overrides
 4. For `u64` fields that should be JS `number` (not `bigint`), use `#[ts(type = "number")]`
-5. Run `make ts-bindings` to regenerate — files appear in `shared/crates/start-core/bindings/` then sync to `start-sdk/base/lib/osBindings/`
+5. Run `make ts-bindings` to regenerate — files appear in `shared-libs/crates/start-core/bindings/` then sync to `start-sdk/base/lib/osBindings/`
 6. Rebuild the SDK: `cd start-sdk && make baseDist dist`
 
 ## Adding i18n Keys
 
-1. Add the key to `locales/i18n.yaml` (i.e. `shared/crates/start-core/locales/i18n.yaml`) with all 5 language translations
+1. Add the key to `locales/i18n.yaml` (i.e. `shared-libs/crates/start-core/locales/i18n.yaml`) with all 5 language translations
 2. Use the `t!("your.key.name")` macro in Rust code
 3. Follow existing namespace conventions — match the module path where the key is used
 4. Use kebab-case for multi-word segments

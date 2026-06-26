@@ -1,6 +1,6 @@
 # AGENTS.md — start-core
 
-The shared Rust backend lib (`start-core`, lib name `start_core`) at `shared/crates/start-core`.
+The shared Rust backend lib (`start-core`, lib name `start_core`) at `shared-libs/crates/start-core`.
 All five product bins (`startbox`/`startd`, `start-container`, `start-cli`, `registrybox`,
 `tunnelbox`) link against it; the bins themselves are thin wrappers in the product crates.
 
@@ -21,8 +21,8 @@ Topical references: [rpc-toolkit.md](rpc-toolkit.md), [patchdb.md](patchdb.md),
 
 - **Process invocation: use `.invoke(ErrorKind::...)`, not `.status()`.** When running CLI commands via `tokio::process::Command`, the `Invoke` trait (from `crate::util::Invoke`) captures stdout/stderr and checks exit codes. `.status()` leaks stderr directly to system logs and creates noise in production. For check-then-act patterns (e.g. `iptables -C`), use `.invoke(...).await.is_ok()` / `.is_err()` instead of `.status().await.map_or(false, |s| s.success())`.
 - **File I/O: prefer `crate::util::io` over `tokio::fs`** when an equivalent helper exists. These helpers add error context and mount-aware behavior that `tokio::fs` doesn't.
-- **i18n is mandatory for any user-facing string** — including CLI subcommand descriptions (`about.<name>`), CLI arg help (`help.arg.<name>`), error messages, notifications, and setup messages. All 5 locales (`en_US`, `de_DE`, `es_ES`, `fr_FR`, `pl_PL`) must be filled in `locales/i18n.yaml` (i.e. `shared/crates/start-core/locales/i18n.yaml`), alphabetically ordered within their section. See `i18n-patterns.md`. Compile-time validation catches missing keys.
-- **`#[ts(export)]` changes need a multi-step rebuild.** Editing a `#[ts(export)]` struct/enum in Rust does *not* update web or container-runtime. From the repo root, run `make ts-bindings` (regenerates `shared/crates/start-core/bindings/`, then rsyncs into `start-sdk/base/lib/osBindings/`) and then `cd start-sdk && make baseDist dist` (rebuilds the SDK bundles that web/container-runtime consume). See [ARCHITECTURE.md](ARCHITECTURE.md#cross-layer-verification).
+- **i18n is mandatory for any user-facing string** — including CLI subcommand descriptions (`about.<name>`), CLI arg help (`help.arg.<name>`), error messages, notifications, and setup messages. All 5 locales (`en_US`, `de_DE`, `es_ES`, `fr_FR`, `pl_PL`) must be filled in `locales/i18n.yaml` (i.e. `shared-libs/crates/start-core/locales/i18n.yaml`), alphabetically ordered within their section. See `i18n-patterns.md`. Compile-time validation catches missing keys.
+- **`#[ts(export)]` changes need a multi-step rebuild.** Editing a `#[ts(export)]` struct/enum in Rust does *not* update web or container-runtime. From the repo root, run `make ts-bindings` (regenerates `shared-libs/crates/start-core/bindings/`, then rsyncs into `start-sdk/base/lib/osBindings/`) and then `cd start-sdk && make baseDist dist` (rebuilds the SDK bundles that web/container-runtime consume). See [ARCHITECTURE.md](ARCHITECTURE.md#cross-layer-verification).
 - **Version bumps** follow [VERSION_BUMP.md](VERSION_BUMP.md); the crate version in `Cargo.toml` is tagged `# VERSION_BUMP`.
 - **Do not edit `CLAUDE.md`** — it is a one-line `@AGENTS.md` import. Edit this file instead.
 

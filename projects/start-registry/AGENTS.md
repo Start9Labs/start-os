@@ -5,10 +5,10 @@ Product wrapper for the **Start Registry** server inside the `start-os` monorepo
 ## Layout
 
 - `src/main.rs` — `MultiExecutable` wiring (`enable_start_registry` + `enable_start_registryd`).
-- `Cargo.toml` — crate metadata; `[[bin]] name = "registrybox"`; depends on `start-core = { path = "../shared/crates/start-core" }`.
+- `Cargo.toml` — crate metadata; `[[bin]] name = "registrybox"`; depends on `start-core = { path = "../../shared-libs/crates/start-core" }`.
 - `start-registryd.service` — systemd unit (`ExecStart=/usr/bin/start-registryd`).
-- **Real implementation:** `shared/crates/start-core/src/bins/registry.rs` (server `main` + CLI `cli`) and `shared/crates/start-core/src/registry/` (context, db, info, os, package, admin, metrics, signer, migrations, asset).
-- **UI:** `shared/web/marketplace/` (`@start9labs/marketplace`) — not built or served by this crate.
+- **Real implementation:** `shared-libs/crates/start-core/src/bins/registry.rs` (server `main` + CLI `cli`) and `shared-libs/crates/start-core/src/registry/` (context, db, info, os, package, admin, metrics, signer, migrations, asset).
+- **UI:** `shared-libs/web/marketplace/` (`@start9labs/marketplace`) — not built or served by this crate.
 
 ## Multi-call binary
 
@@ -27,7 +27,7 @@ Install (root `Makefile`) copies the binary to `/usr/bin/start-registrybox` and 
 | `cargo clippy -p start-registry` | lints |
 | `cargo test -p start-core registry` | exercise the registry logic (lives in start-core) |
 | `cargo fmt` | format |
-| `make registry` | release musl build via `shared/crates/start-core/build/build-registrybox.sh` |
+| `make registry` | release musl build via `shared-libs/crates/start-core/build/build-registrybox.sh` |
 | `make install-registry DESTDIR=…` | stage binary + symlinks + service |
 
 Because the code lives in `start-core`, most meaningful tests and lints target `-p start-core`, not `-p start-registry`. The thin wrapper mainly verifies that the bin links.
@@ -46,7 +46,7 @@ Defaults: listen `127.0.0.1:5959`, datadir `/var/lib/startos` (state in `<datadi
 
 ## Gotchas
 
-- **Don't put logic here.** New registry behavior belongs in `shared/crates/start-core/src/registry/`. This crate should stay a wrapper.
+- **Don't put logic here.** New registry behavior belongs in `shared-libs/crates/start-core/src/registry/`. This crate should stay a wrapper.
 - **`registrybox` (bin) vs `start-registry`/`start-registryd` (install names).** The Cargo bin is `registrybox`; the runtime names are symlinks created at install time. The service file references `/usr/bin/start-registryd`, which only exists after `install-registry` symlinks it.
 - **Version:** `Cargo.toml` `version` carries a `# VERSION_BUMP` marker tied to the OS release line (currently `0.4.0-beta.10`). Don't bump it in isolation — it tracks the monorepo release.
 - **`registry_api` is shared by server and CLI.** Adding a subcommand in `registry/mod.rs` with `with_call_remote::<CliContext>()` exposes it both over RPC and through the `start-registry` CLI.

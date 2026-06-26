@@ -1,13 +1,13 @@
 # Contributing to brochure
 
-`brochure` is the public Start9 Marketplace web app (marketplace.start9.com). It is an application project inside the Angular workspace at `shared/web`, so all tooling runs from there.
+`brochure` is the public Start9 Marketplace web app (marketplace.start9.com). It is an application project inside the Angular workspace at `shared-libs/web`, so all tooling runs from there.
 
-See the repo root [CONTRIBUTING.md](../CONTRIBUTING.md) for org-wide conventions; this file covers the brochure-specific workflow.
+See the repo root [CONTRIBUTING.md](../../CONTRIBUTING.md) for org-wide conventions; this file covers the brochure-specific workflow.
 
 ## Setup
 
 ```bash
-cd shared/web
+cd shared-libs/web
 npm ci
 npm run build:deps   # builds start-sdk baseDist + patch-db client — required before any brochure build
 ```
@@ -15,7 +15,7 @@ npm run build:deps   # builds start-sdk baseDist + patch-db client — required 
 ## Develop
 
 ```bash
-cd shared/web
+cd shared-libs/web
 npm run start:brochure   # dev server at http://localhost:8200 (MockApiService + fixtures)
 ```
 
@@ -23,7 +23,7 @@ The dev server uses mock data (`brochure/src/app/services/api.fixures.ts`). If y
 
 ## Verify before pushing
 
-From `shared/web`:
+From `shared-libs/web`:
 
 ```bash
 npm run check:brochure   # type check (tsc --noEmit)
@@ -31,15 +31,15 @@ npm run build:brochure   # production build must succeed (this is what gets depl
 npm run format:check     # prettier
 ```
 
-Lint: `cd shared/web && npm run ng -- lint brochure`.
+Lint: `cd shared-libs/web && npm run ng -- lint brochure`.
 
 Fix formatting with `npm run format` (formats all web projects, including brochure).
 
 ## Conventions
 
 - **Reuse the shared libs.** Marketplace UI lives in `@start9labs/marketplace`; cross-app utilities/components in `@start9labs/shared`. Prefer them over new local code.
-- **Follow workspace UI rules.** Taiga UI 5 for components/layout/styling; signals + `inject()` + OnPush; DI only on root (`app.config.ts`) or node injectors — never on routes. See `shared/web/AGENTS.md` for the full list.
-- **i18n every user-facing string** via the `i18n` pipe, with entries in every dictionary under `shared/web/shared/src/i18n/dictionaries/`.
+- **Follow workspace UI rules.** Taiga UI 5 for components/layout/styling; signals + `inject()` + OnPush; DI only on root (`app.config.ts`) or node injectors — never on routes. See `shared-libs/web/AGENTS.md` for the full list.
+- **i18n every user-facing string** via the `i18n` pipe, with entries in every dictionary under `shared-libs/web/shared/src/i18n/dictionaries/`.
 - **Keep changes scoped to `brochure/`.** Changes to shared libs, `angular.json`, or the SDK belong in those projects and affect every app.
 
 ## Deploy

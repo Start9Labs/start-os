@@ -2,7 +2,7 @@
 
 This guide covers developing the SDK itself. If you're building a service package *using* the SDK, see the [packaging docs](https://docs.start9.com/packaging).
 
-The SDK lives at `start-sdk/` inside the [start-os monorepo](../README.md). For contributing to the broader StartOS project, see the root [CONTRIBUTING.md](../CONTRIBUTING.md) and root [AGENTS.md](../AGENTS.md).
+The SDK lives at `start-sdk/` inside the [start-os monorepo](../../README.md). For contributing to the broader StartOS project, see the root [CONTRIBUTING.md](../../CONTRIBUTING.md) and root [AGENTS.md](../../AGENTS.md).
 
 ## Documentation
 
@@ -207,7 +207,7 @@ Decide where new code belongs:
 
 ### Adding OS Bindings
 
-Types in `base/lib/osBindings/` mirror Rust types from the monorepo's `shared/crates/start-core` (the `start_core` lib). When those Rust types change, the corresponding TypeScript bindings need regenerating. These are re-exported through `base/lib/osBindings/index.ts`.
+Types in `base/lib/osBindings/` mirror Rust types from the monorepo's `shared-libs/crates/start-core` (the `start_core` lib). When those Rust types change, the corresponding TypeScript bindings need regenerating. These are re-exported through `base/lib/osBindings/index.ts`.
 
 ### Writing Tests
 
@@ -225,4 +225,4 @@ fix(sdk): correct ExVer range parsing for pre-release versions
 test(sdk): add coverage for MultiHost port binding
 ```
 
-See the root [CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages) for the full convention.
+See the root [CONTRIBUTING.md](../../CONTRIBUTING.md#commit-messages) for the full convention.

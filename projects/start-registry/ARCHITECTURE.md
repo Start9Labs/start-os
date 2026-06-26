@@ -1,6 +1,6 @@
 # Architecture — start-registry
 
-`start-registry` is one of the product wrappers in the `start-os` monorepo. The wrapper itself is tiny; nearly all logic lives in the shared backend crate `start-core` (`shared/crates/start-core`, package `start-core`, lib name `start_core`).
+`start-registry` is one of the product wrappers in the `start-os` monorepo. The wrapper itself is tiny; nearly all logic lives in the shared backend crate `start-core` (`shared-libs/crates/start-core`, package `start-core`, lib name `start_core`).
 
 ## Binary: `registrybox`
 
@@ -19,7 +19,7 @@ The dispatch table also responds to `--contents` (lists the embedded sub-binarie
 
 ## Server (`start-registryd` → `registry::main`)
 
-Defined in `shared/crates/start-core/src/bins/registry.rs`:
+Defined in `shared-libs/crates/start-core/src/bins/registry.rs`:
 
 1. Parse `RegistryConfig` (CLI flags + config files) and `load()` it.
 2. Build a multi-threaded Tokio runtime.
@@ -29,7 +29,7 @@ Defined in `shared/crates/start-core/src/bins/registry.rs`:
 
 ## HTTP routing (`registry_router`)
 
-Defined in `shared/crates/start-core/src/registry/mod.rs`:
+Defined in `shared-libs/crates/start-core/src/registry/mod.rs`:
 
 - `POST /rpc/{*path}` — JSON-RPC, wrapped in `Cors`, `Auth` (local + signature auth), and `DeviceInfoMiddleware`.
 - `GET /ws/rpc/{*path}` — WebSocket RPC continuations, keyed by a `Guid`.
@@ -69,16 +69,16 @@ Package and OS indexes (`registry/package/index.rs`, `registry/os/index.rs`) hol
 
 ## Frontend
 
-The registry has no bundled UI of its own; the browsing/search/download UI is the shared Angular library **`@start9labs/marketplace`** at `shared/web/marketplace/`. App projects (StartOS web, etc.) consume that library and point it at a registry's RPC endpoints. The library is source-consumed via tsconfig paths within the `shared/web` Angular workspace.
+The registry has no bundled UI of its own; the browsing/search/download UI is the shared Angular library **`@start9labs/marketplace`** at `shared-libs/web/marketplace/`. App projects (StartOS web, etc.) consume that library and point it at a registry's RPC endpoints. The library is source-consumed via tsconfig paths within the `shared-libs/web` Angular workspace.
 
 ## Place in the monorepo
 
 ```
 start-os/ (monorepo root)
 ├── start-registry/                 ← this wrapper (registrybox bin + service)
-├── shared/crates/start-core/       ← all backend logic, incl. src/registry/
+├── shared-libs/crates/start-core/       ← all backend logic, incl. src/registry/
 │   └── src/bins/registry.rs        ← server + CLI entry points
-├── shared/web/marketplace/         ← @start9labs/marketplace UI library
+├── shared-libs/web/marketplace/         ← @start9labs/marketplace UI library
 ├── Makefile                        ← registry / install-registry / .deb targets
 └── Cargo.toml                      ← single workspace + Cargo.lock
 ```

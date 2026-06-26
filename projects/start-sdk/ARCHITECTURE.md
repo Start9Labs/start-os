@@ -31,7 +31,7 @@ The base package is a self-contained library of types, interfaces, and low-level
 
 ### OS Bindings (`base/lib/osBindings/`)
 
-Auto-generated TypeScript files defining every type exchanged between the SDK and the StartOS runtime. They mirror the Rust types in the monorepo's `shared/crates/start-core` (the `startos` lib) and cover the full surface area of the system: manifests, actions, health checks, service interfaces, bind parameters, dependency requirements, SSL, domains, SMTP, networking, images, and more. When the Rust types change, these bindings must be regenerated.
+Auto-generated TypeScript files defining every type exchanged between the SDK and the StartOS runtime. They mirror the Rust types in the monorepo's `shared-libs/crates/start-core` (the `startos` lib) and cover the full surface area of the system: manifests, actions, health checks, service interfaces, bind parameters, dependency requirements, SSL, domains, SMTP, networking, images, and more. When the Rust types change, these bindings must be regenerated.
 
 All bindings are re-exported through `base/lib/osBindings/index.ts`.
 

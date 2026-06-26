@@ -1,6 +1,6 @@
 # StartOS Web
 
-The single [Angular](https://angular.dev/) + TypeScript workspace (Angular 22, [Taiga UI 5](https://taiga-ui.dev/)) shared by every Start9 front-end. This directory (`shared/web`) is the workspace **root** — it holds `angular.json`, `package.json`, `tsconfig.json`, and the two shared libraries. The individual app projects live in their product directories and reference these libs.
+The single [Angular](https://angular.dev/) + TypeScript workspace (Angular 22, [Taiga UI 5](https://taiga-ui.dev/)) shared by every Start9 front-end. This directory (`shared-libs/web`) is the workspace **root** — it holds `angular.json`, `package.json`, `tsconfig.json`, and the two shared libraries. The individual app projects live in their product directories and reference these libs.
 
 ## Libraries (in this directory)
 
@@ -21,7 +21,7 @@ All four consume the `shared` and `marketplace` libs from this workspace.
 ## Quickstart
 
 ```sh
-cd shared/web
+cd shared-libs/web
 npm ci
 npm run build:deps      # builds start-sdk + patch-db client (file: deps)
 cp config-sample.json config.json

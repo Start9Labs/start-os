@@ -1,9 +1,9 @@
 # Architecture — StartOS OS product
 
 This document covers the **OS product** (`start-os/`). For the monorepo as a
-whole, see [../ARCHITECTURE.md](../ARCHITECTURE.md) and [../MONOREPO.md](../MONOREPO.md).
+whole, see [../../ARCHITECTURE.md](../../ARCHITECTURE.md) and [../../MONOREPO.md](../../MONOREPO.md).
 For the Rust backend internals, see the `start-core` crate at
-[../shared/crates/start-core](../shared/crates/start-core).
+[../../shared-libs/crates/start-core](../../shared-libs/crates/start-core).
 
 ## What this product is
 
@@ -43,10 +43,10 @@ Two Angular 22 apps live under `web/`:
 - `ui/` — the admin dashboard (Angular project `ui`).
 - `setup-wizard/` — the first-boot setup flow (project `setup-wizard`).
 
-They are part of the single Angular workspace rooted at `../shared/web`
+They are part of the single Angular workspace rooted at `../../shared-libs/web`
 (`angular.json` there points each project's `root` at `../../start-os/web/...`).
 They consume the shared `@start9labs/shared` and `@start9labs/marketplace` libs
-from `../shared/web` and the SDK base from `../start-sdk`. The frontend talks to
+from `../../shared-libs/web` and the SDK base from `../start-sdk`. The frontend talks to
 the backend exclusively over JSON-RPC, with reactive state via Patch-DB.
 
 `web/patchdb-ui-seed.json` / `patchdb-ui-seed.beta.json` seed initial UI state
@@ -97,7 +97,7 @@ Changes flow in one direction; verify in this order:
 
 ```
 start-core (Rust)
-  → make ts-bindings   # cargo test exports ts-rs types → shared/crates/start-core/bindings/
+  → make ts-bindings   # cargo test exports ts-rs types → shared-libs/crates/start-core/bindings/
     → start-sdk build  # produces start-sdk/baseDist (base) + start-sdk/dist (base+package)
       → web apps consume start-sdk/baseDist via @start9labs/start-sdk
       → container-runtime consumes start-sdk/dist
@@ -107,9 +107,9 @@ start-core (Rust)
 |---|---|---|
 | 1 | `cargo check -p start-os` | Verify the OS bins compile |
 | 2 | `make ts-bindings` | Export ts-rs types from `start-core` |
-| 3 | `cd start-sdk && make bundle` | Build SDK `baseDist` + `dist` |
-| 4 | `cd shared/web && npm run check:ui && npm run check:setup` | Type-check the apps |
-| 5 | `cd start-os/container-runtime && npm run check` | Type-check the runtime |
+| 3 | `cd projects/start-sdk && make bundle` | Build SDK `baseDist` + `dist` |
+| 4 | `cd shared-libs/web && npm run check:ui && npm run check:setup` | Type-check the apps |
+| 5 | `cd projects/start-os/container-runtime && npm run check` | Type-check the runtime |
 
 Editing the generated bindings under `start-sdk/base/lib/osBindings/*.ts` alone
 is **not** enough — the SDK bundle must be rebuilt before the web apps and
@@ -129,7 +129,7 @@ resolving, so the UI is always eventually consistent with the backend.
 
 ## Further reading
 
-- [../shared/crates/start-core](../shared/crates/start-core) — Rust backend
-- [../shared/web](../shared/web) — shared Angular libraries + workspace
+- [../../shared-libs/crates/start-core](../../shared-libs/crates/start-core) — Rust backend
+- [../../shared-libs/web](../../shared-libs/web) — shared Angular libraries + workspace
 - [container-runtime/ARCHITECTURE.md](container-runtime/ARCHITECTURE.md) — runtime
-- [../MONOREPO.md](../MONOREPO.md) — monorepo layout and rationale
+- [../../MONOREPO.md](../../MONOREPO.md) — monorepo layout and rationale

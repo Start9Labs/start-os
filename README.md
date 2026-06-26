@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="shared/web/shared/assets/img/icon.png" alt="StartOS Logo" width="16%" />
+  <img src="shared-libs/web/shared/assets/img/icon.png" alt="StartOS Logo" width="16%" />
   <h1 style="margin-top: 0;">Start9 Monorepo</h1>
   <a href="https://github.com/Start9Labs/start-os/releases">
     <img alt="GitHub release (with filter)" src="https://img.shields.io/github/v/release/start9labs/start-os?logo=github">
@@ -22,18 +22,19 @@
 
 This repository is the **monorepo for all Start9 products**. Its flagship is **StartOS** — an open-source Linux distribution for running a personal server, handling discovery, installation, network configuration, data backup, dependency management, and health monitoring of self-hosted services.
 
-All products share a single Rust backend library (`start-core`) and a single Angular workspace; each product is a thin top-level wrapper that adds only its own entry point and any product-specific frontend or packaging.
+All products share a single Rust backend library (`start-core`) and a single Angular workspace; each product is a thin wrapper under `projects/` that adds only its own entry point and any product-specific frontend or packaging, while shared code lives at the top level under `shared-libs/`.
 
 | Directory | Product | What it is |
 |---|---|---|
-| `start-os/` | StartOS | The server OS — `startbox`/`start-container` bins, web UI + setup wizard, container runtime, OS packaging |
-| `start-cli/` | start-cli | CLI for managing servers, registries, and packaging |
-| `start-registry/` | start-registry | Package registry server (`registrybox`); serves the marketplace UI |
-| `start-tunnel/` | StartTunnel | VPN/forwarding server (`tunnelbox`) + its web UI |
-| `start-sdk/` | Start SDK | `@start9labs/start-sdk` for building StartOS service packages |
-| `brochure/` | brochure | Marketing/landing site |
-| `shared/crates/start-core/` | — | The entire Rust backend library shared by all bins |
-| `shared/web/` | — | Single Angular workspace + shared libraries |
+| `projects/start-os/` | StartOS | The server OS — `startbox`/`start-container` bins, web UI + setup wizard, container runtime, OS packaging |
+| `projects/start-cli/` | start-cli | CLI for managing servers, registries, and packaging |
+| `projects/start-registry/` | start-registry | Package registry server (`registrybox`); serves the marketplace UI |
+| `projects/start-tunnel/` | StartTunnel | VPN/forwarding server (`tunnelbox`) + its web UI |
+| `projects/start-sdk/` | Start SDK | `@start9labs/start-sdk` for building StartOS service packages |
+| `projects/brochure-marketplace/` | Marketplace site | Public marketplace/landing site (marketplace.start9.com) |
+| `projects/start-docs/` | Docs site | The documentation website (docs.start9.com) |
+| `shared-libs/crates/start-core/` | — | The entire Rust backend library shared by all bins |
+| `shared-libs/web/` | — | Shared Angular libraries (the Angular workspace is rooted at the repo root) |
 | `vendor/patch-db/` | — | Diff-based reactive state store (git submodule) |
 
 **Tech stack:** Rust backend (Tokio/Axum), Angular frontend (Taiga UI), Node.js container runtime with LXC, and a custom diff-based database ([Patch-DB](https://github.com/Start9Labs/patch-db)) for reactive state synchronization. Services run in isolated LXC containers, packaged as S9PKs — a signed, merkle-archived format supporting partial downloads and cryptographic verification.
@@ -69,6 +70,17 @@ git clone --recursive https://github.com/Start9Labs/start-os.git
 cd start-os
 PLATFORM=$(uname -m) ENVIRONMENT=dev make iso   # build a StartOS image
 ```
+
+## The rest of the monorepo
+
+StartOS is the flagship, but it shares this repo with the rest of the Start9 stack:
+
+- **[StartTunnel](projects/start-tunnel/)** — a self-hosted VPN / reverse-proxy server that gives a StartOS box a public address and clearnet port forwarding without relying on a third-party tunnel.
+- **[start-cli](projects/start-cli/)** — the command-line client for StartOS servers and registries, and the tool that builds and signs service packages (`.s9pk`).
+- **[Start SDK](projects/start-sdk/)** — the `@start9labs/start-sdk` TypeScript SDK and packaging toolchain for wrapping any app into an installable StartOS service.
+- **[start-registry](projects/start-registry/)** — the registry server that hosts and serves marketplaces of packaged services.
+- **[Marketplace site](projects/brochure-marketplace/)** — the public marketplace at [marketplace.start9.com](https://marketplace.start9.com), built on the same UI components the OS uses.
+- **[Docs site](projects/start-docs/)** — the documentation website at [docs.start9.com](https://docs.start9.com).
 
 ## Contributing
 

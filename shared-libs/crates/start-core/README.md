@@ -9,7 +9,7 @@ thin wrappers that select which entrypoints to enable from `start_core::bins`.
 
 ## Place in the monorepo
 
-This crate lives at `shared/crates/start-core` and is the lib that all five product bins depend on:
+This crate lives at `shared-libs/crates/start-core` and is the lib that all five product bins depend on:
 
 | Binary | Defined in | Notes |
 |--------|-----------|-------|

@@ -1,16 +1,16 @@
 # AGENTS — StartOS OS product
 
 Operating rules for AI developers working in `start-os/`. See the root
-[AGENTS.md](../AGENTS.md) for monorepo-wide rules and
+[AGENTS.md](../../AGENTS.md) for monorepo-wide rules and
 [ARCHITECTURE.md](ARCHITECTURE.md) for how this product is wired.
 
 ## Where things are
 
 - `src/bin/startbox.rs`, `src/bin/start-container.rs` — the only Rust in this
   dir. They are thin entry points; backend logic lives in
-  `../shared/crates/start-core` (crate `start-core`, lib `start_core`).
+  `../../shared-libs/crates/start-core` (crate `start-core`, lib `start_core`).
 - `web/ui`, `web/setup-wizard` — Angular apps; part of the workspace at
-  `../shared/web`. Run web commands from `../shared/web`, not from here.
+  `../../shared-libs/web`. Run web commands from `../../shared-libs/web`, not from here.
 - `container-runtime/` — Node.js LXC runtime with its **own** AGENTS/CLAUDE;
   read `container-runtime/AGENTS.md` before touching it.
 - `docs/` — the end-user mdbook (book "StartOS"), served at `/start-os/`.
@@ -24,11 +24,11 @@ Operating rules for AI developers working in `start-os/`. See the root
   apple-darwin and aarch64/riscv64 musl; platform-specific changes can pass here
   yet break those.
 - Regenerate TS bindings after any change to exported Rust types:
-  `make ts-bindings`. Then rebuild the SDK (`cd start-sdk && make bundle`) before
+  `make ts-bindings`. Then rebuild the SDK (`cd projects/start-sdk && make bundle`) before
   web/runtime type-checks — editing `start-sdk/base/lib/osBindings/*.ts` alone
   is not enough.
-- Type-check web apps: `cd shared/web && npm run check:ui && npm run check:setup`.
-- Type-check the runtime: `cd start-os/container-runtime && npm run check`.
+- Type-check web apps: `cd shared-libs/web && npm run check:ui && npm run check:setup`.
+- Type-check the runtime: `cd projects/start-os/container-runtime && npm run check`.
 - Build the UI: `make ui` (or `make uis` for ui + setup-wizard).
 - Tests: `make test` (Rust + SDK + container-runtime), or `make test-core`.
 - Format: `make format` / `make format-check`.

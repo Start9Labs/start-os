@@ -31,17 +31,17 @@ start-tunnel/
 ├── Cargo.toml              # crate "start-tunnel", bin "tunnelbox"
 ├── src/main.rs             # entry point: embeds the UI, dispatches to start-core
 ├── start-tunneld.service   # systemd unit (runs /usr/bin/start-tunneld)
-├── web/                    # Angular UI (project "start-tunnel" in shared/web)
+├── web/                    # Angular UI (project "start-tunnel" in shared-libs/web)
 └── docs/                   # mdbook (book "StartTunnel")
 ```
 
-- **Backend**: `shared/crates/start-core/src/tunnel/` (module `start_core::tunnel`)
+- **Backend**: `shared-libs/crates/start-core/src/tunnel/` (module `start_core::tunnel`)
   holds the daemon, JSON-RPC API, WireGuard control, port-forward engine, DNS,
   auth, and the embedded web server.
-- **CLI/daemon entry**: `shared/crates/start-core/src/bins/tunnel.rs` provides
+- **CLI/daemon entry**: `shared-libs/crates/start-core/src/bins/tunnel.rs` provides
   both the `start-tunneld` daemon and the `start-tunnel` CLI.
 - **Frontend**: the Angular app under `web/` references the shared libs
-  `@start9labs/shared` and `@start9labs/marketplace` from `shared/web/`.
+  `@start9labs/shared` and `@start9labs/marketplace` from `shared-libs/web/`.
 
 The single `tunnelbox` binary is installed as three symlinks:
 
@@ -73,7 +73,7 @@ All builds run from the **repo root**, not this directory.
 make tunnel
 
 # Build just the Angular UI
-npm --prefix shared/web run build:tunnel
+npm --prefix shared-libs/web run build:tunnel
 
 # Build the cargo binary directly (UI must already be built)
 cargo build -p start-tunnel --bin tunnelbox
@@ -104,4 +104,4 @@ embeds the compiled UI from `web/dist/static/start-tunnel/` into.
 
 ## License
 
-MIT. See [LICENSE](../LICENSE).
+MIT. See [LICENSE](../../LICENSE).

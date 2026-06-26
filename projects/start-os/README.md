@@ -15,14 +15,14 @@ wrapper that ships the OS:
 - the systemd units and OS image packaging glue.
 
 The bulk of the backend logic lives in the shared `start-core` crate
-(`../shared/crates/start-core`), and the Angular apps here consume the shared web
-libraries under `../shared/web` and the SDK base from `../start-sdk`.
+(`../../shared-libs/crates/start-core`), and the Angular apps here consume the shared web
+libraries under `../../shared-libs/web` and the SDK base from `../start-sdk`.
 
 ## Tech stack
 
 - **Backend:** Rust (Tokio async, Axum), built on the `start-core` crate.
 - **Frontend:** Angular 22 + Taiga UI 5 (apps live under `web/`, shared libs
-  under `../shared/web`).
+  under `../../shared-libs/web`).
 - **Container runtime:** Node.js/TypeScript managing LXC service containers.
 - **State/sync:** Patch-DB (`../vendor/patch-db`) — diff-based store that pushes
   CBOR diffs to the frontend over WebSocket for reactive, poll-free UI updates.
@@ -53,7 +53,7 @@ and `assets/`. The root `Makefile` drives the full ISO/img build.
 ## Quickstart
 
 Build commands run from the **repo root** (one Cargo workspace, one Angular
-workspace). See the [root CONTRIBUTING](../CONTRIBUTING.md) for full environment
+workspace). See the [root CONTRIBUTING](../../CONTRIBUTING.md) for full environment
 setup (Debian/Ubuntu, Docker, Rust, Node 24).
 
 ```sh

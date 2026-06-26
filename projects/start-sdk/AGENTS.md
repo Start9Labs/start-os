@@ -34,7 +34,7 @@ Tests are jest + ts-jest, Node only (no browser). Test files use `.test.ts`. The
 - **Don't bump if the current latest hasn't published to npm.** Edit the unpublished version in place (promote patch→minor if the change warrants).
 - **Consumers read the built output.** After editing `base/`/`package/`, run `make baseDist dist` before checking web / container-runtime.
 - **base vs package:** types/ABI/OS-bindings/low-level → `base/`; developer-facing wrappers/runtime helpers → `package/`. A new base export must be re-exported from `package/lib/index.ts` or exposed via `StartSdk.build()`.
-- **OS bindings** (`base/lib/osBindings/`) mirror Rust types in `shared/crates/start-core`; regenerate/update them when the Rust side changes.
+- **OS bindings** (`base/lib/osBindings/`) mirror Rust types in `shared-libs/crates/start-core`; regenerate/update them when the Rust side changes.
 - **Editing `s9pk.mk` / `tsconfig.base.json` changes every package's build** — they ship in the published package. Treat as a public contract.
 - Prettier config (single quotes, no semis, trailing commas, 2-space, `arrowParens: avoid`) lives in each sub-package's `package.json`.
 

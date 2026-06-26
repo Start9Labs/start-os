@@ -1,7 +1,7 @@
 # start-core Architecture
 
 The shared Rust backend library for StartOS. Cargo package `start-core`, library name `startos`,
-rooted at `shared/crates/start-core`. All Start9 product binaries link against it.
+rooted at `shared-libs/crates/start-core`. All Start9 product binaries link against it.
 
 ## Library, not a binary
 
@@ -80,7 +80,7 @@ Rust types marked `#[ts(export)]` are the source of truth for TypeScript consume
 and the package container-runtime, via the SDK). They do **not** propagate automatically. From
 the repo root:
 
-1. `make ts-bindings` — regenerates `shared/crates/start-core/bindings/` (via `build/build-ts.sh`),
+1. `make ts-bindings` — regenerates `shared-libs/crates/start-core/bindings/` (via `build/build-ts.sh`),
    then rsyncs it into `start-sdk/base/lib/osBindings/`.
 2. `cd start-sdk && make baseDist dist` — rebuilds the SDK bundles that the web app and
    container-runtime actually import.

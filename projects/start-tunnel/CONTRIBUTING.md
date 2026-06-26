@@ -1,14 +1,14 @@
 # Contributing to StartTunnel
 
 StartTunnel is one product in the `start-os` monorepo. Start with the root
-[`CONTRIBUTING.md`](../CONTRIBUTING.md) for environment setup (Docker, Rust
+[`CONTRIBUTING.md`](../../CONTRIBUTING.md) for environment setup (Docker, Rust
 toolchain, Node), collaboration channels, and repo-wide conventions. This file
 covers what is specific to building, testing, and changing StartTunnel.
 
 ## Before you start
 
 - Read [`AGENTS.md`](AGENTS.md) and [`ARCHITECTURE.md`](ARCHITECTURE.md).
-- Most backend work happens in `shared/crates/start-core/src/tunnel/`, **not** in
+- Most backend work happens in `shared-libs/crates/start-core/src/tunnel/`, **not** in
   this directory. The `start-tunnel/` dir is a thin wrapper (entry point, UI,
   systemd unit, docs).
 
@@ -18,7 +18,7 @@ covers what is specific to building, testing, and changing StartTunnel.
 make tunnel                                   # full daemon build (UI + tunnelbox)
 cargo build -p start-tunnel --bin tunnelbox   # cargo only (UI must be prebuilt)
 cargo check -p start-tunnel                    # fast type-check
-npm --prefix shared/web run build:tunnel       # build just the Angular UI
+npm --prefix shared-libs/web run build:tunnel       # build just the Angular UI
 make tunnel-deb                                # Debian package
 ```
 
@@ -62,7 +62,7 @@ it rather than reimplementing cross-platform.
 2. Make focused commits with conventional messages (`feat:`, `fix:`, `chore:`,
    `docs:`).
 3. If you change the db schema, add a numbered migration in
-   `shared/crates/start-core/src/tunnel/migrations/` and register it in
+   `shared-libs/crates/start-core/src/tunnel/migrations/` and register it in
    `migrations/mod.rs`.
 4. If you change the API, regenerate TS bindings: `make ts-bindings`.
 5. **Update docs in the same change** if the behavior is user-facing (UI, CLI

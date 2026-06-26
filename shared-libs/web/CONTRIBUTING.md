@@ -16,7 +16,7 @@ This directory's docs split across four files:
 ## Web Setup
 
 ```sh
-cd shared/web
+cd shared-libs/web
 npm ci
 npm run build:deps   # builds start-sdk (make bundle) + patch-db client; both are file: deps
 ```
@@ -62,7 +62,7 @@ npm run start:ui:proxy
 
 ## Type-checking, formatting & builds
 
-Run from `shared/web`:
+Run from `shared-libs/web`:
 
 ```sh
 npm run check          # type-check every project (i18n, shared, marketplace, ui, setup, brochure)

@@ -1,6 +1,6 @@
 # Container Runtime Architecture
 
-The container runtime is a long-lived Node.js/TypeScript process that runs inside every StartOS service container. It loads the service's JavaScript from the s9pk, manages subcontainers, and serves a JSON-RPC API that the StartOS host daemon (`shared/crates/start-core`) drives over a Unix socket.
+The container runtime is a long-lived Node.js/TypeScript process that runs inside every StartOS service container. It loads the service's JavaScript from the s9pk, manages subcontainers, and serves a JSON-RPC API that the StartOS host daemon (`shared-libs/crates/start-core`) drives over a Unix socket.
 
 ```
 LXC Container (uniform base image for all services)
@@ -11,7 +11,7 @@ LXC Container (uniform base image for all services)
                 └── Package JS launches subcontainers (from images in s9pk)
 ```
 
-The `start-container` binary (built from package `start-os`, see `shared/crates/start-core`) supervises the Node process and wraps its stdio. Package JavaScript must export functions conforming to the `ABI` type defined in `start-sdk/base/lib/types.ts`; the runtime imports `@start9labs/start-sdk` from the built SDK at `../../start-sdk/dist`.
+The `start-container` binary (built from package `start-os`, see `shared-libs/crates/start-core`) supervises the Node process and wraps its stdio. Package JavaScript must export functions conforming to the `ABI` type defined in `start-sdk/base/lib/types.ts`; the runtime imports `@start9labs/start-sdk` from the built SDK at `../../start-sdk/dist`.
 
 ## Source layout (`src/`)
 
@@ -55,4 +55,4 @@ The top-level `Makefile` orchestrates all of this (`start-os/container-runtime/r
 
 ## S9PK structure
 
-The s9pk format determines what the runtime loads at startup. Its definition and tooling live in `shared/crates/start-core/src/s9pk` (host side) and `start-sdk` (packaging side).
+The s9pk format determines what the runtime loads at startup. Its definition and tooling live in `shared-libs/crates/start-core/src/s9pk` (host side) and `start-sdk` (packaging side).

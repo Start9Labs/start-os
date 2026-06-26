@@ -8,18 +8,18 @@ The actual marketing/landing site lives elsewhere (`docs/landing`); this project
 
 ## Where it lives
 
-This is a thin Angular application project inside the monorepo's single Angular workspace, rooted at `shared/web`:
+This is a thin Angular application project inside the monorepo's single Angular workspace, rooted at `shared-libs/web`:
 
 - App source: `brochure/src/`
-- Workspace + build config: `shared/web/angular.json` (project `brochure`), `shared/web/package.json`
-- Shared libraries it consumes: `@start9labs/marketplace` (`shared/web/marketplace`) and `@start9labs/shared` (`shared/web/shared`)
+- Workspace + build config: `shared-libs/web/angular.json` (project `brochure`), `shared-libs/web/package.json`
+- Shared libraries it consumes: `@start9labs/marketplace` (`shared-libs/web/marketplace`) and `@start9labs/shared` (`shared-libs/web/shared`)
 
-Run all `npm` scripts from `shared/web`, not from this directory.
+Run all `npm` scripts from `shared-libs/web`, not from this directory.
 
 ## Quickstart
 
 ```bash
-cd shared/web
+cd shared-libs/web
 npm ci                     # install workspace deps (run once)
 npm run build:deps         # build the SDK bundle + patch-db client (run once)
 
@@ -31,7 +31,7 @@ The dev build uses `MockApiService` (fixtures in `src/app/services/api.fixures.t
 ## Build
 
 ```bash
-cd shared/web
+cd shared-libs/web
 npm run build:brochure     # production build -> brochure/dist/raw/brochure
 ```
 

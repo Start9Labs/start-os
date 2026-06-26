@@ -1,14 +1,14 @@
 # Architecture
 
 `start-cli` is intentionally tiny. Almost all behavior lives in the shared
-[`start-core`](../shared/crates/start-core) crate (cargo package `start-core`, lib name
+[`start-core`](../../shared-libs/crates/start-core) crate (cargo package `start-core`, lib name
 `start_core`); this crate is just the `start-cli` entrypoint plus build/feature wiring.
 
 ## Place in the monorepo
 
 ```
 start-os/                      monorepo root (one Cargo workspace, one Cargo.lock)
-├── shared/crates/start-core/  the entire Rust backend (lib `start_core`)
+├── shared-libs/crates/start-core/  the entire Rust backend (lib `start_core`)
 ├── start-cli/        ← THIS CRATE — bin `start-cli`
 ├── start-os/         OS product (bins startbox, start-container)
 ├── start-registry/   registrybox bin
@@ -18,7 +18,7 @@ start-os/                      monorepo root (one Cargo workspace, one Cargo.loc
 
 All product bins (`startbox`, `start-container`, `start-cli`, `registrybox`, `tunnelbox`)
 depend on `start-core`. `start-cli` declares it as
-`start-core = { path = "../shared/crates/start-core" }`.
+`start-core = { path = "../../shared-libs/crates/start-core" }`.
 
 ## What this crate contains
 
@@ -48,14 +48,14 @@ argv ─▶ MultiExecutable ─▶ start_cli::main (in start-core)
 ```
 
 The actual CLI bin (`start_cli::main`) lives in
-[`shared/crates/start-core/src/bins/start_cli.rs`](../shared/crates/start-core/src/bins/start_cli.rs).
+[`shared-libs/crates/start-core/src/bins/start_cli.rs`](../../shared-libs/crates/start-core/src/bins/start_cli.rs).
 It constructs an `rpc_toolkit::CliApp` from `start-core::main_api()` and a `ClientConfig`,
 renames the command to `start-cli`, stamps the current StartOS version, and runs it. Errors
 are unwrapped from the RPC envelope and printed to stderr; the process exits with the RPC error code.
 
 ### Remote vs. local commands
 
-`main_api()` (in [`shared/crates/start-core/src/lib.rs`](../shared/crates/start-core/src/lib.rs))
+`main_api()` (in [`shared-libs/crates/start-core/src/lib.rs`](../../shared-libs/crates/start-core/src/lib.rs))
 registers every subcommand once with `with_call_remote::<CliContext>()` — those are dispatched
 over the network to a server's RPC endpoint, authenticated with the session cookie. Commands
 without a remote handler (`s9pk`, `init-key`, `pubkey`, `util`) execute locally. The `registry`

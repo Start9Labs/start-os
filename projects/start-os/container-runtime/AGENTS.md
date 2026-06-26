@@ -4,8 +4,8 @@ Node.js/TypeScript service runtime that runs inside StartOS package LXC containe
 
 ## Operating rules
 
-- **Depends on the _built_ SDK at `../../start-sdk/dist`** (declared in `package.json` as `"@start9labs/start-sdk": "file:../../start-sdk/dist"`). Editing `start-sdk/` source alone has no effect here — rebuild the SDK first: `cd start-sdk && make bundle` (or `make baseDist dist`). The Makefile target `start-os/container-runtime/package-lock.json` also depends on `start-sdk/dist/package.json`, so a stale SDK can break `npm ci`/`check`/`test`.
-- **Style: double quotes, no semicolons.** Prettier config lives in `package.json` (`semi: false`, `singleQuote: false`, `trailingComma: "all"`, `tabWidth: 2`). This differs from `start-sdk` / `shared/web` (single quotes there) — do NOT "normalize" to single quotes. `npm run build` runs Prettier `--write` before compiling.
+- **Depends on the _built_ SDK at `../../start-sdk/dist`** (declared in `package.json` as `"@start9labs/start-sdk": "file:../../start-sdk/dist"`). Editing `start-sdk/` source alone has no effect here — rebuild the SDK first: `cd projects/start-sdk && make bundle` (or `make baseDist dist`). The Makefile target `start-os/container-runtime/package-lock.json` also depends on `start-sdk/dist/package.json`, so a stale SDK can break `npm ci`/`check`/`test`.
+- **Style: double quotes, no semicolons.** Prettier config lives in `package.json` (`semi: false`, `singleQuote: false`, `trailingComma: "all"`, `tabWidth: 2`). This differs from `start-sdk` / `shared-libs/web` (single quotes there) — do NOT "normalize" to single quotes. `npm run build` runs Prettier `--write` before compiling.
 - **`CLAUDE.md` is just `@AGENTS.md`** — edit this file, not `CLAUDE.md`.
 
 ## Build / test
@@ -13,11 +13,11 @@ Node.js/TypeScript service runtime that runs inside StartOS package LXC containe
 Run from the monorepo root (`/path/to/start-os`):
 
 ```bash
-cd start-sdk && make bundle && cd -                  # build SDK dependency first
-npm --prefix start-os/container-runtime ci           # install deps
-npm --prefix start-os/container-runtime run check     # tsc --noEmit (type-check)
-npm --prefix start-os/container-runtime run build      # prettier + clean + tsc -> dist/
-npm --prefix start-os/container-runtime test           # jest (ts-jest)
+cd projects/start-sdk && make bundle && cd -                  # build SDK dependency first
+npm --prefix projects/start-os/container-runtime ci           # install deps
+npm --prefix projects/start-os/container-runtime run check     # tsc --noEmit (type-check)
+npm --prefix projects/start-os/container-runtime run build      # prettier + clean + tsc -> dist/
+npm --prefix projects/start-os/container-runtime test           # jest (ts-jest)
 make test-container-runtime                            # SDK + jest via top-level Makefile
 ```
 
@@ -39,4 +39,4 @@ Tests are Jest + `ts-jest` (`jest.config.js`, `rootDir: ./src`). `mime` is mocke
 
 ## Stale-path note (monorepo)
 
-Pre-monorepo docs referenced `core/`, `sdk/`, `web/`, `patch-db/`, `container-runtime/` at the repo root. Current locations: host lib `shared/crates/start-core`, SDK `start-sdk`, Angular `shared/web` + product `web/` dirs, this runtime `start-os/container-runtime`, submodule `vendor/patch-db`.
+Pre-monorepo docs referenced `core/`, `sdk/`, `web/`, `patch-db/`, `container-runtime/` at the repo root. Current locations: host lib `shared-libs/crates/start-core`, SDK `start-sdk`, Angular `shared-libs/web` + product `web/` dirs, this runtime `start-os/container-runtime`, submodule `vendor/patch-db`.

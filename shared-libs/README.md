@@ -29,13 +29,13 @@ Rust backend:
 ```bash
 # from the repo root
 cargo build -p start-core            # build the shared lib
-cd shared/crates/start-core && cargo test
+cd shared-libs/crates/start-core && cargo test
 ```
 
 Web:
 
 ```bash
-cd shared/web
+cd shared-libs/web
 npm ci
 npm run build:deps                   # build start-sdk bundle + patch-db client
 npm run check                        # typecheck all projects

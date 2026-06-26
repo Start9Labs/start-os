@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Agent/dev instructions for `shared/web` — the Angular workspace root and the two shared libs (`@start9labs/shared`, `@start9labs/marketplace`). See `ARCHITECTURE.md` for structure, `CONTRIBUTING.md` for full setup.
+Agent/dev instructions for `shared-libs/web` — the Angular workspace root and the two shared libs (`@start9labs/shared`, `@start9labs/marketplace`). See `ARCHITECTURE.md` for structure, `CONTRIBUTING.md` for full setup.
 
 ## Where things are
 
@@ -8,7 +8,7 @@ Agent/dev instructions for `shared/web` — the Angular workspace root and the t
 - **Apps live elsewhere.** `ui` → `../../start-os/web/ui`, `setup-wizard` → `../../start-os/web/setup-wizard`, `start-tunnel` → `../../start-tunnel/web`, `brochure` → `../../brochure`. Editing app code means editing those dirs even though `ng`/`tsc` are run from here.
 - i18n dictionaries: `shared/src/i18n/dictionaries/`.
 
-## Build / test / check (run from `shared/web`)
+## Build / test / check (run from `shared-libs/web`)
 
 ```sh
 npm ci

@@ -13,8 +13,8 @@ Part of the single root Cargo workspace.
 # from the repo root
 cargo build -p start-core
 cargo check -p start-core
-cargo fmt -p start-core                 # rustfmt config: shared/crates/start-core/rustfmt.toml
-cd shared/crates/start-core && ./run-tests.sh
+cargo fmt -p start-core                 # rustfmt config: shared-libs/crates/start-core/rustfmt.toml
+cd shared-libs/crates/start-core && ./run-tests.sh
 ```
 
 - Build by package name (`-p start-core`), never with a bare `cargo build` in the
@@ -31,7 +31,7 @@ cd shared/crates/start-core && ./run-tests.sh
 The single Angular workspace root for every front end in the monorepo.
 
 ```bash
-cd shared/web
+cd shared-libs/web
 npm ci
 npm run build:deps                      # build start-sdk bundle + patch-db client (required first)
 npm run check                           # typecheck i18n, shared, marketplace, ui, setup, brochure

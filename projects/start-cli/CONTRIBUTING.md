@@ -1,18 +1,18 @@
 # Contributing to start-cli
 
 `start-cli` is a thin `bin` crate over `start-core`. See the root
-[CONTRIBUTING.md](../CONTRIBUTING.md) for repo-wide workflow, commit, and review conventions;
+[CONTRIBUTING.md](../../CONTRIBUTING.md) for repo-wide workflow, commit, and review conventions;
 this file covers what's specific to this crate.
 
 ## Where code lives
 
 This crate holds only `src/main.rs` and `Cargo.toml`. **Almost all changes belong in
-`start-core`** (`shared/crates/start-core`):
+`start-core`** (`shared-libs/crates/start-core`):
 
 - A new or changed CLI command → `main_api()` in
-  `shared/crates/start-core/src/lib.rs` and the relevant `src/<area>/` module.
+  `shared-libs/crates/start-core/src/lib.rs` and the relevant `src/<area>/` module.
 - CLI argument/config changes → `start-core::context::config` (`ClientConfig`).
-- The CLI entrypoint behavior → `shared/crates/start-core/src/bins/start_cli.rs`.
+- The CLI entrypoint behavior → `shared-libs/crates/start-core/src/bins/start_cli.rs`.
 
 Edit this crate only when the entrypoint, Cargo features, or bin wiring change.
 

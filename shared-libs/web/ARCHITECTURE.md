@@ -4,7 +4,7 @@ Angular 22 + TypeScript workspace using [Taiga UI 5](https://taiga-ui.dev/) comp
 
 ## Workspace layout
 
-This directory (`shared/web`) is the Angular workspace root. The two **libraries** live here directly:
+This directory (`shared-libs/web`) is the Angular workspace root. The two **libraries** live here directly:
 
 - `shared/src/` — `@start9labs/shared`
 - `marketplace/src/` — `@start9labs/marketplace`

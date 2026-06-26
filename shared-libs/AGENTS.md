@@ -21,14 +21,14 @@ Rust (`crates/start-core`) — runs from the root Cargo workspace:
 ```bash
 cargo build -p start-core
 cargo check -p start-core            # linux-only locally; CI also builds darwin + musl targets
-cd shared/crates/start-core && ./run-tests.sh
+cd shared-libs/crates/start-core && ./run-tests.sh
 cargo fmt -p start-core              # rustfmt config: crates/start-core/rustfmt.toml
 ```
 
 Web (`web/`):
 
 ```bash
-cd shared/web
+cd shared-libs/web
 npm ci
 npm run build:deps                   # builds start-sdk bundle + patch-db client (required before typecheck/build)
 npm run check                        # typechecks i18n, shared, marketplace, ui, setup, brochure

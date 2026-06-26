@@ -1,7 +1,7 @@
 # start-cli
 
 `start-cli` is the command-line client for StartOS. It is a thin `bin` crate over
-[`start-core`](../shared/crates/start-core) (the shared Rust backend, crate `start-core`,
+[`start-core`](../../shared-libs/crates/start-core) (the shared Rust backend, crate `start-core`,
 lib name `start_core`). The CLI surfaces the same RPC API the StartOS server exposes, plus
 local developer tooling for building and signing `.s9pk` packages.
 
@@ -52,7 +52,7 @@ defined in a workspace `.startos/config.yaml`. Common flags:
 
 Configuration is layered: explicit flags override `.startos/config.yaml` (local workspace),
 which overrides `/etc/startos/config.yaml`. See
-[`shared/crates/start-core/src/context/config.rs`](../shared/crates/start-core/src/context/config.rs).
+[`shared-libs/crates/start-core/src/context/config.rs`](../../shared-libs/crates/start-core/src/context/config.rs).
 
 ## Command surface
 
@@ -73,4 +73,4 @@ None are enabled by default.
 
 ## License
 
-MIT. See [LICENSE](../LICENSE).
+MIT. See [LICENSE](../../LICENSE).

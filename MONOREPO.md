@@ -1,5 +1,12 @@
 # Monorepo reorganization proposal
 
+> **Layout refined since this proposal.** The products and the docs site now
+> live under a top-level `projects/` dir, the shared library container `shared/`
+> was renamed to `shared-libs/`, `brochure/` → `projects/brochure-marketplace/`,
+> and `docs/` → `projects/start-docs/`. The tree and mappings below describe the
+> first-cut layout; see [README.md](README.md) / [ARCHITECTURE.md](ARCHITECTURE.md)
+> for the current structure.
+
 Status: **implemented in this PR.** The directory reorganization, root Cargo
 workspace, build-script/Makefile/CI rewiring, and TS path wiring are done.
 Verified: `cargo check` of the whole workspace (all five bins) passes. The full
@@ -8,7 +15,7 @@ are left for CI to validate (the wiring is updated but not run end-to-end here).
 
 One deviation from the original plan below: the SDK is kept **cohesive** under
 `start-sdk/` (both `base/` and `package/`) rather than splitting `base` into
-`shared/web/sdk-base`. Reason: `start-sdk/package/lib` imports `base` via
+`shared-libs/web/sdk-base`. Reason: `start-sdk/package/lib` imports `base` via
 relative paths (`../../base/lib/...`) under a shared tsc `rootDir`, and the
 `dist` bundle places `base/lib` adjacent to the package — splitting them would
 break every such import and violate `rootDir`. Extracting `sdk-base` cleanly is
@@ -22,7 +29,7 @@ product-specific frontend/packaging). The bulk of the code lives in shared
 libraries under `shared/`: `start-core` on the Rust side, a shared Angular
 library + the SDK base on the web side.
 
-Crucially, **`shared/crates/start-core` can stay a single crate** to begin
+Crucially, **`shared-libs/crates/start-core` can stay a single crate** to begin
 with. We do *not* have to untangle the internal module cycles
 (`s9pk ↔ registry`, `net ↔ tunnel`) to get this layout — the product dirs hold
 only the entry points, and `start-core` keeps everything else exactly as it is
@@ -89,11 +96,11 @@ start-os/                          # repo root (monorepo)
 | `core/src/main/start-cli.rs` | `start-cli/src/main.rs` |
 | `core/src/main/registrybox.rs` | `start-registry/src/main.rs` |
 | `core/src/main/tunnelbox.rs` | `start-tunnel/src/main.rs` |
-| `core/` (everything else: `src/lib.rs`, `src/bins/`, `src/registry/`, `src/tunnel/`, `src/service/`, …) | `shared/crates/start-core/` |
+| `core/` (everything else: `src/lib.rs`, `src/bins/`, `src/registry/`, `src/tunnel/`, `src/service/`, …) | `shared-libs/crates/start-core/` |
 | `web/projects/ui`, `web/projects/setup-wizard` | `start-os/web/` |
 | `web/projects/start-tunnel` | `start-tunnel/web/` |
-| `web/projects/marketplace` | `shared/web/marketplace/` |
-| `web/projects/shared` | `shared/web/shared/` |
+| `web/projects/marketplace` | `shared-libs/web/marketplace/` |
+| `web/projects/shared` | `shared-libs/web/shared/` |
 | `web/projects/brochure` | `brochure/` |
 | `container-runtime/` | `start-os/container-runtime/` |
 | `sdk/base` | `start-sdk/base/` |
@@ -108,9 +115,9 @@ The `main.rs` entry points are already thin (~30 lines: feature toggles + the
 
 - **One root Cargo workspace.** `Cargo.toml` at the repo root, members =
   the product bin crates (`start-os`, `start-cli`, `start-registry`,
-  `start-tunnel`) + `shared/crates/start-core` + `vendor/patch-db/*`. Single
+  `start-tunnel`) + `shared-libs/crates/start-core` + `vendor/patch-db/*`. Single
   `Cargo.lock`. Build a product with `cargo build -p <product>`.
-- **One root npm workspace.** Workspace members under `shared/web/*` and each
+- **One root npm workspace.** Workspace members under `shared-libs/web/*` and each
   product's `web/` + `start-os/container-runtime/`. Consumers depend on the
   shared libs **by package name** instead of the current
   `file:../sdk/baseDist` / `file:../patch-db/client` artifact paths.
@@ -123,7 +130,7 @@ The `main.rs` entry points are already thin (~30 lines: feature toggles + the
   incremental rebuilds.
 - **sqlx offline.** `sqlx(postgres)` is used in exactly one file
   (`version/v0_3_6_alpha_0.rs`, the legacy embassy DB migration). Run
-  `cargo sqlx prepare` once and commit `shared/crates/start-core/.sqlx/` so the
+  `cargo sqlx prepare` once and commit `shared-libs/crates/start-core/.sqlx/` so the
   workspace builds with `SQLX_OFFLINE=true` and no live DB.
 - **SDK publish.** `@start9labs/start-sdk` is a public dependency of every
   `*-startos` package, and its dual-artifact output (`baseDist` = base only,
@@ -144,8 +151,8 @@ The `main.rs` entry points are already thin (~30 lines: feature toggles + the
   `Cargo.lock` and the npm version skew the `file:` deps currently mask. Repoint
   CI. No moves yet.
 - **P2 — `git mv` into shape.** Move the entry points into the product dirs,
-  rename `core/` → `shared/crates/start-core/`, split `web/projects/*` into
-  product `web/` dirs vs `shared/web/*`, move `container-runtime/` under
+  rename `core/` → `shared-libs/crates/start-core/`, split `web/projects/*` into
+  product `web/` dirs vs `shared-libs/web/*`, move `container-runtime/` under
   `start-os/`, move `sdk/{base,package}`. Fix `file:`→name deps, Makefile paths,
   and add the `include_dir` `build.rs` indirection. No code-logic changes.
 
@@ -158,7 +165,7 @@ optional step.
 1. **start-wrt** — fold in as another top-level product now (backend crates →
    `shared/crates`, web → its own dir; `openwrt` stays a submodule under
    `vendor/`), or keep separate for this pass? Note its Angular/Taiga version
-   line differs from start-os's, so its `web` can't share `shared/web/shared`
+   line differs from start-os's, so its `web` can't share `shared-libs/web/shared`
    until those converge.
 3. **patch-db release flow** — vendoring drops independent releases. Any external
    consumers of patch-db (Rust crates or the npm client) outside

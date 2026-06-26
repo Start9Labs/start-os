@@ -14,8 +14,8 @@ shared `start-core` crate.
 | Concern                         | Location                                              |
 | ------------------------------- | ---------------------------------------------------- |
 | Binary entry point              | `start-tunnel/src/main.rs`                            |
-| Daemon + CLI dispatch           | `shared/crates/start-core/src/bins/tunnel.rs`        |
-| Tunnel module root              | `shared/crates/start-core/src/tunnel/mod.rs`         |
+| Daemon + CLI dispatch           | `shared-libs/crates/start-core/src/bins/tunnel.rs`        |
+| Tunnel module root              | `shared-libs/crates/start-core/src/tunnel/mod.rs`         |
 | Angular UI                      | `start-tunnel/web/`                                   |
 | systemd unit                    | `start-tunnel/start-tunneld.service`                 |
 | User & reference docs (mdbook)  | `start-tunnel/docs/`                                  |
@@ -27,7 +27,7 @@ shared `start-core` crate.
 
 ## The `start-core` tunnel module
 
-All paths below are under `shared/crates/start-core/src/tunnel/`.
+All paths below are under `shared-libs/crates/start-core/src/tunnel/`.
 
 - **`mod.rs`** — module root. Defines the default listen address
   (`127.0.59.60:5960`) and `tunnel_router`, which serves the embedded UI plus
@@ -88,7 +88,7 @@ The `start-tunnel` CLI builds an `rpc-toolkit` `CliApp` against the same
 ## Frontend
 
 The Angular app (`web/`) is the project `start-tunnel` in the shared Angular
-workspace at `shared/web/`. It is **zoneless**, uses Taiga UI, and talks to the
+workspace at `shared-libs/web/`. It is **zoneless**, uses Taiga UI, and talks to the
 daemon over the same JSON-RPC API.
 
 - `web/src/app/app.routes.ts` — `home` (authed) vs `login` routes.
@@ -97,11 +97,11 @@ daemon over the same JSON-RPC API.
 - `web/src/app/services/patch-db/` — PatchDB client; UI state mirrors the daemon
   db via the patch stream.
 - `web/tsconfig.json` resolves `@start9labs/shared` and
-  `@start9labs/marketplace` to `shared/web/`.
+  `@start9labs/marketplace` to `shared-libs/web/`.
 
-Build output: `npm --prefix shared/web run build:tunnel` →
+Build output: `npm --prefix shared-libs/web run build:tunnel` →
 `web/dist/raw/start-tunnel/` → compressed to `web/dist/static/start-tunnel/`
-(`shared/web/compress-uis.sh`), which the Rust binary embeds.
+(`shared-libs/web/compress-uis.sh`), which the Rust binary embeds.
 
 ## Build & packaging
 
@@ -111,4 +111,4 @@ Build output: `npm --prefix shared/web run build:tunnel` →
   `nftables`, and `conntrack` as dependencies, installing the three symlinks and
   the systemd unit.
 - TS bindings for the tunnel API are generated into
-  `shared/crates/start-core/bindings/tunnel/` (`make ts-bindings`).
+  `shared-libs/crates/start-core/bindings/tunnel/` (`make ts-bindings`).

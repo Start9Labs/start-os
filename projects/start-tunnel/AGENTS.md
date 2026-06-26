@@ -9,8 +9,8 @@ first; this file is scoped to `start-tunnel/`.
 A WireGuard virtual private router with kernel-level clearnet port forwarding.
 This directory is a **thin wrapper**: the binary entry point, the Angular UI, the
 systemd unit, and the docs. The real logic lives in
-`shared/crates/start-core/src/tunnel/` (the `start_core::tunnel` module) and the
-entry/CLI dispatch in `shared/crates/start-core/src/bins/tunnel.rs`.
+`shared-libs/crates/start-core/src/tunnel/` (the `start_core::tunnel` module) and the
+entry/CLI dispatch in `shared-libs/crates/start-core/src/bins/tunnel.rs`.
 
 ## Layout
 
@@ -18,19 +18,19 @@ entry/CLI dispatch in `shared/crates/start-core/src/bins/tunnel.rs`.
   to `start-core`. Rarely needs changes.
 - `Cargo.toml` — crate `start-tunnel`, bin `tunnelbox`. Depends on `start-core`.
 - `start-tunneld.service` — systemd unit running `/usr/bin/start-tunneld`.
-- `web/` — Angular project `start-tunnel` (registered in `shared/web/angular.json`).
+- `web/` — Angular project `start-tunnel` (registered in `shared-libs/web/angular.json`).
 - `docs/` — mdbook (book title "StartTunnel"), output to `docs/book`.
 
 ## Where to make changes
 
 | You want to change…                  | Edit…                                                        |
 | ------------------------------------ | ----------------------------------------------------------- |
-| API methods / RPC commands           | `shared/crates/start-core/src/tunnel/api.rs`                |
-| db schema / state model              | `shared/crates/start-core/src/tunnel/db.rs` (+ a migration) |
-| WireGuard behavior                   | `shared/crates/start-core/src/tunnel/wg.rs`                 |
-| Port forwarding (DNAT, SNI, IGD/PCP) | `shared/crates/start-core/src/tunnel/forward/`             |
-| HTTPS / cert handling                | `shared/crates/start-core/src/tunnel/web.rs`               |
-| daemon startup / shutdown            | `shared/crates/start-core/src/bins/tunnel.rs`              |
+| API methods / RPC commands           | `shared-libs/crates/start-core/src/tunnel/api.rs`                |
+| db schema / state model              | `shared-libs/crates/start-core/src/tunnel/db.rs` (+ a migration) |
+| WireGuard behavior                   | `shared-libs/crates/start-core/src/tunnel/wg.rs`                 |
+| Port forwarding (DNAT, SNI, IGD/PCP) | `shared-libs/crates/start-core/src/tunnel/forward/`             |
+| HTTPS / cert handling                | `shared-libs/crates/start-core/src/tunnel/web.rs`               |
+| daemon startup / shutdown            | `shared-libs/crates/start-core/src/bins/tunnel.rs`              |
 | the UI                               | `web/src/`                                                  |
 | user docs                            | `docs/src/`                                                 |
 
@@ -43,7 +43,7 @@ Rust file is `src/main.rs`.
 make tunnel                                   # build tunnelbox (UI + daemon)
 cargo build -p start-tunnel --bin tunnelbox   # cargo only (UI must be prebuilt)
 cargo check -p start-tunnel                    # fast type-check
-npm --prefix shared/web run build:tunnel       # build just the Angular UI
+npm --prefix shared-libs/web run build:tunnel       # build just the Angular UI
 make tunnel-deb                                # build the .deb
 make test-core                                 # backend tests (tunnel logic lives in start-core)
 ```
@@ -56,7 +56,7 @@ Notes:
 - `make tunnel` needs the static UI at `web/dist/static/start-tunnel/index.html`;
   the Makefile target chains the UI build → `compress-uis.sh` automatically.
 - TS bindings for the tunnel API regenerate via `make ts-bindings` into
-  `shared/crates/start-core/bindings/tunnel/`.
+  `shared-libs/crates/start-core/bindings/tunnel/`.
 
 ## Format
 

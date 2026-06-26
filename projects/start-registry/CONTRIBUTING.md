@@ -1,14 +1,14 @@
 # Contributing — start-registry
 
-`start-registry` is a thin product wrapper in the `start-os` monorepo. The registry server/CLI implementation lives in the shared `start-core` crate (`shared/crates/start-core/src/registry/` and `src/bins/registry.rs`), so most changes land there, not in this directory.
+`start-registry` is a thin product wrapper in the `start-os` monorepo. The registry server/CLI implementation lives in the shared `start-core` crate (`shared-libs/crates/start-core/src/registry/` and `src/bins/registry.rs`), so most changes land there, not in this directory.
 
-Start with the root [`CONTRIBUTING.md`](../CONTRIBUTING.md) and [`AGENTS.md`](../AGENTS.md) for repo-wide workflow, the doc map, and cross-layer verification rules. This file covers what's specific to the registry.
+Start with the root [`CONTRIBUTING.md`](../../CONTRIBUTING.md) and [`AGENTS.md`](../../AGENTS.md) for repo-wide workflow, the doc map, and cross-layer verification rules. This file covers what's specific to the registry.
 
 ## Where to make changes
 
-- **Server/CLI entry, RPC API, data model, persistence, migrations** → `shared/crates/start-core/src/registry/` and `shared/crates/start-core/src/bins/registry.rs`.
+- **Server/CLI entry, RPC API, data model, persistence, migrations** → `shared-libs/crates/start-core/src/registry/` and `shared-libs/crates/start-core/src/bins/registry.rs`.
 - **Bin wiring, systemd unit, docs** → this directory (`start-registry/`).
-- **Browsing/search/download UI** → `shared/web/marketplace/` (`@start9labs/marketplace`).
+- **Browsing/search/download UI** → `shared-libs/web/marketplace/` (`@start9labs/marketplace`).
 
 If you find yourself adding registry logic directly to `start-registry/src`, it almost certainly belongs in `start-core` instead.
 
@@ -37,7 +37,7 @@ Run the checks that apply to what you touched and make sure `cargo fmt` is clean
 - **Rust 2024 edition**, formatted with `cargo fmt` (rustfmt). Keep clippy clean.
 - **Comments:** default to none; clear names over prose. A comment is for a non-obvious *why* only — one short line.
 - **API additions:** add subcommands in `registry/mod.rs`; use `with_call_remote::<CliContext>()` to expose them to the `start-registry` CLI and `with_about(...)` for help text. Tag admin-only commands with `with_metadata("admin", true)`.
-- **Schema changes:** changing `RegistryDatabase` / index types requires a migration in `shared/crates/start-core/src/registry/migrations`.
+- **Schema changes:** changing `RegistryDatabase` / index types requires a migration in `shared-libs/crates/start-core/src/registry/migrations`.
 - **Version:** `Cargo.toml` `version` (with `# VERSION_BUMP`) tracks the OS release line — don't bump it independently.
 
 ## Docs are part of the change

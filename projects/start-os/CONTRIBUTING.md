@@ -3,7 +3,7 @@
 This guide covers contributing to the **OS product** in `start-os/`. For
 full environment setup (Debian/Ubuntu packages, Docker + binfmt, Rust, Node 24),
 branch policy, and cross-product workflow, follow the root
-[CONTRIBUTING.md](../CONTRIBUTING.md) first — it is the source of truth for the
+[CONTRIBUTING.md](../../CONTRIBUTING.md) first — it is the source of truth for the
 toolchain. This file adds product-specific build/test details.
 
 If you want to **package a service** for StartOS instead, see the
@@ -23,12 +23,12 @@ maintainer if unsure):
 
 ```sh
 git clone --recursive https://github.com/Start9Labs/start-os.git
-cd start-os
+cd projects/start-os
 ```
 
 This is a monorepo. The OS product is a thin wrapper over the shared
-`start-core` crate (`shared/crates/start-core`), the shared Angular libs
-(`shared/web`), and the SDK (`start-sdk`). Build commands run from the **repo
+`start-core` crate (`shared-libs/crates/start-core`), the shared Angular libs
+(`shared-libs/web`), and the SDK (`start-sdk`). Build commands run from the **repo
 root** unless noted.
 
 ## Building
@@ -46,7 +46,7 @@ make deb / make squashfs       # package outputs
 The web UIs are embedded into `startbox` at compile time, so the web build must
 precede the Rust build — always go through the `Makefile`, which encodes the
 ordering. For faster iteration use `./devmode.sh` / dev mode (see root
-CONTRIBUTING) and `cd shared/web && npm run start:ui`.
+CONTRIBUTING) and `cd shared-libs/web && npm run start:ui`.
 
 Deploy/flash targets (`update*`, `reflash`, `wormhole*`, `emulate-reflash`) push
 to a live device and are slow/destructive — be deliberate.
@@ -57,10 +57,10 @@ When a change crosses Rust → bindings → SDK → web/runtime, verify in order
 
 1. `cargo check -p start-os`
 2. `make ts-bindings` — regenerate ts-rs types from `start-core`
-3. `cd start-sdk && make bundle` — rebuild `baseDist` + `dist` (required before
+3. `cd projects/start-sdk && make bundle` — rebuild `baseDist` + `dist` (required before
    the web apps / runtime can see new bindings)
-4. `cd shared/web && npm run check:ui && npm run check:setup`
-5. `cd start-os/container-runtime && npm run check`
+4. `cd shared-libs/web && npm run check:ui && npm run check:setup`
+5. `cd projects/start-os/container-runtime && npm run check`
 
 ## Testing & formatting
 

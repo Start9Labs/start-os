@@ -2,7 +2,7 @@
 
 The **Start Registry** server — a self-hostable registry for StartOS packages (`.s9pk`) and StartOS itself (OS images / version index). It is what a marketplace UI (the `@start9labs/marketplace` Angular library) points at when browsing, searching, and downloading services and OS releases.
 
-This directory is a thin product wrapper inside the `start-os` monorepo. The crate compiles a single multi-call binary, `registrybox`; the actual server and CLI logic live in the shared `start-core` crate (`shared/crates/start-core/src/registry`).
+This directory is a thin product wrapper inside the `start-os` monorepo. The crate compiles a single multi-call binary, `registrybox`; the actual server and CLI logic live in the shared `start-core` crate (`shared-libs/crates/start-core/src/registry`).
 
 ## What it does
 
@@ -55,7 +55,7 @@ Server state lives in `<datadir>/registry.db` (PatchDB) plus a SQLite metrics da
 - `Cargo.toml` — crate `start-registry`, bin `registrybox`, depends on `start-core` (package name `start-core`, lib `start_core`).
 - `src/main.rs` — wires up the `MultiExecutable` (`enable_start_registry` + `enable_start_registryd`).
 - `start-registryd.service` — systemd unit.
-- Server/CLI/API/data model: `shared/crates/start-core/src/registry/`.
-- Marketplace UI library: `shared/web/marketplace/` (`@start9labs/marketplace`).
+- Server/CLI/API/data model: `shared-libs/crates/start-core/src/registry/`.
+- Marketplace UI library: `shared-libs/web/marketplace/` (`@start9labs/marketplace`).
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for module-level detail, [AGENTS.md](./AGENTS.md) for build/test instructions, and [CONTRIBUTING.md](./CONTRIBUTING.md) for the contribution workflow.
