@@ -1,0 +1,18 @@
+[package]
+name = "json-ptr"
+version = "0.1.0"
+authors = ["Aiden McClelland <me@drbonez.dev>"]
+edition = "2021"
+keywords = ["json", "json-pointer"]
+description = "RFC 6901, JavaScript Object Notation (JSON) Pointer"
+repository = "https://github.com/dr-bonez/json-ptr"
+license = "MIT"
+readme = "README.md"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+imbl = "6"
+imbl-value = { path = "../../imbl-value" }
+serde = "1"
+thiserror = "2"

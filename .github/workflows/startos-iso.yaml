@@ -239,8 +239,8 @@ jobs:
           mkdir -p projects/start-os/container-runtime/dist/node_modules
           mkdir -p projects/start-sdk/dist
           mkdir -p projects/start-sdk/baseDist
-          mkdir -p vendor/patch-db/client/node_modules
-          mkdir -p vendor/patch-db/client/dist
+          mkdir -p shared-libs/crates/patch-db/client/node_modules
+          mkdir -p shared-libs/crates/patch-db/client/dist
           mkdir -p .angular
           mkdir -p projects/start-os/web/dist/raw/ui
           mkdir -p projects/start-os/web/dist/raw/setup-wizard

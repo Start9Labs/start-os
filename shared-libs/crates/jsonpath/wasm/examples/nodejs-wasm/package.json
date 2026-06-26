@@ -1,0 +1,9 @@
+{
+  "name": "jsonpath-wasm-nodejs-example",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "jsonpath-wasm": "^0.2.4"
+  }
+}

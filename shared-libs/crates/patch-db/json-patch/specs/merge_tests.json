@@ -1,0 +1,92 @@
+[
+  {
+    "comment": "1. introduction",
+    "doc": {
+      "a": "b",
+      "c": {
+        "d": "e",
+        "f": "g"
+      }
+    },
+    "patch": {
+      "a": "z",
+      "c": {
+        "f": null
+      }
+    },
+    "expected": {
+      "a": "z",
+      "c": {
+        "d": "e"
+      }
+    },
+    "merge": true
+  },
+  {
+    "comment": "3. example",
+    "doc": {
+      "title": "Goodbye!",
+      "author": {
+        "givenName": "John",
+        "familyName": "Doe"
+      },
+      "tags": [
+        "example",
+        "sample"
+      ],
+      "content": "This will be unchanged"
+    },
+    "patch": {
+      "title": "Hello!",
+      "phoneNumber": "+01-123-456-7890",
+      "author": {
+        "familyName": null
+      },
+      "tags": [
+        "example"
+      ]
+    },
+    "expected": {
+      "title": "Hello!",
+      "author": {
+        "givenName": "John"
+      },
+      "tags": [
+        "example"
+      ],
+      "content": "This will be unchanged",
+      "phoneNumber": "+01-123-456-7890"
+    },
+    "merge": true
+  },
+  {
+    "comment": "replacing non-object",
+    "doc": {
+      "title": "Goodbye!",
+      "author": {
+        "givenName": "John"
+      },
+      "tags": [
+        "example",
+        "sample"
+      ],
+      "content": "This will be unchanged"
+    },
+    "patch": {
+      "tags": {
+        "kind": "example"
+      }
+    },
+    "expected": {
+      "title": "Goodbye!",
+      "author": {
+        "givenName": "John"
+      },
+      "tags": {
+        "kind": "example"
+      },
+      "content": "This will be unchanged"
+    },
+    "merge": true
+  }
+]

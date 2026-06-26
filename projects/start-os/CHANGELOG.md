@@ -22,7 +22,7 @@ file tracks notable changes since the move to the monorepo.
   in `container-runtime/`. Backend logic moved from the old `core/` crate to the
   shared `start-core` crate (`shared-libs/crates/start-core`); shared Angular
   libraries moved to `shared-libs/web`; the SDK to `start-sdk`; and the `patch-db`
-  submodule to `vendor/patch-db`. Builds now run against the root Cargo and
+  submodule to `shared-libs/crates/patch-db`. Builds now run against the root Cargo and
   Angular workspaces (`cargo build -p start-os`, web from `shared-libs/web`).
 
 ## [0.4.0-beta.10]

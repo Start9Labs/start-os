@@ -73,7 +73,7 @@ ed25519-dalek = { version = "2.2.0", features = [
   "zeroize",
 ] }
 ed25519-dalek-v1 = { package = "ed25519-dalek", version = "1" }
-exver = { version = "0.2.1", features = ["serde"] }
+exver = { path = "../exver", features = ["serde"] }
 fd-lock-rs = "0.1.4"
 form_urlencoded = "1.2.1"
 futures = "0.3.28"
@@ -101,7 +101,7 @@ id-pool = { version = "0.2.2", default-features = false, features = [
 ] }
 iddqd = "0.3.14"
 imbl = { version = "6", features = ["serde", "small-chunks"] }
-imbl-value = { version = "0.4.3", features = ["ts-rs"] }
+imbl-value = { path = "../imbl-value", features = ["ts-rs"] }
 include_dir = { version = "0.7.3", features = ["metadata"] }
 indexmap = { version = "2.0.2", features = ["serde"] }
 indicatif = { version = "0.18.3", features = ["tokio"] }
@@ -113,7 +113,7 @@ itertools = "0.14.0"
 jaq-core = "0.10.1"
 jaq-std = "0.10.0"
 josekit = "0.10.3"
-jsonpath_lib = { git = "https://github.com/Start9Labs/jsonpath.git" }
+jsonpath_lib = { path = "../jsonpath" }
 lazy_async_pool = "0.3.3"
 lazy_format = "2.0"
 lazy_static = "1.4.0"
@@ -151,7 +151,7 @@ once_cell = "1.19.0"
 openssh-keys = "0.6.2"
 openssl = { version = "0.10.57", features = ["vendored"] }
 p256 = { version = "0.13.2", features = ["pem"] }
-patch-db = { version = "*", path = "../../../vendor/patch-db/core", features = ["trace"] }
+patch-db = { path = "../patch-db/core", features = ["trace"] }
 pbkdf2 = "0.12.2"
 pin-project = "1.1.3"
 pkcs8 = { version = "0.10.2", features = ["std"] }
@@ -171,7 +171,7 @@ reqwest = { version = "0.12.25", features = [
 ] }
 reqwest_cookie_store = "0.9.0"
 rpassword = "7.2.0"
-rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git" }
+rpc-toolkit = { path = "../rpc-toolkit" }
 rust-argon2 = "3.0.0"
 rust-i18n = "3.1.5"
 semver = { version = "1.0.20", features = ["serde"] }

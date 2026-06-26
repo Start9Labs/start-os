@@ -24,7 +24,7 @@ libraries under `../../shared-libs/web` and the SDK base from `../start-sdk`.
 - **Frontend:** Angular 22 + Taiga UI 5 (apps live under `web/`, shared libs
   under `../../shared-libs/web`).
 - **Container runtime:** Node.js/TypeScript managing LXC service containers.
-- **State/sync:** Patch-DB (`../vendor/patch-db`) — diff-based store that pushes
+- **State/sync:** Patch-DB (`../../shared-libs/crates/patch-db`) — diff-based store that pushes
   CBOR diffs to the frontend over WebSocket for reactive, poll-free UI updates.
 
 ## Layout

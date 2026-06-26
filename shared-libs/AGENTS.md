@@ -51,9 +51,9 @@ npm run format:check                 # prettier
   this workspace; their `angular.json` roots point into the product dirs. Editing
   a shared lib affects every app — run `npm run check` (all projects) after.
 - **`build:deps` is a prerequisite.** `@start9labs/start-sdk` resolves to
-  `../../start-sdk/baseDist` and `patch-db-client` to `../../vendor/patch-db/client`;
+  `../../start-sdk/baseDist` and `patch-db-client` to `../../shared-libs/crates/patch-db/client`;
   both must be built before typecheck/build will succeed.
-- **patch-db is a submodule** at repo-root `vendor/patch-db/` (not the old
+- **patch-db is a vendored Start9 crate** at repo-root `shared-libs/crates/patch-db/` (not the old
   root `patch-db/`). start-core consumes its Rust `core`; web consumes its
   TS `client`.
 - **Web UI work is Taiga UI 5 first** — see `web/AGENTS.md`; don't hand-roll

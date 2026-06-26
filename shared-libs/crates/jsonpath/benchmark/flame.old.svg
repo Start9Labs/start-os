@@ -1,0 +1,3196 @@
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" width="1200" height="950" onload="init(evt)" viewBox="0 0 1200 950" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+<!-- Flame graph stack visualization. See https://github.com/brendangregg/FlameGraph for latest version, and http://www.brendangregg.com/flamegraphs.html for examples. -->
+<!-- NOTES:  -->
+<defs>
+	<linearGradient id="background" y1="0" y2="1" x1="0" x2="0" >
+		<stop stop-color="#eeeeee" offset="5%" />
+		<stop stop-color="#eeeeb0" offset="95%" />
+	</linearGradient>
+</defs>
+<style type="text/css">
+	text { font-family:Verdana; font-size:12px; fill:rgb(0,0,0); }
+	#search, #ignorecase { opacity:0.1; cursor:pointer; }
+	#search:hover, #search.show, #ignorecase:hover, #ignorecase.show { opacity:1; }
+	#subtitle { text-anchor:middle; font-color:rgb(160,160,160); }
+	#title { text-anchor:middle; font-size:17px}
+	#unzoom { cursor:pointer; }
+	#frames > *:hover { stroke:black; stroke-width:0.5; cursor:pointer; }
+	.hide { display:none; }
+	.parent { opacity:0.5; }
+</style>
+<script type="text/ecmascript">
+<![CDATA[
+	"use strict";
+	var details, searchbtn, unzoombtn, matchedtxt, svg, searching, currentSearchTerm, ignorecase, ignorecaseBtn;
+	function init(evt) {
+		details = document.getElementById("details").firstChild;
+		searchbtn = document.getElementById("search");
+		ignorecaseBtn = document.getElementById("ignorecase");
+		unzoombtn = document.getElementById("unzoom");
+		matchedtxt = document.getElementById("matched");
+		svg = document.getElementsByTagName("svg")[0];
+		searching = 0;
+		currentSearchTerm = null;
+	}
+
+	window.addEventListener("click", function(e) {
+		var target = find_group(e.target);
+		if (target) {
+			if (target.nodeName == "a") {
+				if (e.ctrlKey === false) return;
+				e.preventDefault();
+			}
+			if (target.classList.contains("parent")) unzoom();
+			zoom(target);
+		}
+		else if (e.target.id == "unzoom") unzoom();
+		else if (e.target.id == "search") search_prompt();
+		else if (e.target.id == "ignorecase") toggle_ignorecase();
+	}, false)
+
+	// mouse-over for info
+	// show
+	window.addEventListener("mouseover", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = "Function: " + g_to_text(target);
+	}, false)
+
+	// clear
+	window.addEventListener("mouseout", function(e) {
+		var target = find_group(e.target);
+		if (target) details.nodeValue = ' ';
+	}, false)
+
+	// ctrl-F for search
+	window.addEventListener("keydown",function (e) {
+		if (e.keyCode === 114 || (e.ctrlKey && e.keyCode === 70)) {
+			e.preventDefault();
+			search_prompt();
+		}
+	}, false)
+
+	// ctrl-I to toggle case-sensitive search
+	window.addEventListener("keydown",function (e) {
+		if (e.ctrlKey && e.keyCode === 73) {
+			e.preventDefault();
+			toggle_ignorecase();
+		}
+	}, false)
+
+	// functions
+	function find_child(node, selector) {
+		var children = node.querySelectorAll(selector);
+		if (children.length) return children[0];
+		return;
+	}
+	function find_group(node) {
+		var parent = node.parentElement;
+		if (!parent) return;
+		if (parent.id == "frames") return node;
+		return find_group(parent);
+	}
+	function orig_save(e, attr, val) {
+		if (e.attributes["_orig_" + attr] != undefined) return;
+		if (e.attributes[attr] == undefined) return;
+		if (val == undefined) val = e.attributes[attr].value;
+		e.setAttribute("_orig_" + attr, val);
+	}
+	function orig_load(e, attr) {
+		if (e.attributes["_orig_"+attr] == undefined) return;
+		e.attributes[attr].value = e.attributes["_orig_" + attr].value;
+		e.removeAttribute("_orig_"+attr);
+	}
+	function g_to_text(e) {
+		var text = find_child(e, "title").firstChild.nodeValue;
+		return (text)
+	}
+	function g_to_func(e) {
+		var func = g_to_text(e);
+		// if there's any manipulation we want to do to the function
+		// name before it's searched, do it here before returning.
+		return (func);
+	}
+	function update_text(e) {
+		var r = find_child(e, "rect");
+		var t = find_child(e, "text");
+		var w = parseFloat(r.attributes.width.value) -3;
+		var txt = find_child(e, "title").textContent.replace(/\([^(]*\)$/,"");
+		t.attributes.x.value = parseFloat(r.attributes.x.value) + 3;
+
+		// Smaller than this size won't fit anything
+		if (w < 2 * 12 * 0.59) {
+			t.textContent = "";
+			return;
+		}
+
+		t.textContent = txt;
+		// Fit in full text width
+		if (/^ *$/.test(txt) || t.getSubStringLength(0, txt.length) < w)
+			return;
+
+		for (var x = txt.length - 2; x > 0; x--) {
+			if (t.getSubStringLength(0, x + 2) <= w) {
+				t.textContent = txt.substring(0, x) + "..";
+				return;
+			}
+		}
+		t.textContent = "";
+	}
+
+	// zoom
+	function zoom_reset(e) {
+		if (e.attributes != undefined) {
+			orig_load(e, "x");
+			orig_load(e, "width");
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_reset(c[i]);
+		}
+	}
+	function zoom_child(e, x, ratio) {
+		if (e.attributes != undefined) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = (parseFloat(e.attributes.x.value) - x - 10) * ratio + 10;
+				if (e.tagName == "text")
+					e.attributes.x.value = find_child(e.parentNode, "rect[x]").attributes.x.value + 3;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseFloat(e.attributes.width.value) * ratio;
+			}
+		}
+
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_child(c[i], x - 10, ratio);
+		}
+	}
+	function zoom_parent(e) {
+		if (e.attributes) {
+			if (e.attributes.x != undefined) {
+				orig_save(e, "x");
+				e.attributes.x.value = 10;
+			}
+			if (e.attributes.width != undefined) {
+				orig_save(e, "width");
+				e.attributes.width.value = parseInt(svg.width.baseVal.value) - (10 * 2);
+			}
+		}
+		if (e.childNodes == undefined) return;
+		for (var i = 0, c = e.childNodes; i < c.length; i++) {
+			zoom_parent(c[i]);
+		}
+	}
+	function zoom(node) {
+		var attr = find_child(node, "rect").attributes;
+		var width = parseFloat(attr.width.value);
+		var xmin = parseFloat(attr.x.value);
+		var xmax = parseFloat(xmin + width);
+		var ymin = parseFloat(attr.y.value);
+		var ratio = (svg.width.baseVal.value - 2 * 10) / width;
+
+		// XXX: Workaround for JavaScript float issues (fix me)
+		var fudge = 0.0001;
+
+		unzoombtn.classList.remove("hide");
+
+		var el = document.getElementById("frames").children;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var a = find_child(e, "rect").attributes;
+			var ex = parseFloat(a.x.value);
+			var ew = parseFloat(a.width.value);
+			var upstack;
+			// Is it an ancestor
+			if (0 == 0) {
+				upstack = parseFloat(a.y.value) > ymin;
+			} else {
+				upstack = parseFloat(a.y.value) < ymin;
+			}
+			if (upstack) {
+				// Direct ancestor
+				if (ex <= xmin && (ex+ew+fudge) >= xmax) {
+					e.classList.add("parent");
+					zoom_parent(e);
+					update_text(e);
+				}
+				// not in current path
+				else
+					e.classList.add("hide");
+			}
+			// Children maybe
+			else {
+				// no common path
+				if (ex < xmin || ex + fudge >= xmax) {
+					e.classList.add("hide");
+				}
+				else {
+					zoom_child(e, xmin, ratio);
+					update_text(e);
+				}
+			}
+		}
+		search();
+	}
+	function unzoom() {
+		unzoombtn.classList.add("hide");
+		var el = document.getElementById("frames").children;
+		for(var i = 0; i < el.length; i++) {
+			el[i].classList.remove("parent");
+			el[i].classList.remove("hide");
+			zoom_reset(el[i]);
+			update_text(el[i]);
+		}
+		search();
+	}
+
+	// search
+	function toggle_ignorecase() {
+		ignorecase = !ignorecase;
+		if (ignorecase) {
+			ignorecaseBtn.classList.add("show");
+		} else {
+			ignorecaseBtn.classList.remove("show");
+		}
+		reset_search();
+		search();
+	}
+	function reset_search() {
+		var el = document.querySelectorAll("#frames rect");
+		for (var i = 0; i < el.length; i++) {
+			orig_load(el[i], "fill")
+		}
+	}
+	function search_prompt() {
+		if (!searching) {
+			var term = prompt("Enter a search term (regexp " +
+			    "allowed, eg: ^ext4_)"
+			    + (ignorecase ? ", ignoring case" : "")
+			    + "\nPress Ctrl-i to toggle case sensitivity", "");
+			if (term != null) {
+				currentSearchTerm = term;
+				search();
+			}
+		} else {
+			reset_search();
+			searching = 0;
+			currentSearchTerm = null;
+			searchbtn.classList.remove("show");
+			searchbtn.firstChild.nodeValue = "Search"
+			matchedtxt.classList.add("hide");
+			matchedtxt.firstChild.nodeValue = ""
+		}
+	}
+	function search(term) {
+		if (currentSearchTerm === null) return;
+		var term = currentSearchTerm;
+
+		var re = new RegExp(term, ignorecase ? 'i' : '');
+		var el = document.getElementById("frames").children;
+		var matches = new Object();
+		var maxwidth = 0;
+		for (var i = 0; i < el.length; i++) {
+			var e = el[i];
+			var func = g_to_func(e);
+			var rect = find_child(e, "rect");
+			if (func == null || rect == null)
+				continue;
+
+			// Save max width. Only works as we have a root frame
+			var w = parseFloat(rect.attributes.width.value);
+			if (w > maxwidth)
+				maxwidth = w;
+
+			if (func.match(re)) {
+				// highlight
+				var x = parseFloat(rect.attributes.x.value);
+				orig_save(rect, "fill");
+				rect.attributes.fill.value = "rgb(230,0,230)";
+
+				// remember matches
+				if (matches[x] == undefined) {
+					matches[x] = w;
+				} else {
+					if (w > matches[x]) {
+						// overwrite with parent
+						matches[x] = w;
+					}
+				}
+				searching = 1;
+			}
+		}
+		if (!searching)
+			return;
+
+		searchbtn.classList.add("show");
+		searchbtn.firstChild.nodeValue = "Reset Search";
+
+		// calculate percent matched, excluding vertical overlap
+		var count = 0;
+		var lastx = -1;
+		var lastw = 0;
+		var keys = Array();
+		for (k in matches) {
+			if (matches.hasOwnProperty(k))
+				keys.push(k);
+		}
+		// sort the matched frames by their x location
+		// ascending, then width descending
+		keys.sort(function(a, b){
+			return a - b;
+		});
+		// Step through frames saving only the biggest bottom-up frames
+		// thanks to the sort order. This relies on the tree property
+		// where children are always smaller than their parents.
+		var fudge = 0.0001;	// JavaScript floating point
+		for (var k in keys) {
+			var x = parseFloat(keys[k]);
+			var w = matches[keys[k]];
+			if (x >= lastx + lastw - fudge) {
+				count += w;
+				lastx = x;
+				lastw = w;
+			}
+		}
+		// display matched percent
+		matchedtxt.classList.remove("hide");
+		var pct = 100 * count / maxwidth;
+		if (pct != 100) pct = pct.toFixed(1)
+		matchedtxt.firstChild.nodeValue = "Matched: " + pct + "%";
+	}
+]]>
+</script>
+<rect x="0.0" y="0" width="1200.0" height="950.0" fill="url(#background)"  />
+<text id="title" x="600.00" y="24" >Flame Graph</text>
+<text id="details" x="10.00" y="933" > </text>
+<text id="unzoom" x="10.00" y="24" class="hide">Reset Zoom</text>
+<text id="search" x="1090.00" y="24" >Search</text>
+<text id="ignorecase" x="1174.00" y="24" >ic</text>
+<text id="matched" x="1090.00" y="933" > </text>
+<g id="frames">
+<g >
+<title>alloc::vec::Vec&lt;T,A&gt;::pop (1 samples, 0.40%)</title><rect x="104.8" y="453" width="4.7" height="15.0" fill="rgb(237,167,32)" rx="2" ry="2" />
+<text  x="107.78" y="463.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::tokenizer::TokenReader::peek_token (2 samples, 0.80%)</title><rect x="863.0" y="325" width="9.5" height="15.0" fill="rgb(212,8,2)" rx="2" ry="2" />
+<text  x="866.01" y="335.5" ></text>
+</g>
+<g >
+<title>&lt;std::collections::hash::map::DefaultHasher as core::hash::Hasher&gt;::write (1 samples, 0.40%)</title><rect x="626.1" y="261" width="4.7" height="15.0" fill="rgb(224,24,26)" rx="2" ry="2" />
+<text  x="629.06" y="271.5" ></text>
+</g>
+<g >
+<title>&lt;core::str::iter::Chars as core::iter::traits::iterator::Iterator&gt;::next (1 samples, 0.40%)</title><rect x="1100.0" y="421" width="4.7" height="15.0" fill="rgb(237,146,34)" rx="2" ry="2" />
+<text  x="1102.96" y="431.5" ></text>
+</g>
+<g >
+<title>strlen (7 samples, 2.81%)</title><rect x="1156.8" y="741" width="33.2" height="15.0" fill="rgb(225,135,12)" rx="2" ry="2" />
+<text  x="1159.83" y="751.5" >st..</text>
+</g>
+<g >
+<title>jsonpath_lib::select::expr_term::ExprTerm::cmp (37 samples, 14.86%)</title><rect x="313.3" y="437" width="175.3" height="15.0" fill="rgb(234,142,49)" rx="2" ry="2" />
+<text  x="316.29" y="447.5" >jsonpath_lib::select::..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::tokenizer::TokenReader::next_token (1 samples, 0.40%)</title><rect x="943.6" y="341" width="4.7" height="15.0" fill="rgb(251,110,36)" rx="2" ry="2" />
+<text  x="946.57" y="351.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Hasher&lt;S&gt; as core::hash::Hasher&gt;::finish (1 samples, 0.40%)</title><rect x="265.9" y="149" width="4.7" height="15.0" fill="rgb(222,105,11)" rx="2" ry="2" />
+<text  x="268.90" y="159.5" ></text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::hash (2 samples, 0.80%)</title><rect x="237.5" y="229" width="9.4" height="15.0" fill="rgb(253,89,0)" rx="2" ry="2" />
+<text  x="240.47" y="239.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::string::String as core::hash::Hash&gt;::hash (1 samples, 0.40%)</title><rect x="237.5" y="213" width="4.7" height="15.0" fill="rgb(239,205,16)" rx="2" ry="2" />
+<text  x="240.47" y="223.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawTableInner&lt;A&gt;::fallible_with_capacity (3 samples, 1.20%)</title><rect x="739.8" y="245" width="14.2" height="15.0" fill="rgb(213,224,51)" rx="2" ry="2" />
+<text  x="742.80" y="255.5" ></text>
+</g>
+<g >
+<title>&lt;std::collections::hash::map::DefaultHasher as core::hash::Hasher&gt;::finish (1 samples, 0.40%)</title><rect x="194.8" y="181" width="4.8" height="15.0" fill="rgb(235,44,43)" rx="2" ry="2" />
+<text  x="197.82" y="191.5" ></text>
+</g>
+<g >
+<title>core::core_arch::simd::i8x16::new (5 samples, 2.01%)</title><rect x="431.8" y="101" width="23.7" height="15.0" fill="rgb(218,18,13)" rx="2" ry="2" />
+<text  x="434.77" y="111.5" >c..</text>
+</g>
+<g >
+<title>std::panicking::try (240 samples, 96.39%)</title><rect x="14.7" y="789" width="1137.4" height="15.0" fill="rgb(231,227,33)" rx="2" ry="2" />
+<text  x="17.74" y="799.5" >std::panicking::try</text>
+</g>
+<g >
+<title>alloc::alloc::dealloc (2 samples, 0.80%)</title><rect x="512.3" y="261" width="9.5" height="15.0" fill="rgb(211,70,21)" rx="2" ry="2" />
+<text  x="515.33" y="271.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::tokenizer::TokenReader::new (36 samples, 14.46%)</title><rect x="976.7" y="501" width="170.6" height="15.0" fill="rgb(232,0,9)" rx="2" ry="2" />
+<text  x="979.75" y="511.5" >jsonpath_lib::parser::..</text>
+</g>
+<g >
+<title>&lt;std::collections::hash::map::DefaultHasher as core::hash::Hasher&gt;::finish (4 samples, 1.61%)</title><rect x="711.4" y="229" width="18.9" height="15.0" fill="rgb(249,172,50)" rx="2" ry="2" />
+<text  x="714.37" y="239.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::filter::Filter&lt;I,P&gt; as core::iter::traits::iterator::Iterator&gt;::next (6 samples, 2.41%)</title><rect x="190.1" y="309" width="28.4" height="15.0" fill="rgb(252,152,11)" rx="2" ry="2" />
+<text  x="193.08" y="319.5" >&lt;c..</text>
+</g>
+<g >
+<title>alloc::string::String::push (2 samples, 0.80%)</title><rect x="1104.7" y="437" width="9.5" height="15.0" fill="rgb(206,167,38)" rx="2" ry="2" />
+<text  x="1107.70" y="447.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;jsonpath_lib::parser::Node&gt; (2 samples, 0.80%)</title><rect x="43.2" y="261" width="9.5" height="15.0" fill="rgb(221,183,20)" rx="2" ry="2" />
+<text  x="46.17" y="271.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::try_fold (5 samples, 2.01%)</title><rect x="156.9" y="309" width="23.7" height="15.0" fill="rgb(236,83,5)" rx="2" ry="2" />
+<text  x="159.91" y="319.5" >c..</text>
+</g>
+<g >
+<title>core::str::validations::next_code_point (1 samples, 0.40%)</title><rect x="1076.3" y="421" width="4.7" height="15.0" fill="rgb(250,118,47)" rx="2" ry="2" />
+<text  x="1079.27" y="431.5" ></text>
+</g>
+<g >
+<title>alloc::alloc::dealloc (2 samples, 0.80%)</title><rect x="801.4" y="421" width="9.5" height="15.0" fill="rgb(251,52,39)" rx="2" ry="2" />
+<text  x="804.41" y="431.5" ></text>
+</g>
+<g >
+<title>&lt;serde_json::value::Value as core::cmp::PartialEq&gt;::eq (36 samples, 14.46%)</title><rect x="318.0" y="389" width="170.6" height="15.0" fill="rgb(239,137,31)" rx="2" ry="2" />
+<text  x="321.03" y="399.5" >&lt;serde_json::value::Va..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::filter (25 samples, 10.04%)</title><rect x="829.8" y="437" width="118.5" height="15.0" fill="rgb(215,223,9)" rx="2" ry="2" />
+<text  x="832.84" y="447.5" >jsonpath_lib::..</text>
+</g>
+<g >
+<title>hashbrown::raw::h2 (1 samples, 0.40%)</title><rect x="630.8" y="229" width="4.7" height="15.0" fill="rgb(213,18,12)" rx="2" ry="2" />
+<text  x="633.80" y="239.5" ></text>
+</g>
+<g >
+<title>&lt;Q as indexmap::equivalent::Equivalent&lt;K&gt;&gt;::equivalent (1 samples, 0.40%)</title><rect x="246.9" y="165" width="4.8" height="15.0" fill="rgb(230,141,11)" rx="2" ry="2" />
+<text  x="249.95" y="175.5" ></text>
+</g>
+<g >
+<title>&lt;hashbrown::raw::inner::RawIterHash&lt;T,A&gt; as core::iter::traits::iterator::Iterator&gt;::next (2 samples, 0.80%)</title><rect x="403.3" y="197" width="9.5" height="15.0" fill="rgb(211,187,1)" rx="2" ry="2" />
+<text  x="406.33" y="207.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawTableInner&lt;A&gt;::new_in (1 samples, 0.40%)</title><rect x="791.9" y="309" width="4.8" height="15.0" fill="rgb(251,105,34)" rx="2" ry="2" />
+<text  x="794.93" y="319.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::select::expr_term::ExprTerm::cmp (6 samples, 2.41%)</title><rect x="152.2" y="437" width="28.4" height="15.0" fill="rgb(229,210,46)" rx="2" ry="2" />
+<text  x="155.17" y="447.5" >js..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::paths_dot (1 samples, 0.40%)</title><rect x="891.4" y="325" width="4.8" height="15.0" fill="rgb(231,123,34)" rx="2" ry="2" />
+<text  x="894.45" y="335.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Sip13Rounds as core::hash::sip::Sip&gt;::d_rounds (2 samples, 0.80%)</title><rect x="559.7" y="261" width="9.5" height="15.0" fill="rgb(244,215,50)" rx="2" ry="2" />
+<text  x="562.72" y="271.5" ></text>
+</g>
+<g >
+<title>core::hash::Hasher::write_usize (2 samples, 0.80%)</title><rect x="664.0" y="293" width="9.5" height="15.0" fill="rgb(252,21,27)" rx="2" ry="2" />
+<text  x="666.98" y="303.5" ></text>
+</g>
+<g >
+<title>core::cmp::impls::&lt;impl core::cmp::PartialEq&lt;&amp;B&gt; for &amp;A&gt;::eq (5 samples, 2.01%)</title><rect x="156.9" y="389" width="23.7" height="15.0" fill="rgb(240,206,51)" rx="2" ry="2" />
+<text  x="159.91" y="399.5" >c..</text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::get_index_of (31 samples, 12.45%)</title><rect x="341.7" y="261" width="146.9" height="15.0" fill="rgb(242,226,11)" rx="2" ry="2" />
+<text  x="344.73" y="271.5" >indexmap::map::Ind..</text>
+</g>
+<g >
+<title>jsonpath_lib::select::expr_term::ExprTerm::cmp (10 samples, 4.02%)</title><rect x="261.2" y="437" width="47.4" height="15.0" fill="rgb(226,30,38)" rx="2" ry="2" />
+<text  x="264.16" y="447.5" >json..</text>
+</g>
+<g >
+<title>int_free (1 samples, 0.40%)</title><rect x="66.9" y="325" width="4.7" height="15.0" fill="rgb(239,7,47)" rx="2" ry="2" />
+<text  x="69.87" y="335.5" ></text>
+</g>
+<g >
+<title>indexmap::map::core::IndexMapCore&lt;K,V&gt;::get_index_of (1 samples, 0.40%)</title><rect x="246.9" y="229" width="4.8" height="15.0" fill="rgb(245,35,11)" rx="2" ry="2" />
+<text  x="249.95" y="239.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Sip13Rounds as core::hash::sip::Sip&gt;::c_rounds (1 samples, 0.40%)</title><rect x="242.2" y="165" width="4.7" height="15.0" fill="rgb(221,2,31)" rx="2" ry="2" />
+<text  x="245.21" y="175.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T,A&gt;::reserve (2 samples, 0.80%)</title><rect x="1104.7" y="405" width="9.5" height="15.0" fill="rgb(245,138,20)" rx="2" ry="2" />
+<text  x="1107.70" y="415.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Sip13Rounds as core::hash::sip::Sip&gt;::c_rounds (1 samples, 0.40%)</title><rect x="602.4" y="245" width="4.7" height="15.0" fill="rgb(232,173,49)" rx="2" ry="2" />
+<text  x="605.37" y="255.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::grow_amortized (3 samples, 1.20%)</title><rect x="986.2" y="421" width="14.2" height="15.0" fill="rgb(215,209,41)" rx="2" ry="2" />
+<text  x="989.22" y="431.5" ></text>
+</g>
+<g >
+<title>core::core_arch::simd::i8x16::new (1 samples, 0.40%)</title><rect x="687.7" y="197" width="4.7" height="15.0" fill="rgb(253,134,22)" rx="2" ry="2" />
+<text  x="690.67" y="207.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawTable&lt;T,A&gt;::get (2 samples, 0.80%)</title><rect x="270.6" y="181" width="9.5" height="15.0" fill="rgb(248,212,31)" rx="2" ry="2" />
+<text  x="273.64" y="191.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::reserve (4 samples, 1.61%)</title><rect x="218.5" y="309" width="19.0" height="15.0" fill="rgb(228,44,41)" rx="2" ry="2" />
+<text  x="221.51" y="319.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::with_capacity_in (1 samples, 0.40%)</title><rect x="90.6" y="437" width="4.7" height="15.0" fill="rgb(207,33,1)" rx="2" ry="2" />
+<text  x="93.56" y="447.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::reserve::do_reserve_and_handle (4 samples, 1.61%)</title><rect x="218.5" y="293" width="19.0" height="15.0" fill="rgb(227,65,20)" rx="2" ry="2" />
+<text  x="221.51" y="303.5" ></text>
+</g>
+<g >
+<title>indexmap::map::core::IndexMapCore&lt;K,V&gt;::get_index_of (5 samples, 2.01%)</title><rect x="578.7" y="325" width="23.7" height="15.0" fill="rgb(211,25,46)" rx="2" ry="2" />
+<text  x="581.67" y="335.5" >i..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::tokenizer::TokenReader::next_token (1 samples, 0.40%)</title><rect x="877.2" y="341" width="4.8" height="15.0" fill="rgb(226,150,31)" rx="2" ry="2" />
+<text  x="880.23" y="351.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::SipHasher13 as core::hash::Hasher&gt;::write (4 samples, 1.61%)</title><rect x="346.5" y="181" width="18.9" height="15.0" fill="rgb(254,119,46)" rx="2" ry="2" />
+<text  x="349.47" y="191.5" ></text>
+</g>
+<g >
+<title>core::mem::replace (1 samples, 0.40%)</title><rect x="308.6" y="405" width="4.7" height="15.0" fill="rgb(247,124,26)" rx="2" ry="2" />
+<text  x="311.55" y="415.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::cloned::Cloned&lt;I&gt; as core::iter::traits::iterator::Iterator&gt;::next (3 samples, 1.20%)</title><rect x="265.9" y="325" width="14.2" height="15.0" fill="rgb(212,102,11)" rx="2" ry="2" />
+<text  x="268.90" y="335.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::SipHasher13 as core::hash::Hasher&gt;::finish (1 samples, 0.40%)</title><rect x="498.1" y="357" width="4.8" height="15.0" fill="rgb(220,155,43)" rx="2" ry="2" />
+<text  x="501.11" y="367.5" ></text>
+</g>
+<g >
+<title>determine_info (1 samples, 0.40%)</title><rect x="1147.3" y="581" width="4.8" height="15.0" fill="rgb(234,2,19)" rx="2" ry="2" />
+<text  x="1150.35" y="591.5" ></text>
+</g>
+<g >
+<title>&lt;[A] as core::slice::cmp::SlicePartialEq&lt;B&gt;&gt;::equal (2 samples, 0.80%)</title><rect x="209.0" y="53" width="9.5" height="15.0" fill="rgb(232,215,28)" rx="2" ry="2" />
+<text  x="212.04" y="63.5" ></text>
+</g>
+<g >
+<title>core::hash::impls::&lt;impl core::hash::Hash for str&gt;::hash (4 samples, 1.61%)</title><rect x="346.5" y="213" width="18.9" height="15.0" fill="rgb(250,190,33)" rx="2" ry="2" />
+<text  x="349.47" y="223.5" ></text>
+</g>
+<g >
+<title>core::mem::take (1 samples, 0.40%)</title><rect x="308.6" y="421" width="4.7" height="15.0" fill="rgb(248,70,41)" rx="2" ry="2" />
+<text  x="311.55" y="431.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::alloc::Global as core::alloc::Allocator&gt;::deallocate (1 samples, 0.40%)</title><rect x="706.6" y="197" width="4.8" height="15.0" fill="rgb(242,125,53)" rx="2" ry="2" />
+<text  x="709.63" y="207.5" ></text>
+</g>
+<g >
+<title>&lt;std::collections::hash::map::DefaultHasher as core::hash::Hasher&gt;::finish (5 samples, 2.01%)</title><rect x="763.5" y="325" width="23.7" height="15.0" fill="rgb(208,88,22)" rx="2" ry="2" />
+<text  x="766.49" y="335.5" >&lt;..</text>
+</g>
+<g >
+<title>alloc::alloc::Global::alloc_impl (1 samples, 0.40%)</title><rect x="90.6" y="389" width="4.7" height="15.0" fill="rgb(210,93,1)" rx="2" ry="2" />
+<text  x="93.56" y="399.5" ></text>
+</g>
+<g >
+<title>&lt;core::ops::range::Range&lt;T&gt; as core::iter::range::RangeIteratorImpl&gt;::spec_next_back (1 samples, 0.40%)</title><rect x="313.3" y="373" width="4.7" height="15.0" fill="rgb(221,181,1)" rx="2" ry="2" />
+<text  x="316.29" y="383.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::select::expr_term::ExprTerm::lt (12 samples, 4.82%)</title><rect x="251.7" y="453" width="56.9" height="15.0" fill="rgb(210,123,20)" rx="2" ry="2" />
+<text  x="254.69" y="463.5" >jsonpa..</text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Hasher&lt;S&gt; as core::hash::Hasher&gt;::finish (6 samples, 2.41%)</title><rect x="540.8" y="277" width="28.4" height="15.0" fill="rgb(219,188,17)" rx="2" ry="2" />
+<text  x="543.76" y="287.5" >&lt;c..</text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawTable&lt;T,A&gt;::get (2 samples, 0.80%)</title><rect x="171.1" y="213" width="9.5" height="15.0" fill="rgb(210,170,25)" rx="2" ry="2" />
+<text  x="174.12" y="223.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::SipHasher13 as core::hash::Hasher&gt;::finish (1 samples, 0.40%)</title><rect x="242.2" y="197" width="4.7" height="15.0" fill="rgb(228,122,16)" rx="2" ry="2" />
+<text  x="245.21" y="207.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::set_ptr (1 samples, 0.40%)</title><rect x="991.0" y="405" width="4.7" height="15.0" fill="rgb(219,30,48)" rx="2" ry="2" />
+<text  x="993.96" y="415.5" ></text>
+</g>
+<g >
+<title>&lt;std::collections::hash::map::DefaultHasher as core::hash::Hasher&gt;::finish (5 samples, 2.01%)</title><rect x="365.4" y="229" width="23.7" height="15.0" fill="rgb(222,146,15)" rx="2" ry="2" />
+<text  x="368.42" y="239.5" >&lt;..</text>
+</g>
+<g >
+<title>_memcmp_avx2_movbe (2 samples, 0.80%)</title><rect x="479.2" y="85" width="9.4" height="15.0" fill="rgb(221,109,27)" rx="2" ry="2" />
+<text  x="482.16" y="95.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::close_token (1 samples, 0.40%)</title><rect x="948.3" y="453" width="4.8" height="15.0" fill="rgb(220,30,20)" rx="2" ry="2" />
+<text  x="951.31" y="463.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as core::iter::traits::collect::FromIterator&lt;T&gt;&gt;::from_iter (13 samples, 5.22%)</title><rect x="190.1" y="405" width="61.6" height="15.0" fill="rgb(249,58,26)" rx="2" ry="2" />
+<text  x="193.08" y="415.5" >&lt;alloc..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::condition_expr (12 samples, 4.82%)</title><rect x="839.3" y="405" width="56.9" height="15.0" fill="rgb(222,104,13)" rx="2" ry="2" />
+<text  x="842.32" y="415.5" >jsonpa..</text>
+</g>
+<g >
+<title>alloc::string::String::insert (1 samples, 0.40%)</title><rect x="1090.5" y="453" width="4.7" height="15.0" fill="rgb(215,143,23)" rx="2" ry="2" />
+<text  x="1093.48" y="463.5" ></text>
+</g>
+<g >
+<title>&lt;indexmap::map::IndexMap&lt;K,V1,S1&gt; as core::cmp::PartialEq&lt;indexmap::map::IndexMap&lt;K,V2,S2&gt;&gt;&gt;::eq::{{closure}} (5 samples, 2.01%)</title><rect x="156.9" y="277" width="23.7" height="15.0" fill="rgb(227,46,51)" rx="2" ry="2" />
+<text  x="159.91" y="287.5" >&lt;..</text>
+</g>
+<g >
+<title>hashbrown::raw::alloc::inner::do_alloc (2 samples, 0.80%)</title><rect x="744.5" y="213" width="9.5" height="15.0" fill="rgb(209,59,47)" rx="2" ry="2" />
+<text  x="747.54" y="223.5" ></text>
+</g>
+<g >
+<title>&lt;hashbrown::raw::inner::RawIterHashInner&lt;A&gt; as core::iter::traits::iterator::Iterator&gt;::next (2 samples, 0.80%)</title><rect x="171.1" y="165" width="9.5" height="15.0" fill="rgb(216,100,9)" rx="2" ry="2" />
+<text  x="174.12" y="175.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::all (33 samples, 13.25%)</title><rect x="332.2" y="341" width="156.4" height="15.0" fill="rgb(234,158,48)" rx="2" ry="2" />
+<text  x="335.25" y="351.5" >core::iter::traits::..</text>
+</g>
+<g >
+<title>&lt;core::str::iter::Chars as core::iter::traits::iterator::Iterator&gt;::next (1 samples, 0.40%)</title><rect x="1081.0" y="437" width="4.7" height="15.0" fill="rgb(247,193,23)" rx="2" ry="2" />
+<text  x="1084.00" y="447.5" ></text>
+</g>
+<g >
+<title>indexmap::map::core::equivalent::{{closure}} (7 samples, 2.81%)</title><rect x="455.5" y="197" width="33.1" height="15.0" fill="rgb(231,104,0)" rx="2" ry="2" />
+<text  x="458.46" y="207.5" >in..</text>
+</g>
+<g >
+<title>&lt;indexmap::map::IndexMap&lt;K,V1,S1&gt; as core::cmp::PartialEq&lt;indexmap::map::IndexMap&lt;K,V2,S2&gt;&gt;&gt;::eq (5 samples, 2.01%)</title><rect x="156.9" y="341" width="23.7" height="15.0" fill="rgb(215,8,35)" rx="2" ry="2" />
+<text  x="159.91" y="351.5" >&lt;..</text>
+</g>
+<g >
+<title>core::option::Option&lt;T&gt;::map_or (1 samples, 0.40%)</title><rect x="337.0" y="277" width="4.7" height="15.0" fill="rgb(242,181,34)" rx="2" ry="2" />
+<text  x="339.99" y="287.5" ></text>
+</g>
+<g >
+<title>hashbrown::map::HashMap&lt;K,V,S,A&gt;::insert (6 samples, 2.41%)</title><rect x="763.5" y="357" width="28.4" height="15.0" fill="rgb(227,197,10)" rx="2" ry="2" />
+<text  x="766.49" y="367.5" >ha..</text>
+</g>
+<g >
+<title>&lt;hashbrown::raw::inner::RawIterHashInner&lt;A&gt; as core::iter::traits::iterator::Iterator&gt;::next (2 samples, 0.80%)</title><rect x="403.3" y="181" width="9.5" height="15.0" fill="rgb(224,161,33)" rx="2" ry="2" />
+<text  x="406.33" y="191.5" ></text>
+</g>
+<g >
+<title>_fopen_internal (1 samples, 0.40%)</title><rect x="1147.3" y="645" width="4.8" height="15.0" fill="rgb(236,22,16)" rx="2" ry="2" />
+<text  x="1150.35" y="655.5" ></text>
+</g>
+<g >
+<title>&lt;std::collections::hash::map::DefaultHasher as core::hash::Hasher&gt;::finish (1 samples, 0.40%)</title><rect x="498.1" y="373" width="4.8" height="15.0" fill="rgb(237,38,31)" rx="2" ry="2" />
+<text  x="501.11" y="383.5" ></text>
+</g>
+<g >
+<title>core::str::&lt;impl str&gt;::parse (1 samples, 0.40%)</title><rect x="924.6" y="325" width="4.8" height="15.0" fill="rgb(243,8,10)" rx="2" ry="2" />
+<text  x="927.62" y="335.5" ></text>
+</g>
+<g >
+<title>core::str::validations::next_code_point (1 samples, 0.40%)</title><rect x="1100.0" y="405" width="4.7" height="15.0" fill="rgb(229,88,17)" rx="2" ry="2" />
+<text  x="1102.96" y="415.5" ></text>
+</g>
+<g >
+<title>core::num::dec2flt::&lt;impl core::str::traits::FromStr for f64&gt;::from_str (1 samples, 0.40%)</title><rect x="924.6" y="309" width="4.8" height="15.0" fill="rgb(240,151,36)" rx="2" ry="2" />
+<text  x="927.62" y="319.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::select::Selector::visit_array_eof (1 samples, 0.40%)</title><rect x="104.8" y="485" width="4.7" height="15.0" fill="rgb(244,11,21)" rx="2" ry="2" />
+<text  x="107.78" y="495.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::tokenizer::Tokenizer::other (6 samples, 2.41%)</title><rect x="1085.7" y="469" width="28.5" height="15.0" fill="rgb(214,98,4)" rx="2" ry="2" />
+<text  x="1088.74" y="479.5" >js..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::term (4 samples, 1.61%)</title><rect x="910.4" y="373" width="19.0" height="15.0" fill="rgb(240,52,31)" rx="2" ry="2" />
+<text  x="913.40" y="383.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::spec_from_iter_nested::SpecFromIterNested&lt;T,I&gt;&gt;::from_iter (13 samples, 5.22%)</title><rect x="190.1" y="373" width="61.6" height="15.0" fill="rgb(211,18,39)" rx="2" ry="2" />
+<text  x="193.08" y="383.5" >&lt;alloc..</text>
+</g>
+<g >
+<title>core::core_arch::x86::sse2::mm_set1_epi8 (1 samples, 0.40%)</title><rect x="687.7" y="229" width="4.7" height="15.0" fill="rgb(250,109,14)" rx="2" ry="2" />
+<text  x="690.67" y="239.5" ></text>
+</g>
+<g >
+<title>_rdl_alloc (1 samples, 0.40%)</title><rect x="507.6" y="197" width="4.7" height="15.0" fill="rgb(246,100,0)" rx="2" ry="2" />
+<text  x="510.59" y="207.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Sip13Rounds as core::hash::sip::Sip&gt;::d_rounds (2 samples, 0.80%)</title><rect x="720.8" y="181" width="9.5" height="15.0" fill="rgb(235,10,31)" rx="2" ry="2" />
+<text  x="723.84" y="191.5" ></text>
+</g>
+<g >
+<title>std::sys::unix::thread::guard::get_stack_start (1 samples, 0.40%)</title><rect x="1147.3" y="693" width="4.8" height="15.0" fill="rgb(209,51,39)" rx="2" ry="2" />
+<text  x="1150.35" y="703.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::tokenizer::TokenReader::next_token (2 samples, 0.80%)</title><rect x="967.3" y="485" width="9.4" height="15.0" fill="rgb(243,150,0)" rx="2" ry="2" />
+<text  x="970.27" y="495.5" ></text>
+</g>
+<g >
+<title>core::hash::sip::u8to64_le (1 samples, 0.40%)</title><rect x="573.9" y="245" width="4.8" height="15.0" fill="rgb(246,186,12)" rx="2" ry="2" />
+<text  x="576.94" y="255.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawTable&lt;T,A&gt;::free_buckets (2 samples, 0.80%)</title><rect x="512.3" y="309" width="9.5" height="15.0" fill="rgb(240,48,45)" rx="2" ry="2" />
+<text  x="515.33" y="319.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawTable&lt;T,A&gt;::get (21 samples, 8.43%)</title><rect x="389.1" y="229" width="99.5" height="15.0" fill="rgb(211,66,1)" rx="2" ry="2" />
+<text  x="392.12" y="239.5" >hashbrown::r..</text>
+</g>
+<g >
+<title>hashbrown::raw::sse2::Group::match_byte (1 samples, 0.40%)</title><rect x="687.7" y="245" width="4.7" height="15.0" fill="rgb(247,70,30)" rx="2" ry="2" />
+<text  x="690.67" y="255.5" ></text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::hash (1 samples, 0.40%)</title><rect x="498.1" y="389" width="4.8" height="15.0" fill="rgb(234,81,46)" rx="2" ry="2" />
+<text  x="501.11" y="399.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::SipHasher13 as core::hash::Hasher&gt;::finish (2 samples, 0.80%)</title><rect x="294.3" y="197" width="9.5" height="15.0" fill="rgb(251,6,43)" rx="2" ry="2" />
+<text  x="297.34" y="207.5" ></text>
+</g>
+<g >
+<title>indexmap::map::core::IndexMapCore&lt;K,V&gt;::get_index_of (21 samples, 8.43%)</title><rect x="389.1" y="245" width="99.5" height="15.0" fill="rgb(208,97,34)" rx="2" ry="2" />
+<text  x="392.12" y="255.5" >indexmap::ma..</text>
+</g>
+<g >
+<title>_memcmp_avx2_movbe (2 samples, 0.80%)</title><rect x="209.0" y="37" width="9.5" height="15.0" fill="rgb(237,34,16)" rx="2" ry="2" />
+<text  x="212.04" y="47.5" ></text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::get_index_of (6 samples, 2.41%)</title><rect x="190.1" y="213" width="28.4" height="15.0" fill="rgb(227,32,42)" rx="2" ry="2" />
+<text  x="193.08" y="223.5" >in..</text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::try_fold (33 samples, 13.25%)</title><rect x="332.2" y="325" width="156.4" height="15.0" fill="rgb(250,7,31)" rx="2" ry="2" />
+<text  x="335.25" y="335.5" >core::iter::traits::..</text>
+</g>
+<g >
+<title>core::num::&lt;impl u64&gt;::wrapping_add (1 samples, 0.40%)</title><rect x="716.1" y="165" width="4.7" height="15.0" fill="rgb(240,65,45)" rx="2" ry="2" />
+<text  x="719.10" y="175.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::string::String as core::cmp::PartialEq&gt;::eq (1 samples, 0.40%)</title><rect x="337.0" y="229" width="4.7" height="15.0" fill="rgb(234,168,28)" rx="2" ry="2" />
+<text  x="339.99" y="239.5" ></text>
+</g>
+<g >
+<title>load_elf_binary (1 samples, 0.40%)</title><rect x="10.0" y="789" width="4.7" height="15.0" fill="rgb(205,36,34)" rx="2" ry="2" />
+<text  x="13.00" y="799.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawTable&lt;T,A&gt;::iter_hash (9 samples, 3.61%)</title><rect x="412.8" y="197" width="42.7" height="15.0" fill="rgb(236,58,25)" rx="2" ry="2" />
+<text  x="415.81" y="207.5" >hash..</text>
+</g>
+<g >
+<title>core::ptr::write (1 samples, 0.40%)</title><rect x="531.3" y="357" width="4.7" height="15.0" fill="rgb(237,215,49)" rx="2" ry="2" />
+<text  x="534.29" y="367.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;alloc::raw_vec::RawVec&lt;u8&gt;&gt; (1 samples, 0.40%)</title><rect x="62.1" y="261" width="4.8" height="15.0" fill="rgb(248,23,48)" rx="2" ry="2" />
+<text  x="65.13" y="271.5" ></text>
+</g>
+<g >
+<title>init_cpu_features (1 samples, 0.40%)</title><rect x="1152.1" y="789" width="4.7" height="15.0" fill="rgb(241,106,53)" rx="2" ry="2" />
+<text  x="1155.09" y="799.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T,A&gt;::reserve (2 samples, 0.80%)</title><rect x="280.1" y="325" width="9.5" height="15.0" fill="rgb(242,58,11)" rx="2" ry="2" />
+<text  x="283.12" y="335.5" ></text>
+</g>
+<g >
+<title>&lt;core::str::iter::Chars as core::iter::traits::iterator::Iterator&gt;::next (1 samples, 0.40%)</title><rect x="1142.6" y="421" width="4.7" height="15.0" fill="rgb(242,47,51)" rx="2" ry="2" />
+<text  x="1145.61" y="431.5" ></text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::hash (2 samples, 0.80%)</title><rect x="190.1" y="197" width="9.5" height="15.0" fill="rgb(205,84,18)" rx="2" ry="2" />
+<text  x="193.08" y="207.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::select::expr_term::ExprTerm::gt (15 samples, 6.02%)</title><rect x="180.6" y="453" width="71.1" height="15.0" fill="rgb(238,194,6)" rx="2" ry="2" />
+<text  x="183.60" y="463.5" >jsonpath..</text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T,A&gt;::insert (18 samples, 7.23%)</title><rect x="981.5" y="485" width="85.3" height="15.0" fill="rgb(209,153,54)" rx="2" ry="2" />
+<text  x="984.49" y="495.5" >alloc::vec..</text>
+</g>
+<g >
+<title>jsonpath_lib::select::Selector::visit_key (65 samples, 26.10%)</title><rect x="488.6" y="469" width="308.1" height="15.0" fill="rgb(220,203,50)" rx="2" ry="2" />
+<text  x="491.63" y="479.5" >jsonpath_lib::select::Selector::visit_key</text>
+</g>
+<g >
+<title>&lt;jsonpath_lib::select::cmp::CmpEq as jsonpath_lib::select::cmp::Cmp&gt;::cmp_json (5 samples, 2.01%)</title><rect x="156.9" y="405" width="23.7" height="15.0" fill="rgb(219,40,14)" rx="2" ry="2" />
+<text  x="159.91" y="415.5" >&lt;..</text>
+</g>
+<g >
+<title>&lt;std::collections::hash::map::DefaultHasher as core::hash::Hasher&gt;::write (2 samples, 0.80%)</title><rect x="664.0" y="277" width="9.5" height="15.0" fill="rgb(247,25,23)" rx="2" ry="2" />
+<text  x="666.98" y="287.5" ></text>
+</g>
+<g >
+<title>hashbrown::map::make_insert_hash (5 samples, 2.01%)</title><rect x="763.5" y="341" width="23.7" height="15.0" fill="rgb(226,191,8)" rx="2" ry="2" />
+<text  x="766.49" y="351.5" >h..</text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::cloned::Cloned&lt;I&gt; as core::iter::traits::iterator::Iterator&gt;::next (6 samples, 2.41%)</title><rect x="190.1" y="325" width="28.4" height="15.0" fill="rgb(208,184,32)" rx="2" ry="2" />
+<text  x="193.08" y="335.5" >&lt;c..</text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::grow_amortized (2 samples, 0.80%)</title><rect x="280.1" y="277" width="9.5" height="15.0" fill="rgb(210,220,38)" rx="2" ry="2" />
+<text  x="283.12" y="287.5" ></text>
+</g>
+<g >
+<title>alloc::alloc::Global::grow_impl (4 samples, 1.61%)</title><rect x="218.5" y="229" width="19.0" height="15.0" fill="rgb(230,169,44)" rx="2" ry="2" />
+<text  x="221.51" y="239.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::for_each::call::{{closure}} (239 samples, 95.98%)</title><rect x="14.7" y="581" width="1132.6" height="15.0" fill="rgb(221,122,19)" rx="2" ry="2" />
+<text  x="17.74" y="591.5" >core::iter::traits::iterator::Iterator::for_each::call::{{closure}}</text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Hasher&lt;S&gt; as core::hash::Hasher&gt;::finish (5 samples, 2.01%)</title><rect x="763.5" y="293" width="23.7" height="15.0" fill="rgb(215,65,28)" rx="2" ry="2" />
+<text  x="766.49" y="303.5" >&lt;..</text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T,A&gt;::as_mut_ptr (1 samples, 0.40%)</title><rect x="493.4" y="421" width="4.7" height="15.0" fill="rgb(231,6,13)" rx="2" ry="2" />
+<text  x="496.37" y="431.5" ></text>
+</g>
+<g >
+<title>dl_start_final (1 samples, 0.40%)</title><rect x="1152.1" y="837" width="4.7" height="15.0" fill="rgb(243,97,21)" rx="2" ry="2" />
+<text  x="1155.09" y="847.5" ></text>
+</g>
+<g >
+<title>_GI__dl_addr (1 samples, 0.40%)</title><rect x="1147.3" y="597" width="4.8" height="15.0" fill="rgb(222,126,44)" rx="2" ry="2" />
+<text  x="1150.35" y="607.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Hasher&lt;S&gt; as core::hash::Hasher&gt;::write (1 samples, 0.40%)</title><rect x="626.1" y="229" width="4.7" height="15.0" fill="rgb(239,57,51)" rx="2" ry="2" />
+<text  x="629.06" y="239.5" ></text>
+</g>
+<g >
+<title>core::hash::Hasher::write_u8 (1 samples, 0.40%)</title><rect x="190.1" y="149" width="4.7" height="15.0" fill="rgb(211,179,9)" rx="2" ry="2" />
+<text  x="193.08" y="159.5" ></text>
+</g>
+<g >
+<title>core::num::&lt;impl u64&gt;::wrapping_add (1 samples, 0.40%)</title><rect x="384.4" y="165" width="4.7" height="15.0" fill="rgb(209,65,35)" rx="2" ry="2" />
+<text  x="387.38" y="175.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::grow_amortized (1 samples, 0.40%)</title><rect x="1109.4" y="357" width="4.8" height="15.0" fill="rgb(216,88,50)" rx="2" ry="2" />
+<text  x="1112.44" y="367.5" ></text>
+</g>
+<g >
+<title>core::ops::function::impls::&lt;impl core::ops::function::FnMut&lt;A&gt; for &amp;mut F&gt;::call_mut (4 samples, 1.61%)</title><rect x="289.6" y="309" width="19.0" height="15.0" fill="rgb(254,15,15)" rx="2" ry="2" />
+<text  x="292.60" y="319.5" ></text>
+</g>
+<g >
+<title>main (240 samples, 96.39%)</title><rect x="14.7" y="837" width="1137.4" height="15.0" fill="rgb(216,131,28)" rx="2" ry="2" />
+<text  x="17.74" y="847.5" >main</text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;alloc::boxed::Box&lt;jsonpath_lib::parser::Node&gt;&gt; (15 samples, 6.02%)</title><rect x="19.5" y="469" width="71.1" height="15.0" fill="rgb(251,81,17)" rx="2" ry="2" />
+<text  x="22.48" y="479.5" >core::pt..</text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;hashbrown::raw::RawTable&lt; (2 samples, 0.80%)</title><rect x="512.3" y="341" width="9.5" height="15.0" fill="rgb(251,55,46)" rx="2" ry="2" />
+<text  x="515.33" y="351.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;core::result::Result&lt;jsonpath_lib::parser::tokenizer::Token,jsonpath_lib::parser::tokenizer::TokenError&gt;&gt; (1 samples, 0.40%)</title><rect x="896.2" y="389" width="4.7" height="15.0" fill="rgb(240,211,47)" rx="2" ry="2" />
+<text  x="899.18" y="399.5" ></text>
+</g>
+<g >
+<title>core::ptr::write (1 samples, 0.40%)</title><rect x="1062.0" y="469" width="4.8" height="15.0" fill="rgb(225,1,38)" rx="2" ry="2" />
+<text  x="1065.05" y="479.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::path_reader::PathReader::next_char (3 samples, 1.20%)</title><rect x="1066.8" y="469" width="14.2" height="15.0" fill="rgb(215,184,32)" rx="2" ry="2" />
+<text  x="1069.79" y="479.5" ></text>
+</g>
+<g >
+<title>&lt;core::slice::iter::Iter&lt;T&gt; as core::iter::traits::iterator::Iterator&gt;::find (4 samples, 1.61%)</title><rect x="289.6" y="325" width="19.0" height="15.0" fill="rgb(238,99,30)" rx="2" ry="2" />
+<text  x="292.60" y="335.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Hasher&lt;S&gt; as core::hash::Hasher&gt;::write (2 samples, 0.80%)</title><rect x="664.0" y="245" width="9.5" height="15.0" fill="rgb(237,204,8)" rx="2" ry="2" />
+<text  x="666.98" y="255.5" ></text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::get_index_of (3 samples, 1.20%)</title><rect x="294.3" y="245" width="14.3" height="15.0" fill="rgb(232,194,35)" rx="2" ry="2" />
+<text  x="297.34" y="255.5" ></text>
+</g>
+<g >
+<title>&lt;T as alloc::slice::hack::ConvertVec&gt;::to_vec (1 samples, 0.40%)</title><rect x="90.6" y="469" width="4.7" height="15.0" fill="rgb(250,102,30)" rx="2" ry="2" />
+<text  x="93.56" y="479.5" ></text>
+</g>
+<g >
+<title>&lt;hashbrown::set::HashSet&lt;T,S,A&gt; as core::default::Default&gt;::default (1 samples, 0.40%)</title><rect x="791.9" y="373" width="4.8" height="15.0" fill="rgb(213,120,37)" rx="2" ry="2" />
+<text  x="794.93" y="383.5" ></text>
+</g>
+<g >
+<title>core::str::traits::&lt;impl core::cmp::PartialEq for str&gt;::eq (1 samples, 0.40%)</title><rect x="337.0" y="213" width="4.7" height="15.0" fill="rgb(240,72,48)" rx="2" ry="2" />
+<text  x="339.99" y="223.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawTable&lt;T,A&gt;::get (4 samples, 1.61%)</title><rect x="199.6" y="181" width="18.9" height="15.0" fill="rgb(210,207,13)" rx="2" ry="2" />
+<text  x="202.56" y="191.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::spec_from_iter::SpecFromIter&lt;T,I&gt;&gt;::from_iter (10 samples, 4.02%)</title><rect x="261.2" y="389" width="47.4" height="15.0" fill="rgb(252,81,34)" rx="2" ry="2" />
+<text  x="264.16" y="399.5" >&lt;all..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::tokenizer::TokenReader::next_token (1 samples, 0.40%)</title><rect x="948.3" y="437" width="4.8" height="15.0" fill="rgb(231,199,14)" rx="2" ry="2" />
+<text  x="951.31" y="447.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Sip13Rounds as core::hash::sip::Sip&gt;::d_rounds (1 samples, 0.40%)</title><rect x="166.4" y="165" width="4.7" height="15.0" fill="rgb(251,148,30)" rx="2" ry="2" />
+<text  x="169.39" y="175.5" ></text>
+</g>
+<g >
+<title>&lt;core::slice::iter::Iter&lt;T&gt; as core::iter::traits::iterator::Iterator&gt;::find (6 samples, 2.41%)</title><rect x="190.1" y="293" width="28.4" height="15.0" fill="rgb(252,128,19)" rx="2" ry="2" />
+<text  x="193.08" y="303.5" >&lt;c..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::eat_whitespace (1 samples, 0.40%)</title><rect x="844.1" y="357" width="4.7" height="15.0" fill="rgb(216,189,12)" rx="2" ry="2" />
+<text  x="847.06" y="367.5" ></text>
+</g>
+<g >
+<title>int_malloc (4 samples, 1.61%)</title><rect x="218.5" y="165" width="19.0" height="15.0" fill="rgb(249,65,10)" rx="2" ry="2" />
+<text  x="221.51" y="175.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;core::option::Option&lt;jsonpath_lib::parser::Node&gt;&gt; (15 samples, 6.02%)</title><rect x="19.5" y="517" width="71.1" height="15.0" fill="rgb(244,32,35)" rx="2" ry="2" />
+<text  x="22.48" y="527.5" >core::pt..</text>
+</g>
+<g >
+<title>hashbrown::raw::RawTable&lt;T,A&gt;::insert (15 samples, 6.02%)</title><rect x="692.4" y="325" width="71.1" height="15.0" fill="rgb(238,212,41)" rx="2" ry="2" />
+<text  x="695.41" y="335.5" >hashbrow..</text>
+</g>
+<g >
+<title>_GI___libc_malloc (1 samples, 0.40%)</title><rect x="526.5" y="277" width="4.8" height="15.0" fill="rgb(208,57,35)" rx="2" ry="2" />
+<text  x="529.55" y="287.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;core::option::Option&lt;alloc::boxed::Box&lt;jsonpath_lib::parser::Node&gt;&gt;&gt; (15 samples, 6.02%)</title><rect x="19.5" y="485" width="71.1" height="15.0" fill="rgb(249,93,31)" rx="2" ry="2" />
+<text  x="22.48" y="495.5" >core::pt..</text>
+</g>
+<g >
+<title>hashbrown::map::make_insert_hash (7 samples, 2.81%)</title><rect x="640.3" y="325" width="33.2" height="15.0" fill="rgb(211,66,21)" rx="2" ry="2" />
+<text  x="643.28" y="335.5" >ha..</text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T,A&gt; as core::ops::deref::Deref&gt;::deref (1 samples, 0.40%)</title><rect x="156.9" y="213" width="4.7" height="15.0" fill="rgb(224,140,12)" rx="2" ry="2" />
+<text  x="159.91" y="223.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;hashbrown::scopeguard::ScopeGuard&lt;hashbrown::raw::RawTableInner&lt;alloc::alloc::Global&gt;,hashbrown::raw::RawTableInner&lt;alloc::alloc::Global&gt;::prepare_resize::{{closure}}&gt;&gt; (1 samples, 0.40%)</title><rect x="706.6" y="261" width="4.8" height="15.0" fill="rgb(211,99,15)" rx="2" ry="2" />
+<text  x="709.63" y="271.5" ></text>
+</g>
+<g >
+<title>&lt;indexmap::map::IndexMap&lt;K,V1,S1&gt; as core::cmp::PartialEq&lt;indexmap::map::IndexMap&lt;K,V2,S2&gt;&gt;&gt;::eq::{{closure}}::{{closure}} (1 samples, 0.40%)</title><rect x="337.0" y="261" width="4.7" height="15.0" fill="rgb(224,125,40)" rx="2" ry="2" />
+<text  x="339.99" y="271.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::tokenizer::TokenReader::next_token (2 samples, 0.80%)</title><rect x="820.4" y="421" width="9.4" height="15.0" fill="rgb(220,40,18)" rx="2" ry="2" />
+<text  x="823.36" y="431.5" ></text>
+</g>
+<g >
+<title>core::ptr::mut_ptr::&lt;impl *mut T&gt;::offset (1 samples, 0.40%)</title><rect x="204.3" y="85" width="4.7" height="15.0" fill="rgb(212,103,39)" rx="2" ry="2" />
+<text  x="207.30" y="95.5" ></text>
+</g>
+<g >
+<title>begin_new_exec (7 samples, 2.81%)</title><rect x="1156.8" y="773" width="33.2" height="15.0" fill="rgb(225,117,24)" rx="2" ry="2" />
+<text  x="1159.83" y="783.5" >be..</text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;jsonpath_lib::select::Selector&gt; (16 samples, 6.43%)</title><rect x="14.7" y="533" width="75.9" height="15.0" fill="rgb(244,55,3)" rx="2" ry="2" />
+<text  x="17.74" y="543.5" >core::pt..</text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;jsonpath_lib::parser::tokenizer::Token&gt; (1 samples, 0.40%)</title><rect x="815.6" y="405" width="4.8" height="15.0" fill="rgb(206,36,1)" rx="2" ry="2" />
+<text  x="818.62" y="415.5" ></text>
+</g>
+<g >
+<title>tcache_put (1 samples, 0.40%)</title><rect x="517.1" y="229" width="4.7" height="15.0" fill="rgb(225,139,38)" rx="2" ry="2" />
+<text  x="520.07" y="239.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::select::expr_term::ExprTerm::cmp::{{closure}} (3 samples, 1.20%)</title><rect x="237.5" y="293" width="14.2" height="15.0" fill="rgb(216,36,32)" rx="2" ry="2" />
+<text  x="240.47" y="303.5" ></text>
+</g>
+<g >
+<title>setup_arg_pages (1 samples, 0.40%)</title><rect x="10.0" y="773" width="4.7" height="15.0" fill="rgb(210,12,12)" rx="2" ry="2" />
+<text  x="13.00" y="783.5" ></text>
+</g>
+<g >
+<title>core::result::Result&lt;T,E&gt;::map_err (1 samples, 0.40%)</title><rect x="284.9" y="245" width="4.7" height="15.0" fill="rgb(221,85,30)" rx="2" ry="2" />
+<text  x="287.86" y="255.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::string::String as core::cmp::PartialEq&gt;::eq (5 samples, 2.01%)</title><rect x="464.9" y="165" width="23.7" height="15.0" fill="rgb(209,146,6)" rx="2" ry="2" />
+<text  x="467.94" y="175.5" >&lt;..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::op (6 samples, 2.41%)</title><rect x="900.9" y="389" width="28.5" height="15.0" fill="rgb(211,53,49)" rx="2" ry="2" />
+<text  x="903.92" y="399.5" >js..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::tokenizer::TokenReader::next_token (1 samples, 0.40%)</title><rect x="858.3" y="325" width="4.7" height="15.0" fill="rgb(254,145,50)" rx="2" ry="2" />
+<text  x="861.27" y="335.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::SipHasher13 as core::hash::Hasher&gt;::finish (4 samples, 1.61%)</title><rect x="711.4" y="213" width="18.9" height="15.0" fill="rgb(249,135,8)" rx="2" ry="2" />
+<text  x="714.37" y="223.5" ></text>
+</g>
+<g >
+<title>core::num::&lt;impl u64&gt;::rotate_left (1 samples, 0.40%)</title><rect x="720.8" y="165" width="4.8" height="15.0" fill="rgb(226,36,54)" rx="2" ry="2" />
+<text  x="723.84" y="175.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::select::FilterTerms::push_json_term (62 samples, 24.90%)</title><rect x="502.9" y="421" width="293.8" height="15.0" fill="rgb(234,127,27)" rx="2" ry="2" />
+<text  x="505.85" y="431.5" >jsonpath_lib::select::FilterTerms::push..</text>
+</g>
+<g >
+<title>std::panic::catch_unwind (239 samples, 95.98%)</title><rect x="14.7" y="741" width="1132.6" height="15.0" fill="rgb(206,105,40)" rx="2" ry="2" />
+<text  x="17.74" y="751.5" >std::panic::catch_unwind</text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Sip13Rounds as core::hash::sip::Sip&gt;::d_rounds (1 samples, 0.40%)</title><rect x="265.9" y="133" width="4.7" height="15.0" fill="rgb(218,97,49)" rx="2" ry="2" />
+<text  x="268.90" y="143.5" ></text>
+</g>
+<g >
+<title>core::num::&lt;impl u64&gt;::rotate_left (1 samples, 0.40%)</title><rect x="299.1" y="149" width="4.7" height="15.0" fill="rgb(237,42,48)" rx="2" ry="2" />
+<text  x="302.08" y="159.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::raw_vec::RawVec&lt;T,A&gt; as core::ops::drop::Drop&gt;::drop (1 samples, 0.40%)</title><rect x="14.7" y="485" width="4.8" height="15.0" fill="rgb(223,70,20)" rx="2" ry="2" />
+<text  x="17.74" y="495.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawTableInner&lt;A&gt;::prepare_insert_slot (2 samples, 0.80%)</title><rect x="730.3" y="261" width="9.5" height="15.0" fill="rgb(238,120,53)" rx="2" ry="2" />
+<text  x="733.32" y="271.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;jsonpath_lib::parser::tokenizer::TokenReader&gt; (2 samples, 0.80%)</title><rect x="801.4" y="501" width="9.5" height="15.0" fill="rgb(251,39,28)" rx="2" ry="2" />
+<text  x="804.41" y="511.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::finish_grow (4 samples, 1.61%)</title><rect x="218.5" y="261" width="19.0" height="15.0" fill="rgb(211,40,33)" rx="2" ry="2" />
+<text  x="221.51" y="271.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::alloc::Global as core::alloc::Allocator&gt;::deallocate (1 samples, 0.40%)</title><rect x="19.5" y="437" width="4.7" height="15.0" fill="rgb(219,197,16)" rx="2" ry="2" />
+<text  x="22.48" y="447.5" ></text>
+</g>
+<g >
+<title>hashbrown::map::HashMap&lt;K,V,S,A&gt;::get_inner (7 samples, 2.81%)</title><rect x="602.4" y="325" width="33.1" height="15.0" fill="rgb(219,204,34)" rx="2" ry="2" />
+<text  x="605.37" y="335.5" >ha..</text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T,A&gt;::with_capacity_in (1 samples, 0.40%)</title><rect x="90.6" y="453" width="4.7" height="15.0" fill="rgb(228,101,3)" rx="2" ry="2" />
+<text  x="93.56" y="463.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::select::FilterTerms::pop_term (1 samples, 0.40%)</title><rect x="104.8" y="469" width="4.7" height="15.0" fill="rgb(218,101,33)" rx="2" ry="2" />
+<text  x="107.78" y="479.5" ></text>
+</g>
+<g >
+<title>&lt;std::collections::hash::map::DefaultHasher as core::hash::Hasher&gt;::write (1 samples, 0.40%)</title><rect x="190.1" y="133" width="4.7" height="15.0" fill="rgb(235,170,44)" rx="2" ry="2" />
+<text  x="193.08" y="143.5" ></text>
+</g>
+<g >
+<title>int_realloc (1 samples, 0.40%)</title><rect x="280.1" y="181" width="4.8" height="15.0" fill="rgb(253,141,47)" rx="2" ry="2" />
+<text  x="283.12" y="191.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;alloc::boxed::Box&lt;jsonpath_lib::parser::Node&gt;&gt; (14 samples, 5.62%)</title><rect x="24.2" y="421" width="66.4" height="15.0" fill="rgb(243,130,25)" rx="2" ry="2" />
+<text  x="27.22" y="431.5" >core::p..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::close_token (1 samples, 0.40%)</title><rect x="834.6" y="405" width="4.7" height="15.0" fill="rgb(207,206,13)" rx="2" ry="2" />
+<text  x="837.58" y="415.5" ></text>
+</g>
+<g >
+<title>_x64_sys_execve (7 samples, 2.81%)</title><rect x="1156.8" y="837" width="33.2" height="15.0" fill="rgb(230,75,42)" rx="2" ry="2" />
+<text  x="1159.83" y="847.5" >_x..</text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::reserve::do_reserve_and_handle (1 samples, 0.40%)</title><rect x="1090.5" y="389" width="4.7" height="15.0" fill="rgb(212,102,3)" rx="2" ry="2" />
+<text  x="1093.48" y="399.5" ></text>
+</g>
+<g >
+<title>core::num::&lt;impl u64&gt;::wrapping_add (1 samples, 0.40%)</title><rect x="782.4" y="261" width="4.8" height="15.0" fill="rgb(221,88,4)" rx="2" ry="2" />
+<text  x="785.45" y="271.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawTableInner&lt;A&gt;::find_insert_slot (2 samples, 0.80%)</title><rect x="754.0" y="309" width="9.5" height="15.0" fill="rgb(209,3,14)" rx="2" ry="2" />
+<text  x="757.02" y="319.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::SipHasher13 as core::hash::Hasher&gt;::finish (2 samples, 0.80%)</title><rect x="161.6" y="197" width="9.5" height="15.0" fill="rgb(252,207,25)" rx="2" ry="2" />
+<text  x="164.65" y="207.5" ></text>
+</g>
+<g >
+<title>core::option::Option&lt;T&gt;::unwrap (1 samples, 0.40%)</title><rect x="796.7" y="453" width="4.7" height="15.0" fill="rgb(214,174,36)" rx="2" ry="2" />
+<text  x="799.67" y="463.5" ></text>
+</g>
+<g >
+<title>core::num::&lt;impl u64&gt;::wrapping_add (1 samples, 0.40%)</title><rect x="616.6" y="229" width="4.7" height="15.0" fill="rgb(245,43,50)" rx="2" ry="2" />
+<text  x="619.59" y="239.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::eat_whitespace (1 samples, 0.40%)</title><rect x="896.2" y="405" width="4.7" height="15.0" fill="rgb(223,106,32)" rx="2" ry="2" />
+<text  x="899.18" y="415.5" ></text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::get (6 samples, 2.41%)</title><rect x="190.1" y="229" width="28.4" height="15.0" fill="rgb(235,90,39)" rx="2" ry="2" />
+<text  x="193.08" y="239.5" >in..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::paths_dot (1 samples, 0.40%)</title><rect x="962.5" y="469" width="4.8" height="15.0" fill="rgb(247,53,8)" rx="2" ry="2" />
+<text  x="965.53" y="479.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::tokenizer::Tokenizer::and (1 samples, 0.40%)</title><rect x="1081.0" y="469" width="4.7" height="15.0" fill="rgb(225,20,13)" rx="2" ry="2" />
+<text  x="1084.00" y="479.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::allocate_in (1 samples, 0.40%)</title><rect x="507.6" y="261" width="4.7" height="15.0" fill="rgb(222,135,10)" rx="2" ry="2" />
+<text  x="510.59" y="271.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;jsonpath_lib::parser::Node&gt; (11 samples, 4.42%)</title><rect x="29.0" y="405" width="52.1" height="15.0" fill="rgb(220,65,33)" rx="2" ry="2" />
+<text  x="31.96" y="415.5" >core:..</text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawTable&lt;T,A&gt;::find (2 samples, 0.80%)</title><rect x="270.6" y="165" width="9.5" height="15.0" fill="rgb(233,202,1)" rx="2" ry="2" />
+<text  x="273.64" y="175.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::cloned::Cloned&lt;I&gt; as core::iter::traits::iterator::Iterator&gt;::next (3 samples, 1.20%)</title><rect x="237.5" y="357" width="14.2" height="15.0" fill="rgb(205,151,21)" rx="2" ry="2" />
+<text  x="240.47" y="367.5" ></text>
+</g>
+<g >
+<title>core::cmp::impls::&lt;impl core::cmp::PartialEq&lt;&amp;B&gt; for &amp;A&gt;::eq (2 samples, 0.80%)</title><rect x="209.0" y="85" width="9.5" height="15.0" fill="rgb(228,2,29)" rx="2" ry="2" />
+<text  x="212.04" y="95.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;alloc::vec::Vec&lt;u8&gt;&gt; (1 samples, 0.40%)</title><rect x="62.1" y="277" width="4.8" height="15.0" fill="rgb(236,222,18)" rx="2" ry="2" />
+<text  x="65.13" y="287.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Hasher&lt;S&gt; as core::hash::Hasher&gt;::finish (1 samples, 0.40%)</title><rect x="242.2" y="181" width="4.7" height="15.0" fill="rgb(233,104,30)" rx="2" ry="2" />
+<text  x="245.21" y="191.5" ></text>
+</g>
+<g >
+<title>_memset_avx2_unaligned_erms (1 samples, 0.40%)</title><rect x="739.8" y="197" width="4.7" height="15.0" fill="rgb(213,169,7)" rx="2" ry="2" />
+<text  x="742.80" y="207.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::reserve::do_reserve_and_handle (3 samples, 1.20%)</title><rect x="986.2" y="437" width="14.2" height="15.0" fill="rgb(209,216,50)" rx="2" ry="2" />
+<text  x="989.22" y="447.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::filter::Filter&lt;I,P&gt; as core::iter::traits::iterator::Iterator&gt;::next (3 samples, 1.20%)</title><rect x="265.9" y="309" width="14.2" height="15.0" fill="rgb(217,177,20)" rx="2" ry="2" />
+<text  x="268.90" y="319.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;alloc::boxed::Box&lt;jsonpath_lib::parser::Node&gt;&gt; (6 samples, 2.41%)</title><rect x="38.4" y="325" width="28.5" height="15.0" fill="rgb(246,14,14)" rx="2" ry="2" />
+<text  x="41.43" y="335.5" >co..</text>
+</g>
+<g >
+<title>hashbrown::raw::inner::sse2::Group::match_byte (5 samples, 2.01%)</title><rect x="431.8" y="149" width="23.7" height="15.0" fill="rgb(235,71,16)" rx="2" ry="2" />
+<text  x="434.77" y="159.5" >h..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::key (1 samples, 0.40%)</title><rect x="962.5" y="421" width="4.8" height="15.0" fill="rgb(208,24,28)" rx="2" ry="2" />
+<text  x="965.53" y="431.5" ></text>
+</g>
+<g >
+<title>hashbrown::map::make_hash (4 samples, 1.61%)</title><rect x="711.4" y="245" width="18.9" height="15.0" fill="rgb(234,19,3)" rx="2" ry="2" />
+<text  x="714.37" y="255.5" ></text>
+</g>
+<g >
+<title>_memmove_avx_unaligned_erms (1 samples, 0.40%)</title><rect x="995.7" y="309" width="4.7" height="15.0" fill="rgb(221,106,12)" rx="2" ry="2" />
+<text  x="998.70" y="319.5" ></text>
+</g>
+<g >
+<title>core::str::traits::&lt;impl core::cmp::PartialEq for str&gt;::eq (1 samples, 0.40%)</title><rect x="275.4" y="101" width="4.7" height="15.0" fill="rgb(226,165,2)" rx="2" ry="2" />
+<text  x="278.38" y="111.5" ></text>
+</g>
+<g >
+<title>std::rt::lang_start::{{closure}} (239 samples, 95.98%)</title><rect x="14.7" y="677" width="1132.6" height="15.0" fill="rgb(241,105,25)" rx="2" ry="2" />
+<text  x="17.74" y="687.5" >std::rt::lang_start::{{closure}}</text>
+</g>
+<g >
+<title>hashbrown::set::HashSet&lt;T,S,A&gt;::insert (6 samples, 2.41%)</title><rect x="763.5" y="373" width="28.4" height="15.0" fill="rgb(229,49,20)" rx="2" ry="2" />
+<text  x="766.49" y="383.5" >ha..</text>
+</g>
+<g >
+<title>jsonpath_lib::select::expr_term::ExprTerm::and (6 samples, 2.41%)</title><rect x="152.2" y="453" width="28.4" height="15.0" fill="rgb(218,15,27)" rx="2" ry="2" />
+<text  x="155.17" y="463.5" >js..</text>
+</g>
+<g >
+<title>&lt;core::hash::sip::SipHasher13 as core::hash::Hasher&gt;::finish (5 samples, 2.01%)</title><rect x="763.5" y="309" width="23.7" height="15.0" fill="rgb(224,88,9)" rx="2" ry="2" />
+<text  x="766.49" y="319.5" >&lt;..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::eat_token (1 samples, 0.40%)</title><rect x="943.6" y="357" width="4.7" height="15.0" fill="rgb(253,39,48)" rx="2" ry="2" />
+<text  x="946.57" y="367.5" ></text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::get_index_of (1 samples, 0.40%)</title><rect x="498.1" y="405" width="4.8" height="15.0" fill="rgb(221,74,29)" rx="2" ry="2" />
+<text  x="501.11" y="415.5" ></text>
+</g>
+<g >
+<title>core::ptr::mut_ptr::&lt;impl *mut T&gt;::sub (1 samples, 0.40%)</title><rect x="204.3" y="101" width="4.7" height="15.0" fill="rgb(225,139,39)" rx="2" ry="2" />
+<text  x="207.30" y="111.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::select::expr_term::ExprTerm::cmp::{{closure}} (4 samples, 1.61%)</title><rect x="289.6" y="293" width="19.0" height="15.0" fill="rgb(248,183,33)" rx="2" ry="2" />
+<text  x="292.60" y="303.5" ></text>
+</g>
+<g >
+<title>&lt;[A] as core::slice::cmp::SlicePartialEq&lt;B&gt;&gt;::equal (3 samples, 1.20%)</title><rect x="588.2" y="197" width="14.2" height="15.0" fill="rgb(214,92,11)" rx="2" ry="2" />
+<text  x="591.15" y="207.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (2 samples, 0.80%)</title><rect x="744.5" y="197" width="9.5" height="15.0" fill="rgb(237,197,48)" rx="2" ry="2" />
+<text  x="747.54" y="207.5" ></text>
+</g>
+<g >
+<title>&lt;std::collections::hash::map::DefaultHasher as core::hash::Hasher&gt;::finish (4 samples, 1.61%)</title><rect x="602.4" y="293" width="18.9" height="15.0" fill="rgb(241,45,8)" rx="2" ry="2" />
+<text  x="605.37" y="303.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib_benches::main::{{closure}} (239 samples, 95.98%)</title><rect x="14.7" y="565" width="1132.6" height="15.0" fill="rgb(221,224,31)" rx="2" ry="2" />
+<text  x="17.74" y="575.5" >jsonpath_lib_benches::main::{{closure}}</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::tokenizer::TokenReader::next_token (1 samples, 0.40%)</title><rect x="844.1" y="341" width="4.7" height="15.0" fill="rgb(217,1,37)" rx="2" ry="2" />
+<text  x="847.06" y="351.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T,A&gt;::reserve (1 samples, 0.40%)</title><rect x="1090.5" y="421" width="4.7" height="15.0" fill="rgb(223,184,38)" rx="2" ry="2" />
+<text  x="1093.48" y="431.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::SipHasher13 as core::hash::Hasher&gt;::finish (1 samples, 0.40%)</title><rect x="194.8" y="165" width="4.8" height="15.0" fill="rgb(253,83,18)" rx="2" ry="2" />
+<text  x="197.82" y="175.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::select::Selector::select (149 samples, 59.84%)</title><rect x="95.3" y="517" width="706.1" height="15.0" fill="rgb(218,120,22)" rx="2" ry="2" />
+<text  x="98.30" y="527.5" >jsonpath_lib::select::Selector::select</text>
+</g>
+<g >
+<title>jsonpath_lib::select::Selector::visit_filter (72 samples, 28.92%)</title><rect x="147.4" y="469" width="341.2" height="15.0" fill="rgb(235,23,14)" rx="2" ry="2" />
+<text  x="150.43" y="479.5" >jsonpath_lib::select::Selector::visit_filter</text>
+</g>
+<g >
+<title>alloc::alloc::realloc (4 samples, 1.61%)</title><rect x="218.5" y="213" width="19.0" height="15.0" fill="rgb(230,126,43)" rx="2" ry="2" />
+<text  x="221.51" y="223.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T,A&gt; as alloc::vec::spec_extend::SpecExtend&lt;T,I&gt;&gt;::spec_extend (6 samples, 2.41%)</title><rect x="261.2" y="357" width="28.4" height="15.0" fill="rgb(239,36,16)" rx="2" ry="2" />
+<text  x="264.16" y="367.5" >&lt;a..</text>
+</g>
+<g >
+<title>alloc::slice::&lt;impl [T]&gt;::to_vec (1 samples, 0.40%)</title><rect x="507.6" y="357" width="4.7" height="15.0" fill="rgb(209,49,7)" rx="2" ry="2" />
+<text  x="510.59" y="367.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::select::Selector::visit_relative (1 samples, 0.40%)</title><rect x="796.7" y="469" width="4.7" height="15.0" fill="rgb(230,30,41)" rx="2" ry="2" />
+<text  x="799.67" y="479.5" ></text>
+</g>
+<g >
+<title>perf_iterate_sb (1 samples, 0.40%)</title><rect x="10.0" y="725" width="4.7" height="15.0" fill="rgb(237,37,32)" rx="2" ry="2" />
+<text  x="13.00" y="735.5" ></text>
+</g>
+<g >
+<title>serde_json::map::Map&lt;alloc::string::String,serde_json::value::Value&gt;::get (3 samples, 1.20%)</title><rect x="237.5" y="277" width="14.2" height="15.0" fill="rgb(209,93,43)" rx="2" ry="2" />
+<text  x="240.47" y="287.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T,A&gt;::push (2 samples, 0.80%)</title><rect x="1104.7" y="421" width="9.5" height="15.0" fill="rgb(234,163,28)" rx="2" ry="2" />
+<text  x="1107.70" y="431.5" ></text>
+</g>
+<g >
+<title>core::ops::function::FnOnce::call_once (239 samples, 95.98%)</title><rect x="14.7" y="645" width="1132.6" height="15.0" fill="rgb(237,2,50)" rx="2" ry="2" />
+<text  x="17.74" y="655.5" >core::ops::function::FnOnce::call_once</text>
+</g>
+<g >
+<title>jsonpath_lib::select::Selector::select (150 samples, 60.24%)</title><rect x="90.6" y="533" width="710.8" height="15.0" fill="rgb(214,149,12)" rx="2" ry="2" />
+<text  x="93.56" y="543.5" >jsonpath_lib::select::Selector::select</text>
+</g>
+<g >
+<title>int_realloc (1 samples, 0.40%)</title><rect x="995.7" y="325" width="4.7" height="15.0" fill="rgb(244,102,22)" rx="2" ry="2" />
+<text  x="998.70" y="335.5" ></text>
+</g>
+<g >
+<title>core::hash::impls::&lt;impl core::hash::Hash for *const T&gt;::hash (2 samples, 0.80%)</title><rect x="664.0" y="309" width="9.5" height="15.0" fill="rgb(223,51,21)" rx="2" ry="2" />
+<text  x="666.98" y="319.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawTable&lt;T,A&gt;::reserve (12 samples, 4.82%)</title><rect x="697.1" y="309" width="56.9" height="15.0" fill="rgb(230,179,40)" rx="2" ry="2" />
+<text  x="700.15" y="319.5" >hashbr..</text>
+</g>
+<g >
+<title>&lt;alloc::alloc::Global as core::alloc::Allocator&gt;::deallocate (2 samples, 0.80%)</title><rect x="801.4" y="437" width="9.5" height="15.0" fill="rgb(222,185,49)" rx="2" ry="2" />
+<text  x="804.41" y="447.5" ></text>
+</g>
+<g >
+<title>&lt;Q as indexmap::equivalent::Equivalent&lt;K&gt;&gt;::equivalent (3 samples, 1.20%)</title><rect x="588.2" y="261" width="14.2" height="15.0" fill="rgb(214,5,51)" rx="2" ry="2" />
+<text  x="591.15" y="271.5" ></text>
+</g>
+<g >
+<title>core::ptr::write (1 samples, 0.40%)</title><rect x="502.9" y="389" width="4.7" height="15.0" fill="rgb(240,191,45)" rx="2" ry="2" />
+<text  x="505.85" y="399.5" ></text>
+</g>
+<g >
+<title>core::num::&lt;impl u64&gt;::rotate_left (1 samples, 0.40%)</title><rect x="370.2" y="165" width="4.7" height="15.0" fill="rgb(206,30,18)" rx="2" ry="2" />
+<text  x="373.16" y="175.5" ></text>
+</g>
+<g >
+<title>_rdl_alloc (1 samples, 0.40%)</title><rect x="90.6" y="357" width="4.7" height="15.0" fill="rgb(215,119,47)" rx="2" ry="2" />
+<text  x="93.56" y="367.5" ></text>
+</g>
+<g >
+<title>&lt;std::collections::hash::map::DefaultHasher as core::hash::Hasher&gt;::finish (6 samples, 2.41%)</title><rect x="540.8" y="309" width="28.4" height="15.0" fill="rgb(205,169,18)" rx="2" ry="2" />
+<text  x="543.76" y="319.5" >&lt;s..</text>
+</g>
+<g >
+<title>core::option::Option&lt;T&gt;::take (1 samples, 0.40%)</title><rect x="308.6" y="437" width="4.7" height="15.0" fill="rgb(231,228,41)" rx="2" ry="2" />
+<text  x="311.55" y="447.5" ></text>
+</g>
+<g >
+<title>core::num::&lt;impl u64&gt;::rotate_left (1 samples, 0.40%)</title><rect x="768.2" y="261" width="4.8" height="15.0" fill="rgb(210,154,21)" rx="2" ry="2" />
+<text  x="771.23" y="271.5" ></text>
+</g>
+<g >
+<title>core::ptr::read (1 samples, 0.40%)</title><rect x="104.8" y="437" width="4.7" height="15.0" fill="rgb(237,159,2)" rx="2" ry="2" />
+<text  x="107.78" y="447.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Sip13Rounds as core::hash::sip::Sip&gt;::d_rounds (3 samples, 1.20%)</title><rect x="607.1" y="245" width="14.2" height="15.0" fill="rgb(250,150,48)" rx="2" ry="2" />
+<text  x="610.11" y="255.5" ></text>
+</g>
+<g >
+<title>malloc_hook_ini (1 samples, 0.40%)</title><rect x="1147.3" y="629" width="4.8" height="15.0" fill="rgb(205,218,2)" rx="2" ry="2" />
+<text  x="1150.35" y="639.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::collect (13 samples, 5.22%)</title><rect x="190.1" y="421" width="61.6" height="15.0" fill="rgb(229,160,13)" rx="2" ry="2" />
+<text  x="193.08" y="431.5" >core::..</text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T,A&gt;::push (1 samples, 0.40%)</title><rect x="502.9" y="405" width="4.7" height="15.0" fill="rgb(240,217,25)" rx="2" ry="2" />
+<text  x="505.85" y="415.5" ></text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::get_index_of (3 samples, 1.20%)</title><rect x="237.5" y="245" width="14.2" height="15.0" fill="rgb(232,179,38)" rx="2" ry="2" />
+<text  x="240.47" y="255.5" ></text>
+</g>
+<g >
+<title>core::cmp::impls::&lt;impl core::cmp::PartialEq&lt;&amp;B&gt; for &amp;A&gt;::eq (1 samples, 0.40%)</title><rect x="275.4" y="85" width="4.7" height="15.0" fill="rgb(242,75,48)" rx="2" ry="2" />
+<text  x="278.38" y="95.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Hasher&lt;S&gt; as core::hash::Hasher&gt;::write (4 samples, 1.61%)</title><rect x="346.5" y="165" width="18.9" height="15.0" fill="rgb(227,107,21)" rx="2" ry="2" />
+<text  x="349.47" y="175.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawIterHash&lt;T,A&gt;::new (9 samples, 3.61%)</title><rect x="412.8" y="181" width="42.7" height="15.0" fill="rgb(239,58,52)" rx="2" ry="2" />
+<text  x="415.81" y="191.5" >hash..</text>
+</g>
+<g >
+<title>&lt;core::hash::sip::SipHasher13 as core::hash::Hasher&gt;::finish (5 samples, 2.01%)</title><rect x="640.3" y="293" width="23.7" height="15.0" fill="rgb(215,77,49)" rx="2" ry="2" />
+<text  x="643.28" y="303.5" >&lt;..</text>
+</g>
+<g >
+<title>&lt;hashbrown::map::HashMap&lt;K,V,S,A&gt; as core::default::Default&gt;::default (1 samples, 0.40%)</title><rect x="791.9" y="357" width="4.8" height="15.0" fill="rgb(208,168,1)" rx="2" ry="2" />
+<text  x="794.93" y="367.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::tokenizer::TokenReader::peek_token (1 samples, 0.40%)</title><rect x="891.4" y="293" width="4.8" height="15.0" fill="rgb(230,68,51)" rx="2" ry="2" />
+<text  x="894.45" y="303.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::fold (239 samples, 95.98%)</title><rect x="14.7" y="597" width="1132.6" height="15.0" fill="rgb(244,12,46)" rx="2" ry="2" />
+<text  x="17.74" y="607.5" >core::iter::traits::iterator::Iterator::fold</text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::filter::Filter&lt;I,P&gt; as core::iter::traits::iterator::Iterator&gt;::next (3 samples, 1.20%)</title><rect x="237.5" y="341" width="14.2" height="15.0" fill="rgb(238,98,0)" rx="2" ry="2" />
+<text  x="240.47" y="351.5" ></text>
+</g>
+<g >
+<title>core::num::&lt;impl u64&gt;::wrapping_add (1 samples, 0.40%)</title><rect x="659.2" y="245" width="4.8" height="15.0" fill="rgb(212,65,48)" rx="2" ry="2" />
+<text  x="662.24" y="255.5" ></text>
+</g>
+<g >
+<title>&lt;indexmap::map::IndexMap&lt;K,V1,S1&gt; as core::cmp::PartialEq&lt;indexmap::map::IndexMap&lt;K,V2,S2&gt;&gt;&gt;::eq::{{closure}} (32 samples, 12.85%)</title><rect x="337.0" y="293" width="151.6" height="15.0" fill="rgb(232,192,19)" rx="2" ry="2" />
+<text  x="339.99" y="303.5" >&lt;indexmap::map::Ind..</text>
+</g>
+<g >
+<title>jsonpath_lib::select::expr_term::ExprTerm::cmp::{{closure}} (3 samples, 1.20%)</title><rect x="265.9" y="261" width="14.2" height="15.0" fill="rgb(207,121,14)" rx="2" ry="2" />
+<text  x="268.90" y="271.5" ></text>
+</g>
+<g >
+<title>core::num::&lt;impl u64&gt;::rotate_left (1 samples, 0.40%)</title><rect x="194.8" y="117" width="4.8" height="15.0" fill="rgb(213,77,49)" rx="2" ry="2" />
+<text  x="197.82" y="127.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::collect (10 samples, 4.02%)</title><rect x="261.2" y="421" width="47.4" height="15.0" fill="rgb(252,210,45)" rx="2" ry="2" />
+<text  x="264.16" y="431.5" >core..</text>
+</g>
+<g >
+<title>tcache_put (1 samples, 0.40%)</title><rect x="57.4" y="245" width="4.7" height="15.0" fill="rgb(222,178,18)" rx="2" ry="2" />
+<text  x="60.39" y="255.5" ></text>
+</g>
+<g >
+<title>alloc::slice::hack::to_vec (1 samples, 0.40%)</title><rect x="90.6" y="485" width="4.7" height="15.0" fill="rgb(223,73,33)" rx="2" ry="2" />
+<text  x="93.56" y="495.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::SipHasher13 as core::hash::Hasher&gt;::finish (6 samples, 2.41%)</title><rect x="540.8" y="293" width="28.4" height="15.0" fill="rgb(226,157,29)" rx="2" ry="2" />
+<text  x="543.76" y="303.5" >&lt;c..</text>
+</g>
+<g >
+<title>core::ptr::swap_nonoverlapping_bytes (1 samples, 0.40%)</title><rect x="787.2" y="229" width="4.7" height="15.0" fill="rgb(250,189,22)" rx="2" ry="2" />
+<text  x="790.19" y="239.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;alloc::string::String&gt; (1 samples, 0.40%)</title><rect x="62.1" y="293" width="4.8" height="15.0" fill="rgb(213,119,28)" rx="2" ry="2" />
+<text  x="65.13" y="303.5" ></text>
+</g>
+<g >
+<title>core::core_arch::x86::sse2::mm_set1_epi8 (1 samples, 0.40%)</title><rect x="303.8" y="117" width="4.8" height="15.0" fill="rgb(244,54,35)" rx="2" ry="2" />
+<text  x="306.82" y="127.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawIterHashInner&lt;A&gt;::new (9 samples, 3.61%)</title><rect x="412.8" y="165" width="42.7" height="15.0" fill="rgb(253,96,36)" rx="2" ry="2" />
+<text  x="415.81" y="175.5" >hash..</text>
+</g>
+<g >
+<title>jsonpath_lib_benches::main (239 samples, 95.98%)</title><rect x="14.7" y="629" width="1132.6" height="15.0" fill="rgb(206,81,46)" rx="2" ry="2" />
+<text  x="17.74" y="639.5" >jsonpath_lib_benches::main</text>
+</g>
+<g >
+<title>&lt;std::collections::hash::set::HashSet&lt;T,S&gt; as core::default::Default&gt;::default (1 samples, 0.40%)</title><rect x="791.9" y="389" width="4.8" height="15.0" fill="rgb(230,29,46)" rx="2" ry="2" />
+<text  x="794.93" y="399.5" ></text>
+</g>
+<g >
+<title>indexmap::map::core::equivalent::{{closure}} (4 samples, 1.61%)</title><rect x="583.4" y="277" width="19.0" height="15.0" fill="rgb(229,226,26)" rx="2" ry="2" />
+<text  x="586.41" y="287.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::filter::Filter&lt;I,P&gt; as core::iter::traits::iterator::Iterator&gt;::next (4 samples, 1.61%)</title><rect x="289.6" y="341" width="19.0" height="15.0" fill="rgb(233,222,53)" rx="2" ry="2" />
+<text  x="292.60" y="351.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;jsonpath_lib::parser::ParseToken&gt; (1 samples, 0.40%)</title><rect x="62.1" y="309" width="4.8" height="15.0" fill="rgb(250,81,6)" rx="2" ry="2" />
+<text  x="65.13" y="319.5" ></text>
+</g>
+<g >
+<title>indexmap::map::core::equivalent::{{closure}} (2 samples, 0.80%)</title><rect x="209.0" y="149" width="9.5" height="15.0" fill="rgb(207,102,6)" rx="2" ry="2" />
+<text  x="212.04" y="159.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib_be (242 samples, 97.19%)</title><rect x="10.0" y="885" width="1146.8" height="15.0" fill="rgb(210,124,50)" rx="2" ry="2" />
+<text  x="13.00" y="895.5" >jsonpath_lib_be</text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T,A&gt;::reserve (4 samples, 1.61%)</title><rect x="218.5" y="325" width="19.0" height="15.0" fill="rgb(234,226,54)" rx="2" ry="2" />
+<text  x="221.51" y="335.5" ></text>
+</g>
+<g >
+<title>core::str::traits::&lt;impl core::cmp::PartialEq for str&gt;::eq (5 samples, 2.01%)</title><rect x="464.9" y="149" width="23.7" height="15.0" fill="rgb(210,127,32)" rx="2" ry="2" />
+<text  x="467.94" y="159.5" >c..</text>
+</g>
+<g >
+<title>hashbrown::raw::inner::sse2::Group::match_byte (1 samples, 0.40%)</title><rect x="303.8" y="133" width="4.8" height="15.0" fill="rgb(216,101,10)" rx="2" ry="2" />
+<text  x="306.82" y="143.5" ></text>
+</g>
+<g >
+<title>hashbrown::map::HashMap&lt;K,V,S,A&gt;::insert (27 samples, 10.84%)</title><rect x="635.5" y="341" width="128.0" height="15.0" fill="rgb(213,108,9)" rx="2" ry="2" />
+<text  x="638.54" y="351.5" >hashbrown::map::..</text>
+</g>
+<g >
+<title>core::str::traits::&lt;impl core::cmp::PartialEq for str&gt;::eq (2 samples, 0.80%)</title><rect x="209.0" y="101" width="9.5" height="15.0" fill="rgb(220,34,50)" rx="2" ry="2" />
+<text  x="212.04" y="111.5" ></text>
+</g>
+<g >
+<title>hashbrown::map::HashMap&lt;K,V,S,A&gt;::with_hasher_in (1 samples, 0.40%)</title><rect x="791.9" y="341" width="4.8" height="15.0" fill="rgb(237,36,10)" rx="2" ry="2" />
+<text  x="794.93" y="351.5" ></text>
+</g>
+<g >
+<title>&lt;[A] as core::slice::cmp::SlicePartialEq&lt;B&gt;&gt;::equal (1 samples, 0.40%)</title><rect x="246.9" y="85" width="4.8" height="15.0" fill="rgb(234,43,53)" rx="2" ry="2" />
+<text  x="249.95" y="95.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::all (5 samples, 2.01%)</title><rect x="156.9" y="325" width="23.7" height="15.0" fill="rgb(226,77,42)" rx="2" ry="2" />
+<text  x="159.91" y="335.5" >c..</text>
+</g>
+<g >
+<title>jsonpath_lib::select (239 samples, 95.98%)</title><rect x="14.7" y="549" width="1132.6" height="15.0" fill="rgb(205,128,38)" rx="2" ry="2" />
+<text  x="17.74" y="559.5" >jsonpath_lib::select</text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::reserve (2 samples, 0.80%)</title><rect x="280.1" y="309" width="9.5" height="15.0" fill="rgb(208,88,41)" rx="2" ry="2" />
+<text  x="283.12" y="319.5" ></text>
+</g>
+<g >
+<title>&lt;hashbrown::raw::inner::RawIterHash&lt;T,A&gt; as core::iter::traits::iterator::Iterator&gt;::next (2 samples, 0.80%)</title><rect x="171.1" y="181" width="9.5" height="15.0" fill="rgb(210,128,7)" rx="2" ry="2" />
+<text  x="174.12" y="191.5" ></text>
+</g>
+<g >
+<title>&lt;Q as indexmap::equivalent::Equivalent&lt;K&gt;&gt;::equivalent (5 samples, 2.01%)</title><rect x="464.9" y="181" width="23.7" height="15.0" fill="rgb(235,166,0)" rx="2" ry="2" />
+<text  x="467.94" y="191.5" >&lt;..</text>
+</g>
+<g >
+<title>core::cmp::impls::&lt;impl core::cmp::PartialEq&lt;&amp;B&gt; for &amp;A&gt;::eq (3 samples, 1.20%)</title><rect x="588.2" y="229" width="14.2" height="15.0" fill="rgb(239,130,10)" rx="2" ry="2" />
+<text  x="591.15" y="239.5" ></text>
+</g>
+<g >
+<title>_libc_start_main (240 samples, 96.39%)</title><rect x="14.7" y="853" width="1137.4" height="15.0" fill="rgb(206,149,45)" rx="2" ry="2" />
+<text  x="17.74" y="863.5" >_libc_start_main</text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Sip13Rounds as core::hash::sip::Sip&gt;::d_rounds (1 samples, 0.40%)</title><rect x="299.1" y="165" width="4.7" height="15.0" fill="rgb(211,60,29)" rx="2" ry="2" />
+<text  x="302.08" y="175.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawTable&lt;T,A&gt;::reserve_rehash (1 samples, 0.40%)</title><rect x="787.2" y="309" width="4.7" height="15.0" fill="rgb(253,54,15)" rx="2" ry="2" />
+<text  x="790.19" y="319.5" ></text>
+</g>
+<g >
+<title>&lt;indexmap::map::core::IndexMapCore&lt;K,V&gt; as indexmap::Entries&gt;::as_entries (1 samples, 0.40%)</title><rect x="156.9" y="229" width="4.7" height="15.0" fill="rgb(224,38,42)" rx="2" ry="2" />
+<text  x="159.91" y="239.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;alloc::vec::Vec&lt;jsonpath_lib::parser::ParseToken&gt;&gt; (1 samples, 0.40%)</title><rect x="14.7" y="517" width="4.8" height="15.0" fill="rgb(241,49,54)" rx="2" ry="2" />
+<text  x="17.74" y="527.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawTable&lt;T,A&gt;::get (1 samples, 0.40%)</title><rect x="303.8" y="213" width="4.8" height="15.0" fill="rgb(206,158,7)" rx="2" ry="2" />
+<text  x="306.82" y="223.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawTable&lt;T,A&gt;::find (5 samples, 2.01%)</title><rect x="578.7" y="293" width="23.7" height="15.0" fill="rgb(240,5,20)" rx="2" ry="2" />
+<text  x="581.67" y="303.5" >h..</text>
+</g>
+<g >
+<title>jsonpath_lib::select::value_walker::ValueWalker::walk_dedup (51 samples, 20.48%)</title><rect x="521.8" y="389" width="241.7" height="15.0" fill="rgb(244,141,3)" rx="2" ry="2" />
+<text  x="524.81" y="399.5" >jsonpath_lib::select::value_walk..</text>
+</g>
+<g >
+<title>core::slice::cmp::&lt;impl core::cmp::PartialEq&lt;[B]&gt; for [A]&gt;::eq (1 samples, 0.40%)</title><rect x="246.9" y="101" width="4.8" height="15.0" fill="rgb(238,122,42)" rx="2" ry="2" />
+<text  x="249.95" y="111.5" ></text>
+</g>
+<g >
+<title>int_realloc (4 samples, 1.61%)</title><rect x="218.5" y="181" width="19.0" height="15.0" fill="rgb(236,196,50)" rx="2" ry="2" />
+<text  x="221.51" y="191.5" ></text>
+</g>
+<g >
+<title>&lt;jsonpath_lib::select::cmp::CmpAnd as jsonpath_lib::select::cmp::Cmp&gt;::cmp_json (5 samples, 2.01%)</title><rect x="156.9" y="421" width="23.7" height="15.0" fill="rgb(230,20,5)" rx="2" ry="2" />
+<text  x="159.91" y="431.5" >&lt;..</text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;hashbrown::set::HashSet&lt;*const serde_json::value::Value,std::collections::hash::map::RandomState&gt;&gt; (2 samples, 0.80%)</title><rect x="512.3" y="373" width="9.5" height="15.0" fill="rgb(210,121,52)" rx="2" ry="2" />
+<text  x="515.33" y="383.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::select::FilterTerms::filter_next_with_str (62 samples, 24.90%)</title><rect x="502.9" y="453" width="293.8" height="15.0" fill="rgb(219,144,16)" rx="2" ry="2" />
+<text  x="505.85" y="463.5" >jsonpath_lib::select::FilterTerms::filt..</text>
+</g>
+<g >
+<title>core::ops::function::impls::&lt;impl core::ops::function::FnMut&lt;A&gt; for &amp;mut F&gt;::call_mut (6 samples, 2.41%)</title><rect x="190.1" y="277" width="28.4" height="15.0" fill="rgb(242,92,32)" rx="2" ry="2" />
+<text  x="193.08" y="287.5" >co..</text>
+</g>
+<g >
+<title>core::slice::cmp::&lt;impl core::cmp::PartialEq&lt;[B]&gt; for [A]&gt;::eq (2 samples, 0.80%)</title><rect x="209.0" y="69" width="9.5" height="15.0" fill="rgb(219,138,24)" rx="2" ry="2" />
+<text  x="212.04" y="79.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::SipHasher13 as core::hash::Hasher&gt;::write (2 samples, 0.80%)</title><rect x="569.2" y="277" width="9.5" height="15.0" fill="rgb(238,103,52)" rx="2" ry="2" />
+<text  x="572.20" y="287.5" ></text>
+</g>
+<g >
+<title>serde_json::map::Map&lt;alloc::string::String,serde_json::value::Value&gt;::contains_key (14 samples, 5.62%)</title><rect x="536.0" y="373" width="66.4" height="15.0" fill="rgb(214,218,17)" rx="2" ry="2" />
+<text  x="539.02" y="383.5" >serde_j..</text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;std::collections::hash::set::HashSet&lt;*const serde_json::value::Value&gt;&gt; (2 samples, 0.80%)</title><rect x="512.3" y="389" width="9.5" height="15.0" fill="rgb(247,82,14)" rx="2" ry="2" />
+<text  x="515.33" y="399.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T,A&gt;::reserve (3 samples, 1.20%)</title><rect x="986.2" y="469" width="14.2" height="15.0" fill="rgb(250,144,45)" rx="2" ry="2" />
+<text  x="989.22" y="479.5" ></text>
+</g>
+<g >
+<title>&lt;serde_json::value::Value as core::cmp::PartialEq&gt;::eq (1 samples, 0.40%)</title><rect x="337.0" y="245" width="4.7" height="15.0" fill="rgb(218,43,32)" rx="2" ry="2" />
+<text  x="339.99" y="255.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Hasher&lt;S&gt; as core::hash::Hasher&gt;::finish (1 samples, 0.40%)</title><rect x="498.1" y="341" width="4.8" height="15.0" fill="rgb(248,46,54)" rx="2" ry="2" />
+<text  x="501.11" y="351.5" ></text>
+</g>
+<g >
+<title>&lt;&amp;mut I as core::iter::traits::iterator::Iterator&gt;::next (1 samples, 0.40%)</title><rect x="1142.6" y="437" width="4.7" height="15.0" fill="rgb(214,170,17)" rx="2" ry="2" />
+<text  x="1145.61" y="447.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::term (1 samples, 0.40%)</title><rect x="872.5" y="341" width="4.7" height="15.0" fill="rgb(231,112,8)" rx="2" ry="2" />
+<text  x="875.49" y="351.5" ></text>
+</g>
+<g >
+<title>&lt;serde_json::value::Value as core::cmp::PartialEq&gt;::eq (5 samples, 2.01%)</title><rect x="156.9" y="373" width="23.7" height="15.0" fill="rgb(242,209,37)" rx="2" ry="2" />
+<text  x="159.91" y="383.5" >&lt;..</text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::reserve (1 samples, 0.40%)</title><rect x="1090.5" y="405" width="4.7" height="15.0" fill="rgb(234,161,36)" rx="2" ry="2" />
+<text  x="1093.48" y="415.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Hasher&lt;S&gt; as core::hash::Hasher&gt;::finish (5 samples, 2.01%)</title><rect x="365.4" y="197" width="23.7" height="15.0" fill="rgb(249,206,39)" rx="2" ry="2" />
+<text  x="368.42" y="207.5" >&lt;..</text>
+</g>
+<g >
+<title>hashbrown::raw::RawTableInner&lt;A&gt;::new_uninitialized (2 samples, 0.80%)</title><rect x="744.5" y="229" width="9.5" height="15.0" fill="rgb(242,189,36)" rx="2" ry="2" />
+<text  x="747.54" y="239.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawTable&lt;T,A&gt;::resize (1 samples, 0.40%)</title><rect x="787.2" y="293" width="4.7" height="15.0" fill="rgb(247,101,15)" rx="2" ry="2" />
+<text  x="790.19" y="303.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;jsonpath_lib::parser::ParseToken&gt; (1 samples, 0.40%)</title><rect x="71.6" y="357" width="4.7" height="15.0" fill="rgb(225,175,26)" rx="2" ry="2" />
+<text  x="74.61" y="367.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::raw_vec::RawVec&lt;T,A&gt; as core::ops::drop::Drop&gt;::drop (2 samples, 0.80%)</title><rect x="801.4" y="453" width="9.5" height="15.0" fill="rgb(241,18,36)" rx="2" ry="2" />
+<text  x="804.41" y="463.5" ></text>
+</g>
+<g >
+<title>core::num::&lt;impl u64&gt;::wrapping_add (1 samples, 0.40%)</title><rect x="725.6" y="165" width="4.7" height="15.0" fill="rgb(232,44,37)" rx="2" ry="2" />
+<text  x="728.58" y="175.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::term_num (1 samples, 0.40%)</title><rect x="872.5" y="325" width="4.7" height="15.0" fill="rgb(248,182,20)" rx="2" ry="2" />
+<text  x="875.49" y="335.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::alloc::Global as core::alloc::Allocator&gt;::grow (1 samples, 0.40%)</title><rect x="280.1" y="245" width="4.8" height="15.0" fill="rgb(212,131,52)" rx="2" ry="2" />
+<text  x="283.12" y="255.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::select::expr_term::ExprTerm::cmp::{{closure}} (6 samples, 2.41%)</title><rect x="190.1" y="261" width="28.4" height="15.0" fill="rgb(208,119,17)" rx="2" ry="2" />
+<text  x="193.08" y="271.5" >js..</text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::hash (10 samples, 4.02%)</title><rect x="341.7" y="245" width="47.4" height="15.0" fill="rgb(242,187,20)" rx="2" ry="2" />
+<text  x="344.73" y="255.5" >inde..</text>
+</g>
+<g >
+<title>&lt;Q as indexmap::equivalent::Equivalent&lt;K&gt;&gt;::equivalent (1 samples, 0.40%)</title><rect x="275.4" y="133" width="4.7" height="15.0" fill="rgb(215,30,37)" rx="2" ry="2" />
+<text  x="278.38" y="143.5" ></text>
+</g>
+<g >
+<title>_GI___libc_realloc (1 samples, 0.40%)</title><rect x="280.1" y="197" width="4.8" height="15.0" fill="rgb(227,182,53)" rx="2" ry="2" />
+<text  x="283.12" y="207.5" ></text>
+</g>
+<g >
+<title>&lt;[A] as core::slice::cmp::SlicePartialEq&lt;B&gt;&gt;::equal (1 samples, 0.40%)</title><rect x="275.4" y="53" width="4.7" height="15.0" fill="rgb(222,85,33)" rx="2" ry="2" />
+<text  x="278.38" y="63.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::inner::Bucket&lt;T&gt;::from_base_index (1 samples, 0.40%)</title><rect x="204.3" y="117" width="4.7" height="15.0" fill="rgb(229,87,45)" rx="2" ry="2" />
+<text  x="207.30" y="127.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::select::FilterTerms::filter (62 samples, 24.90%)</title><rect x="502.9" y="437" width="293.8" height="15.0" fill="rgb(234,122,46)" rx="2" ry="2" />
+<text  x="505.85" y="447.5" >jsonpath_lib::select::FilterTerms::filter</text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;jsonpath_lib::parser::Node&gt; (4 samples, 1.61%)</title><rect x="43.2" y="309" width="18.9" height="15.0" fill="rgb(252,174,12)" rx="2" ry="2" />
+<text  x="46.17" y="319.5" ></text>
+</g>
+<g >
+<title>std::sys::unix::thread::guard::get_stack_start_aligned (1 samples, 0.40%)</title><rect x="1147.3" y="709" width="4.8" height="15.0" fill="rgb(219,34,3)" rx="2" ry="2" />
+<text  x="1150.35" y="719.5" ></text>
+</g>
+<g >
+<title>&lt;core::result::Result&lt;T,E&gt; as core::ops::try_trait::Try&gt;::branch (1 samples, 0.40%)</title><rect x="701.9" y="261" width="4.7" height="15.0" fill="rgb(212,178,38)" rx="2" ry="2" />
+<text  x="704.89" y="271.5" ></text>
+</g>
+<g >
+<title>core::iter::range::&lt;impl core::iter::traits::double_ended::DoubleEndedIterator for core::ops::range::Range&lt;A&gt;&gt;::next_back (1 samples, 0.40%)</title><rect x="313.3" y="389" width="4.7" height="15.0" fill="rgb(213,91,6)" rx="2" ry="2" />
+<text  x="316.29" y="399.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (1 samples, 0.40%)</title><rect x="507.6" y="245" width="4.7" height="15.0" fill="rgb(226,127,0)" rx="2" ry="2" />
+<text  x="510.59" y="255.5" ></text>
+</g>
+<g >
+<title>&lt;core::slice::iter::Iter&lt;T&gt; as core::iter::traits::iterator::Iterator&gt;::find (3 samples, 1.20%)</title><rect x="265.9" y="293" width="14.2" height="15.0" fill="rgb(224,218,27)" rx="2" ry="2" />
+<text  x="268.90" y="303.5" ></text>
+</g>
+<g >
+<title>hashbrown::map::make_hash (6 samples, 2.41%)</title><rect x="602.4" y="309" width="28.4" height="15.0" fill="rgb(208,66,37)" rx="2" ry="2" />
+<text  x="605.37" y="319.5" >ha..</text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::hash (8 samples, 3.21%)</title><rect x="540.8" y="325" width="37.9" height="15.0" fill="rgb(243,97,53)" rx="2" ry="2" />
+<text  x="543.76" y="335.5" >ind..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::json_path (35 samples, 14.06%)</title><rect x="810.9" y="501" width="165.8" height="15.0" fill="rgb(237,67,28)" rx="2" ry="2" />
+<text  x="813.88" y="511.5" >jsonpath_lib::parser:..</text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;alloc::boxed::Box&lt;jsonpath_lib::parser::Node&gt;&gt; (4 samples, 1.61%)</title><rect x="43.2" y="277" width="18.9" height="15.0" fill="rgb(221,172,40)" rx="2" ry="2" />
+<text  x="46.17" y="287.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::select::expr_term::ExprTerm::cmp (13 samples, 5.22%)</title><rect x="190.1" y="437" width="61.6" height="15.0" fill="rgb(239,141,45)" rx="2" ry="2" />
+<text  x="193.08" y="447.5" >jsonpa..</text>
+</g>
+<g >
+<title>mprotect_fixup (1 samples, 0.40%)</title><rect x="10.0" y="757" width="4.7" height="15.0" fill="rgb(251,187,30)" rx="2" ry="2" />
+<text  x="13.00" y="767.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawIterHash&lt;T,A&gt;::new (1 samples, 0.40%)</title><rect x="303.8" y="165" width="4.8" height="15.0" fill="rgb(219,136,22)" rx="2" ry="2" />
+<text  x="306.82" y="175.5" ></text>
+</g>
+<g >
+<title>&lt;indexmap::map::IndexMap&lt;K,V,S&gt; as indexmap::Entries&gt;::as_entries (1 samples, 0.40%)</title><rect x="156.9" y="245" width="4.7" height="15.0" fill="rgb(227,176,22)" rx="2" ry="2" />
+<text  x="159.91" y="255.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawTable&lt;T,A&gt;::get (5 samples, 2.01%)</title><rect x="578.7" y="309" width="23.7" height="15.0" fill="rgb(220,168,40)" rx="2" ry="2" />
+<text  x="581.67" y="319.5" >h..</text>
+</g>
+<g >
+<title>core::ptr::write (4 samples, 1.61%)</title><rect x="128.5" y="453" width="18.9" height="15.0" fill="rgb(243,161,35)" rx="2" ry="2" />
+<text  x="131.47" y="463.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;core::result::Result&lt;jsonpath_lib::parser::tokenizer::Token,jsonpath_lib::parser::tokenizer::TokenError&gt;&gt; (1 samples, 0.40%)</title><rect x="815.6" y="421" width="4.8" height="15.0" fill="rgb(243,42,15)" rx="2" ry="2" />
+<text  x="818.62" y="431.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawTable&lt;T,A&gt;::reserve (1 samples, 0.40%)</title><rect x="787.2" y="325" width="4.7" height="15.0" fill="rgb(250,9,0)" rx="2" ry="2" />
+<text  x="790.19" y="335.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;alloc::raw_vec::RawVec&lt; (2 samples, 0.80%)</title><rect x="801.4" y="469" width="9.5" height="15.0" fill="rgb(245,110,23)" rx="2" ry="2" />
+<text  x="804.41" y="479.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::SipHasher13 as core::hash::Hasher&gt;::write (1 samples, 0.40%)</title><rect x="626.1" y="245" width="4.7" height="15.0" fill="rgb(248,144,53)" rx="2" ry="2" />
+<text  x="629.06" y="255.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawTable&lt;T,A&gt;::find (4 samples, 1.61%)</title><rect x="199.6" y="165" width="18.9" height="15.0" fill="rgb(251,46,36)" rx="2" ry="2" />
+<text  x="202.56" y="175.5" ></text>
+</g>
+<g >
+<title>core::ptr::read (1 samples, 0.40%)</title><rect x="308.6" y="389" width="4.7" height="15.0" fill="rgb(224,43,13)" rx="2" ry="2" />
+<text  x="311.55" y="399.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::tokenizer::Tokenizer::whitespace (7 samples, 2.81%)</title><rect x="1114.2" y="469" width="33.1" height="15.0" fill="rgb(207,83,9)" rx="2" ry="2" />
+<text  x="1117.18" y="479.5" >js..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::eat_whitespace (2 samples, 0.80%)</title><rect x="900.9" y="373" width="9.5" height="15.0" fill="rgb(212,228,54)" rx="2" ry="2" />
+<text  x="903.92" y="383.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawTable&lt;T,A&gt;::find (4 samples, 1.61%)</title><rect x="673.5" y="309" width="18.9" height="15.0" fill="rgb(247,209,52)" rx="2" ry="2" />
+<text  x="676.45" y="319.5" ></text>
+</g>
+<g >
+<title>int_free (1 samples, 0.40%)</title><rect x="14.7" y="437" width="4.8" height="15.0" fill="rgb(233,54,34)" rx="2" ry="2" />
+<text  x="17.74" y="447.5" ></text>
+</g>
+<g >
+<title>dl_start (1 samples, 0.40%)</title><rect x="1152.1" y="853" width="4.7" height="15.0" fill="rgb(233,3,5)" rx="2" ry="2" />
+<text  x="1155.09" y="863.5" ></text>
+</g>
+<g >
+<title>&lt;hashbrown::raw::RawTable&lt;T,A&gt; as core::ops::drop::Drop&gt;::drop (2 samples, 0.80%)</title><rect x="512.3" y="325" width="9.5" height="15.0" fill="rgb(214,69,28)" rx="2" ry="2" />
+<text  x="515.33" y="335.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::paths (3 samples, 1.20%)</title><rect x="934.1" y="373" width="14.2" height="15.0" fill="rgb(238,119,51)" rx="2" ry="2" />
+<text  x="937.10" y="383.5" ></text>
+</g>
+<g >
+<title>alloc::alloc::alloc (1 samples, 0.40%)</title><rect x="507.6" y="213" width="4.7" height="15.0" fill="rgb(248,194,38)" rx="2" ry="2" />
+<text  x="510.59" y="223.5" ></text>
+</g>
+<g >
+<title>std::panicking::try::do_call (240 samples, 96.39%)</title><rect x="14.7" y="773" width="1137.4" height="15.0" fill="rgb(253,131,37)" rx="2" ry="2" />
+<text  x="17.74" y="783.5" >std::panicking::try::do_call</text>
+</g>
+<g >
+<title>hashbrown::raw::RawIterHash&lt;T,A&gt;::new (1 samples, 0.40%)</title><rect x="687.7" y="277" width="4.7" height="15.0" fill="rgb(214,27,54)" rx="2" ry="2" />
+<text  x="690.67" y="287.5" ></text>
+</g>
+<g >
+<title>alloc::alloc::dealloc (1 samples, 0.40%)</title><rect x="706.6" y="181" width="4.8" height="15.0" fill="rgb(228,154,30)" rx="2" ry="2" />
+<text  x="709.63" y="191.5" ></text>
+</g>
+<g >
+<title>_GI___libc_free (1 samples, 0.40%)</title><rect x="38.4" y="309" width="4.8" height="15.0" fill="rgb(237,225,45)" rx="2" ry="2" />
+<text  x="41.43" y="319.5" ></text>
+</g>
+<g >
+<title>&lt;hashbrown::scopeguard::ScopeGuard&lt;T,F&gt; as core::ops::drop::Drop&gt;::drop (1 samples, 0.40%)</title><rect x="706.6" y="245" width="4.8" height="15.0" fill="rgb(251,168,19)" rx="2" ry="2" />
+<text  x="709.63" y="255.5" ></text>
+</g>
+<g >
+<title>&lt;std::collections::hash::map::DefaultHasher as core::hash::Hasher&gt;::finish (5 samples, 2.01%)</title><rect x="640.3" y="309" width="23.7" height="15.0" fill="rgb(230,213,14)" rx="2" ry="2" />
+<text  x="643.28" y="319.5" >&lt;..</text>
+</g>
+<g >
+<title>core::ptr::swap_nonoverlapping_one (1 samples, 0.40%)</title><rect x="787.2" y="261" width="4.7" height="15.0" fill="rgb(211,132,32)" rx="2" ry="2" />
+<text  x="790.19" y="271.5" ></text>
+</g>
+<g >
+<title>&lt;core::str::iter::Chars as core::iter::traits::iterator::Iterator&gt;::next (1 samples, 0.40%)</title><rect x="1076.3" y="437" width="4.7" height="15.0" fill="rgb(248,8,37)" rx="2" ry="2" />
+<text  x="1079.27" y="447.5" ></text>
+</g>
+<g >
+<title>core::num::dec2flt::dec2flt (1 samples, 0.40%)</title><rect x="924.6" y="293" width="4.8" height="15.0" fill="rgb(252,151,40)" rx="2" ry="2" />
+<text  x="927.62" y="303.5" ></text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::cloned::Cloned&lt;I&gt; as core::iter::traits::iterator::Iterator&gt;::next (4 samples, 1.61%)</title><rect x="289.6" y="357" width="19.0" height="15.0" fill="rgb(249,121,29)" rx="2" ry="2" />
+<text  x="292.60" y="367.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawTable&lt;T,A&gt;::get_mut (4 samples, 1.61%)</title><rect x="673.5" y="325" width="18.9" height="15.0" fill="rgb(250,126,20)" rx="2" ry="2" />
+<text  x="676.45" y="335.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::alloc::Global as core::alloc::Allocator&gt;::deallocate (1 samples, 0.40%)</title><rect x="24.2" y="389" width="4.8" height="15.0" fill="rgb(207,61,21)" rx="2" ry="2" />
+<text  x="27.22" y="399.5" ></text>
+</g>
+<g >
+<title>std::rt::lang_start_internal (240 samples, 96.39%)</title><rect x="14.7" y="821" width="1137.4" height="15.0" fill="rgb(233,79,11)" rx="2" ry="2" />
+<text  x="17.74" y="831.5" >std::rt::lang_start_internal</text>
+</g>
+<g >
+<title>&lt;alloc::string::String as core::cmp::PartialEq&gt;::eq (2 samples, 0.80%)</title><rect x="209.0" y="117" width="9.5" height="15.0" fill="rgb(226,6,49)" rx="2" ry="2" />
+<text  x="212.04" y="127.5" ></text>
+</g>
+<g >
+<title>core::ops::function::impls::&lt;impl core::ops::function::FnOnce&lt;A&gt; for &amp;F&gt;::call_once (239 samples, 95.98%)</title><rect x="14.7" y="693" width="1132.6" height="15.0" fill="rgb(225,198,8)" rx="2" ry="2" />
+<text  x="17.74" y="703.5" >core::ops::function::impls::&lt;impl core::ops::function::FnOnce&lt;A&gt; for &amp;F&gt;::call_once</text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::get_index_of (3 samples, 1.20%)</title><rect x="265.9" y="213" width="14.2" height="15.0" fill="rgb(221,18,24)" rx="2" ry="2" />
+<text  x="268.90" y="223.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::string::String as core::cmp::PartialEq&gt;::eq (1 samples, 0.40%)</title><rect x="246.9" y="149" width="4.8" height="15.0" fill="rgb(234,219,36)" rx="2" ry="2" />
+<text  x="249.95" y="159.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::inner::bitmask::BitMask::lowest_set_bit (1 samples, 0.40%)</title><rect x="175.9" y="133" width="4.7" height="15.0" fill="rgb(231,80,12)" rx="2" ry="2" />
+<text  x="178.86" y="143.5" ></text>
+</g>
+<g >
+<title>core::ops::function::impls::&lt;impl core::ops::function::FnMut&lt;A&gt; for &amp;mut F&gt;::call_mut (3 samples, 1.20%)</title><rect x="265.9" y="277" width="14.2" height="15.0" fill="rgb(218,125,52)" rx="2" ry="2" />
+<text  x="268.90" y="287.5" ></text>
+</g>
+<g >
+<title>std::panicking::try (239 samples, 95.98%)</title><rect x="14.7" y="725" width="1132.6" height="15.0" fill="rgb(243,138,45)" rx="2" ry="2" />
+<text  x="17.74" y="735.5" >std::panicking::try</text>
+</g>
+<g >
+<title>alloc::alloc::Global::grow_impl (1 samples, 0.40%)</title><rect x="280.1" y="229" width="4.8" height="15.0" fill="rgb(210,175,9)" rx="2" ry="2" />
+<text  x="283.12" y="239.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::path_in_key (1 samples, 0.40%)</title><rect x="962.5" y="437" width="4.8" height="15.0" fill="rgb(207,114,43)" rx="2" ry="2" />
+<text  x="965.53" y="447.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::spec_from_iter::SpecFromIter&lt;T,I&gt;&gt;::from_iter (13 samples, 5.22%)</title><rect x="190.1" y="389" width="61.6" height="15.0" fill="rgb(223,113,49)" rx="2" ry="2" />
+<text  x="193.08" y="399.5" >&lt;alloc..</text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;jsonpath_lib::parser::tokenizer::Token&gt; (1 samples, 0.40%)</title><rect x="853.5" y="309" width="4.8" height="15.0" fill="rgb(244,197,1)" rx="2" ry="2" />
+<text  x="856.53" y="319.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;jsonpath_lib::parser::ParseToken&gt; (2 samples, 0.80%)</title><rect x="81.1" y="405" width="9.5" height="15.0" fill="rgb(246,65,52)" rx="2" ry="2" />
+<text  x="84.08" y="415.5" ></text>
+</g>
+<g >
+<title>std::collections::hash::set::HashSet&lt;T,S&gt;::insert (27 samples, 10.84%)</title><rect x="635.5" y="373" width="128.0" height="15.0" fill="rgb(235,115,1)" rx="2" ry="2" />
+<text  x="638.54" y="383.5" >std::collections..</text>
+</g>
+<g >
+<title>hashbrown::raw::RawTable&lt;T,A&gt;::iter_hash (1 samples, 0.40%)</title><rect x="687.7" y="293" width="4.7" height="15.0" fill="rgb(225,34,43)" rx="2" ry="2" />
+<text  x="690.67" y="303.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::select::Selector::str_path (73 samples, 29.32%)</title><rect x="801.4" y="533" width="345.9" height="15.0" fill="rgb(236,10,33)" rx="2" ry="2" />
+<text  x="804.41" y="543.5" >jsonpath_lib::select::Selector::str_path</text>
+</g>
+<g >
+<title>hashbrown::raw::RawTable&lt;T,A&gt;::reserve_rehash (12 samples, 4.82%)</title><rect x="697.1" y="293" width="56.9" height="15.0" fill="rgb(227,80,3)" rx="2" ry="2" />
+<text  x="700.15" y="303.5" >hashbr..</text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::reserve::do_reserve_and_handle (1 samples, 0.40%)</title><rect x="526.5" y="325" width="4.8" height="15.0" fill="rgb(226,169,17)" rx="2" ry="2" />
+<text  x="529.55" y="335.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Sip13Rounds as core::hash::sip::Sip&gt;::d_rounds (1 samples, 0.40%)</title><rect x="194.8" y="133" width="4.8" height="15.0" fill="rgb(217,25,8)" rx="2" ry="2" />
+<text  x="197.82" y="143.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::term_num (3 samples, 1.20%)</title><rect x="915.1" y="357" width="14.3" height="15.0" fill="rgb(254,78,34)" rx="2" ry="2" />
+<text  x="918.14" y="367.5" ></text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::get (1 samples, 0.40%)</title><rect x="498.1" y="421" width="4.8" height="15.0" fill="rgb(225,171,8)" rx="2" ry="2" />
+<text  x="501.11" y="431.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::paths (33 samples, 13.25%)</title><rect x="810.9" y="485" width="156.4" height="15.0" fill="rgb(209,46,36)" rx="2" ry="2" />
+<text  x="813.88" y="495.5" >jsonpath_lib::parser..</text>
+</g>
+<g >
+<title>core::slice::cmp::&lt;impl core::cmp::PartialEq&lt;[B]&gt; for [A]&gt;::eq (3 samples, 1.20%)</title><rect x="588.2" y="213" width="14.2" height="15.0" fill="rgb(240,170,27)" rx="2" ry="2" />
+<text  x="591.15" y="223.5" ></text>
+</g>
+<g >
+<title>_GI___libc_realloc (4 samples, 1.61%)</title><rect x="218.5" y="197" width="19.0" height="15.0" fill="rgb(230,191,47)" rx="2" ry="2" />
+<text  x="221.51" y="207.5" ></text>
+</g>
+<g >
+<title>core::core_arch::x86::sse2::mm_set1_epi8 (5 samples, 2.01%)</title><rect x="431.8" y="133" width="23.7" height="15.0" fill="rgb(238,75,4)" rx="2" ry="2" />
+<text  x="434.77" y="143.5" >c..</text>
+</g>
+<g >
+<title>&lt;alloc::alloc::Global as core::alloc::Allocator&gt;::deallocate (2 samples, 0.80%)</title><rect x="512.3" y="277" width="9.5" height="15.0" fill="rgb(224,129,43)" rx="2" ry="2" />
+<text  x="515.33" y="287.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::tokenizer::TokenReader::next_token (1 samples, 0.40%)</title><rect x="900.9" y="357" width="4.8" height="15.0" fill="rgb(226,81,52)" rx="2" ry="2" />
+<text  x="903.92" y="367.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawTable&lt;T,A&gt;::get (1 samples, 0.40%)</title><rect x="630.8" y="309" width="4.7" height="15.0" fill="rgb(254,87,19)" rx="2" ry="2" />
+<text  x="633.80" y="319.5" ></text>
+</g>
+<g >
+<title>core::ptr::mut_ptr::&lt;impl *mut T&gt;::write_bytes (1 samples, 0.40%)</title><rect x="739.8" y="229" width="4.7" height="15.0" fill="rgb(210,203,6)" rx="2" ry="2" />
+<text  x="742.80" y="239.5" ></text>
+</g>
+<g >
+<title>alloc::alloc::realloc (1 samples, 0.40%)</title><rect x="995.7" y="357" width="4.7" height="15.0" fill="rgb(237,203,16)" rx="2" ry="2" />
+<text  x="998.70" y="367.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::path_reader::PathReader::peek_char (1 samples, 0.40%)</title><rect x="1081.0" y="453" width="4.7" height="15.0" fill="rgb(225,186,1)" rx="2" ry="2" />
+<text  x="1084.00" y="463.5" ></text>
+</g>
+<g >
+<title>alloc::alloc::dealloc (1 samples, 0.40%)</title><rect x="19.5" y="421" width="4.7" height="15.0" fill="rgb(241,79,10)" rx="2" ry="2" />
+<text  x="22.48" y="431.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::eat_token (2 samples, 0.80%)</title><rect x="953.1" y="469" width="9.4" height="15.0" fill="rgb(214,136,41)" rx="2" ry="2" />
+<text  x="956.05" y="479.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T,A&gt;::push (1 samples, 0.40%)</title><rect x="493.4" y="437" width="4.7" height="15.0" fill="rgb(251,153,7)" rx="2" ry="2" />
+<text  x="496.37" y="447.5" ></text>
+</g>
+<g >
+<title>do_syscall_64 (1 samples, 0.40%)</title><rect x="10.0" y="853" width="4.7" height="15.0" fill="rgb(210,120,2)" rx="2" ry="2" />
+<text  x="13.00" y="863.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::tokenizer::TokenReader::peek_token (1 samples, 0.40%)</title><rect x="905.7" y="357" width="4.7" height="15.0" fill="rgb(238,65,51)" rx="2" ry="2" />
+<text  x="908.66" y="367.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T,A&gt;::push (5 samples, 2.01%)</title><rect x="123.7" y="469" width="23.7" height="15.0" fill="rgb(226,50,21)" rx="2" ry="2" />
+<text  x="126.73" y="479.5" >a..</text>
+</g>
+<g >
+<title>core::intrinsics::copy (13 samples, 5.22%)</title><rect x="1000.4" y="469" width="61.6" height="15.0" fill="rgb(251,139,0)" rx="2" ry="2" />
+<text  x="1003.44" y="479.5" >core::..</text>
+</g>
+<g >
+<title>hashbrown::raw::is_full (1 samples, 0.40%)</title><rect x="758.8" y="293" width="4.7" height="15.0" fill="rgb(225,155,15)" rx="2" ry="2" />
+<text  x="761.76" y="303.5" ></text>
+</g>
+<g >
+<title>std::rt::lang_start_internal::{{closure}} (240 samples, 96.39%)</title><rect x="14.7" y="757" width="1137.4" height="15.0" fill="rgb(250,4,50)" rx="2" ry="2" />
+<text  x="17.74" y="767.5" >std::rt::lang_start_internal::{{closure}}</text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Sip13Rounds as core::hash::sip::Sip&gt;::c_rounds (1 samples, 0.40%)</title><rect x="716.1" y="181" width="4.7" height="15.0" fill="rgb(205,196,7)" rx="2" ry="2" />
+<text  x="719.10" y="191.5" ></text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::get (3 samples, 1.20%)</title><rect x="265.9" y="229" width="14.2" height="15.0" fill="rgb(231,87,20)" rx="2" ry="2" />
+<text  x="268.90" y="239.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::set_ptr (1 samples, 0.40%)</title><rect x="1109.4" y="341" width="4.8" height="15.0" fill="rgb(239,167,25)" rx="2" ry="2" />
+<text  x="1112.44" y="351.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::eat_token (1 samples, 0.40%)</title><rect x="886.7" y="341" width="4.7" height="15.0" fill="rgb(216,219,46)" rx="2" ry="2" />
+<text  x="889.71" y="351.5" ></text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::get (31 samples, 12.45%)</title><rect x="341.7" y="277" width="146.9" height="15.0" fill="rgb(217,195,29)" rx="2" ry="2" />
+<text  x="344.73" y="287.5" >indexmap::map::Ind..</text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Hasher&lt;S&gt; as core::hash::Hasher&gt;::finish (4 samples, 1.61%)</title><rect x="602.4" y="261" width="18.9" height="15.0" fill="rgb(234,189,9)" rx="2" ry="2" />
+<text  x="605.37" y="271.5" ></text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::get (3 samples, 1.20%)</title><rect x="294.3" y="261" width="14.3" height="15.0" fill="rgb(243,183,7)" rx="2" ry="2" />
+<text  x="297.34" y="271.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::exprs (24 samples, 9.64%)</title><rect x="834.6" y="421" width="113.7" height="15.0" fill="rgb(234,104,30)" rx="2" ry="2" />
+<text  x="837.58" y="431.5" >jsonpath_lib::..</text>
+</g>
+<g >
+<title>&lt;alloc::string::String as core::hash::Hash&gt;::hash (1 samples, 0.40%)</title><rect x="190.1" y="181" width="4.7" height="15.0" fill="rgb(221,210,20)" rx="2" ry="2" />
+<text  x="193.08" y="191.5" ></text>
+</g>
+<g >
+<title>std::collections::hash::set::HashSet&lt;T&gt;::new (1 samples, 0.40%)</title><rect x="791.9" y="405" width="4.8" height="15.0" fill="rgb(227,185,3)" rx="2" ry="2" />
+<text  x="794.93" y="415.5" ></text>
+</g>
+<g >
+<title>core::cmp::impls::&lt;impl core::cmp::PartialEq&lt;&amp;B&gt; for &amp;A&gt;::eq (1 samples, 0.40%)</title><rect x="337.0" y="197" width="4.7" height="15.0" fill="rgb(234,156,47)" rx="2" ry="2" />
+<text  x="339.99" y="207.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::expr (11 samples, 4.42%)</title><rect x="844.1" y="373" width="52.1" height="15.0" fill="rgb(210,47,6)" rx="2" ry="2" />
+<text  x="847.06" y="383.5" >jsonp..</text>
+</g>
+<g >
+<title>_GI___libc_malloc (2 samples, 0.80%)</title><rect x="744.5" y="149" width="9.5" height="15.0" fill="rgb(210,16,40)" rx="2" ry="2" />
+<text  x="747.54" y="159.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawTable&lt;T,A&gt;::new_in (1 samples, 0.40%)</title><rect x="791.9" y="325" width="4.8" height="15.0" fill="rgb(250,186,13)" rx="2" ry="2" />
+<text  x="794.93" y="335.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;jsonpath_lib::parser::ParseToken&gt; (1 samples, 0.40%)</title><rect x="52.7" y="261" width="4.7" height="15.0" fill="rgb(230,121,42)" rx="2" ry="2" />
+<text  x="55.65" y="271.5" ></text>
+</g>
+<g >
+<title>&lt;Q as indexmap::equivalent::Equivalent&lt;K&gt;&gt;::equivalent (2 samples, 0.80%)</title><rect x="209.0" y="133" width="9.5" height="15.0" fill="rgb(247,124,54)" rx="2" ry="2" />
+<text  x="212.04" y="143.5" ></text>
+</g>
+<g >
+<title>&lt;core::result::Result&lt;T,E&gt; as core::ops::try_trait::Try&gt;::branch (1 samples, 0.40%)</title><rect x="829.8" y="421" width="4.8" height="15.0" fill="rgb(241,210,11)" rx="2" ry="2" />
+<text  x="832.84" y="431.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;core::option::Option&lt;alloc::boxed::Box&lt;jsonpath_lib::parser::Node&gt;&gt;&gt; (7 samples, 2.81%)</title><rect x="38.4" y="341" width="33.2" height="15.0" fill="rgb(254,103,41)" rx="2" ry="2" />
+<text  x="41.43" y="351.5" >co..</text>
+</g>
+<g >
+<title>jsonpath_lib::select::expr_term::ExprTerm::or (38 samples, 15.26%)</title><rect x="308.6" y="453" width="180.0" height="15.0" fill="rgb(227,161,5)" rx="2" ry="2" />
+<text  x="311.55" y="463.5" >jsonpath_lib::select::e..</text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::get_index_of (14 samples, 5.62%)</title><rect x="536.0" y="341" width="66.4" height="15.0" fill="rgb(220,191,11)" rx="2" ry="2" />
+<text  x="539.02" y="351.5" >indexma..</text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::hash (1 samples, 0.40%)</title><rect x="265.9" y="197" width="4.7" height="15.0" fill="rgb(214,18,40)" rx="2" ry="2" />
+<text  x="268.90" y="207.5" ></text>
+</g>
+<g >
+<title>int_free (1 samples, 0.40%)</title><rect x="706.6" y="165" width="4.8" height="15.0" fill="rgb(250,194,47)" rx="2" ry="2" />
+<text  x="709.63" y="175.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::string::String as core::cmp::PartialEq&gt;::eq (1 samples, 0.40%)</title><rect x="275.4" y="117" width="4.7" height="15.0" fill="rgb(251,119,32)" rx="2" ry="2" />
+<text  x="278.38" y="127.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawTable&lt;T,A&gt;::find (19 samples, 7.63%)</title><rect x="398.6" y="213" width="90.0" height="15.0" fill="rgb(222,197,51)" rx="2" ry="2" />
+<text  x="401.59" y="223.5" >hashbrown:..</text>
+</g>
+<g >
+<title>hashbrown::raw::RawTable&lt;T,A&gt;::find (1 samples, 0.40%)</title><rect x="630.8" y="293" width="4.7" height="15.0" fill="rgb(236,184,31)" rx="2" ry="2" />
+<text  x="633.80" y="303.5" ></text>
+</g>
+<g >
+<title>alloc::alloc::box_free (1 samples, 0.40%)</title><rect x="19.5" y="453" width="4.7" height="15.0" fill="rgb(236,29,17)" rx="2" ry="2" />
+<text  x="22.48" y="463.5" ></text>
+</g>
+<g >
+<title>core::num::&lt;impl u64&gt;::rotate_left (2 samples, 0.80%)</title><rect x="607.1" y="229" width="9.5" height="15.0" fill="rgb(232,102,24)" rx="2" ry="2" />
+<text  x="610.11" y="239.5" ></text>
+</g>
+<g >
+<title>alloc::slice::&lt;impl [T]&gt;::to_vec_in (1 samples, 0.40%)</title><rect x="90.6" y="501" width="4.7" height="15.0" fill="rgb(212,129,43)" rx="2" ry="2" />
+<text  x="93.56" y="511.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::NodeVisitor::visit (146 samples, 58.63%)</title><rect x="109.5" y="501" width="691.9" height="15.0" fill="rgb(219,137,40)" rx="2" ry="2" />
+<text  x="112.52" y="511.5" >jsonpath_lib::parser::NodeVisitor::visit</text>
+</g>
+<g >
+<title>hashbrown::map::make_hasher::{{closure}} (4 samples, 1.61%)</title><rect x="711.4" y="261" width="18.9" height="15.0" fill="rgb(207,211,34)" rx="2" ry="2" />
+<text  x="714.37" y="271.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::path_reader::PathReader::peek_char (1 samples, 0.40%)</title><rect x="1076.3" y="453" width="4.7" height="15.0" fill="rgb(223,152,22)" rx="2" ry="2" />
+<text  x="1079.27" y="463.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::reserve (1 samples, 0.40%)</title><rect x="526.5" y="341" width="4.8" height="15.0" fill="rgb(207,135,20)" rx="2" ry="2" />
+<text  x="529.55" y="351.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Sip13Rounds as core::hash::sip::Sip&gt;::d_rounds (2 samples, 0.80%)</title><rect x="654.5" y="261" width="9.5" height="15.0" fill="rgb(245,134,23)" rx="2" ry="2" />
+<text  x="657.50" y="271.5" ></text>
+</g>
+<g >
+<title>std::panicking::try::do_call (239 samples, 95.98%)</title><rect x="14.7" y="709" width="1132.6" height="15.0" fill="rgb(242,18,36)" rx="2" ry="2" />
+<text  x="17.74" y="719.5" >std::panicking::try::do_call</text>
+</g>
+<g >
+<title>int_free (1 samples, 0.40%)</title><rect x="19.5" y="405" width="4.7" height="15.0" fill="rgb(240,33,3)" rx="2" ry="2" />
+<text  x="22.48" y="415.5" ></text>
+</g>
+<g >
+<title>core::core_arch::simd::i8x16::new (1 samples, 0.40%)</title><rect x="303.8" y="85" width="4.8" height="15.0" fill="rgb(239,160,32)" rx="2" ry="2" />
+<text  x="306.82" y="95.5" ></text>
+</g>
+<g >
+<title>entry_SYSCALL_64_after_hwframe (7 samples, 2.81%)</title><rect x="1156.8" y="869" width="33.2" height="15.0" fill="rgb(225,177,45)" rx="2" ry="2" />
+<text  x="1159.83" y="879.5" >en..</text>
+</g>
+<g >
+<title>&lt;alloc::raw_vec::RawVec&lt;T,A&gt; as core::ops::drop::Drop&gt;::drop (1 samples, 0.40%)</title><rect x="488.6" y="389" width="4.8" height="15.0" fill="rgb(210,185,1)" rx="2" ry="2" />
+<text  x="491.63" y="399.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Hasher&lt;S&gt; as core::hash::Hasher&gt;::finish (4 samples, 1.61%)</title><rect x="711.4" y="197" width="18.9" height="15.0" fill="rgb(254,161,28)" rx="2" ry="2" />
+<text  x="714.37" y="207.5" ></text>
+</g>
+<g >
+<title>indexmap::map::core::IndexMapCore&lt;K,V&gt;::get_index_of (4 samples, 1.61%)</title><rect x="199.6" y="197" width="18.9" height="15.0" fill="rgb(224,143,11)" rx="2" ry="2" />
+<text  x="202.56" y="207.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::eat_whitespace (4 samples, 1.61%)</title><rect x="853.5" y="341" width="19.0" height="15.0" fill="rgb(238,216,23)" rx="2" ry="2" />
+<text  x="856.53" y="351.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;alloc::vec::Vec&lt; (2 samples, 0.80%)</title><rect x="801.4" y="485" width="9.5" height="15.0" fill="rgb(208,15,51)" rx="2" ry="2" />
+<text  x="804.41" y="495.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T,A&gt;::extend_desugared (5 samples, 2.01%)</title><rect x="265.9" y="341" width="23.7" height="15.0" fill="rgb(207,16,10)" rx="2" ry="2" />
+<text  x="268.90" y="351.5" >a..</text>
+</g>
+<g >
+<title>&lt;core::iter::adapters::rev::Rev&lt;I&gt; as core::iter::traits::iterator::Iterator&gt;::next (1 samples, 0.40%)</title><rect x="313.3" y="405" width="4.7" height="15.0" fill="rgb(231,94,38)" rx="2" ry="2" />
+<text  x="316.29" y="415.5" ></text>
+</g>
+<g >
+<title>int_free (1 samples, 0.40%)</title><rect x="24.2" y="357" width="4.8" height="15.0" fill="rgb(249,217,2)" rx="2" ry="2" />
+<text  x="27.22" y="367.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::SipHasher13 as core::hash::Hasher&gt;::write (1 samples, 0.40%)</title><rect x="190.1" y="117" width="4.7" height="15.0" fill="rgb(242,15,35)" rx="2" ry="2" />
+<text  x="193.08" y="127.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::SipHasher13 as core::hash::Hasher&gt;::write (1 samples, 0.40%)</title><rect x="237.5" y="165" width="4.7" height="15.0" fill="rgb(226,66,6)" rx="2" ry="2" />
+<text  x="240.47" y="175.5" ></text>
+</g>
+<g >
+<title>core::intrinsics::copy_nonoverlapping (1 samples, 0.40%)</title><rect x="787.2" y="213" width="4.7" height="15.0" fill="rgb(218,17,41)" rx="2" ry="2" />
+<text  x="790.19" y="223.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawTableInner&lt;A&gt;::free_buckets (2 samples, 0.80%)</title><rect x="512.3" y="293" width="9.5" height="15.0" fill="rgb(211,113,13)" rx="2" ry="2" />
+<text  x="515.33" y="303.5" ></text>
+</g>
+<g >
+<title>std::collections::hash::set::HashSet&lt;T,S&gt;::insert (6 samples, 2.41%)</title><rect x="763.5" y="389" width="28.4" height="15.0" fill="rgb(248,146,39)" rx="2" ry="2" />
+<text  x="766.49" y="399.5" >st..</text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::get_index_of (4 samples, 1.61%)</title><rect x="161.6" y="245" width="19.0" height="15.0" fill="rgb(209,35,10)" rx="2" ry="2" />
+<text  x="164.65" y="255.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawTable&lt;T,A&gt;::resize (12 samples, 4.82%)</title><rect x="697.1" y="277" width="56.9" height="15.0" fill="rgb(233,2,50)" rx="2" ry="2" />
+<text  x="700.15" y="287.5" >hashbr..</text>
+</g>
+<g >
+<title>alloc::alloc::realloc (1 samples, 0.40%)</title><rect x="280.1" y="213" width="4.8" height="15.0" fill="rgb(248,174,45)" rx="2" ry="2" />
+<text  x="283.12" y="223.5" ></text>
+</g>
+<g >
+<title>alloc::alloc::box_free (1 samples, 0.40%)</title><rect x="24.2" y="405" width="4.8" height="15.0" fill="rgb(227,215,25)" rx="2" ry="2" />
+<text  x="27.22" y="415.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T,A&gt;::with_capacity_in (1 samples, 0.40%)</title><rect x="507.6" y="293" width="4.7" height="15.0" fill="rgb(205,126,52)" rx="2" ry="2" />
+<text  x="510.59" y="303.5" ></text>
+</g>
+<g >
+<title>indexmap::map::core::IndexMapCore&lt;K,V&gt;::get_index_of (2 samples, 0.80%)</title><rect x="270.6" y="197" width="9.5" height="15.0" fill="rgb(241,96,45)" rx="2" ry="2" />
+<text  x="273.64" y="207.5" ></text>
+</g>
+<g >
+<title>core::hash::sip::u8to64_le (1 samples, 0.40%)</title><rect x="626.1" y="213" width="4.7" height="15.0" fill="rgb(232,73,13)" rx="2" ry="2" />
+<text  x="629.06" y="223.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::for_each (239 samples, 95.98%)</title><rect x="14.7" y="613" width="1132.6" height="15.0" fill="rgb(216,159,16)" rx="2" ry="2" />
+<text  x="17.74" y="623.5" >core::iter::traits::iterator::Iterator::for_each</text>
+</g>
+<g >
+<title>&lt;f64 as core::num::dec2flt::float::RawFloat&gt;::from_u64 (1 samples, 0.40%)</title><rect x="924.6" y="261" width="4.8" height="15.0" fill="rgb(234,99,2)" rx="2" ry="2" />
+<text  x="927.62" y="271.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::sse2::Group::static_empty (1 samples, 0.40%)</title><rect x="791.9" y="293" width="4.8" height="15.0" fill="rgb(217,126,6)" rx="2" ry="2" />
+<text  x="794.93" y="303.5" ></text>
+</g>
+<g >
+<title>core::num::&lt;impl u64&gt;::rotate_left (1 samples, 0.40%)</title><rect x="602.4" y="229" width="4.7" height="15.0" fill="rgb(229,184,23)" rx="2" ry="2" />
+<text  x="605.37" y="239.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::SipHasher13 as core::hash::Hasher&gt;::finish (4 samples, 1.61%)</title><rect x="602.4" y="277" width="18.9" height="15.0" fill="rgb(216,183,16)" rx="2" ry="2" />
+<text  x="605.37" y="287.5" ></text>
+</g>
+<g >
+<title>&lt;hashbrown::raw::bitmask::BitMaskIter as core::iter::traits::iterator::Iterator&gt;::next (1 samples, 0.40%)</title><rect x="682.9" y="261" width="4.8" height="15.0" fill="rgb(220,133,28)" rx="2" ry="2" />
+<text  x="685.93" y="271.5" ></text>
+</g>
+<g >
+<title>&lt;hashbrown::raw::inner::RawIterHash&lt;T,A&gt; as core::iter::traits::iterator::Iterator&gt;::next (2 samples, 0.80%)</title><rect x="199.6" y="149" width="9.4" height="15.0" fill="rgb(250,211,2)" rx="2" ry="2" />
+<text  x="202.56" y="159.5" ></text>
+</g>
+<g >
+<title>alloc::string::String::insert_bytes (1 samples, 0.40%)</title><rect x="1090.5" y="437" width="4.7" height="15.0" fill="rgb(207,157,25)" rx="2" ry="2" />
+<text  x="1093.48" y="447.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawIterHashInner&lt;A&gt;::new (1 samples, 0.40%)</title><rect x="303.8" y="149" width="4.8" height="15.0" fill="rgb(232,23,43)" rx="2" ry="2" />
+<text  x="306.82" y="159.5" ></text>
+</g>
+<g >
+<title>pthread_getattr_np (1 samples, 0.40%)</title><rect x="1147.3" y="677" width="4.8" height="15.0" fill="rgb(251,81,21)" rx="2" ry="2" />
+<text  x="1150.35" y="687.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::bitmask::BitMask::lowest_set_bit (1 samples, 0.40%)</title><rect x="735.1" y="229" width="4.7" height="15.0" fill="rgb(207,199,32)" rx="2" ry="2" />
+<text  x="738.06" y="239.5" ></text>
+</g>
+<g >
+<title>&lt;hashbrown::raw::inner::bitmask::BitMaskIter as core::iter::traits::iterator::Iterator&gt;::next (1 samples, 0.40%)</title><rect x="408.1" y="165" width="4.7" height="15.0" fill="rgb(217,84,52)" rx="2" ry="2" />
+<text  x="411.07" y="175.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::raw_vec::RawVec&lt;T,A&gt; as core::ops::drop::Drop&gt;::drop (1 samples, 0.40%)</title><rect x="62.1" y="245" width="4.8" height="15.0" fill="rgb(218,167,3)" rx="2" ry="2" />
+<text  x="65.13" y="255.5" ></text>
+</g>
+<g >
+<title>core::num::&lt;impl u64&gt;::rotate_left (1 samples, 0.40%)</title><rect x="654.5" y="245" width="4.7" height="15.0" fill="rgb(211,169,13)" rx="2" ry="2" />
+<text  x="657.50" y="255.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawTable&lt;T,A&gt;::find (2 samples, 0.80%)</title><rect x="171.1" y="197" width="9.5" height="15.0" fill="rgb(238,136,33)" rx="2" ry="2" />
+<text  x="174.12" y="207.5" ></text>
+</g>
+<g >
+<title>core::slice::cmp::&lt;impl core::cmp::PartialEq&lt;[B]&gt; for [A]&gt;::eq (5 samples, 2.01%)</title><rect x="464.9" y="117" width="23.7" height="15.0" fill="rgb(254,134,35)" rx="2" ry="2" />
+<text  x="467.94" y="127.5" >c..</text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Hasher&lt;S&gt; as core::hash::Hasher&gt;::finish (2 samples, 0.80%)</title><rect x="161.6" y="181" width="9.5" height="15.0" fill="rgb(253,78,32)" rx="2" ry="2" />
+<text  x="164.65" y="191.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Sip13Rounds as core::hash::sip::Sip&gt;::d_rounds (3 samples, 1.20%)</title><rect x="773.0" y="277" width="14.2" height="15.0" fill="rgb(228,124,49)" rx="2" ry="2" />
+<text  x="775.97" y="287.5" ></text>
+</g>
+<g >
+<title>&lt;hashbrown::raw::inner::bitmask::BitMaskIter as core::iter::traits::iterator::Iterator&gt;::next (1 samples, 0.40%)</title><rect x="175.9" y="149" width="4.7" height="15.0" fill="rgb(235,33,39)" rx="2" ry="2" />
+<text  x="178.86" y="159.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::alloc::Global as core::alloc::Allocator&gt;::deallocate (1 samples, 0.40%)</title><rect x="14.7" y="469" width="4.8" height="15.0" fill="rgb(229,210,28)" rx="2" ry="2" />
+<text  x="17.74" y="479.5" ></text>
+</g>
+<g >
+<title>&lt;hashbrown::raw::inner::RawIterHashInner&lt;A&gt; as core::iter::traits::iterator::Iterator&gt;::next (1 samples, 0.40%)</title><rect x="199.6" y="133" width="4.7" height="15.0" fill="rgb(209,89,52)" rx="2" ry="2" />
+<text  x="202.56" y="143.5" ></text>
+</g>
+<g >
+<title>load_elf_binary (7 samples, 2.81%)</title><rect x="1156.8" y="789" width="33.2" height="15.0" fill="rgb(233,184,36)" rx="2" ry="2" />
+<text  x="1159.83" y="799.5" >lo..</text>
+</g>
+<g >
+<title>alloc::alloc::Global::grow_impl (1 samples, 0.40%)</title><rect x="995.7" y="373" width="4.7" height="15.0" fill="rgb(214,9,32)" rx="2" ry="2" />
+<text  x="998.70" y="383.5" ></text>
+</g>
+<g >
+<title>&lt;jsonpath_lib::select::cmp::CmpOr as jsonpath_lib::select::cmp::Cmp&gt;::cmp_json (37 samples, 14.86%)</title><rect x="313.3" y="421" width="175.3" height="15.0" fill="rgb(248,106,5)" rx="2" ry="2" />
+<text  x="316.29" y="431.5" >&lt;jsonpath_lib::select:..</text>
+</g>
+<g >
+<title>_set_task_comm (7 samples, 2.81%)</title><rect x="1156.8" y="757" width="33.2" height="15.0" fill="rgb(217,176,26)" rx="2" ry="2" />
+<text  x="1159.83" y="767.5" >_s..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::term (3 samples, 1.20%)</title><rect x="882.0" y="357" width="14.2" height="15.0" fill="rgb(236,183,9)" rx="2" ry="2" />
+<text  x="884.97" y="367.5" ></text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::hash (2 samples, 0.80%)</title><rect x="161.6" y="229" width="9.5" height="15.0" fill="rgb(249,98,54)" rx="2" ry="2" />
+<text  x="164.65" y="239.5" ></text>
+</g>
+<g >
+<title>std::sys_common::rt::init (1 samples, 0.40%)</title><rect x="1147.3" y="741" width="4.8" height="15.0" fill="rgb(219,188,50)" rx="2" ry="2" />
+<text  x="1150.35" y="751.5" ></text>
+</g>
+<g >
+<title>core::num::&lt;impl u64&gt;::rotate_left (1 samples, 0.40%)</title><rect x="379.6" y="165" width="4.8" height="15.0" fill="rgb(220,115,54)" rx="2" ry="2" />
+<text  x="382.64" y="175.5" ></text>
+</g>
+<g >
+<title>core::intrinsics::write_bytes (1 samples, 0.40%)</title><rect x="739.8" y="213" width="4.7" height="15.0" fill="rgb(219,88,27)" rx="2" ry="2" />
+<text  x="742.80" y="223.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::utils::string_to_num (1 samples, 0.40%)</title><rect x="924.6" y="341" width="4.8" height="15.0" fill="rgb(242,195,32)" rx="2" ry="2" />
+<text  x="927.62" y="351.5" ></text>
+</g>
+<g >
+<title>perf_event_mmap (1 samples, 0.40%)</title><rect x="10.0" y="741" width="4.7" height="15.0" fill="rgb(212,141,34)" rx="2" ry="2" />
+<text  x="13.00" y="751.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Sip13Rounds as core::hash::sip::Sip&gt;::c_rounds (1 samples, 0.40%)</title><rect x="370.2" y="181" width="4.7" height="15.0" fill="rgb(246,156,0)" rx="2" ry="2" />
+<text  x="373.16" y="191.5" ></text>
+</g>
+<g >
+<title>core::num::&lt;impl u64&gt;::rotate_left (2 samples, 0.80%)</title><rect x="559.7" y="245" width="9.5" height="15.0" fill="rgb(207,205,14)" rx="2" ry="2" />
+<text  x="562.72" y="255.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::alloc::Global as core::alloc::Allocator&gt;::allocate (1 samples, 0.40%)</title><rect x="90.6" y="405" width="4.7" height="15.0" fill="rgb(207,8,12)" rx="2" ry="2" />
+<text  x="93.56" y="415.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawTable&lt;T,A&gt;::iter_hash (1 samples, 0.40%)</title><rect x="630.8" y="277" width="4.7" height="15.0" fill="rgb(229,57,4)" rx="2" ry="2" />
+<text  x="633.80" y="287.5" ></text>
+</g>
+<g >
+<title>core::hash::Hasher::write_usize (2 samples, 0.80%)</title><rect x="621.3" y="277" width="9.5" height="15.0" fill="rgb(251,53,31)" rx="2" ry="2" />
+<text  x="624.33" y="287.5" ></text>
+</g>
+<g >
+<title>core::cmp::impls::&lt;impl core::cmp::PartialEq&lt;&amp;B&gt; for &amp;A&gt;::eq (36 samples, 14.46%)</title><rect x="318.0" y="405" width="170.6" height="15.0" fill="rgb(237,58,30)" rx="2" ry="2" />
+<text  x="321.03" y="415.5" >core::cmp::impls::&lt;imp..</text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawTable&lt;T,A&gt;::find (1 samples, 0.40%)</title><rect x="303.8" y="197" width="4.8" height="15.0" fill="rgb(208,212,16)" rx="2" ry="2" />
+<text  x="306.82" y="207.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Hasher&lt;S&gt; as core::hash::Hasher&gt;::write (1 samples, 0.40%)</title><rect x="190.1" y="101" width="4.7" height="15.0" fill="rgb(229,218,25)" rx="2" ry="2" />
+<text  x="193.08" y="111.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::term (4 samples, 1.61%)</title><rect x="929.4" y="389" width="18.9" height="15.0" fill="rgb(209,41,28)" rx="2" ry="2" />
+<text  x="932.36" y="399.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawTableInner&lt;A&gt;::prepare_resize (3 samples, 1.20%)</title><rect x="739.8" y="261" width="14.2" height="15.0" fill="rgb(241,141,7)" rx="2" ry="2" />
+<text  x="742.80" y="271.5" ></text>
+</g>
+<g >
+<title>core::cmp::impls::&lt;impl core::cmp::PartialEq&lt;&amp;B&gt; for &amp;A&gt;::eq (5 samples, 2.01%)</title><rect x="464.9" y="133" width="23.7" height="15.0" fill="rgb(224,44,2)" rx="2" ry="2" />
+<text  x="467.94" y="143.5" >c..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::tokenizer::TokenReader::next_token (2 samples, 0.80%)</title><rect x="915.1" y="341" width="9.5" height="15.0" fill="rgb(211,146,45)" rx="2" ry="2" />
+<text  x="918.14" y="351.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Hasher&lt;S&gt; as core::hash::Hasher&gt;::write (2 samples, 0.80%)</title><rect x="569.2" y="261" width="9.5" height="15.0" fill="rgb(246,201,35)" rx="2" ry="2" />
+<text  x="572.20" y="271.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;alloc::boxed::Box&lt;jsonpath_lib::parser::Node&gt;&gt; (9 samples, 3.61%)</title><rect x="33.7" y="373" width="42.6" height="15.0" fill="rgb(216,96,49)" rx="2" ry="2" />
+<text  x="36.69" y="383.5" >core..</text>
+</g>
+<g >
+<title>get_common_indices (1 samples, 0.40%)</title><rect x="1152.1" y="773" width="4.7" height="15.0" fill="rgb(237,80,11)" rx="2" ry="2" />
+<text  x="1155.09" y="783.5" ></text>
+</g>
+<g >
+<title>core::ptr::swap_nonoverlapping (1 samples, 0.40%)</title><rect x="787.2" y="245" width="4.7" height="15.0" fill="rgb(213,100,45)" rx="2" ry="2" />
+<text  x="790.19" y="255.5" ></text>
+</g>
+<g >
+<title>core::hash::impls::&lt;impl core::hash::Hash for str&gt;::hash (1 samples, 0.40%)</title><rect x="237.5" y="197" width="4.7" height="15.0" fill="rgb(210,88,2)" rx="2" ry="2" />
+<text  x="240.47" y="207.5" ></text>
+</g>
+<g >
+<title>hashbrown::set::HashSet&lt;T,S,A&gt;::insert (27 samples, 10.84%)</title><rect x="635.5" y="357" width="128.0" height="15.0" fill="rgb(246,63,2)" rx="2" ry="2" />
+<text  x="638.54" y="367.5" >hashbrown::set::..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::path_reader::PathReader::take_while (4 samples, 1.61%)</title><rect x="1095.2" y="453" width="19.0" height="15.0" fill="rgb(241,12,26)" rx="2" ry="2" />
+<text  x="1098.22" y="463.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawTable&lt;T,A&gt;::get (1 samples, 0.40%)</title><rect x="246.9" y="213" width="4.8" height="15.0" fill="rgb(226,175,1)" rx="2" ry="2" />
+<text  x="249.95" y="223.5" ></text>
+</g>
+<g >
+<title>core::str::traits::&lt;impl core::cmp::PartialEq for str&gt;::eq (3 samples, 1.20%)</title><rect x="588.2" y="245" width="14.2" height="15.0" fill="rgb(216,115,11)" rx="2" ry="2" />
+<text  x="591.15" y="255.5" ></text>
+</g>
+<g >
+<title>&lt;hashbrown::raw::RawIterHash&lt;T,A&gt; as core::iter::traits::iterator::Iterator&gt;::next (2 samples, 0.80%)</title><rect x="678.2" y="293" width="9.5" height="15.0" fill="rgb(206,225,9)" rx="2" ry="2" />
+<text  x="681.19" y="303.5" ></text>
+</g>
+<g >
+<title>malloc_consolidate (2 samples, 0.80%)</title><rect x="801.4" y="389" width="9.5" height="15.0" fill="rgb(249,120,54)" rx="2" ry="2" />
+<text  x="804.41" y="399.5" ></text>
+</g>
+<g >
+<title>_do_execve_fil.sr. (1 samples, 0.40%)</title><rect x="10.0" y="821" width="4.7" height="15.0" fill="rgb(224,3,13)" rx="2" ry="2" />
+<text  x="13.00" y="831.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawIterHashInner&lt;A&gt;::new (1 samples, 0.40%)</title><rect x="630.8" y="245" width="4.7" height="15.0" fill="rgb(244,172,14)" rx="2" ry="2" />
+<text  x="633.80" y="255.5" ></text>
+</g>
+<g >
+<title>&lt;serde_json::map::Map&lt;alloc::string::String,serde_json::value::Value&gt; as core::cmp::PartialEq&gt;::eq (33 samples, 13.25%)</title><rect x="332.2" y="373" width="156.4" height="15.0" fill="rgb(226,180,14)" rx="2" ry="2" />
+<text  x="335.25" y="383.5" >&lt;serde_json::map::Ma..</text>
+</g>
+<g >
+<title>do_syscall_64 (7 samples, 2.81%)</title><rect x="1156.8" y="853" width="33.2" height="15.0" fill="rgb(245,128,47)" rx="2" ry="2" />
+<text  x="1159.83" y="863.5" >do..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::path_reader::PathReader::take_while (7 samples, 2.81%)</title><rect x="1114.2" y="453" width="33.1" height="15.0" fill="rgb(249,136,20)" rx="2" ry="2" />
+<text  x="1117.18" y="463.5" >js..</text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::with_capacity_in (1 samples, 0.40%)</title><rect x="507.6" y="277" width="4.7" height="15.0" fill="rgb(210,123,43)" rx="2" ry="2" />
+<text  x="510.59" y="287.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::set_ptr (1 samples, 0.40%)</title><rect x="1090.5" y="357" width="4.7" height="15.0" fill="rgb(242,229,42)" rx="2" ry="2" />
+<text  x="1093.48" y="367.5" ></text>
+</g>
+<g >
+<title>core::str::validations::next_code_point (1 samples, 0.40%)</title><rect x="1142.6" y="405" width="4.7" height="15.0" fill="rgb(205,69,24)" rx="2" ry="2" />
+<text  x="1145.61" y="415.5" ></text>
+</g>
+<g >
+<title>&lt;std::collections::hash::map::DefaultHasher as core::hash::Hasher&gt;::finish (1 samples, 0.40%)</title><rect x="242.2" y="213" width="4.7" height="15.0" fill="rgb(224,225,54)" rx="2" ry="2" />
+<text  x="245.21" y="223.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;jsonpath_lib::parser::Node&gt; (14 samples, 5.62%)</title><rect x="24.2" y="453" width="66.4" height="15.0" fill="rgb(223,2,45)" rx="2" ry="2" />
+<text  x="27.22" y="463.5" >core::p..</text>
+</g>
+<g >
+<title>int_free (2 samples, 0.80%)</title><rect x="801.4" y="405" width="9.5" height="15.0" fill="rgb(249,18,23)" rx="2" ry="2" />
+<text  x="804.41" y="415.5" ></text>
+</g>
+<g >
+<title>dl_platform_init (1 samples, 0.40%)</title><rect x="1152.1" y="805" width="4.7" height="15.0" fill="rgb(231,12,44)" rx="2" ry="2" />
+<text  x="1155.09" y="815.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Sip13Rounds as core::hash::sip::Sip&gt;::c_rounds (1 samples, 0.40%)</title><rect x="768.2" y="277" width="4.8" height="15.0" fill="rgb(213,7,6)" rx="2" ry="2" />
+<text  x="771.23" y="287.5" ></text>
+</g>
+<g >
+<title>dl_sysdep_start (1 samples, 0.40%)</title><rect x="1152.1" y="821" width="4.7" height="15.0" fill="rgb(211,156,50)" rx="2" ry="2" />
+<text  x="1155.09" y="831.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::grow_amortized (1 samples, 0.40%)</title><rect x="1090.5" y="373" width="4.7" height="15.0" fill="rgb(235,139,17)" rx="2" ry="2" />
+<text  x="1093.48" y="383.5" ></text>
+</g>
+<g >
+<title>indexmap::map::core::IndexMapCore&lt;K,V&gt;::get_index_of (2 samples, 0.80%)</title><rect x="171.1" y="229" width="9.5" height="15.0" fill="rgb(228,197,32)" rx="2" ry="2" />
+<text  x="174.12" y="239.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T,A&gt; as alloc::vec::spec_extend::SpecExtend&lt;T,I&gt;&gt;::spec_extend (10 samples, 4.02%)</title><rect x="190.1" y="357" width="47.4" height="15.0" fill="rgb(207,167,27)" rx="2" ry="2" />
+<text  x="193.08" y="367.5" >&lt;all..</text>
+</g>
+<g >
+<title>alloc::raw_vec::finish_grow (1 samples, 0.40%)</title><rect x="526.5" y="293" width="4.8" height="15.0" fill="rgb(244,116,1)" rx="2" ry="2" />
+<text  x="529.55" y="303.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::tokenizer::TokenReader::next_token (2 samples, 0.80%)</title><rect x="953.1" y="453" width="9.4" height="15.0" fill="rgb(228,113,31)" rx="2" ry="2" />
+<text  x="956.05" y="463.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::expr (10 samples, 4.02%)</title><rect x="900.9" y="405" width="47.4" height="15.0" fill="rgb(232,118,20)" rx="2" ry="2" />
+<text  x="903.92" y="415.5" >json..</text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawTable&lt;T,A&gt;::iter_hash (1 samples, 0.40%)</title><rect x="303.8" y="181" width="4.8" height="15.0" fill="rgb(245,36,1)" rx="2" ry="2" />
+<text  x="306.82" y="191.5" ></text>
+</g>
+<g >
+<title>alloc::alloc::Global::alloc_impl (1 samples, 0.40%)</title><rect x="507.6" y="229" width="4.7" height="15.0" fill="rgb(244,229,34)" rx="2" ry="2" />
+<text  x="510.59" y="239.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T,A&gt;::push (3 samples, 1.20%)</title><rect x="521.8" y="373" width="14.2" height="15.0" fill="rgb(231,200,54)" rx="2" ry="2" />
+<text  x="524.81" y="383.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::paths (1 samples, 0.40%)</title><rect x="891.4" y="341" width="4.8" height="15.0" fill="rgb(247,88,40)" rx="2" ry="2" />
+<text  x="894.45" y="351.5" ></text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::get (5 samples, 2.01%)</title><rect x="156.9" y="261" width="23.7" height="15.0" fill="rgb(227,68,19)" rx="2" ry="2" />
+<text  x="159.91" y="271.5" >i..</text>
+</g>
+<g >
+<title>jsonpath_lib::select::FilterTerms::filter_next_with_str::{{closure}} (60 samples, 24.10%)</title><rect x="507.6" y="405" width="284.3" height="15.0" fill="rgb(245,156,32)" rx="2" ry="2" />
+<text  x="510.59" y="415.5" >jsonpath_lib::select::FilterTerms::fil..</text>
+</g>
+<g >
+<title>core::ops::function::impls::&lt;impl core::ops::function::FnMut&lt;A&gt; for &amp;mut F&gt;::call_mut (3 samples, 1.20%)</title><rect x="237.5" y="309" width="14.2" height="15.0" fill="rgb(252,56,42)" rx="2" ry="2" />
+<text  x="240.47" y="319.5" ></text>
+</g>
+<g >
+<title>&lt;hashbrown::raw::RawIterHashInner&lt;A&gt; as core::iter::traits::iterator::Iterator&gt;::next (2 samples, 0.80%)</title><rect x="678.2" y="277" width="9.5" height="15.0" fill="rgb(226,114,1)" rx="2" ry="2" />
+<text  x="681.19" y="287.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawTable&lt;T,A&gt;::insert (1 samples, 0.40%)</title><rect x="787.2" y="341" width="4.7" height="15.0" fill="rgb(248,58,22)" rx="2" ry="2" />
+<text  x="790.19" y="351.5" ></text>
+</g>
+<g >
+<title>indexmap::map::core::equivalent::{{closure}} (1 samples, 0.40%)</title><rect x="246.9" y="181" width="4.8" height="15.0" fill="rgb(251,176,31)" rx="2" ry="2" />
+<text  x="249.95" y="191.5" ></text>
+</g>
+<g >
+<title>exec_binprm (1 samples, 0.40%)</title><rect x="10.0" y="805" width="4.7" height="15.0" fill="rgb(240,177,37)" rx="2" ry="2" />
+<text  x="13.00" y="815.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;core::option::Option&lt;alloc::boxed::Box&lt;jsonpath_lib::parser::Node&gt;&gt;&gt; (2 samples, 0.80%)</title><rect x="43.2" y="245" width="9.5" height="15.0" fill="rgb(249,155,21)" rx="2" ry="2" />
+<text  x="46.17" y="255.5" ></text>
+</g>
+<g >
+<title>&lt;std::collections::hash::map::DefaultHasher as core::hash::Hasher&gt;::write (1 samples, 0.40%)</title><rect x="237.5" y="181" width="4.7" height="15.0" fill="rgb(207,142,12)" rx="2" ry="2" />
+<text  x="240.47" y="191.5" ></text>
+</g>
+<g >
+<title>alloc::slice::&lt;impl [T]&gt;::to_vec_in (1 samples, 0.40%)</title><rect x="507.6" y="341" width="4.7" height="15.0" fill="rgb(217,226,43)" rx="2" ry="2" />
+<text  x="510.59" y="351.5" ></text>
+</g>
+<g >
+<title>int_malloc (1 samples, 0.40%)</title><rect x="280.1" y="165" width="4.8" height="15.0" fill="rgb(229,16,16)" rx="2" ry="2" />
+<text  x="283.12" y="175.5" ></text>
+</g>
+<g >
+<title>&lt;hashbrown::raw::inner::bitmask::BitMaskIter as core::iter::traits::iterator::Iterator&gt;::next (1 samples, 0.40%)</title><rect x="199.6" y="117" width="4.7" height="15.0" fill="rgb(220,94,14)" rx="2" ry="2" />
+<text  x="202.56" y="127.5" ></text>
+</g>
+<g >
+<title>alloc::alloc::dealloc (1 samples, 0.40%)</title><rect x="24.2" y="373" width="4.8" height="15.0" fill="rgb(206,106,49)" rx="2" ry="2" />
+<text  x="27.22" y="383.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;alloc::vec::Vec&lt;u8&gt;&gt; (1 samples, 0.40%)</title><rect x="488.6" y="421" width="4.8" height="15.0" fill="rgb(212,47,1)" rx="2" ry="2" />
+<text  x="491.63" y="431.5" ></text>
+</g>
+<g >
+<title>core::num::&lt;impl u64&gt;::rotate_left (2 samples, 0.80%)</title><rect x="773.0" y="261" width="9.4" height="15.0" fill="rgb(252,193,12)" rx="2" ry="2" />
+<text  x="775.97" y="271.5" ></text>
+</g>
+<g >
+<title>std::sys::unix::thread::guard::init (1 samples, 0.40%)</title><rect x="1147.3" y="725" width="4.8" height="15.0" fill="rgb(218,129,38)" rx="2" ry="2" />
+<text  x="1150.35" y="735.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawTableInner&lt;A&gt;::find_insert_slot (2 samples, 0.80%)</title><rect x="730.3" y="245" width="9.5" height="15.0" fill="rgb(250,53,37)" rx="2" ry="2" />
+<text  x="733.32" y="255.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::compile (73 samples, 29.32%)</title><rect x="801.4" y="517" width="345.9" height="15.0" fill="rgb(238,146,45)" rx="2" ry="2" />
+<text  x="804.41" y="527.5" >jsonpath_lib::parser::Parser::compile</text>
+</g>
+<g >
+<title>&lt;[A] as core::slice::cmp::SlicePartialEq&lt;B&gt;&gt;::equal (5 samples, 2.01%)</title><rect x="464.9" y="101" width="23.7" height="15.0" fill="rgb(211,95,31)" rx="2" ry="2" />
+<text  x="467.94" y="111.5" >&lt;..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::tokenizer::TokenReader::next_token (1 samples, 0.40%)</title><rect x="886.7" y="325" width="4.7" height="15.0" fill="rgb(206,173,11)" rx="2" ry="2" />
+<text  x="889.71" y="335.5" ></text>
+</g>
+<g >
+<title>perf (7 samples, 2.81%)</title><rect x="1156.8" y="885" width="33.2" height="15.0" fill="rgb(212,75,51)" rx="2" ry="2" />
+<text  x="1159.83" y="895.5" >perf</text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;jsonpath_lib::parser::tokenizer::Token&gt; (1 samples, 0.40%)</title><rect x="896.2" y="373" width="4.7" height="15.0" fill="rgb(245,27,19)" rx="2" ry="2" />
+<text  x="899.18" y="383.5" ></text>
+</g>
+<g >
+<title>alloc::slice::&lt;impl alloc::borrow::ToOwned for [T]&gt;::to_owned (1 samples, 0.40%)</title><rect x="507.6" y="373" width="4.7" height="15.0" fill="rgb(215,221,0)" rx="2" ry="2" />
+<text  x="510.59" y="383.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::SipHasher13 as core::hash::Hasher&gt;::write (2 samples, 0.80%)</title><rect x="664.0" y="261" width="9.5" height="15.0" fill="rgb(219,198,17)" rx="2" ry="2" />
+<text  x="666.98" y="271.5" ></text>
+</g>
+<g >
+<title>core::mem::swap (1 samples, 0.40%)</title><rect x="787.2" y="277" width="4.7" height="15.0" fill="rgb(239,63,44)" rx="2" ry="2" />
+<text  x="790.19" y="287.5" ></text>
+</g>
+<g >
+<title>serde_json::map::Map&lt;alloc::string::String,serde_json::value::Value&gt;::get (3 samples, 1.20%)</title><rect x="294.3" y="277" width="14.3" height="15.0" fill="rgb(209,60,15)" rx="2" ry="2" />
+<text  x="297.34" y="287.5" ></text>
+</g>
+<g >
+<title>core::slice::cmp::&lt;impl core::cmp::PartialEq&lt;[B]&gt; for [A]&gt;::eq (1 samples, 0.40%)</title><rect x="337.0" y="181" width="4.7" height="15.0" fill="rgb(222,115,42)" rx="2" ry="2" />
+<text  x="339.99" y="191.5" ></text>
+</g>
+<g >
+<title>std::sys_common::backtrace::_rust_begin_short_backtrace (239 samples, 95.98%)</title><rect x="14.7" y="661" width="1132.6" height="15.0" fill="rgb(237,27,40)" rx="2" ry="2" />
+<text  x="17.74" y="671.5" >std::sys_common::backtrace::_rust_begin_short_backtrace</text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;jsonpath_lib::parser::Node&gt; (8 samples, 3.21%)</title><rect x="33.7" y="357" width="37.9" height="15.0" fill="rgb(233,63,15)" rx="2" ry="2" />
+<text  x="36.69" y="367.5" >cor..</text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Sip13Rounds as core::hash::sip::Sip&gt;::d_rounds (3 samples, 1.20%)</title><rect x="374.9" y="181" width="14.2" height="15.0" fill="rgb(215,59,4)" rx="2" ry="2" />
+<text  x="377.90" y="191.5" ></text>
+</g>
+<g >
+<title>_x64_sys_execve (1 samples, 0.40%)</title><rect x="10.0" y="837" width="4.7" height="15.0" fill="rgb(239,167,48)" rx="2" ry="2" />
+<text  x="13.00" y="847.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::finish_grow (2 samples, 0.80%)</title><rect x="280.1" y="261" width="9.5" height="15.0" fill="rgb(236,25,10)" rx="2" ry="2" />
+<text  x="283.12" y="271.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::reserve::do_reserve_and_handle (2 samples, 0.80%)</title><rect x="280.1" y="293" width="9.5" height="15.0" fill="rgb(211,156,45)" rx="2" ry="2" />
+<text  x="283.12" y="303.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::reserve (2 samples, 0.80%)</title><rect x="1104.7" y="389" width="9.5" height="15.0" fill="rgb(245,203,16)" rx="2" ry="2" />
+<text  x="1107.70" y="399.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;core::result::Result&lt;jsonpath_lib::parser::tokenizer::Token,jsonpath_lib::parser::tokenizer::TokenError&gt;&gt; (1 samples, 0.40%)</title><rect x="853.5" y="325" width="4.8" height="15.0" fill="rgb(224,202,45)" rx="2" ry="2" />
+<text  x="856.53" y="335.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::condition_expr (1 samples, 0.40%)</title><rect x="839.3" y="373" width="4.8" height="15.0" fill="rgb(221,109,4)" rx="2" ry="2" />
+<text  x="842.32" y="383.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawTableInner&lt;A&gt;::prepare_resize::{{closure}} (1 samples, 0.40%)</title><rect x="706.6" y="229" width="4.8" height="15.0" fill="rgb(253,15,49)" rx="2" ry="2" />
+<text  x="709.63" y="239.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawTable&lt;T,A&gt;::find (1 samples, 0.40%)</title><rect x="246.9" y="197" width="4.8" height="15.0" fill="rgb(254,78,28)" rx="2" ry="2" />
+<text  x="249.95" y="207.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::RawTableInner&lt;A&gt;::free_buckets (1 samples, 0.40%)</title><rect x="706.6" y="213" width="4.8" height="15.0" fill="rgb(253,182,6)" rx="2" ry="2" />
+<text  x="709.63" y="223.5" ></text>
+</g>
+<g >
+<title>core::core_arch::x86::sse2::mm_set_epi8 (1 samples, 0.40%)</title><rect x="687.7" y="213" width="4.7" height="15.0" fill="rgb(228,144,50)" rx="2" ry="2" />
+<text  x="690.67" y="223.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::SipHasher13 as core::hash::Hasher&gt;::finish (5 samples, 2.01%)</title><rect x="365.4" y="213" width="23.7" height="15.0" fill="rgb(254,30,47)" rx="2" ry="2" />
+<text  x="368.42" y="223.5" >&lt;..</text>
+</g>
+<g >
+<title>&lt;[A] as core::slice::cmp::SlicePartialEq&lt;B&gt;&gt;::equal (1 samples, 0.40%)</title><rect x="337.0" y="165" width="4.7" height="15.0" fill="rgb(229,125,46)" rx="2" ry="2" />
+<text  x="339.99" y="175.5" ></text>
+</g>
+<g >
+<title>alloc::slice::&lt;impl [T]&gt;::to_vec (1 samples, 0.40%)</title><rect x="90.6" y="517" width="4.7" height="15.0" fill="rgb(214,194,48)" rx="2" ry="2" />
+<text  x="93.56" y="527.5" ></text>
+</g>
+<g >
+<title>exec_binprm (7 samples, 2.81%)</title><rect x="1156.8" y="805" width="33.2" height="15.0" fill="rgb(238,12,46)" rx="2" ry="2" />
+<text  x="1159.83" y="815.5" >ex..</text>
+</g>
+<g >
+<title>int_free (1 samples, 0.40%)</title><rect x="57.4" y="261" width="4.7" height="15.0" fill="rgb(251,111,38)" rx="2" ry="2" />
+<text  x="60.39" y="271.5" ></text>
+</g>
+<g >
+<title>&lt;std::collections::hash::map::DefaultHasher as core::hash::Hasher&gt;::finish (2 samples, 0.80%)</title><rect x="161.6" y="213" width="9.5" height="15.0" fill="rgb(225,126,36)" rx="2" ry="2" />
+<text  x="164.65" y="223.5" ></text>
+</g>
+<g >
+<title>core::str::validations::next_code_point (1 samples, 0.40%)</title><rect x="1081.0" y="421" width="4.7" height="15.0" fill="rgb(208,113,51)" rx="2" ry="2" />
+<text  x="1084.00" y="431.5" ></text>
+</g>
+<g >
+<title>tcache_get (1 samples, 0.40%)</title><rect x="526.5" y="261" width="4.8" height="15.0" fill="rgb(216,222,3)" rx="2" ry="2" />
+<text  x="529.55" y="271.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::alloc::Global as core::alloc::Allocator&gt;::grow (1 samples, 0.40%)</title><rect x="995.7" y="389" width="4.7" height="15.0" fill="rgb(221,205,13)" rx="2" ry="2" />
+<text  x="998.70" y="399.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::all::check::{{closure}} (5 samples, 2.01%)</title><rect x="156.9" y="293" width="23.7" height="15.0" fill="rgb(249,82,21)" rx="2" ry="2" />
+<text  x="159.91" y="303.5" >c..</text>
+</g>
+<g >
+<title>_do_execve_fil.sr. (7 samples, 2.81%)</title><rect x="1156.8" y="821" width="33.2" height="15.0" fill="rgb(243,93,50)" rx="2" ry="2" />
+<text  x="1159.83" y="831.5" >_d..</text>
+</g>
+<g >
+<title>hashbrown::raw::RawIterHash&lt;T,A&gt;::new (1 samples, 0.40%)</title><rect x="630.8" y="261" width="4.7" height="15.0" fill="rgb(208,161,46)" rx="2" ry="2" />
+<text  x="633.80" y="271.5" ></text>
+</g>
+<g >
+<title>serde_json::map::Map&lt;alloc::string::String,serde_json::value::Value&gt;::get (6 samples, 2.41%)</title><rect x="190.1" y="245" width="28.4" height="15.0" fill="rgb(251,169,17)" rx="2" ry="2" />
+<text  x="193.08" y="255.5" >se..</text>
+</g>
+<g >
+<title>IO_new_fopen (1 samples, 0.40%)</title><rect x="1147.3" y="661" width="4.8" height="15.0" fill="rgb(239,151,4)" rx="2" ry="2" />
+<text  x="1150.35" y="671.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::reserve::do_reserve_and_handle (2 samples, 0.80%)</title><rect x="1104.7" y="373" width="9.5" height="15.0" fill="rgb(224,211,11)" rx="2" ry="2" />
+<text  x="1107.70" y="383.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;alloc::string::String&gt; (1 samples, 0.40%)</title><rect x="488.6" y="437" width="4.8" height="15.0" fill="rgb(217,130,31)" rx="2" ry="2" />
+<text  x="491.63" y="447.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Hasher&lt;S&gt; as core::hash::Hasher&gt;::write (1 samples, 0.40%)</title><rect x="237.5" y="149" width="4.7" height="15.0" fill="rgb(212,112,25)" rx="2" ry="2" />
+<text  x="240.47" y="159.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::select::FilterTerms::collect_next_with_str (2 samples, 0.80%)</title><rect x="493.4" y="453" width="9.5" height="15.0" fill="rgb(214,203,26)" rx="2" ry="2" />
+<text  x="496.37" y="463.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;hashbrown::map::HashMap&lt;*const serde_json::value::Value, (2 samples, 0.80%)</title><rect x="512.3" y="357" width="9.5" height="15.0" fill="rgb(252,51,16)" rx="2" ry="2" />
+<text  x="515.33" y="367.5" ></text>
+</g>
+<g >
+<title>std::panic::catch_unwind (240 samples, 96.39%)</title><rect x="14.7" y="805" width="1137.4" height="15.0" fill="rgb(246,193,23)" rx="2" ry="2" />
+<text  x="17.74" y="815.5" >std::panic::catch_unwind</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::array_start (28 samples, 11.24%)</title><rect x="815.6" y="453" width="132.7" height="15.0" fill="rgb(245,15,31)" rx="2" ry="2" />
+<text  x="818.62" y="463.5" >jsonpath_lib::pa..</text>
+</g>
+<g >
+<title>tcache_put (1 samples, 0.40%)</title><rect x="19.5" y="389" width="4.7" height="15.0" fill="rgb(253,22,35)" rx="2" ry="2" />
+<text  x="22.48" y="399.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawTableInner&lt;A&gt;::bucket (1 samples, 0.40%)</title><rect x="204.3" y="133" width="4.7" height="15.0" fill="rgb(227,93,47)" rx="2" ry="2" />
+<text  x="207.30" y="143.5" ></text>
+</g>
+<g >
+<title>core::hash::impls::&lt;impl core::hash::Hash for *const T&gt;::hash (2 samples, 0.80%)</title><rect x="621.3" y="293" width="9.5" height="15.0" fill="rgb(231,156,32)" rx="2" ry="2" />
+<text  x="624.33" y="303.5" ></text>
+</g>
+<g >
+<title>indexmap::map::core::IndexMapCore&lt;K,V&gt;::get_index_of (1 samples, 0.40%)</title><rect x="303.8" y="229" width="4.8" height="15.0" fill="rgb(221,122,47)" rx="2" ry="2" />
+<text  x="306.82" y="239.5" ></text>
+</g>
+<g >
+<title>&lt;core::slice::iter::Iter&lt;T&gt; as core::iter::traits::iterator::Iterator&gt;::find (3 samples, 1.20%)</title><rect x="237.5" y="325" width="14.2" height="15.0" fill="rgb(247,91,23)" rx="2" ry="2" />
+<text  x="240.47" y="335.5" ></text>
+</g>
+<g >
+<title>int_free (1 samples, 0.40%)</title><rect x="76.3" y="373" width="4.8" height="15.0" fill="rgb(222,16,9)" rx="2" ry="2" />
+<text  x="79.35" y="383.5" ></text>
+</g>
+<g >
+<title>core::hash::impls::&lt;impl core::hash::Hash for str&gt;::hash (2 samples, 0.80%)</title><rect x="569.2" y="309" width="9.5" height="15.0" fill="rgb(223,140,34)" rx="2" ry="2" />
+<text  x="572.20" y="319.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T,A&gt;::extend_desugared (10 samples, 4.02%)</title><rect x="190.1" y="341" width="47.4" height="15.0" fill="rgb(254,98,23)" rx="2" ry="2" />
+<text  x="193.08" y="351.5" >allo..</text>
+</g>
+<g >
+<title>core::core_arch::x86::sse2::mm_set_epi8 (1 samples, 0.40%)</title><rect x="303.8" y="101" width="4.8" height="15.0" fill="rgb(243,146,27)" rx="2" ry="2" />
+<text  x="306.82" y="111.5" ></text>
+</g>
+<g >
+<title>all (249 samples, 100%)</title><rect x="10.0" y="901" width="1180.0" height="15.0" fill="rgb(231,62,54)" rx="2" ry="2" />
+<text  x="13.00" y="911.5" ></text>
+</g>
+<g >
+<title>alloc::alloc::alloc (2 samples, 0.80%)</title><rect x="744.5" y="165" width="9.5" height="15.0" fill="rgb(227,34,0)" rx="2" ry="2" />
+<text  x="747.54" y="175.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::reserve (3 samples, 1.20%)</title><rect x="986.2" y="453" width="14.2" height="15.0" fill="rgb(250,7,52)" rx="2" ry="2" />
+<text  x="989.22" y="463.5" ></text>
+</g>
+<g >
+<title>core::slice::cmp::&lt;impl core::cmp::PartialEq&lt;[B]&gt; for [A]&gt;::eq (1 samples, 0.40%)</title><rect x="275.4" y="69" width="4.7" height="15.0" fill="rgb(232,204,38)" rx="2" ry="2" />
+<text  x="278.38" y="79.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::grow_amortized (1 samples, 0.40%)</title><rect x="526.5" y="309" width="4.8" height="15.0" fill="rgb(243,35,14)" rx="2" ry="2" />
+<text  x="529.55" y="319.5" ></text>
+</g>
+<g >
+<title>&lt;T as alloc::slice::hack::ConvertVec&gt;::to_vec (1 samples, 0.40%)</title><rect x="507.6" y="309" width="4.7" height="15.0" fill="rgb(212,145,5)" rx="2" ry="2" />
+<text  x="510.59" y="319.5" ></text>
+</g>
+<g >
+<title>core::cmp::impls::&lt;impl core::cmp::PartialEq&lt;&amp;B&gt; for &amp;A&gt;::eq (1 samples, 0.40%)</title><rect x="246.9" y="117" width="4.8" height="15.0" fill="rgb(229,136,28)" rx="2" ry="2" />
+<text  x="249.95" y="127.5" ></text>
+</g>
+<g >
+<title>&lt;jsonpath_lib::select::Selector as jsonpath_lib::parser::NodeVisitor&gt;::visit_token (3 samples, 1.20%)</title><rect x="95.3" y="501" width="14.2" height="15.0" fill="rgb(223,206,1)" rx="2" ry="2" />
+<text  x="98.30" y="511.5" ></text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::hash (2 samples, 0.80%)</title><rect x="294.3" y="229" width="9.5" height="15.0" fill="rgb(207,100,18)" rx="2" ry="2" />
+<text  x="297.34" y="239.5" ></text>
+</g>
+<g >
+<title>&lt;indexmap::map::IndexMap&lt;K,V1,S1&gt; as core::cmp::PartialEq&lt;indexmap::map::IndexMap&lt;K,V2,S2&gt;&gt;&gt;::eq (33 samples, 13.25%)</title><rect x="332.2" y="357" width="156.4" height="15.0" fill="rgb(206,124,36)" rx="2" ry="2" />
+<text  x="335.25" y="367.5" >&lt;indexmap::map::Inde..</text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as alloc::vec::spec_from_iter_nested::SpecFromIterNested&lt;T,I&gt;&gt;::from_iter (10 samples, 4.02%)</title><rect x="261.2" y="373" width="47.4" height="15.0" fill="rgb(217,80,6)" rx="2" ry="2" />
+<text  x="264.16" y="383.5" >&lt;all..</text>
+</g>
+<g >
+<title>start (241 samples, 96.79%)</title><rect x="14.7" y="869" width="1142.1" height="15.0" fill="rgb(237,114,28)" rx="2" ry="2" />
+<text  x="17.74" y="879.5" >start</text>
+</g>
+<g >
+<title>alloc::alloc::Global::alloc_impl (2 samples, 0.80%)</title><rect x="744.5" y="181" width="9.5" height="15.0" fill="rgb(224,142,9)" rx="2" ry="2" />
+<text  x="747.54" y="191.5" ></text>
+</g>
+<g >
+<title>entry_SYSCALL_64_after_hwframe (1 samples, 0.40%)</title><rect x="10.0" y="869" width="4.7" height="15.0" fill="rgb(217,221,47)" rx="2" ry="2" />
+<text  x="13.00" y="879.5" ></text>
+</g>
+<g >
+<title>alloc::str::&lt;impl alloc::borrow::ToOwned for str&gt;::to_owned (1 samples, 0.40%)</title><rect x="507.6" y="389" width="4.7" height="15.0" fill="rgb(209,10,44)" rx="2" ry="2" />
+<text  x="510.59" y="399.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;alloc::raw_vec::RawVec&lt;u8&gt;&gt; (1 samples, 0.40%)</title><rect x="488.6" y="405" width="4.8" height="15.0" fill="rgb(210,57,7)" rx="2" ry="2" />
+<text  x="491.63" y="415.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Hasher&lt;S&gt; as core::hash::Hasher&gt;::finish (1 samples, 0.40%)</title><rect x="194.8" y="149" width="4.8" height="15.0" fill="rgb(233,46,54)" rx="2" ry="2" />
+<text  x="197.82" y="159.5" ></text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::get (3 samples, 1.20%)</title><rect x="237.5" y="261" width="14.2" height="15.0" fill="rgb(221,53,14)" rx="2" ry="2" />
+<text  x="240.47" y="271.5" ></text>
+</g>
+<g >
+<title>hashbrown::map::HashMap&lt;K,V,S,A&gt;::contains_key (7 samples, 2.81%)</title><rect x="602.4" y="341" width="33.1" height="15.0" fill="rgb(229,116,21)" rx="2" ry="2" />
+<text  x="605.37" y="351.5" >ha..</text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::current_memory (1 samples, 0.40%)</title><rect x="488.6" y="373" width="4.8" height="15.0" fill="rgb(235,129,22)" rx="2" ry="2" />
+<text  x="491.63" y="383.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Hasher&lt;S&gt; as core::hash::Hasher&gt;::finish (2 samples, 0.80%)</title><rect x="294.3" y="181" width="9.5" height="15.0" fill="rgb(227,79,26)" rx="2" ry="2" />
+<text  x="297.34" y="191.5" ></text>
+</g>
+<g >
+<title>indexmap::map::core::equivalent::{{closure}} (2 samples, 0.80%)</title><rect x="270.6" y="149" width="9.5" height="15.0" fill="rgb(214,80,23)" rx="2" ry="2" />
+<text  x="273.64" y="159.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;core::option::Option&lt;alloc::boxed::Box&lt;jsonpath_lib::parser::Node&gt;&gt;&gt; (11 samples, 4.42%)</title><rect x="29.0" y="389" width="52.1" height="15.0" fill="rgb(206,151,39)" rx="2" ry="2" />
+<text  x="31.96" y="399.5" >core:..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::array (29 samples, 11.65%)</title><rect x="815.6" y="469" width="137.5" height="15.0" fill="rgb(241,125,2)" rx="2" ry="2" />
+<text  x="818.62" y="479.5" >jsonpath_lib::par..</text>
+</g>
+<g >
+<title>alloc::alloc::alloc (1 samples, 0.40%)</title><rect x="90.6" y="373" width="4.7" height="15.0" fill="rgb(213,60,38)" rx="2" ry="2" />
+<text  x="93.56" y="383.5" ></text>
+</g>
+<g >
+<title>alloc::vec::Vec&lt;T,A&gt;::reserve (1 samples, 0.40%)</title><rect x="526.5" y="357" width="4.8" height="15.0" fill="rgb(227,176,52)" rx="2" ry="2" />
+<text  x="529.55" y="367.5" ></text>
+</g>
+<g >
+<title>serde_json::map::Map&lt;alloc::string::String,serde_json::value::Value&gt;::get (1 samples, 0.40%)</title><rect x="498.1" y="437" width="4.8" height="15.0" fill="rgb(212,169,8)" rx="2" ry="2" />
+<text  x="501.11" y="447.5" ></text>
+</g>
+<g >
+<title>&lt;serde_json::map::Map&lt;alloc::string::String,serde_json::value::Value&gt; as core::cmp::PartialEq&gt;::eq (5 samples, 2.01%)</title><rect x="156.9" y="357" width="23.7" height="15.0" fill="rgb(225,122,33)" rx="2" ry="2" />
+<text  x="159.91" y="367.5" >&lt;..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::tokenizer::TokenReader::next_token (1 samples, 0.40%)</title><rect x="872.5" y="309" width="4.7" height="15.0" fill="rgb(249,6,19)" rx="2" ry="2" />
+<text  x="875.49" y="319.5" ></text>
+</g>
+<g >
+<title>core::num::dec2flt::number::Number::try_fast_path (1 samples, 0.40%)</title><rect x="924.6" y="277" width="4.8" height="15.0" fill="rgb(237,172,30)" rx="2" ry="2" />
+<text  x="927.62" y="287.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;[alloc::string::String: 1]&gt; (1 samples, 0.40%)</title><rect x="488.6" y="453" width="4.8" height="15.0" fill="rgb(213,197,54)" rx="2" ry="2" />
+<text  x="491.63" y="463.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;core::option::Option&lt;alloc::boxed::Box&lt;jsonpath_lib::parser::Node&gt;&gt;&gt; (4 samples, 1.61%)</title><rect x="43.2" y="293" width="18.9" height="15.0" fill="rgb(238,141,32)" rx="2" ry="2" />
+<text  x="46.17" y="303.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::Hasher&lt;S&gt; as core::hash::Hasher&gt;::finish (5 samples, 2.01%)</title><rect x="640.3" y="277" width="23.7" height="15.0" fill="rgb(215,168,22)" rx="2" ry="2" />
+<text  x="643.28" y="287.5" >&lt;..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::eat_token (3 samples, 1.20%)</title><rect x="815.6" y="437" width="14.2" height="15.0" fill="rgb(252,143,43)" rx="2" ry="2" />
+<text  x="818.62" y="447.5" ></text>
+</g>
+<g >
+<title>&lt;std::collections::hash::map::DefaultHasher as core::hash::Hasher&gt;::write (4 samples, 1.61%)</title><rect x="346.5" y="197" width="18.9" height="15.0" fill="rgb(208,54,45)" rx="2" ry="2" />
+<text  x="349.47" y="207.5" ></text>
+</g>
+<g >
+<title>core::core_arch::x86::sse2::mm_set_epi8 (5 samples, 2.01%)</title><rect x="431.8" y="117" width="23.7" height="15.0" fill="rgb(254,129,53)" rx="2" ry="2" />
+<text  x="434.77" y="127.5" >c..</text>
+</g>
+<g >
+<title>core::hash::impls::&lt;impl core::hash::Hash for str&gt;::hash (1 samples, 0.40%)</title><rect x="190.1" y="165" width="4.7" height="15.0" fill="rgb(205,63,15)" rx="2" ry="2" />
+<text  x="193.08" y="175.5" ></text>
+</g>
+<g >
+<title>std::collections::hash::set::HashSet&lt;T,S&gt;::contains (7 samples, 2.81%)</title><rect x="602.4" y="373" width="33.1" height="15.0" fill="rgb(239,75,28)" rx="2" ry="2" />
+<text  x="605.37" y="383.5" >st..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::op (7 samples, 2.81%)</title><rect x="848.8" y="357" width="33.2" height="15.0" fill="rgb(223,201,17)" rx="2" ry="2" />
+<text  x="851.80" y="367.5" >js..</text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::path (1 samples, 0.40%)</title><rect x="962.5" y="453" width="4.8" height="15.0" fill="rgb(237,106,6)" rx="2" ry="2" />
+<text  x="965.53" y="463.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::string::String as core::hash::Hash&gt;::hash (4 samples, 1.61%)</title><rect x="346.5" y="229" width="18.9" height="15.0" fill="rgb(228,117,53)" rx="2" ry="2" />
+<text  x="349.47" y="239.5" ></text>
+</g>
+<g >
+<title>&lt;std::collections::hash::map::DefaultHasher as core::hash::Hasher&gt;::finish (2 samples, 0.80%)</title><rect x="294.3" y="213" width="9.5" height="15.0" fill="rgb(214,171,46)" rx="2" ry="2" />
+<text  x="297.34" y="223.5" ></text>
+</g>
+<g >
+<title>&lt;&amp;mut I as core::iter::traits::iterator::Iterator&gt;::next (1 samples, 0.40%)</title><rect x="1100.0" y="437" width="4.7" height="15.0" fill="rgb(229,123,28)" rx="2" ry="2" />
+<text  x="1102.96" y="447.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::finish_grow (1 samples, 0.40%)</title><rect x="995.7" y="405" width="4.7" height="15.0" fill="rgb(236,226,27)" rx="2" ry="2" />
+<text  x="998.70" y="415.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::tokenizer::Tokenizer::next_token (17 samples, 6.83%)</title><rect x="1066.8" y="485" width="80.5" height="15.0" fill="rgb(250,61,17)" rx="2" ry="2" />
+<text  x="1069.79" y="495.5" >jsonpath_..</text>
+</g>
+<g >
+<title>_GI___libc_realloc (1 samples, 0.40%)</title><rect x="995.7" y="341" width="4.7" height="15.0" fill="rgb(234,129,41)" rx="2" ry="2" />
+<text  x="998.70" y="351.5" ></text>
+</g>
+<g >
+<title>hashbrown::raw::bitmask::BitMask::lowest_set_bit (1 samples, 0.40%)</title><rect x="754.0" y="293" width="4.8" height="15.0" fill="rgb(229,206,22)" rx="2" ry="2" />
+<text  x="757.02" y="303.5" ></text>
+</g>
+<g >
+<title>hashbrown::set::HashSet&lt;T,S,A&gt;::contains (7 samples, 2.81%)</title><rect x="602.4" y="357" width="33.1" height="15.0" fill="rgb(221,211,46)" rx="2" ry="2" />
+<text  x="605.37" y="367.5" >ha..</text>
+</g>
+<g >
+<title>indexmap::map::IndexMap&lt;K,V,S&gt;::contains_key (14 samples, 5.62%)</title><rect x="536.0" y="357" width="66.4" height="15.0" fill="rgb(228,14,37)" rx="2" ry="2" />
+<text  x="539.02" y="367.5" >indexma..</text>
+</g>
+<g >
+<title>&lt;std::collections::hash::map::DefaultHasher as core::hash::Hasher&gt;::finish (1 samples, 0.40%)</title><rect x="265.9" y="181" width="4.7" height="15.0" fill="rgb(210,203,51)" rx="2" ry="2" />
+<text  x="268.90" y="191.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;jsonpath_lib::parser::Node&gt; (15 samples, 6.02%)</title><rect x="19.5" y="501" width="71.1" height="15.0" fill="rgb(241,148,40)" rx="2" ry="2" />
+<text  x="22.48" y="511.5" >core::pt..</text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::current_memory (1 samples, 0.40%)</title><rect x="62.1" y="229" width="4.8" height="15.0" fill="rgb(247,125,42)" rx="2" ry="2" />
+<text  x="65.13" y="239.5" ></text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;core::option::Option&lt;alloc::boxed::Box&lt;jsonpath_lib::parser::Node&gt;&gt;&gt; (14 samples, 5.62%)</title><rect x="24.2" y="437" width="66.4" height="15.0" fill="rgb(244,42,21)" rx="2" ry="2" />
+<text  x="27.22" y="447.5" >core::p..</text>
+</g>
+<g >
+<title>ptmalloc_init (1 samples, 0.40%)</title><rect x="1147.3" y="613" width="4.8" height="15.0" fill="rgb(236,41,42)" rx="2" ry="2" />
+<text  x="1150.35" y="623.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::path (1 samples, 0.40%)</title><rect x="891.4" y="309" width="4.8" height="15.0" fill="rgb(248,67,21)" rx="2" ry="2" />
+<text  x="894.45" y="319.5" ></text>
+</g>
+<g >
+<title>jsonpath_lib::parser::Parser::exprs (12 samples, 4.82%)</title><rect x="839.3" y="389" width="56.9" height="15.0" fill="rgb(252,111,4)" rx="2" ry="2" />
+<text  x="842.32" y="399.5" >jsonpa..</text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::grow_amortized (4 samples, 1.61%)</title><rect x="218.5" y="277" width="19.0" height="15.0" fill="rgb(248,44,8)" rx="2" ry="2" />
+<text  x="221.51" y="287.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::alloc::Global as core::alloc::Allocator&gt;::grow (4 samples, 1.61%)</title><rect x="218.5" y="245" width="19.0" height="15.0" fill="rgb(238,162,47)" rx="2" ry="2" />
+<text  x="221.51" y="255.5" ></text>
+</g>
+<g >
+<title>alloc::raw_vec::RawVec&lt;T,A&gt;::allocate_in (1 samples, 0.40%)</title><rect x="90.6" y="421" width="4.7" height="15.0" fill="rgb(248,188,35)" rx="2" ry="2" />
+<text  x="93.56" y="431.5" ></text>
+</g>
+<g >
+<title>alloc::alloc::dealloc (1 samples, 0.40%)</title><rect x="14.7" y="453" width="4.8" height="15.0" fill="rgb(243,197,50)" rx="2" ry="2" />
+<text  x="17.74" y="463.5" ></text>
+</g>
+<g >
+<title>_memmove_avx_unaligned_erms (13 samples, 5.22%)</title><rect x="1000.4" y="453" width="61.6" height="15.0" fill="rgb(254,103,6)" rx="2" ry="2" />
+<text  x="1003.44" y="463.5" >_memmo..</text>
+</g>
+<g >
+<title>hashbrown::raw::RawIterHashInner&lt;A&gt;::new (1 samples, 0.40%)</title><rect x="687.7" y="261" width="4.7" height="15.0" fill="rgb(243,150,7)" rx="2" ry="2" />
+<text  x="690.67" y="271.5" ></text>
+</g>
+<g >
+<title>&lt;core::result::Result&lt;T,E&gt; as core::ops::try_trait::Try&gt;::branch (1 samples, 0.40%)</title><rect x="848.8" y="341" width="4.7" height="15.0" fill="rgb(219,153,36)" rx="2" ry="2" />
+<text  x="851.80" y="351.5" ></text>
+</g>
+<g >
+<title>&lt;std::collections::hash::map::DefaultHasher as core::hash::Hasher&gt;::write (2 samples, 0.80%)</title><rect x="569.2" y="293" width="9.5" height="15.0" fill="rgb(235,82,40)" rx="2" ry="2" />
+<text  x="572.20" y="303.5" ></text>
+</g>
+<g >
+<title>serde_json::map::Map&lt;alloc::string::String,serde_json::value::Value&gt;::get (3 samples, 1.20%)</title><rect x="265.9" y="245" width="14.2" height="15.0" fill="rgb(251,220,1)" rx="2" ry="2" />
+<text  x="268.90" y="255.5" ></text>
+</g>
+<g >
+<title>&lt;core::hash::sip::SipHasher13 as core::hash::Hasher&gt;::finish (1 samples, 0.40%)</title><rect x="265.9" y="165" width="4.7" height="15.0" fill="rgb(241,178,19)" rx="2" ry="2" />
+<text  x="268.90" y="175.5" ></text>
+</g>
+<g >
+<title>core::str::traits::&lt;impl core::cmp::PartialEq for str&gt;::eq (1 samples, 0.40%)</title><rect x="246.9" y="133" width="4.8" height="15.0" fill="rgb(230,10,7)" rx="2" ry="2" />
+<text  x="249.95" y="143.5" ></text>
+</g>
+<g >
+<title>&lt;jsonpath_lib::select::Selector as jsonpath_lib::parser::NodeVisitor&gt;::visit_token (145 samples, 58.23%)</title><rect x="114.3" y="485" width="687.1" height="15.0" fill="rgb(211,96,26)" rx="2" ry="2" />
+<text  x="117.26" y="495.5" >&lt;jsonpath_lib::select::Selector as jsonpath_lib::parser::NodeVisitor&gt;::visit_token</text>
+</g>
+<g >
+<title>core::ptr::drop_in_place&lt;alloc::raw_vec::RawVec&lt;jsonpath_lib::parser::ParseToken&gt;&gt; (1 samples, 0.40%)</title><rect x="14.7" y="501" width="4.8" height="15.0" fill="rgb(243,59,41)" rx="2" ry="2" />
+<text  x="17.74" y="511.5" ></text>
+</g>
+<g >
+<title>std::sys::unix::alloc::&lt;impl core::alloc::global::GlobalAlloc for std::alloc::System&gt;::alloc (1 samples, 0.40%)</title><rect x="507.6" y="181" width="4.7" height="15.0" fill="rgb(217,188,5)" rx="2" ry="2" />
+<text  x="510.59" y="191.5" ></text>
+</g>
+<g >
+<title>core::iter::traits::iterator::Iterator::all::check::{{closure}} (32 samples, 12.85%)</title><rect x="337.0" y="309" width="151.6" height="15.0" fill="rgb(252,79,0)" rx="2" ry="2" />
+<text  x="339.99" y="319.5" >core::iter::traits:..</text>
+</g>
+<g >
+<title>hashbrown::raw::inner::RawTableInner&lt;A&gt;::probe_seq (2 samples, 0.80%)</title><rect x="422.3" y="149" width="9.5" height="15.0" fill="rgb(232,144,13)" rx="2" ry="2" />
+<text  x="425.29" y="159.5" ></text>
+</g>
+<g >
+<title>alloc::slice::hack::to_vec (1 samples, 0.40%)</title><rect x="507.6" y="325" width="4.7" height="15.0" fill="rgb(229,106,5)" rx="2" ry="2" />
+<text  x="510.59" y="335.5" ></text>
+</g>
+<g >
+<title>int_free (2 samples, 0.80%)</title><rect x="512.3" y="245" width="9.5" height="15.0" fill="rgb(221,92,29)" rx="2" ry="2" />
+<text  x="515.33" y="255.5" ></text>
+</g>
+<g >
+<title>&lt;alloc::vec::Vec&lt;T&gt; as core::iter::traits::collect::FromIterator&lt;T&gt;&gt;::from_iter (10 samples, 4.02%)</title><rect x="261.2" y="405" width="47.4" height="15.0" fill="rgb(216,128,12)" rx="2" ry="2" />
+<text  x="264.16" y="415.5" >&lt;all..</text>
+</g>
+</g>
+</svg>

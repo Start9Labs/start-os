@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "core",
+    "macro",
+    "macro-internals",
+    "util",
+    "json-patch",
+    "json-ptr",
+]

@@ -1,0 +1,48 @@
+[package]
+authors = ["Aiden McClelland <aiden@start9labs.com>"]
+categories = ["database-implementations"]
+description = "A database that tracks state updates as RFC 6902 JSON Patches"
+edition = "2018"
+keywords = ["json", "json-patch", "json-pointer"]
+license = "MIT"
+name = "patch-db"
+readme = "README.md"
+repository = "https://github.com/Start9Labs/patch-db"
+version = "0.1.0"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+debug = ["tracing"]
+trace = ["debug", "tracing-error"]
+unstable = []
+
+[dependencies]
+async-trait = "0.1.42"
+serde_cbor = { package = "serde_cbor_2", git = "https://github.com/dr-bonez/cbor.git" }
+fd-lock-rs = "0.1.3"
+futures = "0.3.8"
+imbl = "6"
+imbl-value = { path = "../../imbl-value" }
+json-patch = { path = "../json-patch" }
+json-ptr = { path = "../json-ptr" }
+lazy_static = "1.4.0"
+nix = "0.30.1"
+patch-db-macro = { path = "../macro" }
+serde = { version = "1", features = ["rc"] }
+thiserror = "2"
+tokio = { version = "1", features = ["fs", "io-util", "macros", "rt", "sync"] }
+tracing = { version = "0.1.29", optional = true }
+tracing-error = { version = "0.2.0", optional = true }
+
+[dev-dependencies]
+proptest = "1.0.0"
+rand = "0.9.1"
+serde = { version = "1.0.118", features = ["derive", "rc"] }
+tokio = { version = "1.0.1", features = [
+    "fs",
+    "io-util",
+    "macros",
+    "rt",
+    "rt-multi-thread",
+    "sync",
+] }

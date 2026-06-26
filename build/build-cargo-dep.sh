@@ -20,7 +20,12 @@ source shared-libs/crates/start-core/build/builder-alias.sh
 
 RUSTFLAGS="-C target-feature=+crt-static"
 
-rust-zig-builder cargo-zigbuild install $* --target-dir /workdir/target/ --target=$RUST_ARCH-unknown-linux-musl
+# pi-beep is vendored in-repo (workspace member); others install from crates.io.
+INSTALL_SPEC="$*"
+if [ "$1" = "pi-beep" ]; then
+  INSTALL_SPEC="--path shared-libs/crates/pi-beep"
+fi
+rust-zig-builder cargo-zigbuild install $INSTALL_SPEC --target-dir /workdir/target/ --target=$RUST_ARCH-unknown-linux-musl
 if [ "$(ls -nd "target/$RUST_ARCH-unknown-linux-musl/release/${!#}" | awk '{ print $3 }')" != "$UID" ]; then
   rust-zig-builder sh -c "chown -R $UID:$UID target && chown -R $UID:$UID  /usr/local/cargo"
 fi

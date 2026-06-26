@@ -31,9 +31,9 @@ clean:
 	rm -rf projects/start-os/web/dist
 	rm -rf projects/start-tunnel/web/dist
 	rm -rf projects/brochure-marketplace/dist
-	rm -rf vendor/patch-db/client/node_modules
-	rm -rf vendor/patch-db/client/dist
-	rm -rf vendor/patch-db/target
+	rm -rf shared-libs/crates/patch-db/client/node_modules
+	rm -rf shared-libs/crates/patch-db/client/dist
+	rm -rf shared-libs/crates/patch-db/target
 	rm -rf target
 	rm -rf dpkg-workdir
 	rm -rf image-recipe/deb

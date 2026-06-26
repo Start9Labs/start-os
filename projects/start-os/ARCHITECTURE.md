@@ -117,7 +117,7 @@ container-runtime see the change.
 
 ## Data flow: backend → frontend
 
-StartOS uses Patch-DB (`../vendor/patch-db`) for reactive sync:
+StartOS uses Patch-DB (`../../shared-libs/crates/patch-db`) for reactive sync:
 
 1. The backend mutates state via `db.mutate()`, producing CBOR diffs.
 2. Diffs are pushed to the frontend over a persistent WebSocket.

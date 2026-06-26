@@ -2,13 +2,20 @@
 resolver = "3"
 members = [
   "shared-libs/crates/start-core",
+  "shared-libs/crates/exver",
+  "shared-libs/crates/imbl-value",
+  "shared-libs/crates/yasi",
+  "shared-libs/crates/rpc-toolkit",
+  "shared-libs/crates/jsonpath",
+  "shared-libs/crates/pi-beep",
   "projects/start-os",
   "projects/start-os/backup-fs",
   "projects/start-cli",
   "projects/start-registry",
   "projects/start-tunnel",
 ]
-exclude = ["vendor/patch-db"]
+# patch-db carries its own [workspace]; consumed by start-core via a path dep.
+exclude = ["shared-libs/crates/patch-db"]
 
 [profile.test]
 opt-level = 3

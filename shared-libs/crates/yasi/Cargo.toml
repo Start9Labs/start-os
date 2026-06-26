@@ -1,0 +1,22 @@
+[package]
+authors = ["Aiden McClelland <me@drbonez.dev>"]
+name = "yasi"
+version = "0.1.12"
+edition = "2024"
+description = "Yet Another String Interner"
+license = "MIT"
+documentation = "https://docs.rs/yasi"
+repository = "https://github.com/Start9Labs/yasi.git"
+keywords = ["arc", "intern", "string", "display"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+default = []
+
+[dependencies]
+hashbrown = { version = "0.13", features = ["raw"] }
+lazy_static = "1.5"
+serde = { version = "1", optional = true }
+ts-rs = { version = "9", optional = true }
+tinyvec = "1.10"
+xxhash-rust = { version = "0.8.15", features = ["xxh3"] }

@@ -1,4 +1,0 @@
-[submodule "patch-db"]
-	path = vendor/patch-db
-	url = https://github.com/Start9Labs/patch-db.git
-	branch = develop

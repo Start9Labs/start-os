@@ -7,7 +7,7 @@ This repo is the **monorepo for all Start9 products**. Each product is a thin to
 - Backend: Rust (async/Tokio, Axum) — one library crate (`start-core`, lib name `start_core`) shared by all bins
 - Frontend: Angular 22 + TypeScript + Taiga UI 5 — one workspace rooted at `shared-libs/web`
 - Container runtime: Node.js/TypeScript with LXC
-- Database/State: Patch-DB (git submodule at `vendor/patch-db`) — diff-based store with reactive frontend sync
+- Database/State: Patch-DB (vendored at `shared-libs/crates/patch-db`) — diff-based store with reactive frontend sync
 - API: JSON-RPC via rpc-toolkit (see `shared-libs/crates/start-core/rpc-toolkit.md`)
 - Auth: password + session cookie, public/private key signatures, local authcookie (see `shared-libs/crates/start-core/src/middleware/auth/`)
 
@@ -34,7 +34,7 @@ start-os/                          # repo root (monorepo)
 │   └── web/                       # Angular workspace root (angular.json, package.json)
 │       ├── shared/                #   @start9labs/shared
 │       └── marketplace/           #   @start9labs/marketplace
-├── vendor/patch-db/               # git submodule (Rust core + TS client)
+├── shared-libs/crates/patch-db/               # vendored Start9 crate (Rust core + TS client)
 ├── Cargo.toml  Cargo.lock         # one root Cargo workspace
 └── Makefile                       # top-level build/test/deploy targets
 ```
@@ -55,11 +55,11 @@ start-os/                          # repo root (monorepo)
 
 - **`projects/start-sdk/`** — TypeScript SDK for packaging services (`@start9labs/start-sdk`). Kept cohesive: `base/` (core types, ABI, effects interface — consumed by web as `@start9labs/start-sdk-base`) and `package/` (full SDK for service developers — consumed by container-runtime as `@start9labs/start-sdk`). Its `Makefile`/`s9pk.mk` is the source of truth for the published tarball.
 
-- **`vendor/patch-db/`** — git submodule providing diff-based state sync (CBOR encoded). Backend mutations produce diffs pushed to the frontend over WebSocket for reactive UI. See the [patch-db repo](https://github.com/Start9Labs/patch-db).
+- **`shared-libs/crates/patch-db/`** — vendored Start9 crate providing diff-based state sync (CBOR encoded). Backend mutations produce diffs pushed to the frontend over WebSocket for reactive UI. See the [patch-db repo](https://github.com/Start9Labs/patch-db).
 
 ## Build pipeline
 
-One root Cargo workspace (members: the product bin crates + `shared-libs/crates/start-core`; `vendor/patch-db` excluded) and one Angular workspace at `shared-libs/web`. Cross-layer changes flow in one direction:
+One root Cargo workspace (members: the product bin crates + `shared-libs/crates/start-core`; `shared-libs/crates/patch-db` excluded) and one Angular workspace at `shared-libs/web`. Cross-layer changes flow in one direction:
 
 ```
 Rust (shared-libs/crates/start-core)

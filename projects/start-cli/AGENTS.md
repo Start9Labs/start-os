@@ -39,7 +39,7 @@ generator is `cargo test -p start-core export_manpage_start_cli`.
   `MultiExecutable` multiplexer. The standalone bin here enables only the `start-cli` sub-bin.
 - **Stale paths:** older docs referenced `core/`, `web/`, `sdk/`, `patch-db/` at the repo root.
   They now live at `shared-libs/crates/start-core`, `shared-libs/web` + product `web/`, `start-sdk`,
-  `vendor/patch-db`. Use the new paths.
+  `shared-libs/crates/patch-db`. Use the new paths.
 
 ## Verifying a command
 

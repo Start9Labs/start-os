@@ -41,7 +41,7 @@ npm run format:check
 
 - `build:deps` must run before any typecheck/build: `@start9labs/start-sdk`
   resolves to `../../start-sdk/baseDist` and `patch-db-client` to
-  `../../vendor/patch-db/client`.
+  `../../shared-libs/crates/patch-db/client`.
 - Changes to `web/shared` or `web/marketplace` affect every app — run the full
   `npm run check` (it covers all projects) before opening a PR.
 - Web UI work follows Taiga UI 5 conventions and mandatory i18n; see

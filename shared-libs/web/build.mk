@@ -1,4 +1,4 @@
-WEB_SHARED_SRC := $(call ls-files, shared-libs/web/shared) $(call ls-files, shared-libs/web/marketplace) $(shell ls -p shared-libs/web/ | grep -v / | sed 's|^|shared-libs/web/|g') package.json angular.json tsconfig.json tsconfig.lib.json node_modules/.package-lock.json config.json vendor/patch-db/client/dist/index.js projects/start-sdk/baseDist/package.json projects/start-os/web/patchdb-ui-seed.json projects/start-sdk/dist/package.json
+WEB_SHARED_SRC := $(call ls-files, shared-libs/web/shared) $(call ls-files, shared-libs/web/marketplace) $(shell ls -p shared-libs/web/ | grep -v / | sed 's|^|shared-libs/web/|g') package.json angular.json tsconfig.json tsconfig.lib.json node_modules/.package-lock.json config.json shared-libs/crates/patch-db/client/dist/index.js projects/start-sdk/baseDist/package.json projects/start-os/web/patchdb-ui-seed.json projects/start-sdk/dist/package.json
 WEB_UI_SRC := $(call ls-files, projects/start-os/web/ui)
 WEB_SETUP_WIZARD_SRC := $(call ls-files, projects/start-os/web/setup-wizard)
 WEB_START_TUNNEL_SRC := $(call ls-files, projects/start-tunnel/web)
@@ -13,7 +13,7 @@ node_modules/.package-lock.json: package-lock.json
 	npm --prefix . ci
 	touch node_modules/.package-lock.json
 
-.angular/.updated: vendor/patch-db/client/dist/index.js projects/start-sdk/baseDist/package.json node_modules/.package-lock.json
+.angular/.updated: shared-libs/crates/patch-db/client/dist/index.js projects/start-sdk/baseDist/package.json node_modules/.package-lock.json
 	rm -rf .angular
 	mkdir -p .angular
 	touch .angular/.updated
