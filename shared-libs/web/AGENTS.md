@@ -23,7 +23,7 @@ Gotchas:
 
 - `@start9labs/start-sdk` and `patch-db-client` are `file:` deps built by `build:deps`; a fresh checkout won't type-check until you run it.
 - There is no unit-test runner wired up — `npm run check` (tsc, strict + strictTemplates) plus a successful `build:*` is the verification bar.
-- `shared-libs/crates/patch-db` is a vendored Start9 crate; `build:deps` runs `npm ci && npm run build` inside it.
+- `shared-libs/crates/patch-db` is a first-party crate; `build:deps` runs `npm ci && npm run build` inside it.
 
 ## Operating rules
 

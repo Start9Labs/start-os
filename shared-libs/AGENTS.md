@@ -53,7 +53,7 @@ npm run format:check                 # prettier
 - **`build:deps` is a prerequisite.** `@start9labs/start-sdk` resolves to
   `../../start-sdk/baseDist` and `patch-db-client` to `../../shared-libs/crates/patch-db/client`;
   both must be built before typecheck/build will succeed.
-- **patch-db is a vendored Start9 crate** at repo-root `shared-libs/crates/patch-db/` (not the old
+- **patch-db is a first-party crate** at repo-root `shared-libs/crates/patch-db/` (not the old
   root `patch-db/`). start-core consumes its Rust `core`; web consumes its
   TS `client`.
 - **Web UI work is Taiga UI 5 first** — see `web/AGENTS.md`; don't hand-roll

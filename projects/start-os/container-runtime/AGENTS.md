@@ -39,4 +39,4 @@ Tests are Jest + `ts-jest` (`jest.config.js`, `rootDir: ./src`). `mime` is mocke
 
 ## Stale-path note (monorepo)
 
-Pre-monorepo docs referenced `core/`, `sdk/`, `web/`, `patch-db/`, `container-runtime/` at the repo root. Current locations: host lib `shared-libs/crates/start-core`, SDK `start-sdk`, Angular `shared-libs/web` + product `web/` dirs, this runtime `start-os/container-runtime`, vendored `shared-libs/crates/patch-db`.
+Pre-monorepo docs referenced `core/`, `sdk/`, `web/`, `patch-db/`, `container-runtime/` at the repo root. Current locations: host lib `shared-libs/crates/start-core`, SDK `start-sdk`, Angular `shared-libs/web` + product `web/` dirs, this runtime `start-os/container-runtime`, first-party `shared-libs/crates/patch-db`.

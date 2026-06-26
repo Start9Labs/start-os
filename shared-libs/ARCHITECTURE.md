@@ -23,7 +23,7 @@ All product binaries are thin wrappers that depend on this crate:
 Key module groups under `crates/start-core/src/` include `bins`, `service`,
 `s9pk`, `net`, `db`, `install`, `update`, `lxc`, `os_install`, `backup`, `sign`,
 `version`, `registry`, and `tunnel`. It consumes the patch-db Rust core from the
-vendored `shared-libs/crates/patch-db/` (`patch-db = { path = "../patch-db/core" }`).
+first-party `shared-libs/crates/patch-db/` (`patch-db = { path = "../patch-db/core" }`).
 See [`crates/start-core/ARCHITECTURE.md`](crates/start-core/ARCHITECTURE.md) for
 the internal design.
 
@@ -50,7 +50,7 @@ App projects defined in `web/angular.json` (`ui`, `setup-wizard`, `start-tunnel`
 ## Data flow
 
 ```
-shared-libs/crates/patch-db (vendored)
+shared-libs/crates/patch-db (first-party)
   ├── core  ──────────────► crates/start-core (Rust) ──► product binaries
   └── client ─────────────► web/* (Angular)        ──► product web apps
                                   ▲

@@ -184,10 +184,12 @@ target/$(RUST_ARCH)-unknown-linux-musl/release/startos-backup-fs: $(call ls-file
 	ARCH=$(ARCH) PROFILE=release ./shared-libs/crates/start-core/build/build-backup-fs.sh
 	touch $@
 
-# --- external cargo tools bundled into the OS image ---
-target/aarch64-unknown-linux-musl/release/pi-beep: ./build/build-cargo-dep.sh
-	ARCH=aarch64 ./build/build-cargo-dep.sh pi-beep
+# --- pi-beep: first-party crate, built like the other in-repo bins ---
+target/aarch64-unknown-linux-musl/release/pi-beep: $(call ls-files, shared-libs/crates/pi-beep) $(ENVIRONMENT_FILE)
+	ARCH=aarch64 PROFILE=release ./shared-libs/crates/start-core/build/build-pi-beep.sh
+	touch $@
 
+# --- external cargo dev tools (crates.io) bundled into unstable/console images ---
 target/$(RUST_ARCH)-unknown-linux-musl/release/tokio-console: ./build/build-cargo-dep.sh
 	ARCH=$(ARCH) ./build/build-cargo-dep.sh tokio-console
 	touch $@
