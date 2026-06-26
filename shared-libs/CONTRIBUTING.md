@@ -26,7 +26,7 @@ cd shared-libs/crates/start-core && ./run-tests.sh
   and the topic notes (`core-rust-patterns.md`, `patchdb.md`, `rpc-toolkit.md`,
   `i18n-patterns.md`, `VERSION_BUMP.md`).
 
-## web (Angular)
+## ts-modules (Angular)
 
 The single Angular workspace root for every front end in the monorepo.
 
@@ -40,12 +40,12 @@ npm run format:check
 ```
 
 - `build:deps` must run before any typecheck/build: `@start9labs/start-sdk`
-  resolves to `../../start-sdk/baseDist` and `patch-db-client` to
-  `../../shared-libs/crates/patch-db/client`.
-- Changes to `web/shared` or `web/marketplace` affect every app — run the full
+  resolves to `projects/start-sdk/baseDist` and `patch-db-client` to
+  `shared-libs/crates/patch-db/client`.
+- Changes to `ts-modules/shared` or `ts-modules/marketplace` affect every app — run the full
   `npm run check` (it covers all projects) before opening a PR.
 - Web UI work follows Taiga UI 5 conventions and mandatory i18n; see
-  [`web/CONTRIBUTING.md`](web/CONTRIBUTING.md) and `web/AGENTS.md`.
+  [`ts-modules/CONTRIBUTING.md`](ts-modules/CONTRIBUTING.md) and `ts-modules/AGENTS.md`.
 
 ## Conventions
 

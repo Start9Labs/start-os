@@ -38,9 +38,9 @@ cargo check -p start-os        # verify the OS bins compile (startbox, start-con
 make ui                        # build the admin UI
 make uis                       # build ui + setup-wizard
 make all                       # build everything for the current platform
-make $(IMAGE_TYPE)             # build the OS image (iso; img on Raspberry Pi)
+make startos-$(IMAGE_TYPE)     # build the OS image (iso; img on Raspberry Pi)
 make cli / make cli-deb        # build start-cli / its .deb (install-cli stages into DESTDIR)
-make deb / make squashfs       # package outputs
+make startos-deb / make startos-squashfs   # package outputs
 ```
 
 The web UIs are embedded into `startbox` at compile time, so the web build must
@@ -48,8 +48,8 @@ precede the Rust build — always go through the `Makefile`, which encodes the
 ordering. For faster iteration use `./devmode.sh` / dev mode (see root
 CONTRIBUTING) and `cd shared-libs/ts-modules && npm run start:ui`.
 
-Deploy/flash targets (`update*`, `reflash`, `wormhole*`, `emulate-reflash`) push
-to a live device and are slow/destructive — be deliberate.
+Deploy/flash targets (`startos-update*`, `startos-wormhole*`, `startos-emulate-reflash`)
+push to a live device and are slow/destructive — be deliberate.
 
 ## Cross-layer changes
 

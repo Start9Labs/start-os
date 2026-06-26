@@ -50,8 +50,8 @@ When a Rust type needs to be available in TypeScript (for the web frontend or SD
 2. Use `#[serde(rename_all = "camelCase")]` for JS-friendly field names
 3. For types that don't implement TS (like `DateTime<Utc>`, `exver::Version`), use `#[ts(type = "string")]` overrides
 4. For `u64` fields that should be JS `number` (not `bigint`), use `#[ts(type = "number")]`
-5. Run `make ts-bindings` to regenerate — files appear in `shared-libs/crates/start-core/bindings/` then sync to `start-sdk/base/lib/osBindings/`
-6. Rebuild the SDK: `cd start-sdk && make baseDist dist`
+5. Run `make ts-bindings` to regenerate — files appear in `shared-libs/crates/start-core/bindings/` then sync to `projects/start-sdk/base/lib/osBindings/`
+6. Rebuild the SDK: `cd projects/start-sdk && make baseDist dist`
 
 ## Adding i18n Keys
 
