@@ -30,14 +30,28 @@ on:
     branches:
       - master
       - next/*
-    paths-ignore:
-      - "**/*.md"
+    paths:
+      - "projects/start-registry/**"
+      - "shared-libs/crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build/**"
+      - "debian/**"
+      - ".github/workflows/start-registry.yaml"
+      - ".github/actions/setup-build/**"
   pull_request:
     branches:
       - master
       - next/*
-    paths-ignore:
-      - "**/*.md"
+    paths:
+      - "projects/start-registry/**"
+      - "shared-libs/crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build/**"
+      - "debian/**"
+      - ".github/workflows/start-registry.yaml"
+      - ".github/actions/setup-build/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}

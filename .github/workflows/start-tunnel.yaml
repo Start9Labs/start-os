@@ -30,14 +30,38 @@ on:
     branches:
       - master
       - next/*
-    paths-ignore:
-      - "**/*.md"
+    paths:
+      - "projects/start-tunnel/**"
+      - "shared-libs/crates/**"
+      - "shared-libs/web/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "angular.json"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "build/**"
+      - "debian/**"
+      - ".github/workflows/start-tunnel.yaml"
+      - ".github/actions/setup-build/**"
   pull_request:
     branches:
       - master
       - next/*
-    paths-ignore:
-      - "**/*.md"
+    paths:
+      - "projects/start-tunnel/**"
+      - "shared-libs/crates/**"
+      - "shared-libs/web/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "angular.json"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "build/**"
+      - "debian/**"
+      - ".github/workflows/start-tunnel.yaml"
+      - ".github/actions/setup-build/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}

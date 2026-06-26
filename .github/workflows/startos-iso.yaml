@@ -43,14 +43,40 @@ on:
     branches:
       - master
       - next/*
-    paths-ignore:
-      - "**/*.md"
+    paths:
+      - "projects/start-os/**"
+      - "shared-libs/**"
+      - "projects/start-sdk/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "angular.json"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "build/**"
+      - "debian/**"
+      - "apt/**"
+      - ".github/workflows/startos-iso.yaml"
+      - ".github/actions/setup-build/**"
   pull_request:
     branches:
       - master
       - next/*
-    paths-ignore:
-      - "**/*.md"
+    paths:
+      - "projects/start-os/**"
+      - "shared-libs/**"
+      - "projects/start-sdk/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "angular.json"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "build/**"
+      - "debian/**"
+      - "apt/**"
+      - ".github/workflows/startos-iso.yaml"
+      - ".github/actions/setup-build/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
