@@ -48,7 +48,7 @@ Defaults: listen `127.0.0.1:5959`, datadir `/var/lib/startos` (state in `<datadi
 
 - **Don't put logic here.** New registry behavior belongs in `shared-libs/crates/start-core/src/registry/`. This crate should stay a wrapper.
 - **`registrybox` (bin) vs `start-registry`/`start-registryd` (install names).** The Cargo bin is `registrybox`; the runtime names are symlinks created at install time. The service file references `/usr/bin/start-registryd`, which only exists after `install-registry` symlinks it.
-- **Version:** `Cargo.toml` `version` carries a `# VERSION_BUMP` marker tied to the OS release line (currently `0.4.0-beta.10`). Don't bump it in isolation — it tracks the monorepo release.
+- **Version:** `start-registry` is versioned **independently** in `Cargo.toml` (currently `1.0.0`), no longer tied to the StartOS release line. The `.deb` version and `basename.sh` read it straight from the manifest; bump it on its own cadence.
 - **`registry_api` is shared by server and CLI.** Adding a subcommand in `registry/mod.rs` with `with_call_remote::<CliContext>()` exposes it both over RPC and through the `start-registry` CLI.
 - **Auth:** the RPC route uses local + signature auth; admin-only commands (e.g. metrics) are tagged `with_metadata("admin", true)`.
 - **Cross-platform builds.** CI builds musl targets for x86_64/aarch64/riscv64; local `cargo check` is host-only, so platform-specific breaks can slip through (verify against `start-core` CI when touching deps/platform APIs).

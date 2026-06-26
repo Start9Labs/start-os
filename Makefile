@@ -13,7 +13,7 @@ include projects/start-tunnel/build.mk
 include projects/start-os/build.mk
 include projects/start-docs/build.mk
 
-.PHONY: all startos metadata install-startos clean format format-check install-cli cli uis ui startos-emulate-reflash startos-deb startos-$(IMAGE_TYPE) startos-squashfs startos-wormhole startos-wormhole-deb startos-update test test-core test-sdk test-container-runtime registry install-registry tunnel install-tunnel ts-bindings
+.PHONY: all startos metadata install-startos clean format format-check install-cli cli cli-deb uis ui startos-emulate-reflash startos-deb startos-$(IMAGE_TYPE) startos-squashfs startos-wormhole startos-wormhole-deb startos-update test test-core test-sdk test-container-runtime registry install-registry tunnel install-tunnel ts-bindings
 
 all: startos
 

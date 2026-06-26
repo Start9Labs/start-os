@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
+- **Independent versioning.** `start-tunnel` now carries its own version (starting at `1.0.0`) in its `Cargo.toml`, decoupled from the StartOS release line; its `.deb` is versioned from the manifest.
+
 ### Changed
 
 - Relocated into the `start-os` monorepo as the `start-tunnel` product. The

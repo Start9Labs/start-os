@@ -11,6 +11,7 @@ ARCH := $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo aarch64; elif [ 
 RUST_ARCH := $(shell if [ "$(ARCH)" = "riscv64" ]; then echo riscv64gc; else echo $(ARCH); fi)
 REGISTRY_BASENAME := $(shell PROJECT=start-registry PLATFORM=$(ARCH) ./build/env/basename.sh)
 TUNNEL_BASENAME := $(shell PROJECT=start-tunnel PLATFORM=$(ARCH) ./build/env/basename.sh)
+CLI_BASENAME := $(shell PROJECT=start-cli PLATFORM=$(ARCH) ./build/env/basename.sh)
 CORE_SRC := $(call ls-files, shared-libs/crates/start-core) $(shell git ls-files --recurse-submodules vendor/patch-db) $(GIT_HASH_FILE)
 PATCH_DB_CLIENT_SRC := $(shell git ls-files --recurse-submodules vendor/patch-db/client)
 GZIP_BIN := $(shell which pigz || which gzip)

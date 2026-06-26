@@ -1,8 +1,12 @@
 # Changelog
 
-All notable changes to `start-registry` (the Start Registry server) are documented here. This project's version (`Cargo.toml`) tracks the StartOS release line. Format follows [Keep a Changelog](https://keepachangelog.com/).
+All notable changes to `start-registry` (the Start Registry server) are documented here. This project is versioned **independently** (starting at `1.0.0`); its version lives in `Cargo.toml`. Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
+
+## [1.0.0]
+
+- **Independent versioning.** `start-registry` now carries its own version (starting at `1.0.0`) in its `Cargo.toml`, decoupled from the StartOS release line; its `.deb` is versioned from the manifest.
 
 ## [0.4.0-beta.10] — StartOS 0.4.0-beta.10
 

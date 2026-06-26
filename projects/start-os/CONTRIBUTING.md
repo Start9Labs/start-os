@@ -39,7 +39,7 @@ make ui                        # build the admin UI
 make uis                       # build ui + setup-wizard
 make all                       # build everything for the current platform
 make $(IMAGE_TYPE)             # build the OS image (iso; img on Raspberry Pi)
-make cli / make install-cli    # build / install start-cli
+make cli / make cli-deb        # build start-cli / its .deb (install-cli stages into DESTDIR)
 make deb / make squashfs       # package outputs
 ```
 

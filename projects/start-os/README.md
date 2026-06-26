@@ -64,7 +64,7 @@ make all                                 # build everything for the current plat
 make $(IMAGE_TYPE)                       # build the OS image (iso, or img on Pi)
 ```
 
-`make` targets relevant to this product: `ui`, `uis`, `cli`, `install-cli`,
+`make` targets relevant to this product: `ui`, `uis`, `cli`, `cli-deb`, `install-cli`,
 `deb`, `squashfs`, `update*`/`reflash`/`wormhole*` (deploy to a live device —
 slow and destructive). Run `make test` for the full Rust + SDK + runtime test
 suite.

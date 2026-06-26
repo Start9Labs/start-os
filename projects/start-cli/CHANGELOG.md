@@ -1,14 +1,24 @@
 # Changelog
 
 All notable changes to `start-cli` are documented here. The format is based on
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the crate version tracks the
-StartOS release version.
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/). As of 1.0.0 the crate is
+versioned **independently** of the StartOS release line (it was previously pinned to
+the OS version).
 
 Because `start-cli` is a thin client over `start-core`, most user-visible CLI changes originate
 in `start-core`; record here anything that changes this crate's entrypoint, features, packaging,
 or the CLI's externally observable behavior.
 
 ## [Unreleased]
+
+## [1.0.0]
+
+- **Independent versioning.** `start-cli` now carries its own version (starting at
+  `1.0.0`) in its `Cargo.toml`, decoupled from the StartOS release line.
+- **Debian package.** `start-cli` is now packaged as a `.deb` (`make cli-deb`), so it
+  can be installed and updated via apt. The build version is read from the crate
+  manifest. `make install-cli` now stages the binary into `DESTDIR` for packaging; for
+  a local PATH install run `build-cli.sh --install`.
 
 ## [0.4.0-beta.10]
 
