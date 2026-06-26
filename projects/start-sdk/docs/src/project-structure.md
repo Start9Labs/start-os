@@ -68,7 +68,7 @@ These files typically require minimal modification:
 
 ### .github/workflows/
 
-Every package should include three GitHub Actions workflows that delegate to [shared-workflows](https://github.com/start9labs/shared-workflows). The CI pipeline has two automatic stages, plus an optional manual path:
+Every package should include three GitHub Actions workflows that delegate to the reusable CI workflows in this monorepo (`.github/workflows/`, migrated from the old `shared-workflows` repo). The CI pipeline has two automatic stages, plus an optional manual path:
 
 ```
 PR opened/updated ──> Build
@@ -96,7 +96,7 @@ concurrency:
 jobs:
   build:
     if: github.event.pull_request.draft == false
-    uses: start9labs/shared-workflows/.github/workflows/build.yml@master
+    uses: Start9Labs/start-os/.github/workflows/build.yml@master
     secrets:
       DEV_KEY: ${{ secrets.DEV_KEY }}
 ```
@@ -117,7 +117,7 @@ concurrency:
 
 jobs:
   tag-and-release:
-    uses: start9labs/shared-workflows/.github/workflows/tagAndRelease.yml@master
+    uses: Start9Labs/start-os/.github/workflows/tagAndRelease.yml@master
     with:
       REFERENCE_REGISTRY: ${{ vars.REFERENCE_REGISTRY }}
       RELEASE_REGISTRY: ${{ vars.RELEASE_REGISTRY }}
@@ -142,7 +142,7 @@ on:
 
 jobs:
   release:
-    uses: start9labs/shared-workflows/.github/workflows/release.yml@master
+    uses: Start9Labs/start-os/.github/workflows/release.yml@master
     with:
       RELEASE_REGISTRY: ${{ vars.RELEASE_REGISTRY }}
       S3_S9PKS_BASE_URL: ${{ vars.S3_S9PKS_BASE_URL }}

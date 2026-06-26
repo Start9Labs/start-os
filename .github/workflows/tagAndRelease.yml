@@ -1,0 +1,131 @@
+name: Tag and Release
+
+on:
+  workflow_call:
+    inputs:
+      REFERENCE_REGISTRY:
+        description: "Registry where published versions are permanent (used to check if a version is already taken)"
+        type: string
+        required: true
+      FREE_DISK_SPACE:
+        description: "Free up disk space before building"
+        type: boolean
+        default: false
+      RELEASE_REGISTRY:
+        description: "Test registry to publish to"
+        type: string
+      S3_S9PKS_BASE_URL:
+        description: "S3 base URL for package uploads"
+        type: string
+    secrets:
+      DEV_KEY:
+        description: "Developer signing key"
+        required: true
+      S3_ACCESS_KEY:
+        description: "S3 access key for uploading packages"
+        required: false
+      S3_SECRET_KEY:
+        description: "S3 secret key for uploading packages"
+        required: false
+
+jobs:
+  Tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.extract.outputs.tag }}
+      skip: ${{ steps.check.outputs.skip }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Install start-cli
+        run: |
+          ARCH=$(uname -m)
+          OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+          ASSET_NAME="start-cli_${ARCH}-${OS}"
+          DOWNLOAD_URL=$(curl -fsS \
+            -H "Authorization: token ${{ github.token }}" \
+            https://api.github.com/repos/Start9Labs/start-os/releases \
+            | jq -r '[.[].assets[] | select(.name=="'"$ASSET_NAME"'")] | first | .browser_download_url')
+          if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
+            echo "Error: Could not find asset '$ASSET_NAME' in Start9Labs/start-os releases"
+            exit 1
+          fi
+          curl -fsSL \
+            -H "Authorization: token ${{ github.token }}" \
+            -H "Accept: application/octet-stream" \
+            "$DOWNLOAD_URL" -o /tmp/start-cli
+          sudo install -m 755 /tmp/start-cli /usr/local/bin/start-cli
+          rm /tmp/start-cli
+          echo "start-cli: $(start-cli --version)"
+        shell: bash
+
+      - name: Extract package ID and version
+        id: extract
+        uses: Start9Labs/start-os/.github/actions/extract-version@master
+
+      - name: Check production registry
+        id: check
+        run: |
+          PACKAGE_ID="${{ steps.extract.outputs.package_id }}"
+          VERSION="${{ steps.extract.outputs.version }}"
+          REFERENCE_REGISTRY="${{ inputs.REFERENCE_REGISTRY }}"
+
+          # hello-world is the canonical package scaffold, not a released package.
+          # Skipping it here lets every caller (including hello-world's own) use the
+          # identical thin workflow with no per-package guard job.
+          if [ "$PACKAGE_ID" = "hello-world" ]; then
+            echo "Package id is 'hello-world' (template scaffold); skipping release."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Checking if ${PACKAGE_ID}@${VERSION} exists on ${REFERENCE_REGISTRY}..."
+
+          OUTPUT=$(start-cli --registry="${REFERENCE_REGISTRY}" registry package get "${PACKAGE_ID}" --target-version="${VERSION}" 2>&1)
+          EXIT_CODE=$?
+
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "::error::Failed to query production registry: ${OUTPUT}"
+            exit 1
+          fi
+
+          if [ -n "$OUTPUT" ]; then
+            echo "Version ${VERSION} of ${PACKAGE_ID} already exists on ${REFERENCE_REGISTRY}. Skipping release."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Version ${VERSION} not found on production registry. Proceeding."
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+        shell: bash
+
+      - name: Force-push release tag
+        if: steps.check.outputs.skip == 'false'
+        # Force-push the tag at the current commit. We deliberately do NOT
+        # delete the existing GitHub release here: if the downstream build
+        # fails (e.g. transient infra issue), the previous release stays
+        # intact and the registry's download URLs keep resolving. On a
+        # successful build, softprops/action-gh-release@v2 updates the
+        # release in place and replaces same-named assets.
+        run: |
+          TAG="${{ steps.extract.outputs.tag }}"
+          echo "Force-pushing tag ${TAG} at $(git rev-parse HEAD)..."
+          git tag -f "${TAG}"
+          git push origin -f "refs/tags/${TAG}"
+        shell: bash
+
+  Release:
+    needs: Tag
+    if: needs.Tag.outputs.skip == 'false'
+    uses: Start9Labs/start-os/.github/workflows/release.yml@master
+    with:
+      TAG: ${{ needs.Tag.outputs.tag }}
+      FREE_DISK_SPACE: ${{ inputs.FREE_DISK_SPACE }}
+      RELEASE_REGISTRY: ${{ inputs.RELEASE_REGISTRY }}
+      S3_S9PKS_BASE_URL: ${{ inputs.S3_S9PKS_BASE_URL }}
+    secrets:
+      DEV_KEY: ${{ secrets.DEV_KEY }}
+      S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+      S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}

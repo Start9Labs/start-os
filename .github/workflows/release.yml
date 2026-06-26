@@ -1,0 +1,334 @@
+name: Release
+
+on:
+  workflow_call:
+    inputs:
+      TAG:
+        description: "Release tag (defaults to github.ref_name for tag-triggered runs)"
+        type: string
+        default: ""
+      FREE_DISK_SPACE:
+        description: "Free up disk space before building"
+        type: boolean
+        default: false
+      RELEASE_REGISTRY:
+        description: "The registry to publish to"
+        type: string
+      S3_S9PKS_BASE_URL:
+        description: "S3 base URL for package uploads (e.g. https://bucket.region.digitaloceanspaces.com)"
+        type: string
+    secrets:
+      DEV_KEY:
+        description: "Developer signing key"
+        required: true
+      S3_ACCESS_KEY:
+        description: "S3 access key for uploading packages"
+        required: false
+      S3_SECRET_KEY:
+        description: "S3 secret key for uploading packages"
+        required: false
+
+jobs:
+  # Read the package's build matrix by running `make -s print-TARGETS`.
+  # The convention: each package's Makefile declares `TARGETS` as the list
+  # of leaf make-targets to build in parallel. The canonical s9pk.mk
+  # defaults TARGETS to $(ARCHES); variant packages (immich, ollama, vllm)
+  # override TARGETS to a list of variant targets.
+  #
+  # If the package's s9pk.mk hasn't been synced yet (no `print-%` rule),
+  # `make print-TARGETS` fails and we fall back to a single-entry matrix
+  # that runs plain `make` on one runner — same wall time as the legacy
+  # single-job build, plus a small artifact handoff cost.
+  DiscoverMatrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.discover.outputs.matrix }}
+    steps:
+      - name: Checkout services repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.TAG || github.ref_name }}
+          submodules: recursive
+
+      - name: Discover build matrix
+        id: discover
+        run: |
+          if TARGETS=$(make -s print-TARGETS 2>/dev/null) && [ -n "$TARGETS" ]; then
+            # Space-separated list of make-target names -> JSON array of strings.
+            MATRIX=$(printf '%s\n' $TARGETS | jq -Rc 'select(length>0)' | jq -sc '.')
+            echo "Discovered build matrix: $MATRIX"
+          else
+            echo "::warning::Package has no 'print-TARGETS' (s9pk.mk not yet synced); falling back to a single-entry matrix (one runner builds everything)."
+            MATRIX='[""]'
+          fi
+          echo "matrix=${MATRIX}" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+  # Fan out: one runner per make-target. Each runs `make <target>`,
+  # which the package's Makefile is responsible for resolving — for
+  # plain packages, target is an arch name (`x86`/`arm`/`riscv`); for
+  # variant packages, target is a variant name (the variant recipe
+  # internally sets VARIANT and dispatches to its arches).
+  BuildMatrix:
+    needs: DiscoverMatrix
+    # arm targets build natively on GitHub's arm64 runner — both the bare arch
+    # (`arm`) and per-variant leaves (`<variant>-arm`, e.g. generic-arm). x86 and
+    # riscv targets stay on x86 (riscv still emulates under QEMU). Empty target
+    # (fallback path) -> x86.
+    runs-on: ${{ (matrix.target == 'arm' || matrix.target == 'arm64' || matrix.target == 'aarch64' || endsWith(matrix.target, '-arm') || endsWith(matrix.target, '-arm64') || endsWith(matrix.target, '-aarch64')) && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJson(needs.DiscoverMatrix.outputs.matrix) }}
+    steps:
+      - name: Free up disk space
+        if: ${{ inputs.FREE_DISK_SPACE }}
+        uses: Start9Labs/start-os/.github/actions/free-disk-space@master
+
+      - name: Setup build environment
+        uses: Start9Labs/start-os/.github/actions/setup-build-env@master
+
+      - name: Checkout services repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.TAG || github.ref_name }}
+          submodules: recursive
+
+      - name: Set up developer signing key
+        run: |
+          mkdir -p ~/.startos
+          printf '%s' "${{ secrets.DEV_KEY }}" > ~/.startos/developer.key.pem
+        shell: bash
+
+      - name: Build (make ${{ matrix.target || '(default)' }})
+        run: |
+          RUST_LOG=debug RUST_BACKTRACE=1 make ${{ matrix.target }}
+          echo ""
+          echo "SHA256SUMs:"
+          sha256sum *.s9pk
+        shell: bash
+
+      - name: Upload s9pks for Publish stage
+        uses: actions/upload-artifact@v7
+        with:
+          # `default` covers the fallback single-entry case where matrix.target
+          # is empty (package not yet on the new s9pk.mk).
+          name: build-${{ matrix.target || 'default' }}
+          path: ./*.s9pk
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+  Publish:
+    needs: BuildMatrix
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Setup publish environment
+        uses: Start9Labs/start-os/.github/actions/setup-publish-env@master
+
+      - name: Checkout services repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.TAG || github.ref_name }}
+
+      # The developer key is needed by every start-cli write to the registry
+      # (s9pk publish signs the registry entry; package add/remove/add-mirror
+      # likewise). BuildMatrix sets it up on its own runner; Publish runs on
+      # a different runner so it must be set up here too.
+      - name: Set up developer signing key
+        run: |
+          mkdir -p ~/.startos
+          printf '%s' "${{ secrets.DEV_KEY }}" > ~/.startos/developer.key.pem
+        shell: bash
+
+      - name: Collect s9pks from BuildMatrix
+        uses: actions/download-artifact@v8
+        with:
+          pattern: build-*
+          merge-multiple: true
+          path: .
+
+      - name: Verify s9pks
+        run: |
+          shopt -s nullglob
+          files=(*.s9pk)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::error::No s9pks collected from BuildMatrix artifacts"
+            exit 1
+          fi
+          echo "Collected ${#files[@]} s9pk(s):"
+          ls -lh *.s9pk
+          echo ""
+          echo "SHA256SUMs:"
+          sha256sum *.s9pk
+        shell: bash
+
+      - name: Extract version
+        id: version
+        uses: Start9Labs/start-os/.github/actions/extract-version@master
+
+      - name: Filter s9pk files for GitHub release
+        id: filter_s9pk
+        run: |
+          GH_MAX_SIZE=$((2 * 1024 * 1024 * 1024))
+          OVERSIZE_FOUND=false
+          RELEASE_FILES=""
+          for s9pk in *.s9pk; do
+            SIZE=$(stat --format=%s "$s9pk")
+            if [ "$SIZE" -ge "$GH_MAX_SIZE" ]; then
+              SIZE_HUMAN=$(numfmt --to=iec-i --suffix=B "$SIZE")
+              if [ -z "${{ inputs.S3_S9PKS_BASE_URL }}" ]; then
+                echo "::error::${s9pk} (${SIZE_HUMAN}) exceeds GitHub's 2 GiB release-asset limit and no S3 hosting is configured. Either shrink the .s9pk or set S3_S9PKS_BASE_URL to host large packages via S3."
+                OVERSIZE_FOUND=true
+              else
+                echo "::warning::${s9pk} (${SIZE_HUMAN}) exceeds GitHub's 2 GiB limit and will not be uploaded to the release (S3 will be used as its sole download URL)"
+              fi
+            else
+              RELEASE_FILES="${RELEASE_FILES}./${s9pk}"$'\n'
+              echo "$s9pk" >> .gh_release_files
+            fi
+          done
+          if [ "$OVERSIZE_FOUND" = true ]; then
+            exit 1
+          fi
+          {
+            echo "release_files<<RELEASE_FILES_EOF"
+            printf '%s' "$RELEASE_FILES"
+            echo "RELEASE_FILES_EOF"
+          } >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      # Compose the GitHub-release body. When S3 is configured, include direct
+      # S3 URLs for every s9pk so users can grab packages that exceeded GitHub's
+      # 2 GiB asset cap (and were therefore omitted from the release assets).
+      # The URL layout mirrors start-cli s9pk publish:
+      #   {S3_S9PKS_BASE_URL}/{package_id}/{version-without-#}/{filename}
+      - name: Generate changelog
+        run: |
+          FIRST_S9PK=$(ls *.s9pk | head -1)
+          RELEASE_NOTES=$(start-cli s9pk inspect "$FIRST_S9PK" manifest | jq -r '.releaseNotes | if type == "object" then (.["en-US"] // first(.[]) // "") else . end')
+          {
+            echo "## What's Changed"
+            echo ""
+            echo "${RELEASE_NOTES}"
+            echo ""
+            S3_BASE="${{ inputs.S3_S9PKS_BASE_URL }}"
+            if [ -n "$S3_BASE" ]; then
+              S3_BASE="${S3_BASE%/}"
+              PKG_ID="${{ steps.version.outputs.package_id }}"
+              PKG_VER="${{ steps.version.outputs.version }}"
+              PKG_VER="${PKG_VER#\#}"
+              echo "## Downloads"
+              echo ""
+              for s9pk in *.s9pk; do
+                echo "- [${s9pk}](${S3_BASE}/${PKG_ID}/${PKG_VER}/${s9pk})"
+              done
+              echo ""
+            fi
+            echo "## SHA256 Hashes"
+            echo '```'
+            sha256sum *.s9pk
+            echo '```'
+          } > change-log.txt
+        shell: bash
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.TAG || github.ref_name }}
+          name: ${{ steps.version.outputs.version }}
+          body_path: change-log.txt
+          files: ${{ steps.filter_s9pk.outputs.release_files }}
+
+      - name: Configure S3
+        if: ${{ inputs.S3_S9PKS_BASE_URL }}
+        run: |
+          sudo apt-get install -y -qq s3cmd > /dev/null
+          S3_S9PKS_BASE_URL="${{ inputs.S3_S9PKS_BASE_URL }}"
+          HOST="${S3_S9PKS_BASE_URL#https://}"
+          ENDPOINT="${HOST#*.}"
+          cat > ~/.s3cfg <<EOF
+          [default]
+          access_key = ${{ secrets.S3_ACCESS_KEY }}
+          secret_key = ${{ secrets.S3_SECRET_KEY }}
+          host_base = ${ENDPOINT}
+          host_bucket = %(bucket)s.${ENDPOINT}
+          use_https = True
+          EOF
+        shell: bash
+
+      - name: Remove existing version from registry
+        if: ${{ inputs.RELEASE_REGISTRY }}
+        run: |
+          REGISTRY="${{ inputs.RELEASE_REGISTRY }}"
+          PACKAGE_ID="${{ steps.version.outputs.package_id }}"
+          VERSION="${{ steps.version.outputs.version }}"
+
+          OUTPUT=$(start-cli --registry="${REGISTRY}" registry package get "${PACKAGE_ID}" --target-version="${VERSION}" 2>&1)
+          EXIT_CODE=$?
+
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "::warning::Could not query registry: ${OUTPUT}"
+          elif [ -n "$OUTPUT" ]; then
+            echo "Version ${VERSION} already exists on ${REGISTRY}. Removing..."
+            start-cli --registry="${REGISTRY}" registry package remove "${PACKAGE_ID}" "${VERSION}"
+          else
+            echo "Version ${VERSION} not found on registry. Proceeding."
+          fi
+        shell: bash
+
+      - name: Publish to Registry via S3
+        if: ${{ inputs.RELEASE_REGISTRY && inputs.S3_S9PKS_BASE_URL }}
+        run: |
+          REGISTRY="${{ inputs.RELEASE_REGISTRY }}"
+          S3_BASE="${{ inputs.S3_S9PKS_BASE_URL }}"
+          pids=()
+          for s9pk in *.s9pk; do
+            echo "Publishing ${s9pk} via S3..."
+            ( start-cli --registry "$REGISTRY" --s9pk-s3base "$S3_BASE" s9pk publish "$s9pk" 2>&1 \
+              | sed -u "s|^|[${s9pk}] |" ) &
+            pids+=($!)
+          done
+          rc=0
+          for pid in "${pids[@]}"; do
+            wait "$pid" || rc=$?
+          done
+          exit $rc
+        shell: bash
+
+      - name: Add GitHub release mirrors
+        if: ${{ inputs.RELEASE_REGISTRY && inputs.S3_S9PKS_BASE_URL }}
+        run: |
+          REGISTRY="${{ inputs.RELEASE_REGISTRY }}"
+          TAG="${{ inputs.TAG || github.ref_name }}"
+          GH_URL="${{ github.server_url }}/${{ github.repository }}/releases/download/${TAG}"
+          for s9pk in *.s9pk; do
+            if [ -f .gh_release_files ] && grep -qxF "$s9pk" .gh_release_files; then
+              echo "Adding GitHub mirror for ${s9pk}..."
+              start-cli --registry "$REGISTRY" registry package add-mirror "$s9pk" "${GH_URL}/${s9pk}"
+            fi
+          done
+        shell: bash
+
+      - name: Publish to Registry via GitHub
+        if: ${{ inputs.RELEASE_REGISTRY && !inputs.S3_S9PKS_BASE_URL }}
+        run: |
+          REGISTRY="${{ inputs.RELEASE_REGISTRY }}"
+          TAG="${{ inputs.TAG || github.ref_name }}"
+          GH_URL="${{ github.server_url }}/${{ github.repository }}/releases/download/${TAG}"
+          for s9pk in *.s9pk; do
+            echo "Publishing ${s9pk} via GitHub release..."
+            start-cli --registry "$REGISTRY" registry package add "$s9pk" --url "${GH_URL}/${s9pk}"
+          done
+        shell: bash
+
+      - name: Upload each s9pk as its own artifact
+        uses: Start9Labs/start-os/.github/actions/upload-each@master
+        with:
+          pattern: "*.s9pk"
+          retention-days: 14
+          compression-level: 0
