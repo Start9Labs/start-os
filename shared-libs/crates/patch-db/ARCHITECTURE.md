@@ -18,10 +18,10 @@ patch-db is split into two layers that communicate over a transport boundary:
 │              Rust Backend                   │
 │  PatchDb ─ Store ─ Broadcast ─ Subscriber  │
 │                                             │
-│  ┌──────────┐  ┌───────────┐  ┌──────────┐ │
-│  │ json-ptr │  │json-patch │  │ciborium │  │
-│  │ RFC 6901 │  │ RFC 6902  │  │ storage  │  │
-│  └──────────┘  └───────────┘  └──────────┘  │
+│  ┌──────────┐  ┌───────────┐  ┌────────────┐ │
+│  │ json-ptr │  │json-patch │  │ serde_cbor │  │
+│  │ RFC 6901 │  │ RFC 6902  │  │  storage   │  │
+│  └──────────┘  └───────────┘  └────────────┘  │
 └─────────────────────────────────────────────┘
 ```
 

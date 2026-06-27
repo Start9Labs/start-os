@@ -25,13 +25,17 @@ The Start SDK is split into two npm packages that form a layered architecture: *
 
 The SDK follows [Semantic Versioning](https://semver.org/) and is versioned independently of StartOS (the current `@start9labs/start-sdk` 2.0.0 targets StartOS 0.4.0-beta.10). Each `CHANGELOG.md` heading records the SDK version and the StartOS release it targets.
 
+## Place in the monorepo
+
+The SDK lives at `projects/start-sdk/` inside the start-os monorepo. It ships as two npm packages — `@start9labs/start-sdk-base` (built from `base/` to `baseDist/`) and `@start9labs/start-sdk` (built from `package/` to `dist/`, the published package). Service-package developers consume the published `@start9labs/start-sdk` from npm, and the web and container-runtime projects in this monorepo consume the built `baseDist/`/`dist/` (not the source). The SDK's OS bindings mirror Rust types in `shared-libs/crates/start-core`.
+
 ## Base Package (`base/`)
 
 The base package is a self-contained library of types, interfaces, and low-level builders. It has no dependency on the package layer and can be used independently when only type definitions or validation are needed.
 
 ### OS Bindings (`base/lib/osBindings/`)
 
-Auto-generated TypeScript files defining every type exchanged between the SDK and the StartOS runtime. They mirror the Rust types in the monorepo's `shared-libs/crates/start-core` (the `startos` lib) and cover the full surface area of the system: manifests, actions, health checks, service interfaces, bind parameters, dependency requirements, SSL, domains, SMTP, networking, images, and more. When the Rust types change, these bindings must be regenerated.
+Auto-generated TypeScript files defining every type exchanged between the SDK and the StartOS runtime. They mirror the Rust types in the monorepo's `shared-libs/crates/start-core` (the `start-core` crate with library name `start_core`) and cover the full surface area of the system: manifests, actions, health checks, service interfaces, bind parameters, dependency requirements, SSL, domains, SMTP, networking, images, and more. When the Rust types change, these bindings must be regenerated.
 
 All bindings are re-exported through `base/lib/osBindings/index.ts`.
 
@@ -446,3 +450,10 @@ The `Watchable` base class provides a consistent API for values that can change 
 
 ### Type-safe Manifest Threading
 The manifest type flows through the entire SDK via generics. When you call `StartSdk.of().withManifest(manifest)`, the manifest's volume names, image IDs, dependency IDs, and plugin list become available as type constraints throughout all subsequent API calls. For example, `Mounts.of().mountVolume()` only accepts volume names declared in the manifest.
+
+## Further reading
+
+- [README.md](README.md) — overview and quickstart
+- [CONTRIBUTING.md](CONTRIBUTING.md) — build, test, and contribution workflow
+- [AGENTS.md](AGENTS.md) — agent/dev instructions (`CLAUDE.md` is a one-line `@AGENTS.md` import)
+- [Packaging docs](https://docs.start9.com/packaging) — the developer-facing reference (mdbook in `docs/`)

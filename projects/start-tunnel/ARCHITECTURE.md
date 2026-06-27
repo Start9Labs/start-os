@@ -6,19 +6,19 @@ the monorepo and how a request flows through the system. For the product-level
 "what it is and how it compares" writeup, see
 [`docs/src/architecture.md`](docs/src/architecture.md).
 
-## Where the code lives
+## Place in the monorepo
 
-The `start-tunnel/` directory is a thin product wrapper. The substance is in the
+The `projects/start-tunnel/` directory is a thin product wrapper. The substance is in the
 shared `start-core` crate.
 
 | Concern                         | Location                                              |
 | ------------------------------- | ---------------------------------------------------- |
-| Binary entry point              | `start-tunnel/src/main.rs`                            |
+| Binary entry point              | `projects/start-tunnel/src/main.rs`                  |
 | Daemon + CLI dispatch           | `shared-libs/crates/start-core/src/bins/tunnel.rs`        |
 | Tunnel module root              | `shared-libs/crates/start-core/src/tunnel/mod.rs`         |
-| Angular UI                      | `start-tunnel/web/`                                   |
-| systemd unit                    | `start-tunnel/start-tunneld.service`                 |
-| User & reference docs (mdbook)  | `start-tunnel/docs/`                                  |
+| Angular UI                      | `projects/start-tunnel/web/`                          |
+| systemd unit                    | `projects/start-tunnel/start-tunneld.service`        |
+| User & reference docs (mdbook)  | `projects/start-tunnel/docs/`                        |
 
 `src/main.rs` embeds the compiled UI (`web/dist/static/start-tunnel`) via
 `include_dir!` into `start_core::tunnel::context::TUNNEL_UI_CELL`, then hands off to
@@ -88,7 +88,7 @@ The `start-tunnel` CLI builds an `rpc-toolkit` `CliApp` against the same
 ## Frontend
 
 The Angular app (`web/`) is the project `start-tunnel` in the shared Angular
-workspace at `shared-libs/ts-modules/`. It is **zoneless**, uses Taiga UI, and talks to the
+workspace rooted at the repo root. It is **zoneless**, uses Taiga UI, and talks to the
 daemon over the same JSON-RPC API.
 
 - `web/src/app/app.routes.ts` — `home` (authed) vs `login` routes.
@@ -99,8 +99,9 @@ daemon over the same JSON-RPC API.
 - `web/tsconfig.json` resolves `@start9labs/shared` and
   `@start9labs/marketplace` to `shared-libs/ts-modules/`.
 
-Build output: `npm --prefix shared-libs/ts-modules run build:tunnel` →
-`web/dist/raw/start-tunnel/` → compressed to `web/dist/static/start-tunnel/`
+Build output: `npm run build:tunnel` (from the repo root; `make tunnel`
+chains it) → `projects/start-tunnel/web/dist/raw/start-tunnel/` → compressed to
+`projects/start-tunnel/web/dist/static/start-tunnel/`
 (`shared-libs/ts-modules/compress-uis.sh`), which the Rust binary embeds.
 
 ## Build & packaging
@@ -112,3 +113,9 @@ Build output: `npm --prefix shared-libs/ts-modules run build:tunnel` →
   the systemd unit.
 - TS bindings for the tunnel API are generated into
   `shared-libs/crates/start-core/bindings/tunnel/` (`make ts-bindings`).
+
+## Further reading
+
+- [`README.md`](README.md) — what StartTunnel is and how to use it.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — building, testing, and changing it.
+- [`AGENTS.md`](AGENTS.md) — rules for AI agents working in this scope.

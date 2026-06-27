@@ -16,16 +16,15 @@ Next, build source from the project directory:
 npm --prefix . run build
 ```
 
-Then, update the repository which imports this client.
-For Start9 contributors, this would be in [embassy-os/ui](https://github.com/Start9Labs/embassy-os/tree/master/ui). Run the following command there:
+This client is consumed as a file dependency within the start-os monorepo
+(`patch-db-client` in the root `package.json`, pointing at
+`shared-libs/crates/patch-db/client`). To rebuild it and integrate it into the
+Angular workspace rooted at the repo root, run the following from the repository
+root:
 
 ```
-git submodule update --init --recursive
+npm run build:deps
 ```
 
-Compare the commits fetched to your knowledge of what is current in `patch-db` Client.
-If they do not match for some reason, run:
-
-```
-git submodule update --init --recursive --remote
-```
+This builds the patch-db client along with the other file dependencies (e.g.
+`@start9labs/start-sdk`) used by the Angular project.

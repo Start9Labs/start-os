@@ -66,9 +66,9 @@ Follow the [install guide](https://docs.start9.com/start-os/installing-startos.h
 See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, build instructions, and the development workflow. In short:
 
 ```sh
-git clone --recursive https://github.com/Start9Labs/start-os.git
+git clone https://github.com/Start9Labs/start-os.git
 cd start-os
-PLATFORM=$(uname -m) ENVIRONMENT=dev make iso   # build a StartOS image
+PLATFORM=$(uname -m) ENVIRONMENT=dev make startos   # build a StartOS image
 ```
 
 ## The rest of the monorepo
@@ -81,6 +81,12 @@ StartOS is the flagship, but it shares this repo with the rest of the Start9 sta
 - **[start-registry](projects/start-registry/)** — the registry server that hosts and serves marketplaces of packaged services.
 - **[Marketplace site](projects/brochure-marketplace/)** — the public marketplace at [marketplace.start9.com](https://marketplace.start9.com), built on the same UI components the OS uses.
 - **[Docs site](projects/start-docs/)** — the documentation website at [docs.start9.com](https://docs.start9.com).
+
+## Documentation
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) — how the monorepo fits together
+- [CONTRIBUTING.md](CONTRIBUTING.md) — environment setup, build, test, and format workflow
+- [AGENTS.md](AGENTS.md) — AI-developer/agent operating rules (`CLAUDE.md` is a one-line `@AGENTS.md` import)
 
 ## Contributing
 

@@ -4,22 +4,28 @@
 
 Start with the root [`CONTRIBUTING.md`](../../CONTRIBUTING.md) and [`AGENTS.md`](../../AGENTS.md) for repo-wide workflow, the doc map, and cross-layer verification rules. This file covers what's specific to the registry.
 
+## Documentation
+
+- [`README.md`](./README.md) — what the registry is and how to run it.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — how it's wired (binary, server, routing, data model).
+- `CONTRIBUTING.md` — this file: how to build, test, and contribute.
+- [`AGENTS.md`](./AGENTS.md) — rules for agents working in this dir; `CLAUDE.md` is a one-line `@AGENTS.md` import.
+
 ## Where to make changes
 
 - **Server/CLI entry, RPC API, data model, persistence, migrations** → `shared-libs/crates/start-core/src/registry/` and `shared-libs/crates/start-core/src/bins/registry.rs`.
-- **Bin wiring, systemd unit, docs** → this directory (`start-registry/`).
+- **Bin wiring, systemd unit, docs** → this directory (`projects/start-registry/`).
 - **Browsing/search/download UI** → `shared-libs/ts-modules/marketplace/` (`@start9labs/marketplace`).
 
-If you find yourself adding registry logic directly to `start-registry/src`, it almost certainly belongs in `start-core` instead.
+If you find yourself adding registry logic directly to `projects/start-registry/src`, it almost certainly belongs in `start-core` instead.
 
-## Build, test, format (from the monorepo root)
+## Building
+
+From the monorepo root:
 
 ```bash
 cargo build -p start-registry --bin registrybox   # build the wrapper bin
 cargo check -p start-core                          # type-check the real logic
-cargo test  -p start-core registry                 # registry tests
-cargo clippy -p start-core                         # lints
-cargo fmt                                           # format (run before committing)
 make registry                                       # release musl build
 ```
 
@@ -30,11 +36,29 @@ Run a local server while iterating:
 ./target/debug/registrybox start-registry --help
 ```
 
-Run the checks that apply to what you touched and make sure `cargo fmt` is clean before opening a PR.
+## Testing
+
+From the monorepo root:
+
+```bash
+cargo test  -p start-core registry                 # registry tests
+cargo clippy -p start-core                         # lints
+```
+
+Run the checks that apply to what you touched before opening a PR.
+
+## Formatting
+
+```bash
+make format-registry                               # format (run before committing)
+make format-check-registry                         # read-only check (what CI runs)
+```
+
+Make sure `make format-check-registry` is clean before opening a PR.
 
 ## Conventions
 
-- **Rust 2024 edition**, formatted with `cargo fmt` (rustfmt). Keep clippy clean.
+- **Rust 2024 edition**, formatted via `make format-registry` (rustfmt). Keep clippy clean.
 - **Comments:** default to none; clear names over prose. A comment is for a non-obvious *why* only — one short line.
 - **API additions:** add subcommands in `registry/mod.rs`; use `with_call_remote::<CliContext>()` to expose them to the `start-registry` CLI and `with_about(...)` for help text. Tag admin-only commands with `with_metadata("admin", true)`.
 - **Schema changes:** changing `RegistryDatabase` / index types requires a migration in `shared-libs/crates/start-core/src/registry/migrations`.
@@ -46,8 +70,4 @@ Update the matching docs in the same PR:
 
 - This dir's `README.md` / `ARCHITECTURE.md` for behavior, flags, or structure changes.
 - `CHANGELOG.md` (Keep a Changelog style) for any user-visible change.
-- OS-level packaging/registry docs in `start-os/docs`, and the marketplace UI, if you change the API contract or the install/run flow.
-
-## Commits / PRs
-
-Use Conventional Commit messages (`feat:`, `fix:`, `chore:`, `docs:`). Keep PRs focused; describe rationale in the PR body rather than in source comments.
+- OS-level packaging/registry docs in `projects/start-os/docs`, and the marketplace UI, if you change the API contract or the install/run flow.

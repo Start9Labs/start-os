@@ -2,7 +2,7 @@
 
 This guide covers developing the SDK itself. If you're building a service package *using* the SDK, see the [packaging docs](https://docs.start9.com/packaging).
 
-The SDK lives at `start-sdk/` inside the [start-os monorepo](../../README.md). For contributing to the broader StartOS project, see the root [CONTRIBUTING.md](../../CONTRIBUTING.md) and root [AGENTS.md](../../AGENTS.md).
+The SDK lives at `projects/start-sdk/` inside the [start-os monorepo](../../README.md). For contributing to the broader StartOS project, see the root [CONTRIBUTING.md](../../CONTRIBUTING.md) and root [AGENTS.md](../../AGENTS.md).
 
 ## Documentation
 
@@ -15,8 +15,6 @@ This sub-tree's docs:
 - `CHANGELOG.md` — Keep a Changelog style release history
 
 The developer-facing reference is the packaging mdbook in `docs/` (published at [docs.start9.com/packaging](https://docs.start9.com/packaging)).
-
-**These docs must be kept up to date.** When you change the SDK's structure, conventions, build process, or developer surface, update the relevant file(s) — including the packaging mdbook — in the same change. Do not defer.
 
 ## Prerequisites
 
@@ -62,7 +60,7 @@ start-sdk/
 
 ## Getting Started
 
-From `start-sdk/`, install dependencies for both sub-packages:
+From `projects/start-sdk/`, install dependencies for both sub-packages:
 
 ```bash
 make node_modules
@@ -214,15 +212,3 @@ Types in `base/lib/osBindings/` mirror Rust types from the monorepo's `shared-li
 - Place test files next to the code they test, or in the `test/` directory
 - Use the `.test.ts` extension
 - Tests run in Node.js with ts-jest — no browser environment
-
-## Commit Messages
-
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
-
-```
-feat(sdk): add WebSocket health check
-fix(sdk): correct ExVer range parsing for pre-release versions
-test(sdk): add coverage for MultiHost port binding
-```
-
-See the root [CONTRIBUTING.md](../../CONTRIBUTING.md#commit-messages) for the full convention.

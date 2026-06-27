@@ -5,6 +5,8 @@
   "module": "./index.js",
   "scripts": {
     "check": "tsc --noEmit",
+    "format": "prettier . '!tmp/**' --write",
+    "format:check": "prettier . '!tmp/**' --check",
     "build": "prettier . '!tmp/**' --write && rm -rf dist && tsc",
     "tsc": "rm -rf dist; tsc",
     "test": "jest -c ./jest.config.js"

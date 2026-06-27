@@ -58,4 +58,6 @@ Server state lives in `<datadir>/registry.db` (PatchDB) plus a SQLite metrics da
 - Server/CLI/API/data model: `shared-libs/crates/start-core/src/registry/`.
 - Marketplace UI library: `shared-libs/ts-modules/marketplace/` (`@start9labs/marketplace`).
 
+## Documentation
+
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for module-level detail, [AGENTS.md](./AGENTS.md) for build/test instructions, and [CONTRIBUTING.md](./CONTRIBUTING.md) for the contribution workflow.

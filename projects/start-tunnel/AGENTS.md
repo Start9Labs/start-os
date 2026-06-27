@@ -2,9 +2,13 @@
 
 Practical instructions for working on the StartTunnel product inside the
 `start-os` monorepo. Read the root `AGENTS.md` for monorepo-wide conventions
-first; this file is scoped to `start-tunnel/`.
+first; this file is scoped to `projects/start-tunnel/`. `CLAUDE.md` is a one-line
+`@AGENTS.md` import. See [ARCHITECTURE.md](ARCHITECTURE.md) and
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
-## What this project is
+**Read up the tree first.** These docs are hierarchical: before working here, read the `AGENTS.md` in each enclosing directory up to the repo root (and their `ARCHITECTURE.md` / `CONTRIBUTING.md` where relevant). This file covers only what is specific to this scope and does not repeat rules already stated higher up.
+
+## What this is
 
 A WireGuard virtual private router with kernel-level clearnet port forwarding.
 This directory is a **thin wrapper**: the binary entry point, the Angular UI, the
@@ -18,10 +22,10 @@ entry/CLI dispatch in `shared-libs/crates/start-core/src/bins/tunnel.rs`.
   to `start-core`. Rarely needs changes.
 - `Cargo.toml` — crate `start-tunnel`, bin `tunnelbox`. Depends on `start-core`.
 - `start-tunneld.service` — systemd unit running `/usr/bin/start-tunneld`.
-- `web/` — Angular project `start-tunnel` (registered in `shared-libs/ts-modules/angular.json`).
+- `web/` — Angular project `start-tunnel` (registered in the root `angular.json`).
 - `docs/` — mdbook (book title "StartTunnel"), output to `docs/book`.
 
-## Where to make changes
+Where to make changes:
 
 | You want to change…                  | Edit…                                                        |
 | ------------------------------------ | ----------------------------------------------------------- |
@@ -37,13 +41,13 @@ entry/CLI dispatch in `shared-libs/crates/start-core/src/bins/tunnel.rs`.
 Almost all backend work happens in `start-core`, not here. The one tunnel-local
 Rust file is `src/main.rs`.
 
-## Build & test (run from repo root)
+## Build & test (run from the repo root)
 
 ```bash
 make tunnel                                   # build tunnelbox (UI + daemon)
 cargo build -p start-tunnel --bin tunnelbox   # cargo only (UI must be prebuilt)
 cargo check -p start-tunnel                    # fast type-check
-npm --prefix shared-libs/ts-modules run build:tunnel       # build just the Angular UI
+npm run build:tunnel                          # build just the Angular UI (no make target; make tunnel chains it)
 make tunnel-deb                                # build the .deb
 make test-core                                 # backend tests (tunnel logic lives in start-core)
 ```
@@ -57,15 +61,6 @@ Notes:
   the Makefile target chains the UI build → `compress-uis.sh` automatically.
 - TS bindings for the tunnel API regenerate via `make ts-bindings` into
   `shared-libs/crates/start-core/bindings/tunnel/`.
-
-## Format
-
-```bash
-make format          # formats the whole repo
-make format-check    # CI check
-```
-
-Rust: `cargo fmt` (edition 2024). Web: prettier via the shared Angular config.
 
 ## Gotchas
 
@@ -90,6 +85,16 @@ Rust: `cargo fmt` (edition 2024). Web: prettier via the shared Angular config.
 - **Manpages** for `start-tunnel` are generated (and committed) into this
   project's `man/` dir by `cargo test -p start-core export_manpage_start_tunnel`
   (the generator lives in `start-core`'s `bins/tunnel.rs`).
+
+## Format
+
+```bash
+make format-tunnel        # format the tunnel Rust crate
+make format-check-tunnel  # CI check (read-only)
+```
+
+The tunnel crate is Rust (edition 2024). The tunnel web app formats with the
+rest of the Angular workspace via `make format-web`.
 
 ## Docs are part of the change
 

@@ -1,14 +1,18 @@
 # AGENTS.md — Container Runtime
 
-Node.js/TypeScript service runtime that runs inside StartOS package LXC containers. Sub-component of the **start-os** product. Wire-protocol reference: [RPCSpec.md](RPCSpec.md); structure: [ARCHITECTURE.md](ARCHITECTURE.md).
+Node.js/TypeScript service runtime that runs inside StartOS package LXC containers. Sub-component of the **start-os** product. `CLAUDE.md` is a one-line `@AGENTS.md` import — edit this file, not `CLAUDE.md`. Wire-protocol reference: [RPCSpec.md](RPCSpec.md); structure: [ARCHITECTURE.md](ARCHITECTURE.md); contributor workflow: [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Operating rules
+**Read up the tree first.** These docs are hierarchical: before working here, read the `AGENTS.md` in each enclosing directory up to the repo root (and their `ARCHITECTURE.md` / `CONTRIBUTING.md` where relevant). This file covers only what is specific to this scope and does not repeat rules already stated higher up.
 
-- **Depends on the _built_ SDK at `../../start-sdk/dist`** (declared in `package.json` as `"@start9labs/start-sdk": "file:../../start-sdk/dist"`). Editing `start-sdk/` source alone has no effect here — rebuild the SDK first: `cd projects/start-sdk && make bundle` (or `make baseDist dist`). The Makefile target `start-os/container-runtime/package-lock.json` also depends on `start-sdk/dist/package.json`, so a stale SDK can break `npm ci`/`check`/`test`.
-- **Style: double quotes, no semicolons.** Prettier config lives in `package.json` (`semi: false`, `singleQuote: false`, `trailingComma: "all"`, `tabWidth: 2`). This differs from `start-sdk` / `shared-libs/ts-modules` (single quotes there) — do NOT "normalize" to single quotes. `npm run build` runs Prettier `--write` before compiling.
-- **`CLAUDE.md` is just `@AGENTS.md`** — edit this file, not `CLAUDE.md`.
+## Layout
 
-## Build / test
+- `src/index.ts` — entry; wires `getSystem` into `RpcListener`.
+- `src/Adapters/RpcListener.ts` — JSON-RPC dispatch on `service.sock`.
+- `src/Adapters/EffectCreator.ts` — builds effects passed to procedures.
+- `src/Adapters/Systems/` — `SystemForStartOs` (current) + `SystemForEmbassy` (legacy compat: manifest/config-spec transforms, effect polyfills).
+- `src/Interfaces/`, `src/Models/` — contracts and domain types.
+
+## Build & test (run from the repo root)
 
 Run from the monorepo root (`/path/to/start-os`):
 
@@ -23,13 +27,11 @@ make test-container-runtime                            # SDK + jest via top-leve
 
 Tests are Jest + `ts-jest` (`jest.config.js`, `rootDir: ./src`). `mime` is mocked via `__mocks__/mime.js`. Place tests next to the code as `*.test.ts`; `SystemForEmbassy` carries snapshot tests (`__snapshots__/`) and fixtures (`__fixtures__/`).
 
-## Map
+## Gotchas
 
-- `src/index.ts` — entry; wires `getSystem` into `RpcListener`.
-- `src/Adapters/RpcListener.ts` — JSON-RPC dispatch on `service.sock`.
-- `src/Adapters/EffectCreator.ts` — builds effects passed to procedures.
-- `src/Adapters/Systems/` — `SystemForStartOs` (current) + `SystemForEmbassy` (legacy compat: manifest/config-spec transforms, effect polyfills).
-- `src/Interfaces/`, `src/Models/` — contracts and domain types.
+- **Depends on the _built_ SDK at `../../start-sdk/dist`** (declared in `package.json` as `"@start9labs/start-sdk": "file:../../start-sdk/dist"`). Editing `projects/start-sdk/` source alone has no effect here — rebuild the SDK first: `cd projects/start-sdk && make bundle` (or `make baseDist dist`). The Makefile target `projects/start-os/container-runtime/package-lock.json` also depends on `projects/start-sdk/dist/package.json`, so a stale SDK can break `npm ci`/`check`/`test`.
+- **Style: double quotes, no semicolons.** Prettier config lives in `package.json` (`semi: false`, `singleQuote: false`, `trailingComma: "all"`, `tabWidth: 2`). This differs from `start-sdk` / `shared-libs/ts-modules` (single quotes there) — do NOT "normalize" to single quotes. `npm run build` runs Prettier `--write` before compiling.
+- **`CLAUDE.md` is just `@AGENTS.md`** — edit this file, not `CLAUDE.md`.
 
 ## Image build (gotchas)
 
@@ -39,4 +41,4 @@ Tests are Jest + `ts-jest` (`jest.config.js`, `rootDir: ./src`). `mime` is mocke
 
 ## Stale-path note (monorepo)
 
-Pre-monorepo docs referenced `core/`, `sdk/`, `web/`, `patch-db/`, `container-runtime/` at the repo root. Current locations: host lib `shared-libs/crates/start-core`, SDK `start-sdk`, Angular `shared-libs/ts-modules` + product `web/` dirs, this runtime `start-os/container-runtime`, first-party `shared-libs/crates/patch-db`.
+Pre-monorepo docs referenced `core/`, `sdk/`, `web/`, `patch-db/`, `container-runtime/` at the repo root. Current locations: host lib `shared-libs/crates/start-core`, SDK `projects/start-sdk`, Angular `shared-libs/ts-modules` + product `web/` dirs, this runtime `projects/start-os/container-runtime`, first-party `shared-libs/crates/patch-db`.

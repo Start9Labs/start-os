@@ -7,17 +7,19 @@
 
 ## Building
 
+Run from the repo root (these crates are members of the root Cargo workspace):
+
 ### Rust
 
 ```bash
-cargo build                        # Build all crates
-cargo build --features debug       # Build with tracing support
+cargo build -p patch-db                  # core crate (also -p json-patch / json-ptr / patch-db-macro / …)
+cargo build -p patch-db --features debug # with tracing support
 ```
 
 ### TypeScript client
 
 ```bash
-cd client
+cd shared-libs/crates/patch-db/client
 npm install
 npm run build    # Compiles to dist/
 npm run check    # Type-check without emitting
@@ -28,22 +30,16 @@ npm run check    # Type-check without emitting
 ### Rust
 
 ```bash
-cargo test                 # Run all tests
-cargo test -p patch-db     # Core crate only
-cargo test -p json-ptr     # JSON Pointer crate only
-cargo test -p json-patch   # JSON Patch crate only
+cargo test -p patch-db     # core crate (uses proptest for property-based testing)
+cargo test -p json-ptr     # JSON Pointer crate
+cargo test -p json-patch   # JSON Patch crate
 ```
-
-The core crate uses `proptest` for property-based testing.
 
 ### TypeScript
 
-The client uses pre-commit hooks (husky) for linting:
-
 ```bash
-cd client
-npx prettier --check "**/*.{js,ts,html,md,less,json}"
-npx tslint --project .
+cd shared-libs/crates/patch-db/client
+npm run check    # Type-check without emitting
 ```
 
 ## CLI utility
@@ -60,6 +56,8 @@ echo '{"count": 42}' | cargo run -p patch-db-util -- from-dump path/to/my.db
 
 ## Code style
 
+Format from the repo root with `make format-core` (these crates are part of the shared Rust workspace); CI runs the read-only `make format-check-core`.
+
 ### Rust
 
 - Follow standard `rustfmt` conventions
@@ -68,8 +66,6 @@ echo '{"count": 42}' | cargo run -p patch-db-util -- from-dump path/to/my.db
 
 ### TypeScript
 
-- Prettier for formatting (runs via pre-commit hook)
-- TSLint for linting (runs via pre-commit hook)
 - RxJS conventions: suffix observables with `$`
 
 ## Making changes
@@ -80,8 +76,3 @@ echo '{"count": 42}' | cargo run -p patch-db-util -- from-dump path/to/my.db
    - `Revision` and `Dump` types must match between `core/src/patch.rs` and `client/lib/types.ts`
    - Patch operations (add/remove/replace) must match between `json-patch/` and `client/lib/json-patch-lib.ts`
 4. **Run tests** before submitting
-
-## Commit conventions
-
-- Use imperative mood in commit messages ("add feature", not "added feature")
-- Keep commits focused — one logical change per commit

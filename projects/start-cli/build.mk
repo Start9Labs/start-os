@@ -26,3 +26,10 @@ results/$(CLI_BASENAME).deb: debian/build.sh $(CLI_TARGETS)
 clean-cli:
 	rm -f results/start-cli-*.deb
 	rm -rf dpkg-workdir/start-cli-*
+
+.PHONY: format-cli format-check-cli
+format-cli:
+	cargo +nightly fmt -p start-cli
+
+format-check-cli:
+	cargo +nightly fmt --check -p start-cli

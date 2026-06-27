@@ -4,7 +4,7 @@
 
 ## Place in the monorepo
 
-This is one application project in the single Angular workspace rooted at `shared-libs/ts-modules`. It does not have its own `angular.json` or `package.json` — both live in `shared-libs/ts-modules`, and `brochure` is registered there as the `brochure` project (`shared-libs/ts-modules/angular.json`). Its `tsconfig.json` extends `shared-libs/ts-modules/tsconfig.json` and maps the shared libs:
+This is one application project in the single Angular workspace rooted at the repo root. It does not have its own `angular.json` or `package.json` — both live at the repo root, and `brochure-marketplace` is registered there as the `brochure-marketplace` project (root `angular.json`). Its `tsconfig.json` extends the repo-root `tsconfig.json` and maps the shared libs:
 
 - `@start9labs/marketplace` → `shared-libs/ts-modules/marketplace`
 - `@start9labs/shared` → `shared-libs/ts-modules/shared`
@@ -12,7 +12,7 @@ This is one application project in the single Angular workspace rooted at `share
 
 Because brochure renders the same `@start9labs/marketplace` library used by the in-OS `ui` app, the marketplace experience is identical whether viewed here or inside a server.
 
-## Source layout (`brochure/src`)
+## Source layout (`projects/brochure-marketplace/src`)
 
 ```
 src/
@@ -53,4 +53,10 @@ Taiga UI 5 + the shared marketplace/shared libraries. The app is dark-themed (`t
 
 ## Build & deploy
 
-`@angular/build:application` builds to `brochure/dist/raw/brochure`. Assets are pulled from `shared/assets`, `brochure/src/assets/img`, and the Taiga icon set. Production builds apply the `environment.prod.ts` file replacement and output hashing. The deploy is automated on merge to `master` (`.github/workflows/deploy-brochure.yml`), which builds the SDK baseDist + patch-db client first, then the brochure bundle, and ships it to the VPS hosting marketplace.start9.com.
+`@angular/build:application` builds to `projects/brochure-marketplace/dist/raw/brochure-marketplace`. Assets are pulled from `shared/assets`, `projects/brochure-marketplace/src/assets/img`, and the Taiga icon set. Production builds apply the `environment.prod.ts` file replacement and output hashing. The deploy is automated on merge to `master` (`.github/workflows/deploy-brochure.yml`), which builds the SDK baseDist + patch-db client first, then the brochure bundle, and ships it to the VPS hosting marketplace.start9.com.
+
+## Further reading
+
+- [README.md](README.md) — what this app is and how to run it.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — build/test/format workflow.
+- [AGENTS.md](AGENTS.md) — instructions for AI/dev agents working here.

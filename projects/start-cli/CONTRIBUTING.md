@@ -4,29 +4,31 @@
 [CONTRIBUTING.md](../../CONTRIBUTING.md) for repo-wide workflow, commit, and review conventions;
 this file covers what's specific to this crate.
 
-## Where code lives
+## Documentation
 
-This crate holds only `src/main.rs` and `Cargo.toml`. **Almost all changes belong in
-`start-core`** (`shared-libs/crates/start-core`):
+- [`README.md`](./README.md) — what `start-cli` is and how to use it.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — how it's built (entrypoint, request flow, config).
+- `CONTRIBUTING.md` — this file (how to contribute).
+- [`AGENTS.md`](./AGENTS.md) — agent/dev rules; `CLAUDE.md` is a one-line `@AGENTS.md` import.
 
-- A new or changed CLI command → `main_api()` in
-  `shared-libs/crates/start-core/src/lib.rs` and the relevant `src/<area>/` module.
-- CLI argument/config changes → `start-core::context::config` (`ClientConfig`).
-- The CLI entrypoint behavior → `shared-libs/crates/start-core/src/bins/start_cli.rs`.
+## Prerequisites
 
-Edit this crate only when the entrypoint, Cargo features, or bin wiring change.
+A Rust toolchain matching the workspace `edition = "2024"`, plus the local container backend
+(Docker or Podman) if you exercise `s9pk` packaging. Everything builds from the monorepo root
+(single Cargo workspace, single `Cargo.lock`).
 
-## Build
+## Building
 
 From the monorepo root (single Cargo workspace, single `Cargo.lock`):
 
 ```sh
-cargo build -p start-cli --bin start-cli
-cargo build -p start-cli --bin start-cli --release
-cargo check -p start-cli
+make cli                                             # build the start-cli bin
+cargo build -p start-cli --bin start-cli             # dev shortcut (debug)
+cargo build -p start-cli --bin start-cli --release   # dev shortcut (release)
+cargo check -p start-cli                             # fast type-check
 ```
 
-## Test
+## Testing
 
 No unit tests live in this crate. Exercise CLI behavior through `start-core` and by running
 the built binary:
@@ -41,18 +43,27 @@ For end-to-end verification, build the binary and run it against a StartOS test 
 commands need `-H https://<host>` + `auth login`; local commands like `s9pk`/`init-key`/`pubkey`
 need no server).
 
-## Format & lint
+## Formatting
 
-Use the repo-standard Rust tooling (run from the root, or scoped to this package):
+Format this project from the monorepo root (CI runs the `format-check-cli` read-only variant):
 
 ```sh
-cargo fmt
+make format-cli         # format start-cli
+make format-check-cli   # check only (what CI runs)
 cargo clippy -p start-cli
 ```
 
-## Pull requests
+## Where code lives
 
-Follow the root contribution workflow: focused commits with conventional messages
-(`fix:`, `feat:`, `chore:`), branch off the latest default branch, and open a PR. If your change
-touches the CLI surface a user or package author sees, update the relevant docs in `start-sdk/docs`
-(packaging) and the `start-os` docs in the same change set.
+This crate holds only `src/main.rs` and `Cargo.toml`. **Almost all changes belong in
+`start-core`** (`shared-libs/crates/start-core`):
+
+- A new or changed CLI command → `main_api()` in
+  `shared-libs/crates/start-core/src/lib.rs` and the relevant `src/<area>/` module.
+- CLI argument/config changes → `start-core::context::config` (`ClientConfig`).
+- The CLI entrypoint behavior → `shared-libs/crates/start-core/src/bins/start_cli.rs`.
+
+Edit this crate only when the entrypoint, Cargo features, or bin wiring change.
+
+If your change touches the CLI surface a user or package author sees, update the relevant docs in
+`projects/start-sdk/docs` (packaging) and the `projects/start-os/docs` in the same change set.

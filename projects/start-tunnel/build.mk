@@ -34,3 +34,11 @@ results/$(TUNNEL_BASENAME).deb: debian/build.sh $(call ls-files,projects/start-t
 clean-tunnel:
 	rm -f results/start-tunnel-*.deb
 	rm -rf dpkg-workdir/start-tunnel-* projects/start-tunnel/web/dist projects/start-tunnel/docs/book
+
+# The tunnel web app is formatted by `format-web` (whole Angular workspace); this is the Rust crate.
+.PHONY: format-tunnel format-check-tunnel
+format-tunnel:
+	cargo +nightly fmt -p start-tunnel
+
+format-check-tunnel:
+	cargo +nightly fmt --check -p start-tunnel

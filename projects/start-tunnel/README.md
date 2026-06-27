@@ -27,11 +27,11 @@ StartTunnel is one product in the `start-os` monorepo. This directory is a thin
 wrapper; the actual server logic lives in the shared Rust library.
 
 ```
-start-tunnel/
+projects/start-tunnel/
 ├── Cargo.toml              # crate "start-tunnel", bin "tunnelbox"
 ├── src/main.rs             # entry point: embeds the UI, dispatches to start-core
 ├── start-tunneld.service   # systemd unit (runs /usr/bin/start-tunneld)
-├── web/                    # Angular UI (project "start-tunnel" in shared-libs/ts-modules)
+├── web/                    # Angular UI (project "start-tunnel", registered in the root angular.json)
 └── docs/                   # mdbook (book "StartTunnel")
 ```
 
@@ -72,8 +72,8 @@ All builds run from the **repo root**, not this directory.
 # Build the daemon binary (musl target, embeds the prebuilt UI)
 make tunnel
 
-# Build just the Angular UI
-npm --prefix shared-libs/ts-modules run build:tunnel
+# Build just the Angular UI (no make target; make tunnel chains it)
+npm run build:tunnel
 
 # Build the cargo binary directly (UI must already be built)
 cargo build -p start-tunnel --bin tunnelbox

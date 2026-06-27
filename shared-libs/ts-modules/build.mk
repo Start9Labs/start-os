@@ -54,3 +54,11 @@ clean-web:
 	rm -rf node_modules .angular projects/brochure-marketplace/dist
 	rm -rf shared-libs/crates/patch-db/client/node_modules shared-libs/crates/patch-db/client/dist
 	rm -f config.json
+
+# Formats the whole Angular workspace (shared/marketplace libs + every app dir incl. brochure).
+.PHONY: format-web format-check-web
+format-web:
+	npm --prefix . run format
+
+format-check-web:
+	npm --prefix . run format:check

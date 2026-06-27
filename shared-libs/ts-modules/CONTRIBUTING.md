@@ -13,10 +13,11 @@ This directory's docs split across four files:
 
 **These docs must be kept up to date.** When you change project structure, conventions, build process, or product context, update the relevant file(s) in the same change — do not defer.
 
-## Web Setup
+## Prerequisites
+
+From the repo root (the Angular workspace is rooted there):
 
 ```sh
-cd shared-libs/ts-modules
 npm ci
 npm run build:deps   # builds start-sdk (make bundle) + patch-db client; both are file: deps
 ```
@@ -24,7 +25,7 @@ npm run build:deps   # builds start-sdk (make bundle) + patch-db client; both ar
 #### Configure `config.json`
 
 ```sh
-cp config-sample.json config.json
+cp shared-libs/ts-modules/config-sample.json config.json
 ```
 
 - By default, "useMocks" is set to `true`.
@@ -60,19 +61,35 @@ cp proxy.conf-sample.json proxy.conf.json
 npm run start:ui:proxy
 ```
 
-## Type-checking, formatting & builds
+## Building
 
-Run from `shared-libs/ts-modules`:
+Run from the repo root:
+
+```sh
+npm run build:ui       # production build of a single app (build:setup / build:tunnel / build:brochure)
+```
+
+## Testing
+
+There is no unit-test runner wired up — type-checking (tsc, strict + strictTemplates) plus a successful build is the verification bar. Run from the repo root:
 
 ```sh
 npm run check          # type-check every project (i18n, shared, marketplace, ui, setup, brochure)
 npm run check:ui       # or a single project (check:shared / check:marketplace / check:setup / check:tunnel / check:brochure)
-npm run format         # prettier --write across the libs and all app dirs
-npm run format:check   # prettier --check (CI)
-npm run build:ui       # production build of a single app (build:setup / build:tunnel / build:brochure)
 ```
 
-A pre-commit hook runs `lint-staged` (prettier on staged files). `npm run check:i18n` validates that every language dictionary stays in sync with `en.ts`.
+`npm run check:i18n` validates that every language dictionary stays in sync with `en.ts`.
+
+## Formatting
+
+Run from the repo root:
+
+```sh
+make format-web         # prettier --write across the libs and all app dirs
+make format-check-web   # prettier --check (CI)
+```
+
+A pre-commit hook runs `lint-staged` (prettier on staged files).
 
 ## Translations
 
@@ -107,7 +124,7 @@ Translate the English dictionary below into `<language>`. Format the result as a
 - In the `shared` project:
   1. Create a new file (`language.ts`) in `src/i18n/dictionaries`
   2. Update the `I18N_PROVIDERS` array in `src/i18n/i18n.providers.ts` (2 places)
-  3. Update the `languages` array in `/src/i18n/i18n.service.ts`
+  3. Update the `languages` array in `src/i18n/i18n.service.ts`
   4. Add the name of the new language (lowercase) to the English dictionary in `src/i18n/dictionaries/en.ts`. Add the translations of the new language's name (lowercase) to ALL non-English dictionaries in `src/i18n/dictionaries/` (e.g., `es.ts`, `pl.ts`, etc.).
 
   If you have any doubt about the above steps, check the [French example PR](https://github.com/Start9Labs/start-os/pull/2945/files) for reference.
@@ -137,4 +154,4 @@ Languages:
 
 #### Adding to StartOS
 
-In the `shared` project, copy/paste the translations into their corresponding dictionaries in `/src/i18n/dictionaries`.
+In the `shared` project, copy/paste the translations into their corresponding dictionaries in `src/i18n/dictionaries`.

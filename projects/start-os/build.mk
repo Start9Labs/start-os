@@ -210,3 +210,14 @@ clean-startos:
 	rm -f projects/start-os/container-runtime/*.squashfs
 	rm -rf projects/start-os/build/lib/firmware projects/start-os/build/lib/migration-images
 	rm -rf projects/start-os/build/image-recipe/deb
+
+# OS bins + backup-fs (Rust) and the container-runtime (its own prettier config).
+# The ui/setup-wizard web apps are formatted by `format-web` (whole Angular workspace).
+.PHONY: format-startos format-check-startos
+format-startos:
+	cargo +nightly fmt -p start-os -p startos-backup-fs
+	npm --prefix projects/start-os/container-runtime run format
+
+format-check-startos:
+	cargo +nightly fmt --check -p start-os -p startos-backup-fs
+	npm --prefix projects/start-os/container-runtime run format:check

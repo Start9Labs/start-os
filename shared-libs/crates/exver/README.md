@@ -1,5 +1,17 @@
 # ExVer
 
+`exver` — a SemVer extension with separate upstream and downstream versions, designed for package
+distributors.
+
+## Place in the monorepo
+
+- Path: `shared-libs/crates/exver`.
+- Cargo package: `exver` (directory name and package name match); crate-type `cdylib` + `rlib`.
+- Consumers: `start-core` (`shared-libs/crates/start-core`) uses `Version`, `ExtendedVersion`, and
+  `VersionRange` across package management, the registry, dependency resolution, and manifests.
+- First-party: a direct path dependency (no registry crate, no `[patch]`). Also published to npm as
+  `@start9labs/exver` from the wasm build.
+
 This module was designed to address the problem of releasing updates to StartOS Packages where the upstream project was
 either unaware of or apathetic towards supporting their application on the StartOS platform. In most cases, the original
 package will support [semver2](https://semver.org/spec/v2.0.0.html). This leaves us with the problem where we would like
@@ -17,7 +29,7 @@ Add this to your `Cargo.toml`
 
 ```toml
 [dependencies]
-exver = "0.2.0"
+exver = "0.2.1"
 ```
 
 ## Operations
@@ -67,3 +79,13 @@ the LHS for a term on the RHS without changing the meaning of your program.
 - `Not` follows DeMorgan's laws:
   - not(and(a, b)) === or(not(a), not(b))
   - not(or(a, b)) === and(not(a), not(b))
+
+## Documentation
+
+- [ARCHITECTURE.md](./ARCHITECTURE.md) — how the crate works internally (types, parsing,
+  satisfiability, wasm surface).
+- [CONTRIBUTING.md](./CONTRIBUTING.md) — toolchain, build/test, and PR conventions.
+- [AGENTS.md](./AGENTS.md) — agent-facing rules and gotchas (`CLAUDE.md` is a one-line
+  `@AGENTS.md` import).
+
+Licensed under MIT (see `Cargo.toml`).

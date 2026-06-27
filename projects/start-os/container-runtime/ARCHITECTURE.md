@@ -13,6 +13,10 @@ LXC Container (uniform base image for all services)
 
 The `start-container` binary (built from package `start-os`, see `shared-libs/crates/start-core`) supervises the Node process and wraps its stdio. Package JavaScript must export functions conforming to the `ABI` type defined in `start-sdk/base/lib/types.ts`; the runtime imports `@start9labs/start-sdk` from the built SDK at `../../start-sdk/dist`.
 
+## Place in the monorepo
+
+This runtime lives at `projects/start-os/container-runtime` and is a Node.js package with its own `package.json` (built via `npm --prefix projects/start-os/container-runtime`, not the Angular workspace). It is consumed by the StartOS host daemon `start_core` (`shared-libs/crates/start-core`), which drives it over a Unix socket; the supervising `start-container` binary is built from package `start-os`, and its runtime API comes from `@start9labs/start-sdk` (`projects/start-sdk`).
+
 ## Source layout (`src/`)
 
 | Path                        | Responsibility                                                                                                                     |
@@ -51,8 +55,15 @@ The runtime ships as a squashfs rootfs baked into the StartOS image:
 2. `npm run build` compiles `src/` to `dist/`; `install-dist-deps.sh` installs production deps into `dist/node_modules`.
 3. `update-image-local.sh` runs `update-image.sh` inside the `start9/build-env` container: it overlays `dist/` into the base at `/usr/lib/startos/init/`, drops in `start-container` and the systemd units, runs `deb-install.sh` in the chroot, and mksquashfs's the result to `rootfs.<arch>.squashfs`.
 
-The top-level `Makefile` orchestrates all of this (`start-os/container-runtime/rootfs.$(ARCH).squashfs` target); the squashfs is installed to `/usr/lib/startos/container-runtime/rootfs.squashfs` in the final OS image.
+The top-level `Makefile` orchestrates all of this (`projects/start-os/container-runtime/rootfs.$(ARCH).squashfs` target); the squashfs is installed to `/usr/lib/startos/container-runtime/rootfs.squashfs` in the final OS image.
 
 ## S9PK structure
 
 The s9pk format determines what the runtime loads at startup. Its definition and tooling live in `shared-libs/crates/start-core/src/s9pk` (host side) and `start-sdk` (packaging side).
+
+## Further reading
+
+- [README.md](README.md) — what this is + quickstart
+- [CONTRIBUTING.md](CONTRIBUTING.md) — local build, type-check, and test workflow
+- [AGENTS.md](AGENTS.md) — agent/dev operating rules (`CLAUDE.md` is a one-line `@AGENTS.md` import)
+- [RPCSpec.md](RPCSpec.md) — full JSON-RPC wire protocol

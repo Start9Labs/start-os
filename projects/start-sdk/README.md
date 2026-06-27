@@ -2,7 +2,7 @@
 
 The Start SDK (`@start9labs/start-sdk`) is a TypeScript framework for packaging services to run on [StartOS](https://github.com/Start9Labs/start-os). It provides a strongly-typed, builder-pattern API for defining every aspect of a service package: manifests, daemons, health checks, networking interfaces, actions, backups, dependencies, configuration, and more.
 
-It lives at `start-sdk/` inside the [start-os monorepo](https://github.com/Start9Labs/start-os) and is published to npm as [`@start9labs/start-sdk`](https://www.npmjs.com/package/@start9labs/start-sdk).
+It lives at `projects/start-sdk/` inside the [start-os monorepo](https://github.com/Start9Labs/start-os) and is published to npm as [`@start9labs/start-sdk`](https://www.npmjs.com/package/@start9labs/start-sdk).
 
 ## Features
 
@@ -101,6 +101,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, building from sour
 ## Architecture
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for a detailed overview of the SDK's internal structure, module responsibilities, and data flow.
+
+For agent/dev instructions, see [AGENTS.md](AGENTS.md) (`CLAUDE.md` is a one-line `@AGENTS.md` import).
 
 ## License
 

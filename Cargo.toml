@@ -8,14 +8,18 @@ members = [
   "shared-libs/crates/rpc-toolkit",
   "shared-libs/crates/jsonpath",
   "shared-libs/crates/pi-beep",
+  "shared-libs/crates/patch-db/core",
+  "shared-libs/crates/patch-db/macro",
+  "shared-libs/crates/patch-db/macro-internals",
+  "shared-libs/crates/patch-db/util",
+  "shared-libs/crates/patch-db/json-patch",
+  "shared-libs/crates/patch-db/json-ptr",
   "projects/start-os",
   "projects/start-os/backup-fs",
   "projects/start-cli",
   "projects/start-registry",
   "projects/start-tunnel",
 ]
-# patch-db carries its own [workspace]; consumed by start-core via a path dep.
-exclude = ["shared-libs/crates/patch-db"]
 
 [profile.test]
 opt-level = 3

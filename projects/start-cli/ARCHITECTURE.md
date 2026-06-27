@@ -1,4 +1,4 @@
-# Architecture
+# start-cli Architecture
 
 `start-cli` is intentionally tiny. Almost all behavior lives in the shared
 [`start-core`](../../shared-libs/crates/start-core) crate (cargo package `start-core`, lib name
@@ -6,19 +6,11 @@
 
 ## Place in the monorepo
 
-```
-start-os/                      monorepo root (one Cargo workspace, one Cargo.lock)
-├── shared-libs/crates/start-core/  the entire Rust backend (lib `start_core`)
-├── start-cli/        ← THIS CRATE — bin `start-cli`
-├── start-os/         OS product (bins startbox, start-container)
-├── start-registry/   registrybox bin
-├── start-tunnel/     tunnelbox bin
-└── start-sdk/        packaging SDK + docs
-```
-
-All product bins (`startbox`, `start-container`, `start-cli`, `registrybox`, `tunnelbox`)
-depend on `start-core`. `start-cli` declares it as
-`start-core = { path = "../../shared-libs/crates/start-core" }`.
+This crate lives at `projects/start-cli/` and produces the standalone `start-cli` bin. Like the
+other product bins (`startbox`, `start-container`, `registrybox`, `tunnelbox`) it depends on the
+shared `start-core` crate, declared as
+`start-core = { path = "../../shared-libs/crates/start-core" }`. See the root
+[`ARCHITECTURE.md`](../../ARCHITECTURE.md) for the overall monorepo layout.
 
 ## What this crate contains
 
@@ -80,3 +72,9 @@ to write the committed man pages into this project's `man/` dir
 - New/changed CLI commands → `start-core` (`main_api()` and the relevant `src/<area>/` module),
   not here. This crate only changes when the entrypoint, features, or bin wiring change.
 - Verifying a command end to end → build `start-cli` and run it against a test server/VM.
+
+## Further reading
+
+- [`README.md`](./README.md) — what `start-cli` is and how to use it.
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md) — how to contribute to this crate.
+- [`AGENTS.md`](./AGENTS.md) — agent/dev rules; `CLAUDE.md` is a one-line `@AGENTS.md` import.

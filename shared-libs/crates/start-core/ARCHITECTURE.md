@@ -1,6 +1,6 @@
 # start-core Architecture
 
-The shared Rust backend library for StartOS. Cargo package `start-core`, library name `startos`,
+The shared Rust backend library for StartOS. Cargo package `start-core`, library name `start_core`,
 rooted at `shared-libs/crates/start-core`. All Start9 product binaries link against it.
 
 ## Library, not a binary
@@ -11,11 +11,11 @@ to enable via `start_core::bins::MultiExecutable` and call `.execute()`:
 
 | Binary | Wrapper crate / file | Role |
 |--------|----------------------|------|
-| `startbox` / `startd` | `start-os/src/bin/startbox.rs` | Main OS daemon |
-| `start-container` | `start-os/src/bin/start-container.rs` | Runs inside package LXC containers; talks to the host and manages subcontainers |
-| `start-cli` | `start-cli/src/main.rs` | CLI over the daemon's JSON-RPC API |
-| `registrybox` | `start-registry/src/main.rs` | Package registry server |
-| `tunnelbox` | `start-tunnel/src/main.rs` | StartTunnel VPN/forwarding server |
+| `startbox` / `startd` | `projects/start-os/src/bin/startbox.rs` | Main OS daemon |
+| `start-container` | `projects/start-os/src/bin/start-container.rs` | Runs inside package LXC containers; talks to the host and manages subcontainers |
+| `start-cli` | `projects/start-cli/src/main.rs` | CLI over the daemon's JSON-RPC API |
+| `registrybox` | `projects/start-registry/src/main.rs` | Package registry server |
+| `tunnelbox` | `projects/start-tunnel/src/main.rs` | StartTunnel VPN/forwarding server |
 
 `MultiExecutable` also supports invoking a chosen entrypoint by argv[0] (busybox-style), which is
 how `startbox` dispatches to `startd`, `start-cli`, etc. The per-entrypoint logic lives in
@@ -81,14 +81,17 @@ and the package container-runtime, via the SDK). They do **not** propagate autom
 the repo root:
 
 1. `make ts-bindings` — regenerates `shared-libs/crates/start-core/bindings/` (via `build/build-ts.sh`),
-   then rsyncs it into `start-sdk/base/lib/osBindings/`.
-2. `cd start-sdk && make baseDist dist` — rebuilds the SDK bundles that the web app and
+   then rsyncs it into `projects/start-sdk/base/lib/osBindings/`.
+2. `cd projects/start-sdk && make baseDist dist` — rebuilds the SDK bundles that the web app and
    container-runtime actually import.
 
 Until both steps run, a changed `#[ts(export)]` type is out of sync with everything downstream.
 
-## Related Documentation
+## Further reading
 
+- [README.md](README.md) — what this crate is and how to use it
+- [CONTRIBUTING.md](CONTRIBUTING.md) — build, test, format, and contribution workflow
+- [AGENTS.md](AGENTS.md) — operating rules for AI/dev work (`CLAUDE.md` is a one-line `@AGENTS.md` import)
 - [rpc-toolkit.md](rpc-toolkit.md) — JSON-RPC handler patterns
 - [patchdb.md](patchdb.md) — Patch-DB watch patterns and TypedDbWatch
 - [i18n-patterns.md](i18n-patterns.md) — Internationalization conventions

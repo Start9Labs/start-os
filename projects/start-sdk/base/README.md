@@ -1,1 +1,1 @@
-# See ../package/README.md
+# See ../README.md

@@ -5,16 +5,19 @@ whole, see [../../ARCHITECTURE.md](../../ARCHITECTURE.md).
 For the Rust backend internals, see the `start-core` crate at
 [../../shared-libs/crates/start-core](../../shared-libs/crates/start-core).
 
-## What this product is
+## Place in the monorepo
 
-`start-os/` is a thin wrapper that assembles the StartOS server operating system
-from shared building blocks. It contributes the entry points and the
-OS-specific surface; almost all backend logic is in the `start-core` crate.
+`start-os/` is the package `start-os` (binaries `startbox` + `start-container`):
+a thin wrapper that assembles the StartOS server operating system from shared
+building blocks. It contributes the entry points and the OS-specific surface;
+almost all backend logic is in the `start-core` crate, and it is consumed by the
+root OS image build. Sibling product crates (`start-cli`, `start-registry`,
+`start-tunnel`) are analogous wrappers over the same `start-core` lib.
 
 ## Binaries
 
 `Cargo.toml` declares package `start-os` with two binaries, both depending on
-`start-core` (imported as the `startos` lib):
+`start-core` (imported as the `start_core` lib):
 
 - **`startbox`** (`src/bin/startbox.rs`) — a multi-call applet enabling the
   `startd` daemon, the `start-cli` client, and the `unshare-userns` applet. It
@@ -43,10 +46,11 @@ Two Angular 22 apps live under `web/`:
 - `ui/` — the admin dashboard (Angular project `ui`).
 - `setup-wizard/` — the first-boot setup flow (project `setup-wizard`).
 
-They are part of the single Angular workspace rooted at `../../shared-libs/ts-modules`
-(`angular.json` there points each project's `root` at `../../start-os/web/...`).
+They are part of the single Angular workspace rooted at `../../` (the repository root)
+(the root `angular.json` points each project's `root` at `projects/start-os/web/...`).
 They consume the shared `@start9labs/shared` and `@start9labs/marketplace` libs
-from `../../shared-libs/ts-modules` and the SDK base from `../start-sdk`. The frontend talks to
+from the shared TypeScript modules at `../../shared-libs/ts-modules` and the SDK
+base from `../start-sdk`. The frontend talks to
 the backend exclusively over JSON-RPC, with reactive state via Patch-DB.
 
 `web/patchdb-ui-seed.json` / `patchdb-ui-seed.beta.json` seed initial UI state
@@ -57,7 +61,7 @@ and are embedded into `startbox`.
 `container-runtime/` is a Node.js program that runs inside every service LXC. It
 loads the service's JavaScript from its `.s9pk`, manages subcontainers, and
 talks to the host daemon over a Unix-socket JSON-RPC channel. It depends on the
-**built** SDK at `../../start-sdk/dist`. It has its own
+**built** SDK at `../start-sdk/dist`. It has its own
 [README](container-runtime/README.md), [ARCHITECTURE](container-runtime/ARCHITECTURE.md),
 and [AGENTS](container-runtime/AGENTS.md) — read those before editing it.
 
@@ -84,9 +88,11 @@ erasure-coded FUSE filesystem used for StartOS backups. It builds to the
 
 ## OS image packaging
 
-Image build inputs are shared at the repo root, not in this dir: `debian/`
-(maintainer scripts incl. `debian/startos`), `apt/`, `build/` (`image-recipe`,
-`firmware`, `env` scripts, migration images), and `assets/`. The root `Makefile`
+Image build inputs are partly shared at the repo root: `debian/` (shared
+`debian/build.sh`, `debian/publish.sh`), `apt/`, and `build/` (`env` scripts and
+shared build infra). Product-specific maintainer scripts (e.g.
+`projects/start-os/debian/postinst`) and `assets/` live in this product dir
+(`projects/start-os/`). The root `Makefile`
 turns the compiled bins + UIs + runtime squashfs into a `.deb`, `.squashfs`, and
 finally the `.iso`/`.img` for the target platform (x86_64, aarch64/Raspberry Pi,
 rockchip, riscv64).
@@ -108,7 +114,7 @@ start-core (Rust)
 | 1 | `cargo check -p start-os` | Verify the OS bins compile |
 | 2 | `make ts-bindings` | Export ts-rs types from `start-core` |
 | 3 | `cd projects/start-sdk && make bundle` | Build SDK `baseDist` + `dist` |
-| 4 | `cd shared-libs/ts-modules && npm run check:ui && npm run check:setup` | Type-check the apps |
+| 4 | `npm run check:ui && npm run check:setup` | Type-check the apps |
 | 5 | `cd projects/start-os/container-runtime && npm run check` | Type-check the runtime |
 
 Editing the generated bindings under `start-sdk/base/lib/osBindings/*.ts` alone
@@ -130,5 +136,5 @@ resolving, so the UI is always eventually consistent with the backend.
 ## Further reading
 
 - [../../shared-libs/crates/start-core](../../shared-libs/crates/start-core) — Rust backend
-- [../../shared-libs/ts-modules](../../shared-libs/ts-modules) — shared Angular libraries + workspace
+- [../../shared-libs/ts-modules](../../shared-libs/ts-modules) — shared TypeScript modules + workspace (currently the Angular libs `shared` and `marketplace`)
 - [container-runtime/ARCHITECTURE.md](container-runtime/ARCHITECTURE.md) — runtime

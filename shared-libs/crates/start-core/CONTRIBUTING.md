@@ -21,15 +21,31 @@ This sub-tree's docs split across four files:
 - [rust-analyzer](https://rust-analyzer.github.io/) recommended
 - [Docker](https://docs.docker.com/get-docker/) (for cross-compilation via `rust-zig-builder` container)
 
-## Common Commands
+## Building
 
 Run from the repo root:
 
 ```bash
 cargo check -p start-core                          # Type check
+cargo build -p start-os --bin startbox             # Build a product binary
+```
+
+## Testing
+
+Run from the repo root:
+
+```bash
 make test-core                                     # Run the full suite (wraps run-tests.sh)
-make format                                        # Format with nightly rustfmt
 cargo test -p start-core <test_name> --features=test  # Run a specific test
+```
+
+## Formatting
+
+Run from the repo root:
+
+```bash
+make format-core                                   # Format with nightly rustfmt
+make format-check-core                             # Read-only check (CI)
 ```
 
 ## Adding a New RPC Endpoint

@@ -14,8 +14,9 @@ Most subcommands are *remote* calls: you point `start-cli` at a running StartOS 
 Build the binary from the monorepo root:
 
 ```sh
-cargo build -p start-cli --bin start-cli           # debug
-cargo build -p start-cli --bin start-cli --release # release
+make cli                                            # build the start-cli bin
+cargo build -p start-cli --bin start-cli            # dev shortcut (debug)
+cargo build -p start-cli --bin start-cli --release  # dev shortcut (release)
 ```
 
 Run it:
@@ -70,6 +71,12 @@ Run `start-cli <group> --help` for any group.
 
 Cargo features forward to `start-core`: `beta`, `console`, `dev`, `test`, `unstable`.
 None are enabled by default.
+
+## Documentation
+
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — how the crate is built (entrypoint, request flow, config).
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md) — how to contribute.
+- [`AGENTS.md`](./AGENTS.md) — agent/dev rules; `CLAUDE.md` is a one-line `@AGENTS.md` import.
 
 ## License
 

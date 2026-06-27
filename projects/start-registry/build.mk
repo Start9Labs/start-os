@@ -26,3 +26,10 @@ results/$(REGISTRY_BASENAME).deb: debian/build.sh $(call ls-files,projects/start
 clean-registry:
 	rm -f results/start-registry-*.deb
 	rm -rf dpkg-workdir/start-registry-*
+
+.PHONY: format-registry format-check-registry
+format-registry:
+	cargo +nightly fmt -p start-registry
+
+format-check-registry:
+	cargo +nightly fmt --check -p start-registry

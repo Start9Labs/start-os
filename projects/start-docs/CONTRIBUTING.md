@@ -4,14 +4,12 @@ We welcome contributions! Whether you spot a typo or want to suggest new content
 
 This is the docs-site project inside the monorepo. See the [root CONTRIBUTING](../../CONTRIBUTING.md) for the monorepo-wide workflow.
 
-## Project docs
+## Documentation
 
 - `README.md` — what this project is
 - `ARCHITECTURE.md` — how the site is built and deployed
 - `CONTRIBUTING.md` — this file
-- `AGENTS.md` — operating rules for AI developers (`CLAUDE.md` just imports it)
-
-Keep these up to date. When you change the build process, conventions, or where a book lives, update the relevant file(s) in the same change.
+- `AGENTS.md` — operating rules for AI developers (`CLAUDE.md` is a one-line `@AGENTS.md` import)
 
 ## Where the books live
 
@@ -23,7 +21,7 @@ Only the **Bitcoin Guides** book (`bitcoin-guides/`), the landing page, the them
 
 `build.sh`'s `book_dir()` maps each book name to its source dir, so the build and the deployed URLs treat all books uniformly.
 
-## Local Setup
+## Prerequisites
 
 1. Install [Rust](https://rustup.rs):
 
@@ -57,12 +55,16 @@ Only the **Bitcoin Guides** book (`bitcoin-guides/`), the landing page, the them
    cd bitcoin-guides && mdbook serve -p 3001       # Bitcoin Guides
    ```
 
-## Build & Tooling
+## Building
 
 - `./build.sh` — build all books into the `docs/` output dir
 - `./serve.sh` — build + serve on http://localhost:3000
 - `cd <book-src-dir> && mdbook serve -p 3001` — live-reload a single book
 - `cd scripts && npm run generate-llms-txt` — regenerate `llms.txt` files
+
+## Testing
+
+`./build.sh` is the primary check — mdBook fails the build on broken intra-book links, so a clean build verifies your change compiles.
 
 ## Writing Docs
 
@@ -121,9 +123,3 @@ See the [StartTunnel docs](/start-tunnel/).
 ```
 
 Within a book, use relative paths as usual.
-
-## Submitting Changes
-
-1. Fork `start-os` and create a branch
-2. Make your changes
-3. Submit a PR against `master`

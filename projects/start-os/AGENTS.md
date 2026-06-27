@@ -1,10 +1,13 @@
-# AGENTS — StartOS OS product
+# AGENTS.md — StartOS OS product
 
-Operating rules for AI developers working in `start-os/`. See the root
-[AGENTS.md](../../AGENTS.md) for monorepo-wide rules and
-[ARCHITECTURE.md](ARCHITECTURE.md) for how this product is wired.
+Operating rules for AI developers working in `start-os/`. `CLAUDE.md` is a
+one-line `@AGENTS.md` import. See the root [AGENTS.md](../../AGENTS.md) for
+monorepo-wide rules, and [ARCHITECTURE.md](ARCHITECTURE.md) and
+[CONTRIBUTING.md](CONTRIBUTING.md) for how this product is wired and built.
 
-## Where things are
+**Read up the tree first.** These docs are hierarchical: before working here, read the `AGENTS.md` in each enclosing directory up to the repo root (and their `ARCHITECTURE.md` / `CONTRIBUTING.md` where relevant). This file covers only what is specific to this scope and does not repeat rules already stated higher up.
+
+## Layout
 
 - `src/bin/startbox.rs`, `src/bin/start-container.rs` — the only Rust in this
   dir. They are thin entry points; backend logic lives in
@@ -15,9 +18,10 @@ Operating rules for AI developers working in `start-os/`. See the root
   read `container-runtime/AGENTS.md` before touching it.
 - `docs/` — the end-user mdbook (book "StartOS"), served at `/start-os/`.
 - Systemd units + `services.slice` live directly in this dir; OS image
-  packaging (`debian/`, `apt/`, `build/`, `assets/`) is at the **repo root**.
+  packaging (`debian/`, `apt/`, `build/`) is at the **repo root**; `assets/` is
+  directly in this dir.
 
-## Build & verify (run from the repo root)
+## Build & test (run from the repo root)
 
 - Compile the OS bins: `cargo check -p start-os` (or `cargo build -p start-os
   --bin startbox`). Local `cargo check` is **linux-only** — CI also builds
@@ -25,13 +29,13 @@ Operating rules for AI developers working in `start-os/`. See the root
   yet break those.
 - Regenerate TS bindings after any change to exported Rust types:
   `make ts-bindings`. Then rebuild the SDK (`cd projects/start-sdk && make bundle`) before
-  web/runtime type-checks — editing `start-sdk/base/lib/osBindings/*.ts` alone
-  is not enough.
-- Type-check web apps: `cd shared-libs/ts-modules && npm run check:ui && npm run check:setup`.
+  web/runtime type-checks — editing `projects/start-sdk/base/lib/osBindings/*.ts`
+  alone is not enough.
+- Type-check web apps: `npm run check:ui && npm run check:setup`.
 - Type-check the runtime: `cd projects/start-os/container-runtime && npm run check`.
 - Build the UI: `make startos-ui` (or `make startos-uis` for ui + setup-wizard).
 - Tests: `make test` (Rust + SDK + container-runtime), or `make test-core`.
-- Format: `make format` / `make format-check`.
+- Format: `make format-startos` / `make format-check-startos`.
 - Regenerate `start-container` man pages (committed under `man/`):
   `cargo test -p start-core export_manpage_start_container`.
 
@@ -45,8 +49,8 @@ Operating rules for AI developers working in `start-os/`. See the root
   process. See the comment in `src/bin/start-container.rs`.
 - **Don't normalize style across components.** The container-runtime uses double
   quotes + no semicolons (its own prettier config); the SDK uses single quotes.
-- **Don't edit `start-os/sdk.ts` / `index.ts`-style "DO NOT EDIT" files** or the
-  root `s9pk.mk`.
+- **Don't edit generated binding files** like
+  `projects/start-sdk/base/lib/osBindings/index.ts` or `projects/start-sdk/s9pk.mk`.
 - **Ask before destructive `make` recipes** — `update*`, `reflash`, `wormhole*`,
   image flashing, and `make clean*` consume hours/disk and may touch a live
   device.

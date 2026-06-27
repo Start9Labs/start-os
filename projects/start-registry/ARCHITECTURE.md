@@ -2,6 +2,12 @@
 
 `start-registry` is one of the product wrappers in the `start-os` monorepo. The wrapper itself is tiny; nearly all logic lives in the shared backend crate `start-core` (`shared-libs/crates/start-core`, package `start-core`, lib name `start_core`).
 
+## Place in the monorepo
+
+`start-registry` lives at `projects/start-registry/` and is the product wrapper for the registry server/CLI (the `registrybox` bin + systemd unit). Its real implementation lives in `shared-libs/crates/start-core` (`src/bins/registry.rs` + `src/registry/`), and its browsing UI is `@start9labs/marketplace` (`shared-libs/ts-modules/marketplace/`). See the root [`ARCHITECTURE.md`](../../ARCHITECTURE.md) for the overall monorepo layout.
+
+All five product binaries (`startbox`, `start-container`, `start-cli`, `registrybox`, `tunnelbox`) share the one Cargo workspace and depend on `start-core`.
+
 ## Binary: `registrybox`
 
 `src/main.rs` builds a `MultiExecutable` (from `start_core::bins`) and registers two entry points:
@@ -69,18 +75,10 @@ Package and OS indexes (`registry/package/index.rs`, `registry/os/index.rs`) hol
 
 ## Frontend
 
-The registry has no bundled UI of its own; the browsing/search/download UI is the shared Angular library **`@start9labs/marketplace`** at `shared-libs/ts-modules/marketplace/`. App projects (StartOS web, etc.) consume that library and point it at a registry's RPC endpoints. The library is source-consumed via tsconfig paths within the `shared-libs/ts-modules` Angular workspace.
+The registry has no bundled UI of its own; the browsing/search/download UI is the shared Angular library **`@start9labs/marketplace`** at `shared-libs/ts-modules/marketplace/`. App projects (StartOS web, etc.) consume that library and point it at a registry's RPC endpoints. The library is source-consumed via tsconfig paths within the `shared-libs/ts-modules` workspace of shared TypeScript modules (which currently holds the Angular libs `shared` and `marketplace`).
 
-## Place in the monorepo
+## Further reading
 
-```
-start-os/ (monorepo root)
-├── start-registry/                 ← this wrapper (registrybox bin + service)
-├── shared-libs/crates/start-core/       ← all backend logic, incl. src/registry/
-│   └── src/bins/registry.rs        ← server + CLI entry points
-├── shared-libs/ts-modules/marketplace/         ← @start9labs/marketplace UI library
-├── Makefile                        ← registry / install-registry / .deb targets
-└── Cargo.toml                      ← single workspace + Cargo.lock
-```
-
-All five product binaries (`startbox`, `start-container`, `start-cli`, `registrybox`, `tunnelbox`) share the one Cargo workspace and depend on `start-core`.
+- [README.md](./README.md) — what the registry is and how to run it.
+- [CONTRIBUTING.md](./CONTRIBUTING.md) — build, test, and contribution workflow.
+- [AGENTS.md](./AGENTS.md) — rules for agents working in this dir.

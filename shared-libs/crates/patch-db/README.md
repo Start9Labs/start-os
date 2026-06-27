@@ -22,7 +22,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-patch-db = { git = "https://github.com/Start9Labs/patch-db" }
+patch-db = { path = "../patch-db/core" }
 ```
 
 ```rust
