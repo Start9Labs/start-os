@@ -15,3 +15,9 @@ shared-libs/crates/start-core/bindings/index.ts: $(call ls-files, shared-libs/cr
 	fi
 	npm --prefix projects/start-sdk/base exec -- prettier --config=./projects/start-sdk/base/package.json -w './shared-libs/crates/start-core/bindings/**/*.ts'
 	touch shared-libs/crates/start-core/bindings/index.ts
+
+.PHONY: clean-core
+# Owns the shared Rust build root, generated bindings, and global build metadata.
+clean-core:
+	rm -rf target shared-libs/crates/start-core/bindings shared-libs/crates/patch-db/target
+	rm -f build/env/*.txt

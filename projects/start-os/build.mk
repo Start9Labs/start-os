@@ -200,3 +200,13 @@ target/$(RUST_ARCH)-unknown-linux-musl/release/tokio-console: ./build/build-carg
 target/$(RUST_ARCH)-unknown-linux-musl/release/flamegraph: ./build/build-cargo-dep.sh
 	ARCH=$(ARCH) ./build/build-cargo-dep.sh flamegraph
 	touch $@
+
+.PHONY: clean-startos
+clean-startos:
+	rm -f results/startos-*
+	rm -rf dpkg-workdir/startos-*
+	rm -rf projects/start-os/web/dist projects/start-os/docs/book
+	rm -rf projects/start-os/container-runtime/dist projects/start-os/container-runtime/node_modules
+	rm -f projects/start-os/container-runtime/*.squashfs
+	rm -rf projects/start-os/build/lib/firmware projects/start-os/build/lib/migration-images
+	rm -rf projects/start-os/build/image-recipe/deb

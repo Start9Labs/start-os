@@ -158,7 +158,7 @@ Follow the screenshot walkthrough in [`projects/start-os/assets/create-vm/`](pro
 Build an ISO first:
 
 ```sh
-PLATFORM=$(uname -m) ENVIRONMENT=dev make startos
+PLATFORM=$(uname -m) ENVIRONMENT=dev make startos-iso
 ```
 
 #### Other

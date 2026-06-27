@@ -29,3 +29,8 @@ tunnel-deb: results/$(TUNNEL_BASENAME).deb
 
 results/$(TUNNEL_BASENAME).deb: debian/build.sh $(call ls-files,projects/start-tunnel/debian) $(TUNNEL_TARGETS) build/lib/scripts/forward-port
 	PROJECT=start-tunnel PLATFORM=$(ARCH) REQUIRES=debian DEPENDS=wireguard-tools,iptables,nftables,conntrack ./build/os-compat/run-compat.sh ./debian/build.sh
+
+.PHONY: clean-tunnel
+clean-tunnel:
+	rm -f results/start-tunnel-*.deb
+	rm -rf dpkg-workdir/start-tunnel-* projects/start-tunnel/web/dist projects/start-tunnel/docs/book

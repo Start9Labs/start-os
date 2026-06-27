@@ -35,11 +35,10 @@ root** unless noted.
 
 ```sh
 cargo check -p start-os        # verify the OS bins compile (startbox, start-container)
-make ui                        # build the admin UI
-make uis                       # build ui + setup-wizard
-make all                       # build everything for the current platform
-make startos-$(IMAGE_TYPE)     # build the OS image (iso; img on Raspberry Pi)
-make cli / make cli-deb        # build start-cli / its .deb (install-cli stages into DESTDIR)
+make startos-ui                # build the admin UI
+make startos-uis               # build ui + setup-wizard
+make startos                   # build all OS artifacts (bins + web + container-runtime image)
+make startos-$(IMAGE_TYPE)     # build the bootable image (iso; img on Raspberry Pi)
 make startos-deb / make startos-squashfs   # package outputs
 ```
 
