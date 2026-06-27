@@ -34,7 +34,7 @@ Tests are Jest + `ts-jest` (`jest.config.js`, `rootDir: ./src`). `mime` is mocke
 ## Image build (gotchas)
 
 - Compiled JS is installed into the container at `/usr/lib/startos/init/index.js` (the systemd unit runs `start-container pipe-wrap node … /usr/lib/startos/init/index.js`).
-- `update-image-local.sh` mounts the **repo root** into `start9/build-env` and runs `update-image.sh` inside it. Note: `update-image.sh` still copies `start-container` from a `../core/target/...` path — that is a stale pre-monorepo path (the binary now builds into the root `target/<arch>-unknown-linux-musl/release/`). Don't propagate `core/` as a current path elsewhere; flag/fix it in code only if asked.
+- `update-image-local.sh` mounts the **repo root** into `start9/build-env` (at `/root/start-os`) and runs `update-image.sh` inside it. `update-image.sh` `cd`s to its own dir (`projects/start-os/container-runtime/`), so it reaches the repo-root build output three levels up — it copies `start-container` from `../../../target/<arch>-unknown-linux-musl/release/`.
 - The squashfs lands at `rootfs.<arch>.squashfs` and is installed to `/usr/lib/startos/container-runtime/rootfs.squashfs`.
 
 ## Stale-path note (monorepo)
