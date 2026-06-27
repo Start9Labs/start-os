@@ -60,9 +60,9 @@ setup (Debian/Ubuntu, Docker, Rust, Node 24).
 ```sh
 # from the repo root
 cargo check -p start-os                 # verify the OS bins compile
-make ui                                  # build the admin UI
-make all                                 # build everything for the current platform
-make $(IMAGE_TYPE)                       # build the OS image (iso, or img on Pi)
+make startos-ui                          # build the admin UI
+make startos                             # build all OS artifacts (bins + web + runtime image)
+make startos-$(IMAGE_TYPE)               # build the bootable image (iso, or img on Pi)
 ```
 
 `make` targets relevant to this product: `ui`, `uis`, `startos`, `startos-deb`,

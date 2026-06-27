@@ -33,7 +33,7 @@ monorepo-wide rules, and [ARCHITECTURE.md](ARCHITECTURE.md) and
   alone is not enough.
 - Type-check web apps: `npm run check:ui && npm run check:setup`.
 - Type-check the runtime: `cd projects/start-os/container-runtime && npm run check`.
-- Build the UI: `make ui` (or `make uis` for ui + setup-wizard).
+- Build the UI: `make startos-ui` (or `make startos-uis` for ui + setup-wizard).
 - Tests: `make test` (Rust + SDK + container-runtime), or `make test-core`.
 - Format: `make format` / `make format-check`.
 - Regenerate `start-container` man pages (committed under `man/`):

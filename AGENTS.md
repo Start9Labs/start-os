@@ -27,7 +27,7 @@ Each product lives under `projects/` as a thin wrapper; the bulk of the code liv
 
 ## Build & test (run from the repo root)
 
-- **Use `make` recipes when they exist** rather than re-deriving the underlying commands. The root `Makefile` is a thin orchestrator that `include`s `build/common.mk` (shared vars/macros) and one `<project>/build.mk` per product (`projects/<name>/build.mk`, `shared-libs/*/build.mk`) — run everything from the repo root (`make all`, `make registry`, etc.); a product's targets live in its `build.mk`.
+- **Use `make` recipes when they exist** rather than re-deriving the underlying commands. The root `Makefile` is a thin orchestrator that `include`s `build/common.mk` (shared vars/macros) and one `<project>/build.mk` per product (`projects/<name>/build.mk`, `shared-libs/*/build.mk`) — run everything from the repo root (`make startos`, `make registry`, etc.); a product's targets live in its `build.mk`. There is no default target — bare `make` prints `help`.
 - **Build a single product** with `cargo build -p <crate> --bin <bin>` (bins: `startbox`/`start-container` in package `start-os`; `start-cli`; `registrybox` in `start-registry`; `tunnelbox` in `start-tunnel`).
 - **Tests:** `make test` (all), `make test-core` / `make test-sdk` / `make test-container-runtime` (scoped). A single Rust test: `cd shared-libs/crates/start-core && cargo test <test_name> --features=test`.
 - **Format:** `make format` (Rust nightly fmt + web prettier + SDK); CI runs `make format-check`. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full build/test/format workflow.

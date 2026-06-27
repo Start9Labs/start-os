@@ -21,3 +21,8 @@ registry-deb: results/$(REGISTRY_BASENAME).deb
 
 results/$(REGISTRY_BASENAME).deb: debian/build.sh $(call ls-files,projects/start-registry/debian) $(REGISTRY_TARGETS)
 	PROJECT=start-registry PLATFORM=$(ARCH) REQUIRES=debian DEPENDS=ca-certificates ./build/os-compat/run-compat.sh ./debian/build.sh
+
+.PHONY: clean-registry
+clean-registry:
+	rm -f results/start-registry-*.deb
+	rm -rf dpkg-workdir/start-registry-*

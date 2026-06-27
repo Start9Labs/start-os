@@ -21,3 +21,8 @@ cli-deb: results/$(CLI_BASENAME).deb
 
 results/$(CLI_BASENAME).deb: debian/build.sh $(CLI_TARGETS)
 	PROJECT=start-cli PLATFORM=$(ARCH) REQUIRES=debian ./build/os-compat/run-compat.sh ./debian/build.sh
+
+.PHONY: clean-cli
+clean-cli:
+	rm -f results/start-cli-*.deb
+	rm -rf dpkg-workdir/start-cli-*

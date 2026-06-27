@@ -43,8 +43,14 @@ projects/start-tunnel/web/dist/static/%/index.html: projects/start-tunnel/web/di
 config.json: $(GIT_HASH_FILE) $(ENVIRONMENT_FILE) shared-libs/ts-modules/config-sample.json shared-libs/ts-modules/update-config.sh
 	./shared-libs/ts-modules/update-config.sh	
 
-# this is a convenience step to build all web uis - it is not referenced elsewhere in this file
-uis: $(WEB_UIS) 
+# convenience steps to build the StartOS web UIs (OS-product targets; not referenced elsewhere)
+startos-uis: $(WEB_UIS)
 
-# this is a convenience step to build the UI
-ui: projects/start-os/web/dist/raw/ui
+startos-ui: projects/start-os/web/dist/raw/ui/index.html
+
+.PHONY: clean-web
+# Owns the Angular workspace, the patch-db TS client it consumes, and brochure (built via this workspace).
+clean-web:
+	rm -rf node_modules .angular projects/brochure-marketplace/dist
+	rm -rf shared-libs/crates/patch-db/client/node_modules shared-libs/crates/patch-db/client/dist
+	rm -f config.json
