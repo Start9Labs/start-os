@@ -50,14 +50,15 @@ Run the checks that apply to what you touched before opening a PR.
 ## Formatting
 
 ```bash
-cargo fmt                                           # format (run before committing)
+make format-registry                               # format (run before committing)
+make format-check-registry                         # read-only check (what CI runs)
 ```
 
-Make sure `cargo fmt` is clean before opening a PR.
+Make sure `make format-check-registry` is clean before opening a PR.
 
 ## Conventions
 
-- **Rust 2024 edition**, formatted with `cargo fmt` (rustfmt). Keep clippy clean.
+- **Rust 2024 edition**, formatted via `make format-registry` (rustfmt). Keep clippy clean.
 - **Comments:** default to none; clear names over prose. A comment is for a non-obvious *why* only — one short line.
 - **API additions:** add subcommands in `registry/mod.rs`; use `with_call_remote::<CliContext>()` to expose them to the `start-registry` CLI and `with_about(...)` for help text. Tag admin-only commands with `with_metadata("admin", true)`.
 - **Schema changes:** changing `RegistryDatabase` / index types requires a migration in `shared-libs/crates/start-core/src/registry/migrations`.

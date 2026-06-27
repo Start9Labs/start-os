@@ -13,8 +13,8 @@ read its own `AGENTS.md` first. `CLAUDE.md` is a one-line `@AGENTS.md` import. S
   Has its own `AGENTS.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, plus topic notes
   (`core-rust-patterns.md`, `i18n-patterns.md`, `patchdb.md`, `rpc-toolkit.md`,
   `s9pk-structure.md`, `exver.md`, `VERSION_BUMP.md`).
-- `ts-modules/` — the `@start9labs/shared` and
-  `@start9labs/marketplace` Angular libraries (the workspace root is the repo
+- `ts-modules/` — shared TypeScript modules; currently the `@start9labs/shared`
+  and `@start9labs/marketplace` Angular libraries (the workspace root is the repo
   root, where `angular.json` lives). Has its own `AGENTS.md` and
   `ARCHITECTURE.md` (Taiga UI 5 rules, component conventions, i18n).
 
@@ -26,7 +26,7 @@ Rust (`crates/start-core`) — runs from the root Cargo workspace:
 cargo build -p start-core
 cargo check -p start-core            # linux-only locally; CI also builds darwin + musl targets
 cd shared-libs/crates/start-core && ./run-tests.sh
-cargo fmt -p start-core              # rustfmt config: crates/start-core/rustfmt.toml
+make format-core                     # format the shared Rust crates (rustfmt); make format-check-core in CI
 ```
 
 Web (`ts-modules/`) — runs from the repo root (the Angular workspace root, where
@@ -36,7 +36,7 @@ Web (`ts-modules/`) — runs from the repo root (the Angular workspace root, whe
 npm ci
 npm run build:deps                   # builds start-sdk bundle + patch-db client (required before typecheck/build)
 npm run check                        # typechecks i18n, shared, marketplace, ui, setup, brochure
-npm run format:check                 # prettier
+make format-check-web                # prettier check across the Angular workspace (make format-web to write)
 ```
 
 ## Gotchas

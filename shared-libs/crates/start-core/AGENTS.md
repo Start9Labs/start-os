@@ -28,7 +28,7 @@ Topical references: [rpc-toolkit.md](rpc-toolkit.md), [patchdb.md](patchdb.md),
 - `make test-core` — run the test suite (wraps `run-tests.sh`, which uses the `rust-zig-builder`
   container and the `test` feature; skips `export_` tests). Or run a single test directly:
   `cargo test -p start-core <name> --features=test`.
-- `make format` — `cargo +nightly fmt` on this crate. Nightly is required for formatting.
+- `make format-core` — format this crate (`make format-check-core` for the read-only CI check). Nightly is required for formatting.
 - `cargo build -p start-os --bin startbox` (or the other product crate/bin) to build a binary.
 
 ## Gotchas

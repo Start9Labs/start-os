@@ -8,15 +8,7 @@ This is a sub-component of the **start-os** product in the Start9 monorepo. The 
 
 ## Where it fits
 
-```
-start-os/
-├── src/bin/            startbox + start-container (Rust)
-├── container-runtime/  <- you are here (Node service runtime)
-├── web/                Angular UI + setup wizard
-└── ...
-shared-libs/crates/start-core/   host daemon library (talks to this over a socket)
-projects/start-sdk/         @start9labs/start-sdk (this package's runtime API)
-```
+This runtime lives at `projects/start-os/container-runtime` — the Node service runtime sub-component of the **start-os** product. It is driven over a Unix socket by the host daemon `start_core` (`shared-libs/crates/start-core`), supervised by the `start-container` binary built from package `start-os`, and consumes the runtime API from `@start9labs/start-sdk` (`projects/start-sdk`). For the overall monorepo layout see the root [ARCHITECTURE.md](../../../ARCHITECTURE.md).
 
 ## Documentation
 

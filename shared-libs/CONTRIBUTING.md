@@ -23,7 +23,7 @@ Part of the single root Cargo workspace.
 # from the repo root
 cargo build -p start-core
 cargo check -p start-core
-cargo fmt -p start-core                 # rustfmt config: shared-libs/crates/start-core/rustfmt.toml
+make format-core                        # format the shared Rust crates (rustfmt); make format-check-core in CI
 cd shared-libs/crates/start-core && ./run-tests.sh
 ```
 
@@ -36,17 +36,18 @@ cd shared-libs/crates/start-core && ./run-tests.sh
   and the topic notes (`core-rust-patterns.md`, `patchdb.md`, `rpc-toolkit.md`,
   `i18n-patterns.md`, `VERSION_BUMP.md`).
 
-## ts-modules (Angular)
+## ts-modules (shared TypeScript modules)
 
-The single Angular workspace root for every front end in the monorepo.
+Shared TypeScript modules; the current contents are Angular libraries, built
+through the single Angular workspace rooted at the repo root.
 
 ```bash
 # from the repo root
 npm ci
 npm run build:deps                      # build start-sdk bundle + patch-db client (required first)
 npm run check                           # typecheck i18n, shared, marketplace, ui, setup, brochure
-npm run format                          # prettier --write across all web projects
-npm run format:check
+make format-web                         # prettier --write across the Angular workspace
+make format-check-web                   # prettier check (CI)
 ```
 
 - `build:deps` must run before any typecheck/build: `@start9labs/start-sdk`

@@ -72,7 +72,7 @@ All builds run from the **repo root**, not this directory.
 # Build the daemon binary (musl target, embeds the prebuilt UI)
 make tunnel
 
-# Build just the Angular UI
+# Build just the Angular UI (no make target; make tunnel chains it)
 npm run build:tunnel
 
 # Build the cargo binary directly (UI must already be built)

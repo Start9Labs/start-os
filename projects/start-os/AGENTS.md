@@ -35,7 +35,7 @@ monorepo-wide rules, and [ARCHITECTURE.md](ARCHITECTURE.md) and
 - Type-check the runtime: `cd projects/start-os/container-runtime && npm run check`.
 - Build the UI: `make startos-ui` (or `make startos-uis` for ui + setup-wizard).
 - Tests: `make test` (Rust + SDK + container-runtime), or `make test-core`.
-- Format: `make format` / `make format-check`.
+- Format: `make format-startos` / `make format-check-startos`.
 - Regenerate `start-container` man pages (committed under `man/`):
   `cargo test -p start-core export_manpage_start_container`.
 

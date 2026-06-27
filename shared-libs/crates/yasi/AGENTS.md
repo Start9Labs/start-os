@@ -28,7 +28,8 @@ cargo build -p yasi                  # build with default (no) features
 cargo build -p yasi --all-features   # build with serde + ts-rs
 cargo test  -p yasi                  # run unit tests (incl. the deadlock regression test)
 cargo test  -p yasi --all-features   # also run the serde / ts-rs paths
-cargo fmt   -p yasi                  # stable rustfmt
+make format-core                     # format the shared Rust crates (incl. yasi)
+make format-check-core               # CI read-only format check
 ```
 
 ## Gotchas

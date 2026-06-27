@@ -28,7 +28,7 @@ covers what is specific to building, testing, and changing StartTunnel.
 make tunnel                                   # full daemon build (UI + tunnelbox)
 cargo build -p start-tunnel --bin tunnelbox   # cargo only (UI must be prebuilt)
 cargo check -p start-tunnel                    # fast type-check
-npm run build:tunnel                          # build just the Angular UI (from repo root)
+npm run build:tunnel                          # build just the Angular UI (no make target; make tunnel chains it)
 make tunnel-deb                                # Debian package
 ```
 
@@ -51,12 +51,12 @@ checked against the full CI matrix concerns — see the cross-platform note belo
 ## Formatting
 
 ```bash
-make format          # apply formatting across the repo
-make format-check    # verify (what CI runs)
+make format-tunnel        # format the tunnel Rust crate
+make format-check-tunnel  # verify (what CI runs)
 ```
 
-Rust uses `cargo fmt` (edition 2024); web uses prettier via the shared Angular
-config.
+The tunnel crate is Rust (edition 2024). The tunnel web app formats with the
+rest of the Angular workspace via `make format-web`.
 
 ## Cross-platform
 

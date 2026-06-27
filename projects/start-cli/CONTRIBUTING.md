@@ -22,9 +22,10 @@ A Rust toolchain matching the workspace `edition = "2024"`, plus the local conta
 From the monorepo root (single Cargo workspace, single `Cargo.lock`):
 
 ```sh
-cargo build -p start-cli --bin start-cli
-cargo build -p start-cli --bin start-cli --release
-cargo check -p start-cli
+make cli                                             # build the start-cli bin
+cargo build -p start-cli --bin start-cli             # dev shortcut (debug)
+cargo build -p start-cli --bin start-cli --release   # dev shortcut (release)
+cargo check -p start-cli                             # fast type-check
 ```
 
 ## Testing
@@ -44,10 +45,11 @@ need no server).
 
 ## Formatting
 
-Use the repo-standard Rust tooling (run from the root, or scoped to this package):
+Format this project from the monorepo root (CI runs the `format-check-cli` read-only variant):
 
 ```sh
-cargo fmt
+make format-cli         # format start-cli
+make format-check-cli   # check only (what CI runs)
 cargo clippy -p start-cli
 ```
 

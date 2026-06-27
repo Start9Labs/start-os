@@ -47,7 +47,7 @@ Rust file is `src/main.rs`.
 make tunnel                                   # build tunnelbox (UI + daemon)
 cargo build -p start-tunnel --bin tunnelbox   # cargo only (UI must be prebuilt)
 cargo check -p start-tunnel                    # fast type-check
-npm run build:tunnel                          # build just the Angular UI
+npm run build:tunnel                          # build just the Angular UI (no make target; make tunnel chains it)
 make tunnel-deb                                # build the .deb
 make test-core                                 # backend tests (tunnel logic lives in start-core)
 ```
@@ -89,11 +89,12 @@ Notes:
 ## Format
 
 ```bash
-make format          # formats the whole repo
-make format-check    # CI check
+make format-tunnel        # format the tunnel Rust crate
+make format-check-tunnel  # CI check (read-only)
 ```
 
-Rust: `cargo fmt` (edition 2024). Web: prettier via the shared Angular config.
+The tunnel crate is Rust (edition 2024). The tunnel web app formats with the
+rest of the Angular workspace via `make format-web`.
 
 ## Docs are part of the change
 

@@ -44,7 +44,8 @@ cargo test -p start-core <test_name> --features=test  # Run a specific test
 Run from the repo root:
 
 ```bash
-make format                                        # Format with nightly rustfmt
+make format-core                                   # Format with nightly rustfmt
+make format-check-core                             # Read-only check (CI)
 ```
 
 ## Adding a New RPC Endpoint

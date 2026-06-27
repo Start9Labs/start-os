@@ -6,34 +6,11 @@
 
 ## Place in the monorepo
 
-```
-start-os/                          monorepo root (one Cargo workspace, one Cargo.lock)
-├── shared-libs/
-│   ├── crates/
-│   │   ├── start-core/            the entire Rust backend (lib `start_core`)
-│   │   ├── patch-db/
-│   │   ├── exver/
-│   │   ├── imbl-value/
-│   │   ├── jsonpath/
-│   │   ├── pi-beep/
-│   │   ├── rpc-toolkit/
-│   │   └── yasi/
-│   └── ts-modules/                Angular workspace root + shared libs
-├── projects/
-│   ├── start-cli/                 ← THIS CRATE — bin `start-cli`
-│   ├── start-os/                  OS product (bins startbox, start-container)
-│   ├── start-registry/            registrybox bin
-│   ├── start-tunnel/              tunnelbox bin
-│   ├── start-sdk/                 packaging SDK + docs
-│   ├── brochure-marketplace/      marketplace landing Angular app
-│   └── start-docs/                documentation website
-├── Cargo.toml  Cargo.lock         one root Cargo workspace
-└── Makefile                       top-level build/test/deploy targets
-```
-
-All product bins (`startbox`, `start-container`, `start-cli`, `registrybox`, `tunnelbox`)
-depend on `start-core`. `start-cli` declares it as
-`start-core = { path = "../../shared-libs/crates/start-core" }`.
+This crate lives at `projects/start-cli/` and produces the standalone `start-cli` bin. Like the
+other product bins (`startbox`, `start-container`, `registrybox`, `tunnelbox`) it depends on the
+shared `start-core` crate, declared as
+`start-core = { path = "../../shared-libs/crates/start-core" }`. See the root
+[`ARCHITECTURE.md`](../../ARCHITECTURE.md) for the overall monorepo layout.
 
 ## What this crate contains
 

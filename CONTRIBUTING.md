@@ -105,14 +105,16 @@ This project uses [GNU Make](https://www.gnu.org/software/make/) to build its co
 
 #### Building
 
+There is no default build target — bare `make` prints a `help` summary; pass a target explicitly.
+
 | Target        | Description                                    |
 | ------------- | ---------------------------------------------- |
-| `startos-$(IMAGE_TYPE)` | Create full image (`startos-iso`, or `startos-img` for raspberrypi) |
-| `startos-deb` | Build Debian package                           |
-| `all`         | Build all Rust binaries                        |
-| `uis`         | Build all web UIs                              |
-| `ui`          | Build main UI only                             |
-| `ts-bindings` | Generate TypeScript bindings from Rust types   |
+| `startos`     | Build StartOS for the current platform         |
+| `startos-$(IMAGE_TYPE)` | Create the full image (`startos-iso`, or `startos-img` for raspberrypi) |
+| `startos-deb` | Build the StartOS Debian package               |
+| `cli` / `registry` / `tunnel` | Build the `start-cli` / `registrybox` / `tunnelbox` binary |
+| `startos-uis` | Build all StartOS web UIs (`startos-ui` for the main UI only) |
+| `ts-bindings` | Generate the TypeScript bindings from the Rust types |
 
 #### Deploying to Device
 
@@ -185,17 +187,19 @@ cd shared-libs/crates/start-core && cargo test <test_name> --features=test
 
 ## Formatting
 
-```bash
-# Everything (Rust nightly fmt + web prettier + SDK)
-make format
+Formatting is scoped per project, with a top-level target that runs them all:
 
-# Or scope it:
-cd shared-libs/crates/start-core && cargo +nightly fmt   # Rust
-npm run format                  # TypeScript/HTML/SCSS
-cd projects/start-sdk && make fmt                             # SDK
+```bash
+make format          # format every project
+
+# Or scope it to one project:
+make format-core         # shared Rust crates
+make format-cli          # start-cli  (also format-registry / format-tunnel / format-startos)
+make format-web          # the Angular workspace (shared libs + all app UIs, incl. brochure)
+make format-sdk          # the SDK
 ```
 
-CI runs `make format-check` (read-only prettier `--check` for web + SDK).
+CI runs `make format-check` (read-only; per-project `format-check-*` targets mirror the `format-*` ones).
 
 Run the formatters before committing. Configuration is handled by `rustfmt.toml` (Rust) and prettier configs (TypeScript).
 

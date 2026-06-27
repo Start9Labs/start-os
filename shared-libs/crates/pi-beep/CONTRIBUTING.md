@@ -42,8 +42,11 @@ hardware). If you add testable logic, add unit tests alongside it.
 
 ## Formatting
 
+Run from the repo root:
+
 ```bash
-cargo +nightly fmt -p pi-beep
+make format-core         # format the shared Rust crates (incl. pi-beep)
+make format-check-core   # read-only check (what CI runs)
 ```
 
-The monorepo formats with nightly rustfmt; match it.
+The monorepo formats with nightly rustfmt; `make format-core` covers it.

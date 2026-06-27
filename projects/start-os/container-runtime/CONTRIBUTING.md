@@ -51,3 +51,10 @@ Prettier config lives in `package.json`:
 - `trailingComma: "all"`, `tabWidth: 2`, `semi: false`, `singleQuote: false`.
 
 The runtime uses **double quotes**, unlike `start-sdk` and `shared-libs/ts-modules` (single quotes there) — do not normalize. `npm run build` runs Prettier `--write` before compiling, so formatting is applied automatically during a build.
+
+From the monorepo root, the canonical formatter is the top-level make target (container-runtime folds into the start-os product):
+
+```bash
+make format-startos          # write formatting
+make format-check-startos    # CI read-only check
+```

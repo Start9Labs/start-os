@@ -25,10 +25,10 @@ npm run build:deps     # once: builds start-sdk baseDist + patch-db client (requ
 npm run start:brochure # dev server, http://localhost:8200, uses MockApiService
 npm run build:brochure # production build -> projects/brochure-marketplace/dist/raw/brochure-marketplace
 npm run check:brochure # tsc --noEmit type check for this project
-npm run format         # prettier across web projects incl. brochure
+make format-web        # prettier across web projects incl. brochure (run from repo root)
 ```
 
-Run `npm run check:brochure` and `npm run format:check` before pushing changes here.
+Run `npm run check:brochure` and `make format-check-web` before pushing changes here.
 
 ## Gotchas
 

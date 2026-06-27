@@ -27,8 +27,8 @@ contribute), and [AGENTS.md](AGENTS.md) (agent rules; `CLAUDE.md` is a one-line
 ## Prerequisites
 
 This is a monorepo. The OS product is a thin wrapper over the shared
-`start-core` crate (`shared-libs/crates/start-core`), the shared Angular libs
-(`shared-libs/ts-modules`), and the SDK (`projects/start-sdk`). Build commands run from the **repo
+`start-core` crate (`shared-libs/crates/start-core`), the shared TypeScript
+modules (`shared-libs/ts-modules`), and the SDK (`projects/start-sdk`). Build commands run from the **repo
 root** unless noted.
 
 Clone and target the right integration branch (`master` for the
@@ -74,8 +74,8 @@ musl); local `cargo check` is linux-only, so consider platform-specific impact.
 ## Formatting
 
 ```sh
-make format                    # format Rust + web + runtime
-make format-check              # CI-style check
+make format-startos            # format this product (core bins + web + container-runtime)
+make format-check-startos      # CI-style check
 ```
 
 ## Cross-layer changes

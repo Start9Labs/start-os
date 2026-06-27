@@ -8,9 +8,10 @@ how the two pieces relate to the rest of the monorepo.
 ## Place in the monorepo
 
 `shared-libs/` sits at the repo root and holds the two cross-product libraries —
-`crates/start-core/` (the Rust backend crate) and `ts-modules/` (the Angular
-shared libraries) — that the thin product crates and apps under `projects/`
-consume. It builds nothing of its own.
+`crates/start-core/` (the Rust backend crate) and `ts-modules/` (shared
+TypeScript modules) — that the thin product crates and apps under `projects/`
+consume. It builds nothing of its own. See the root
+[ARCHITECTURE.md](../ARCHITECTURE.md) for the overall monorepo layout.
 
 ## `crates/start-core` — Rust backend
 
@@ -34,15 +35,15 @@ first-party `shared-libs/crates/patch-db/` (`patch-db = { path = "../patch-db/co
 See [`crates/start-core/ARCHITECTURE.md`](crates/start-core/ARCHITECTURE.md) for
 the internal design.
 
-## `ts-modules` — Angular shared libraries (workspace rooted at repo root)
+## `ts-modules` — shared TypeScript modules (workspace rooted at repo root)
 
 The single Angular workspace root for every front end is at the monorepo root:
 `angular.json`, `package.json`, and `package-lock.json` live at the repo root, and
 app projects define their UIs in their own `web/` subdirectories (e.g.
 `projects/start-os/web/`, `projects/start-tunnel/web/`).
 
-The shared libraries live under `shared-libs/ts-modules/` and are two publishable
-packages:
+`shared-libs/ts-modules/` holds shared TypeScript modules; today these are two
+publishable Angular packages:
 
 - **`shared-libs/ts-modules/shared/` → `@start9labs/shared`** — API clients, shared
   components, i18n dictionaries, and global styles used by every UI.

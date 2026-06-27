@@ -46,7 +46,8 @@ against those crates' use before merging.
 ## Formatting
 
 ```bash
-cargo fmt -p yasi
+make format-core         # format the shared Rust crates (incl. yasi)
+make format-check-core   # CI read-only format check
 ```
 
 Stable rustfmt; no nightly required.

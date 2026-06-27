@@ -24,9 +24,10 @@ entrypoint (`src/main.rs`) and feature/bin wiring (`Cargo.toml`).
 From the **monorepo root** (one Cargo workspace, one `Cargo.lock`):
 
 ```sh
-cargo build -p start-cli --bin start-cli            # debug
-cargo build -p start-cli --bin start-cli --release  # release
-cargo check -p start-cli                             # fast type-check (linux-only locally)
+make cli                                             # build the start-cli bin
+cargo build -p start-cli --bin start-cli             # dev shortcut (debug)
+cargo build -p start-cli --bin start-cli --release   # dev shortcut (release)
+cargo check -p start-cli                              # fast type-check (linux-only locally)
 target/debug/start-cli --help                        # smoke test
 ```
 

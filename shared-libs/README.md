@@ -13,9 +13,9 @@ here on its own.
   `start-cli`, `registrybox`, `tunnelbox`) depends on it. See
   [`crates/start-core/README.md`](crates/start-core/README.md).
 
-- **`ts-modules/`** — two publishable Angular libraries built through the single
-  Angular workspace rooted at the repo root (`angular.json`, `package.json`,
-  `package-lock.json`):
+- **`ts-modules/`** — shared TypeScript modules; currently two publishable
+  Angular libraries built through the single Angular workspace rooted at the repo
+  root (`angular.json`, `package.json`, `package-lock.json`):
   - `ts-modules/shared/` → `@start9labs/shared` (API clients, components, i18n, styles)
   - `ts-modules/marketplace/` → `@start9labs/marketplace` (service discovery UI)
 

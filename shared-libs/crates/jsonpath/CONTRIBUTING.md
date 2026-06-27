@@ -17,7 +17,7 @@ This sub-tree's docs split across four files:
 
 - [Rust](https://rustup.rs) (stable is sufficient to build and test). This is an **edition 2015**
   crate.
-- Nightly toolchain only if you run the workspace formatter (`cargo +nightly fmt`).
+- Nightly toolchain only if you run the workspace formatter (`make format-core`).
 - `imbl-value` is a sibling path dependency and builds automatically as part of the workspace.
 
 ## Building
@@ -46,7 +46,8 @@ examples in `src/lib.rs` and `README.md`.
 ## Formatting
 
 ```bash
-cargo +nightly fmt -p jsonpath_lib
+make format-core         # format the shared Rust crates (incl. jsonpath)
+make format-check-core   # CI-style read-only check
 ```
 
 The workspace uses nightly rustfmt. Note this crate carries pre-existing warnings (unused imports,

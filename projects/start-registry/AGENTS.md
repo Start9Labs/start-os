@@ -22,7 +22,7 @@ CLAUDE.md is a one-line `@AGENTS.md` import. See [ARCHITECTURE.md](./ARCHITECTUR
 | `cargo check -p start-registry` | fast type-check (linux only locally) |
 | `cargo clippy -p start-registry` | lints |
 | `cargo test -p start-core registry` | exercise the registry logic (lives in start-core) |
-| `cargo fmt` | format |
+| `make format-registry` | format (`make format-check-registry` for the read-only CI check) |
 | `make registry` | release musl build via `shared-libs/crates/start-core/build/build-registrybox.sh` |
 | `make install-registry DESTDIR=…` | stage binary + symlinks + service |
 

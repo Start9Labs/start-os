@@ -37,12 +37,9 @@ cargo test -p json-patch   # JSON Patch crate
 
 ### TypeScript
 
-The client uses pre-commit hooks (husky) for linting:
-
 ```bash
 cd shared-libs/crates/patch-db/client
-npx prettier --check "**/*.{js,ts,html,md,less,json}"
-npx tslint --project .
+npm run check    # Type-check without emitting
 ```
 
 ## CLI utility
@@ -59,6 +56,8 @@ echo '{"count": 42}' | cargo run -p patch-db-util -- from-dump path/to/my.db
 
 ## Code style
 
+Format from the repo root with `make format-core` (these crates are part of the shared Rust workspace); CI runs the read-only `make format-check-core`.
+
 ### Rust
 
 - Follow standard `rustfmt` conventions
@@ -67,8 +66,6 @@ echo '{"count": 42}' | cargo run -p patch-db-util -- from-dump path/to/my.db
 
 ### TypeScript
 
-- Prettier for formatting (runs via pre-commit hook)
-- TSLint for linting (runs via pre-commit hook)
 - RxJS conventions: suffix observables with `$`
 
 ## Making changes

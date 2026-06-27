@@ -65,7 +65,7 @@ make startos                             # build all OS artifacts (bins + web + 
 make startos-$(IMAGE_TYPE)               # build the bootable image (iso, or img on Pi)
 ```
 
-`make` targets relevant to this product: `ui`, `uis`, `startos`, `startos-deb`,
+`make` targets relevant to this product: `startos-ui`, `startos-uis`, `startos`, `startos-deb`,
 `install-startos`, `startos-$(IMAGE_TYPE)`, `startos-squashfs`,
 `startos-update`/`startos-emulate-reflash`/`startos-wormhole*` (deploy to a live
 device — slow and destructive). Run `make test` for the full Rust + SDK + runtime

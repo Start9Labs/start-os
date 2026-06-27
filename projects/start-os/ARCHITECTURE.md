@@ -49,7 +49,8 @@ Two Angular 22 apps live under `web/`:
 They are part of the single Angular workspace rooted at `../../` (the repository root)
 (the root `angular.json` points each project's `root` at `projects/start-os/web/...`).
 They consume the shared `@start9labs/shared` and `@start9labs/marketplace` libs
-from `../../shared-libs/ts-modules` and the SDK base from `../start-sdk`. The frontend talks to
+from the shared TypeScript modules at `../../shared-libs/ts-modules` and the SDK
+base from `../start-sdk`. The frontend talks to
 the backend exclusively over JSON-RPC, with reactive state via Patch-DB.
 
 `web/patchdb-ui-seed.json` / `patchdb-ui-seed.beta.json` seed initial UI state
@@ -135,5 +136,5 @@ resolving, so the UI is always eventually consistent with the backend.
 ## Further reading
 
 - [../../shared-libs/crates/start-core](../../shared-libs/crates/start-core) — Rust backend
-- [../../shared-libs/ts-modules](../../shared-libs/ts-modules) — shared Angular libraries + workspace
+- [../../shared-libs/ts-modules](../../shared-libs/ts-modules) — shared TypeScript modules + workspace (currently the Angular libs `shared` and `marketplace`)
 - [container-runtime/ARCHITECTURE.md](container-runtime/ARCHITECTURE.md) — runtime

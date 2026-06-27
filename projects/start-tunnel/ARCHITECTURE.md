@@ -99,8 +99,8 @@ daemon over the same JSON-RPC API.
 - `web/tsconfig.json` resolves `@start9labs/shared` and
   `@start9labs/marketplace` to `shared-libs/ts-modules/`.
 
-Build output: `npm run build:tunnel` (from the repo root) →
-`projects/start-tunnel/web/dist/raw/start-tunnel/` → compressed to
+Build output: `npm run build:tunnel` (from the repo root; `make tunnel`
+chains it) → `projects/start-tunnel/web/dist/raw/start-tunnel/` → compressed to
 `projects/start-tunnel/web/dist/static/start-tunnel/`
 (`shared-libs/ts-modules/compress-uis.sh`), which the Rust binary embeds.
 

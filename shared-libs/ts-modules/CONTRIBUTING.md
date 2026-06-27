@@ -85,8 +85,8 @@ npm run check:ui       # or a single project (check:shared / check:marketplace /
 Run from the repo root:
 
 ```sh
-npm run format         # prettier --write across the libs and all app dirs
-npm run format:check   # prettier --check (CI)
+make format-web         # prettier --write across the libs and all app dirs
+make format-check-web   # prettier --check (CI)
 ```
 
 A pre-commit hook runs `lint-staged` (prettier on staged files).

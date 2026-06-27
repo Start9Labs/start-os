@@ -45,10 +45,10 @@ Lint: `npm run ng -- lint brochure-marketplace` (run from the repo root).
 From the repo root:
 
 ```bash
-npm run format:check     # prettier
+make format-check-web    # prettier (read-only/CI check)
 ```
 
-Fix formatting with `npm run format` (formats all web projects, including brochure).
+Fix formatting with `make format-web` (formats all web projects, including brochure).
 
 ## Develop
 
