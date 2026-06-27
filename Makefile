@@ -32,14 +32,11 @@ metadata: $(VERSION_FILE) $(PLATFORM_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
 # Per-project cleans live in each build.mk; this only aggregates them.
 clean: clean-core clean-web clean-sdk clean-cli clean-registry clean-tunnel clean-startos clean-docs
 
-format:
-	cd shared-libs/crates/start-core && cargo +nightly fmt
-	npm --prefix . run format
-	cd projects/start-sdk && make fmt
+# Per-project formats live in each build.mk; this only aggregates them. Run one
+# project with e.g. `make format-cli`, or all of them with `make format`.
+format: format-core format-web format-sdk format-cli format-registry format-tunnel format-startos
 
-# Read-only formatting verification (prettier --check for web + sdk). Used by CI.
-format-check:
-	npm --prefix . run format:check
-	cd projects/start-sdk && make check-fmt
+# Read-only formatting verification (used by CI); mirrors `format` per project.
+format-check: format-check-core format-check-web format-check-sdk format-check-cli format-check-registry format-check-tunnel format-check-startos
 
 test: | test-core test-sdk test-container-runtime

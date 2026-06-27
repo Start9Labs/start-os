@@ -10,3 +10,10 @@ projects/start-sdk/dist/package.json projects/start-sdk/baseDist/package.json: $
 clean-sdk:
 	cd projects/start-sdk && make clean
 	rm -rf projects/start-sdk/docs/book
+
+.PHONY: format-sdk format-check-sdk
+format-sdk:
+	cd projects/start-sdk && $(MAKE) fmt
+
+format-check-sdk:
+	cd projects/start-sdk && $(MAKE) check-fmt
