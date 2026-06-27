@@ -79,5 +79,3 @@ echo '{"count": 42}' | cargo run -p patch-db-util -- from-dump path/to/my.db
    - `Revision` and `Dump` types must match between `core/src/patch.rs` and `client/lib/types.ts`
    - Patch operations (add/remove/replace) must match between `json-patch/` and `client/lib/json-patch-lib.ts`
 4. **Run tests** before submitting
-
-For commit and PR conventions, see the repo-root [CONTRIBUTING.md](../../../CONTRIBUTING.md#commits--prs).

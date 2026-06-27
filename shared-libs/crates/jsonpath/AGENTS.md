@@ -10,6 +10,8 @@ diverged** — it is maintained as first-party code in the start-os monorepo at
 See [ARCHITECTURE.md](ARCHITECTURE.md) for how it's built and [CONTRIBUTING.md](CONTRIBUTING.md) for
 how to contribute. [README.md](README.md) is the usage/API reference.
 
+**Read up the tree first.** These docs are hierarchical: before working here, read the `AGENTS.md` in each enclosing directory up to the repo root (and their `ARCHITECTURE.md` / `CONTRIBUTING.md` where relevant). This file covers only what is specific to this scope and does not repeat rules already stated higher up.
+
 ## Layout
 
 - `src/lib.rs` — public crate API: the convenience functions (`select`, `selector`, `selector_as`,

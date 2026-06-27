@@ -2,6 +2,8 @@
 
 Agent/dev instructions for `shared-libs/ts-modules` — the two shared Angular libs (`@start9labs/shared`, `@start9labs/marketplace`). The Angular workspace root config (`angular.json`, `package.json`, `tsconfig.json`) lives at the repo root. `CLAUDE.md` is a one-line `@AGENTS.md` import. See `ARCHITECTURE.md` for structure, `CONTRIBUTING.md` for full setup.
 
+**Read up the tree first.** These docs are hierarchical: before working here, read the `AGENTS.md` in each enclosing directory up to the repo root (and their `ARCHITECTURE.md` / `CONTRIBUTING.md` where relevant). This file covers only what is specific to this scope and does not repeat rules already stated higher up.
+
 ## Layout
 
 - **The workspace root is the repo root.** `angular.json`, `package.json`, `tsconfig.json` all live at the repo root. Only the libs `shared/` and `marketplace/` live here.

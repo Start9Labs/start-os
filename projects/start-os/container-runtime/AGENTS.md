@@ -2,6 +2,8 @@
 
 Node.js/TypeScript service runtime that runs inside StartOS package LXC containers. Sub-component of the **start-os** product. `CLAUDE.md` is a one-line `@AGENTS.md` import — edit this file, not `CLAUDE.md`. Wire-protocol reference: [RPCSpec.md](RPCSpec.md); structure: [ARCHITECTURE.md](ARCHITECTURE.md); contributor workflow: [CONTRIBUTING.md](CONTRIBUTING.md).
 
+**Read up the tree first.** These docs are hierarchical: before working here, read the `AGENTS.md` in each enclosing directory up to the repo root (and their `ARCHITECTURE.md` / `CONTRIBUTING.md` where relevant). This file covers only what is specific to this scope and does not repeat rules already stated higher up.
+
 ## Layout
 
 - `src/index.ts` — entry; wires `getSystem` into `RpcListener`.

@@ -5,6 +5,8 @@ one-line `@AGENTS.md` import. See the root [AGENTS.md](../../AGENTS.md) for
 monorepo-wide rules, and [ARCHITECTURE.md](ARCHITECTURE.md) and
 [CONTRIBUTING.md](CONTRIBUTING.md) for how this product is wired and built.
 
+**Read up the tree first.** These docs are hierarchical: before working here, read the `AGENTS.md` in each enclosing directory up to the repo root (and their `ARCHITECTURE.md` / `CONTRIBUTING.md` where relevant). This file covers only what is specific to this scope and does not repeat rules already stated higher up.
+
 ## Layout
 
 - `src/bin/startbox.rs`, `src/bin/start-container.rs` — the only Rust in this

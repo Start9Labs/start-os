@@ -7,6 +7,8 @@ and structural sharing is preserved. `CLAUDE.md` is a one-line `@AGENTS.md` impo
 not that one. See [ARCHITECTURE.md](ARCHITECTURE.md) for how it works and [CONTRIBUTING.md](CONTRIBUTING.md)
 for workflow.
 
+**Read up the tree first.** These docs are hierarchical: before working here, read the `AGENTS.md` in each enclosing directory up to the repo root (and their `ARCHITECTURE.md` / `CONTRIBUTING.md` where relevant). This file covers only what is specific to this scope and does not repeat rules already stated higher up.
+
 ## Layout
 
 - `src/lib.rs` — the `Value` enum (`Null`, `Bool`, `Number`, `String(Arc<String>)`, `Array(Vector<Value>)`,

@@ -6,6 +6,8 @@ first; this file is scoped to `projects/start-tunnel/`. `CLAUDE.md` is a one-lin
 `@AGENTS.md` import. See [ARCHITECTURE.md](ARCHITECTURE.md) and
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
+**Read up the tree first.** These docs are hierarchical: before working here, read the `AGENTS.md` in each enclosing directory up to the repo root (and their `ARCHITECTURE.md` / `CONTRIBUTING.md` where relevant). This file covers only what is specific to this scope and does not repeat rules already stated higher up.
+
 ## What this is
 
 A WireGuard virtual private router with kernel-level clearnet port forwarding.

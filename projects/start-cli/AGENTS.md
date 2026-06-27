@@ -4,6 +4,8 @@ Agent/dev notes for the `start-cli` crate. `CLAUDE.md` is a one-line `@AGENTS.md
 [`ARCHITECTURE.md`](./ARCHITECTURE.md) and [`CONTRIBUTING.md`](./CONTRIBUTING.md) for this crate, and the root
 [`AGENTS.md`](../../AGENTS.md) and [`CONTRIBUTING.md`](../../CONTRIBUTING.md) for repo-wide rules.
 
+**Read up the tree first.** These docs are hierarchical: before working here, read the `AGENTS.md` in each enclosing directory up to the repo root (and their `ARCHITECTURE.md` / `CONTRIBUTING.md` where relevant). This file covers only what is specific to this scope and does not repeat rules already stated higher up.
+
 ## What this is
 
 A thin `bin` crate (`start-cli`) over `start-core` (cargo package `start-core`, lib `start_core`,

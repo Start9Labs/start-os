@@ -2,6 +2,8 @@
 
 Operating instructions for AI developers working on the docs-site project (the `projects/start-docs/` project in the `start-os` monorepo). `CLAUDE.md` just imports this file. See `ARCHITECTURE.md` for how the build works and `CONTRIBUTING.md` for the human workflow.
 
+**Read up the tree first.** These docs are hierarchical: before working here, read the `AGENTS.md` in each enclosing directory up to the repo root (and their `ARCHITECTURE.md` / `CONTRIBUTING.md` where relevant). This file covers only what is specific to this scope and does not repeat rules already stated higher up.
+
 ## What this is
 
 This project owns the **site build infra** (`build.sh`, `serve.sh`, `versions.conf`, `theme/`, `scripts/`), the **landing page** (`landing/`), and the **Bitcoin Guides** book (`bitcoin-guides/`).

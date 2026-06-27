@@ -6,6 +6,8 @@ separately, with an optional flavor prefix. First-party crate in the start-os mo
 is a one-line `@AGENTS.md` import. See ARCHITECTURE.md for how it works and CONTRIBUTING.md for
 the workflow.
 
+**Read up the tree first.** These docs are hierarchical: before working here, read the `AGENTS.md` in each enclosing directory up to the repo root (and their `ARCHITECTURE.md` / `CONTRIBUTING.md` where relevant). This file covers only what is specific to this scope and does not repeat rules already stated higher up.
+
 ## Layout
 
 - `src/lib.rs` — crate root. Re-exports `exver::*` and `emver`; gates `wasm` and the test module.

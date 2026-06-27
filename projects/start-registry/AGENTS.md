@@ -4,6 +4,8 @@ Product wrapper for the **Start Registry** server inside the `start-os` monorepo
 
 CLAUDE.md is a one-line `@AGENTS.md` import. See [ARCHITECTURE.md](./ARCHITECTURE.md) and [CONTRIBUTING.md](./CONTRIBUTING.md).
 
+**Read up the tree first.** These docs are hierarchical: before working here, read the `AGENTS.md` in each enclosing directory up to the repo root (and their `ARCHITECTURE.md` / `CONTRIBUTING.md` where relevant). This file covers only what is specific to this scope and does not repeat rules already stated higher up.
+
 ## Layout
 
 - `src/main.rs` — `MultiExecutable` wiring (`enable_start_registry` + `enable_start_registryd`).

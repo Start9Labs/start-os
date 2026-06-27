@@ -2,6 +2,8 @@
 
 patch-db is a JSON Patch–based database with a Rust backend and a TypeScript client. Its six Rust crates are first-party members of the start-os root Cargo workspace — `start-core` consumes the Rust `core` via a path dep, and the web front ends consume the TS `client`. `CLAUDE.md` is a one-line `@AGENTS.md` import. See [README.md](README.md) for what it is and quick-start examples, [ARCHITECTURE.md](ARCHITECTURE.md) for design/storage/concurrency, and [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
 
+**Read up the tree first.** These docs are hierarchical: before working here, read the `AGENTS.md` in each enclosing directory up to the repo root (and their `ARCHITECTURE.md` / `CONTRIBUTING.md` where relevant). This file covers only what is specific to this scope and does not repeat rules already stated higher up.
+
 ## Layout
 
 | Area | Path |

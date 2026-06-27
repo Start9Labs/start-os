@@ -5,6 +5,8 @@ or test target for `shared-libs/` itself — operate inside the relevant sub-lib
 read its own `AGENTS.md` first. `CLAUDE.md` is a one-line `@AGENTS.md` import. See
 [ARCHITECTURE.md](ARCHITECTURE.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 
+**Read up the tree first.** These docs are hierarchical: before working here, read the `AGENTS.md` in each enclosing directory up to the repo root (and their `ARCHITECTURE.md` / `CONTRIBUTING.md` where relevant). This file covers only what is specific to this scope and does not repeat rules already stated higher up.
+
 ## Layout
 
 - `crates/start-core/` — Rust backend lib (`start-core`, lib name `start_core`).
