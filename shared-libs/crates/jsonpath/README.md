@@ -15,6 +15,20 @@ and`Javascript` too.
 - [Webassembly Demo](https://freestrings.github.io/jsonpath/)
 - [NPM jsonpath-wasm - webassembly](https://www.npmjs.com/package/jsonpath-wasm)
 
+## Place in the monorepo
+
+This is a **first-party, vendored fork** of [freestrings/jsonpath](https://github.com/freestrings/jsonpath)
+living in the start-os monorepo.
+
+- **Path:** `shared-libs/crates/jsonpath`
+- **Package name:** `jsonpath_lib` (differs from the directory name `jsonpath`; build/test with
+  `cargo … -p jsonpath_lib`).
+- **Crate type:** `rlib` + `cdylib` (the cdylib backs the `wasm/` bindings).
+- **Consumers:** `start-core` uses `jsonpath_lib::Compiled` in `src/config/hook.rs`.
+- **Dependencies:** the sibling [`imbl-value`](../imbl-value) crate (supplies the `Value`/`Vector`
+  types this engine queries), plus `serde` / `serde_json` and `log`. It is a direct path
+  dependency — no `[patch]`, no crates.io pull.
+
 ## Rust API
 
 <details><summary><b>jsonpath_lib crate</b></summary>
@@ -701,3 +715,13 @@ console.log(
 </details>
 
 [Javascript - Other Examples](https://github.com/freestrings/jsonpath/wiki/Javascript-examples)
+
+## Documentation
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) — how it's built (parse → walk flow, public API, place in the
+  monorepo).
+- [CONTRIBUTING.md](CONTRIBUTING.md) — toolchain, build/test/format, fork-tracking expectations.
+- [AGENTS.md](AGENTS.md) — AI/dev operating rules and layout map (`CLAUDE.md` is a one-line
+  `@AGENTS.md` import).
+
+Licensed under MIT — see [LICENSE](LICENSE).
