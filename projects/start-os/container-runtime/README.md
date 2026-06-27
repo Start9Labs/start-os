@@ -4,7 +4,7 @@ Node.js/TypeScript runtime that runs inside each StartOS service's LXC container
 
 Every service container boots from the same base image; the per-service behavior comes entirely from the JavaScript loaded out of `javascript.squashfs` inside the s9pk and from container images mounted under `/media/startos/`.
 
-This is a sub-component of the **start-os** product in the Start9 monorepo. The host-side daemon that drives it lives in `shared-libs/crates/start-core` (the `startos` Rust library); the `start-container` binary that supervises this process is built from package `start-os`.
+This is a sub-component of the **start-os** product in the Start9 monorepo. The host-side daemon that drives it lives in `shared-libs/crates/start-core` (the `start_core` Rust library); the `start-container` binary that supervises this process is built from package `start-os`.
 
 ## Where it fits
 
@@ -15,7 +15,7 @@ start-os/
 ├── web/                Angular UI + setup wizard
 └── ...
 shared-libs/crates/start-core/   host daemon library (talks to this over a socket)
-start-sdk/                  @start9labs/start-sdk (this package's runtime API)
+projects/start-sdk/         @start9labs/start-sdk (this package's runtime API)
 ```
 
 ## Documentation

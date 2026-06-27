@@ -8,10 +8,10 @@ Since this is now part of the `start-os` monorepo, the per-product books live **
 
 ```
 start-os/ (monorepo root)
-├── start-os/docs/        ← StartOS book (book.toml, src/, theme -> ../../docs/theme)
-├── start-tunnel/docs/    ← StartTunnel book
-├── start-sdk/docs/       ← Service Packaging book (book name: "packaging")
-└── docs/                 ← THIS project: site build + landing + bitcoin-guides
+├── projects/start-os/docs/        ← StartOS book (book.toml, src/, theme -> ../../start-docs/theme)
+├── projects/start-tunnel/docs/    ← StartTunnel book
+├── projects/start-sdk/docs/       ← Service Packaging book (book name: "packaging")
+└── projects/start-docs/           ← THIS project: site build + landing + bitcoin-guides
     ├── build.sh          ← builds all books into docs/ output
     ├── serve.sh          ← build + local dev server
     ├── versions.conf     ← book → version list (single source of truth)
@@ -44,11 +44,11 @@ book_dir() {
 }
 ```
 
-So `packaging` is served from `start-sdk/docs`, and any book not explicitly mapped (currently just `bitcoin-guides`) is expected to live directly under this `docs/` project. To move or add a book, edit `book_dir()` and `versions.conf`.
+So `packaging` is served from `projects/start-sdk/docs`, and any book not explicitly mapped (currently just `bitcoin-guides`) is expected to live directly under this project (`projects/start-docs/`). To move or add a book, edit `book_dir()` and `versions.conf`.
 
 ## Shared Theme
 
-`theme/` in this project is the single source of truth for styling. Each book symlinks to it (e.g. `bitcoin-guides/theme -> ../theme`, `start-os/docs/theme -> ../../docs/theme`). It includes:
+`theme/` in this project is the single source of truth for styling. Each book symlinks to it (e.g. `bitcoin-guides/theme -> ../theme`, `start-os/docs/theme -> ../../start-docs/theme`). It includes:
 - YouTube embed styling (`youtube.css` / `youtube.js`)
 - mdbook-tabs CSS/JS (`tabs.css` / `tabs.js`)
 - Theme toggle (`theme-toggle.js`) and home link (`home-link.js`)
@@ -83,7 +83,7 @@ CI then runs the llms.txt generator (`scripts/generate-llms-txt.ts`) to produce 
 
 ## Deployment
 
-Deployment is via GitHub Actions (`.github/workflows/docs-deploy.yml` at the monorepo root). It triggers on pushes to `master` touching `docs/**`, `start-os/docs/**`, `start-tunnel/docs/**`, or `start-sdk/docs/**`. Steps:
+Deployment is via GitHub Actions (`.github/workflows/docs-deploy.yml` at the monorepo root). It triggers on pushes to `master` touching `projects/start-docs/**`, `projects/start-os/docs/**`, `projects/start-tunnel/docs/**`, or `projects/start-sdk/docs/**`. Steps:
 
 1. Install mdBook (v0.5.2) and mdbook-tabs (0.3.4)
 2. `./build.sh`, then generate llms.txt in `scripts/`

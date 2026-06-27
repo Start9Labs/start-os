@@ -15,7 +15,8 @@ Operating rules for AI developers working in `start-os/`. See the root
   read `container-runtime/AGENTS.md` before touching it.
 - `docs/` — the end-user mdbook (book "StartOS"), served at `/start-os/`.
 - Systemd units + `services.slice` live directly in this dir; OS image
-  packaging (`debian/`, `apt/`, `build/`, `assets/`) is at the **repo root**.
+  packaging (`debian/`, `apt/`, `build/`) is at the **repo root**; `assets/` is
+  directly in this dir.
 
 ## Build & verify (run from the repo root)
 
@@ -25,9 +26,9 @@ Operating rules for AI developers working in `start-os/`. See the root
   yet break those.
 - Regenerate TS bindings after any change to exported Rust types:
   `make ts-bindings`. Then rebuild the SDK (`cd projects/start-sdk && make bundle`) before
-  web/runtime type-checks — editing `start-sdk/base/lib/osBindings/*.ts` alone
-  is not enough.
-- Type-check web apps: `cd shared-libs/ts-modules && npm run check:ui && npm run check:setup`.
+  web/runtime type-checks — editing `projects/start-sdk/base/lib/osBindings/*.ts`
+  alone is not enough.
+- Type-check web apps: `npm run check:ui && npm run check:setup`.
 - Type-check the runtime: `cd projects/start-os/container-runtime && npm run check`.
 - Build the UI: `make ui` (or `make uis` for ui + setup-wizard).
 - Tests: `make test` (Rust + SDK + container-runtime), or `make test-core`.
@@ -45,8 +46,8 @@ Operating rules for AI developers working in `start-os/`. See the root
   process. See the comment in `src/bin/start-container.rs`.
 - **Don't normalize style across components.** The container-runtime uses double
   quotes + no semicolons (its own prettier config); the SDK uses single quotes.
-- **Don't edit `start-os/sdk.ts` / `index.ts`-style "DO NOT EDIT" files** or the
-  root `s9pk.mk`.
+- **Don't edit generated binding files** like
+  `projects/start-sdk/base/lib/osBindings/index.ts` or `projects/start-sdk/s9pk.mk`.
 - **Ask before destructive `make` recipes** — `update*`, `reflash`, `wormhole*`,
   image flashing, and `make clean*` consume hours/disk and may touch a live
   device.

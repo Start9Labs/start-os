@@ -51,7 +51,7 @@ The runtime ships as a squashfs rootfs baked into the StartOS image:
 2. `npm run build` compiles `src/` to `dist/`; `install-dist-deps.sh` installs production deps into `dist/node_modules`.
 3. `update-image-local.sh` runs `update-image.sh` inside the `start9/build-env` container: it overlays `dist/` into the base at `/usr/lib/startos/init/`, drops in `start-container` and the systemd units, runs `deb-install.sh` in the chroot, and mksquashfs's the result to `rootfs.<arch>.squashfs`.
 
-The top-level `Makefile` orchestrates all of this (`start-os/container-runtime/rootfs.$(ARCH).squashfs` target); the squashfs is installed to `/usr/lib/startos/container-runtime/rootfs.squashfs` in the final OS image.
+The top-level `Makefile` orchestrates all of this (`projects/start-os/container-runtime/rootfs.$(ARCH).squashfs` target); the squashfs is installed to `/usr/lib/startos/container-runtime/rootfs.squashfs` in the final OS image.
 
 ## S9PK structure
 

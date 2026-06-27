@@ -5,7 +5,7 @@ This repo is the **monorepo for all Start9 products**. Each product is a thin to
 ## Tech Stack
 
 - Backend: Rust (async/Tokio, Axum) — one library crate (`start-core`, lib name `start_core`) shared by all bins
-- Frontend: Angular 22 + TypeScript + Taiga UI 5 — one workspace rooted at `shared-libs/ts-modules`
+- Frontend: Angular 22 + TypeScript + Taiga UI 5 — one workspace rooted at the repo root (`angular.json`, `package.json` at root) with shared source libraries in `shared-libs/ts-modules`
 - Container runtime: Node.js/TypeScript with LXC
 - Database/State: Patch-DB (in-repo at `shared-libs/crates/patch-db`) — diff-based store with reactive frontend sync
 - API: JSON-RPC via rpc-toolkit (see `shared-libs/crates/start-core/rpc-toolkit.md`)
@@ -15,26 +15,29 @@ This repo is the **monorepo for all Start9 products**. Each product is a thin to
 
 ```
 start-os/                          # repo root (monorepo)
-├── start-os/                      # OS product
+├── projects/start-os/             # OS product
 │   ├── src/bin/{startbox,start-container}.rs
 │   ├── web/                       #   Angular UI + setup-wizard
 │   ├── container-runtime/         #   Node LXC service runtime
 │   ├── debian/ apt/ assets/ build/
 │   ├── *.service  services.slice
 │   └── Cargo.toml                 #   → depends on start-core
-├── start-cli/                     # start-cli bin (src/main.rs)
-├── start-registry/                # registrybox bin; serves the shared marketplace lib
+├── projects/start-cli/            # start-cli bin (src/main.rs)
+├── projects/start-registry/       # registrybox bin; serves the shared marketplace lib
 │   └── start-registryd.service
-├── start-tunnel/                  # tunnelbox bin + web/ (StartTunnel UI)
+├── projects/start-tunnel/         # tunnelbox bin + web/ (StartTunnel UI)
 │   └── start-tunneld.service
 ├── projects/start-sdk/                     # @start9labs/start-sdk (base/ + package/) + Makefile/s9pk.mk + docs/
-├── brochure/                      # marketing/landing Angular app
-├── shared/
-│   ├── crates/start-core/         # the ENTIRE backend lib (package start-core, lib name start_core)
-│   └── web/                       # Angular workspace root (angular.json, package.json)
+├── projects/brochure-marketplace/ # marketing/landing Angular app
+├── shared-libs/
+│   ├── crates/
+│   │   ├── start-core/            # the ENTIRE backend lib (package start-core, lib name start_core)
+│   │   ├── patch-db/              #   first-party crate (Rust core + TS client)
+│   │   └── …                      #   exver, imbl-value, jsonpath, pi-beep, rpc-toolkit, yasi
+│   └── ts-modules/                # Angular shared libs (workspace rooted at repo root)
 │       ├── shared/                #   @start9labs/shared
 │       └── marketplace/           #   @start9labs/marketplace
-├── shared-libs/crates/patch-db/               # first-party crate (Rust core + TS client)
+├── angular.json  package.json     # Angular workspace root
 ├── Cargo.toml  Cargo.lock         # one root Cargo workspace
 └── Makefile                       # top-level build/test/deploy targets
 ```
@@ -49,7 +52,7 @@ start-os/                          # repo root (monorepo)
   - `start-registry` → `registrybox` (package registry)
   - `start-tunnel` → `tunnelbox` (VPN/tunnel server)
 
-- **`shared-libs/ts-modules/`** — one Angular 22 / Taiga UI 5 workspace. `angular.json` defines six projects whose roots point into product dirs: `ui` and `setup-wizard` (`projects/start-os/web/`), `start-tunnel` (`projects/start-tunnel/web/`), `brochure` (`brochure/`), plus the two shared libraries `shared` (`@start9labs/shared`) and `marketplace` (`@start9labs/marketplace`). Apps talk to the backend exclusively via JSON-RPC. See [shared-libs/ts-modules/ARCHITECTURE.md](shared-libs/ts-modules/ARCHITECTURE.md).
+- **`shared-libs/ts-modules/`** — the shared Angular 22 / Taiga UI 5 libraries. The single Angular workspace (root `angular.json`/`package.json`) defines six projects whose roots point into product dirs: `ui` and `setup-wizard` (`projects/start-os/web/`), `start-tunnel` (`projects/start-tunnel/web/`), `brochure-marketplace` (`projects/brochure-marketplace/`), plus the two shared libraries `shared` (`@start9labs/shared`) and `marketplace` (`@start9labs/marketplace`). Apps talk to the backend exclusively via JSON-RPC. See [shared-libs/ts-modules/ARCHITECTURE.md](shared-libs/ts-modules/ARCHITECTURE.md).
 
 - **`projects/start-os/container-runtime/`** — Node.js runtime that runs inside each service's LXC container. Loads the service's JavaScript from its S9PK and manages subcontainers; talks to the host daemon via JSON-RPC over a Unix socket. See [projects/start-os/container-runtime/AGENTS.md](projects/start-os/container-runtime/AGENTS.md).
 
@@ -59,14 +62,14 @@ start-os/                          # repo root (monorepo)
 
 ## Build pipeline
 
-One root Cargo workspace (members: the product bin crates + `shared-libs/crates/start-core`; `shared-libs/crates/patch-db` excluded) and one Angular workspace at `shared-libs/ts-modules`. Cross-layer changes flow in one direction:
+One root Cargo workspace (members: the product bin crates + `shared-libs/crates/start-core`; `shared-libs/crates/patch-db` excluded) and one Angular workspace rooted at the repo root (shared libs under `shared-libs/ts-modules`). Cross-layer changes flow in one direction:
 
 ```
 Rust (shared-libs/crates/start-core)
   → make ts-bindings: ts-rs export → shared-libs/crates/start-core/bindings/ → rsync to projects/start-sdk/base/lib/osBindings/
-    → SDK build (cd start-sdk && make bundle) → baseDist/ + dist/
+    → SDK build (cd projects/start-sdk && make bundle) → baseDist/ + dist/
       → shared-libs/ts-modules consumes baseDist/ (via @start9labs/start-sdk-base)
-      → start-os/container-runtime consumes dist/ (via @start9labs/start-sdk)
+      → projects/start-os/container-runtime consumes dist/ (via @start9labs/start-sdk)
 ```
 
 Key make targets along the chain:
@@ -75,9 +78,9 @@ Key make targets along the chain:
 |---|---|---|
 | 1 | `cargo check -p start-core` | Verify the backend lib compiles |
 | 2 | `make ts-bindings` | Export ts-rs types → rsync to `projects/start-sdk/base/lib/osBindings/` |
-| 3 | `cd start-sdk && make bundle` | Build SDK `baseDist/` + `dist/` |
-| 4 | `cd shared-libs/ts-modules && npm run check` | Type-check Angular projects |
-| 5 | `cd start-os/container-runtime && npm run check` | Type-check the runtime |
+| 3 | `cd projects/start-sdk && make bundle` | Build SDK `baseDist/` + `dist/` |
+| 4 | `npm run check` | Type-check Angular projects (from the repo root) |
+| 5 | `cd projects/start-os/container-runtime && npm run check` | Type-check the runtime |
 
 **Important**: editing `projects/start-sdk/base/lib/osBindings/*.ts` alone is NOT enough — rebuild the SDK bundle (step 3) before web/container-runtime can see the change.
 

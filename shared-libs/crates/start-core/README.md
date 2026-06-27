@@ -1,6 +1,6 @@
 # start-core
 
-The shared Rust backend library for StartOS. Cargo package **`start-core`**, library name **`startos`**.
+The shared Rust backend library for StartOS. Cargo package **`start-core`**, library name **`start_core`**.
 
 Every Start9 product binary links against this crate. It holds the entire backend: service
 management, the s9pk package format, networking, the patch-db data model, the registry, the
@@ -13,11 +13,11 @@ This crate lives at `shared-libs/crates/start-core` and is the lib that all five
 
 | Binary | Defined in | Notes |
 |--------|-----------|-------|
-| `startbox` / `startd` | `start-os/src/bin/startbox.rs` | Main OS daemon |
-| `start-container` | `start-os/src/bin/start-container.rs` | Runs inside package LXC containers |
-| `start-cli` | `start-cli/src/main.rs` | CLI over the daemon's JSON-RPC API |
-| `registrybox` | `start-registry/src/main.rs` | Package registry server |
-| `tunnelbox` | `start-tunnel/src/main.rs` | StartTunnel VPN/forwarding server |
+| `startbox` / `startd` | `projects/start-os/src/bin/startbox.rs` | Main OS daemon |
+| `start-container` | `projects/start-os/src/bin/start-container.rs` | Runs inside package LXC containers |
+| `start-cli` | `projects/start-cli/src/main.rs` | CLI over the daemon's JSON-RPC API |
+| `registrybox` | `projects/start-registry/src/main.rs` | Package registry server |
+| `tunnelbox` | `projects/start-tunnel/src/main.rs` | StartTunnel VPN/forwarding server |
 
 Each wrapper builds a `start_core::bins::MultiExecutable`, enables the entrypoints it wants
 (`enable_startd`, `enable_start_cli`, `enable_start_container`, `enable_start_registry`,

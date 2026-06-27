@@ -7,13 +7,28 @@
 ## Place in the monorepo
 
 ```
-start-os/                      monorepo root (one Cargo workspace, one Cargo.lock)
-├── shared-libs/crates/start-core/  the entire Rust backend (lib `start_core`)
-├── start-cli/        ← THIS CRATE — bin `start-cli`
-├── start-os/         OS product (bins startbox, start-container)
-├── start-registry/   registrybox bin
-├── start-tunnel/     tunnelbox bin
-└── start-sdk/        packaging SDK + docs
+start-os/                          monorepo root (one Cargo workspace, one Cargo.lock)
+├── shared-libs/
+│   ├── crates/
+│   │   ├── start-core/            the entire Rust backend (lib `start_core`)
+│   │   ├── patch-db/
+│   │   ├── exver/
+│   │   ├── imbl-value/
+│   │   ├── jsonpath/
+│   │   ├── pi-beep/
+│   │   ├── rpc-toolkit/
+│   │   └── yasi/
+│   └── ts-modules/                Angular workspace root + shared libs
+├── projects/
+│   ├── start-cli/                 ← THIS CRATE — bin `start-cli`
+│   ├── start-os/                  OS product (bins startbox, start-container)
+│   ├── start-registry/            registrybox bin
+│   ├── start-tunnel/              tunnelbox bin
+│   ├── start-sdk/                 packaging SDK + docs
+│   ├── brochure-marketplace/      marketplace landing Angular app
+│   └── start-docs/                documentation website
+├── Cargo.toml  Cargo.lock         one root Cargo workspace
+└── Makefile                       top-level build/test/deploy targets
 ```
 
 All product bins (`startbox`, `start-container`, `start-cli`, `registrybox`, `tunnelbox`)

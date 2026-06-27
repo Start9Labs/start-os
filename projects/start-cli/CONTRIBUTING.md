@@ -54,5 +54,5 @@ cargo clippy -p start-cli
 
 Follow the root contribution workflow: focused commits with conventional messages
 (`fix:`, `feat:`, `chore:`), branch off the latest default branch, and open a PR. If your change
-touches the CLI surface a user or package author sees, update the relevant docs in `start-sdk/docs`
-(packaging) and the `start-os` docs in the same change set.
+touches the CLI surface a user or package author sees, update the relevant docs in `projects/start-sdk/docs`
+(packaging) and the `projects/start-os/docs` in the same change set.

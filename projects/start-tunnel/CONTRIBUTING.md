@@ -9,7 +9,7 @@ covers what is specific to building, testing, and changing StartTunnel.
 
 - Read [`AGENTS.md`](AGENTS.md) and [`ARCHITECTURE.md`](ARCHITECTURE.md).
 - Most backend work happens in `shared-libs/crates/start-core/src/tunnel/`, **not** in
-  this directory. The `start-tunnel/` dir is a thin wrapper (entry point, UI,
+  this directory. The `projects/start-tunnel/` dir is a thin wrapper (entry point, UI,
   systemd unit, docs).
 
 ## Build (from the repo root)
@@ -18,7 +18,7 @@ covers what is specific to building, testing, and changing StartTunnel.
 make tunnel                                   # full daemon build (UI + tunnelbox)
 cargo build -p start-tunnel --bin tunnelbox   # cargo only (UI must be prebuilt)
 cargo check -p start-tunnel                    # fast type-check
-npm --prefix shared-libs/ts-modules run build:tunnel       # build just the Angular UI
+npm run build:tunnel                          # build just the Angular UI (from repo root)
 make tunnel-deb                                # Debian package
 ```
 
@@ -63,7 +63,7 @@ it rather than reimplementing cross-platform.
    `docs:`).
 3. If you change the db schema, add a numbered migration in
    `shared-libs/crates/start-core/src/tunnel/migrations/` and register it in
-   `migrations/mod.rs`.
+   `shared-libs/crates/start-core/src/tunnel/migrations/mod.rs`.
 4. If you change the API, regenerate TS bindings: `make ts-bindings`.
 5. **Update docs in the same change** if the behavior is user-facing (UI, CLI
    flags/output, install flow, subnets/devices/forwarding). Docs live in

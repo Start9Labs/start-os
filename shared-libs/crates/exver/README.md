@@ -17,7 +17,7 @@ Add this to your `Cargo.toml`
 
 ```toml
 [dependencies]
-exver = "0.2.0"
+exver = "0.2.1"
 ```
 
 ## Operations

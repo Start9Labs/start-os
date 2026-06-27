@@ -4,7 +4,7 @@ The documentation site for [Start9](https://start9.com) products — StartOS, St
 
 **Live site:** [docs.start9.com](https://docs.start9.com)
 
-This project (the `docs/` directory of the `start-os` monorepo) owns the **site build infrastructure**, the **landing page**, and the **Bitcoin Guides** book. The per-product mdBooks now live in their own product directories; this project's build wires them together into one deployed site.
+This project (the `projects/start-docs/` directory of the `start-os` monorepo) owns the **site build infrastructure**, the **landing page**, and the **Bitcoin Guides** book. The per-product mdBooks now live in their own product directories; this project's build wires them together into one deployed site.
 
 ## Books and where they live
 
@@ -13,14 +13,14 @@ This project (the `docs/` directory of the `start-os` monorepo) owns the **site 
 | StartOS | [docs.start9.com/start-os](https://docs.start9.com/start-os/) | `../start-os/docs/` | Setup, services, networking, backups, system admin, firmware |
 | StartTunnel | [docs.start9.com/start-tunnel](https://docs.start9.com/start-tunnel/) | `../start-tunnel/docs/` | Installation, subnets, devices, port forwarding |
 | Service Packaging | [docs.start9.com/packaging](https://docs.start9.com/packaging/) | `../start-sdk/docs/` | Developer guide for building and publishing StartOS services |
-| Bitcoin Guides | [docs.start9.com/bitcoin-guides](https://docs.start9.com/bitcoin-guides/) | `docs/bitcoin-guides/` | Running Bitcoin and related services on StartOS |
+| Bitcoin Guides | [docs.start9.com/bitcoin-guides](https://docs.start9.com/bitcoin-guides/) | `bitcoin-guides/` | Running Bitcoin and related services on StartOS |
 
 The first three books were moved out of this directory into their product dirs so each book sits next to the code it documents. `build.sh` maps each book name to its source dir, so build output and deployed URLs are unchanged. Only `bitcoin-guides` still lives here.
 
 ## What's in this project
 
 ```
-docs/
+projects/start-docs/
 ├── build.sh           ← builds every book into the docs/ output dir
 ├── serve.sh           ← build + local dev server
 ├── versions.conf      ← book → version list (single source of truth)
@@ -39,7 +39,7 @@ docs/
 
 ## How it works
 
-Built with [mdBook](https://rust-lang.github.io/mdBook/). Each book is an independent mdBook instance sharing the common `theme/`. On push to `master` (paths under `docs/`, `start-os/docs/`, `start-tunnel/docs/`, or `start-sdk/docs/`), the `docs-deploy.yml` workflow:
+Built with [mdBook](https://rust-lang.github.io/mdBook/). Each book is an independent mdBook instance sharing the common `theme/`. On push to `master` (paths under `projects/start-docs/`, `projects/start-os/docs/`, `projects/start-tunnel/docs/`, or `projects/start-sdk/docs/`), the `docs-deploy.yml` workflow:
 
 1. Builds all books into versioned `docs/<book>/<version>/` directories
 2. Generates `llms.txt` and `llms-full.txt` for LLM consumption

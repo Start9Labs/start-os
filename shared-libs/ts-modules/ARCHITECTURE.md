@@ -4,7 +4,7 @@ Angular 22 + TypeScript workspace using [Taiga UI 5](https://taiga-ui.dev/) comp
 
 ## Workspace layout
 
-This directory (`shared-libs/ts-modules`) is the Angular workspace root. The two **libraries** live here directly:
+This directory (`shared-libs/ts-modules`) holds the two shared **libraries**; the Angular workspace root config (`angular.json`, `package.json`, `tsconfig.json`) lives at the repo root. The libraries live here directly:
 
 - `shared/src/` — `@start9labs/shared`
 - `marketplace/src/` — `@start9labs/marketplace`
@@ -13,12 +13,12 @@ The four **apps** are declared in `angular.json` but rooted in their product dir
 
 | App            | `angular.json` root               |
 | -------------- | --------------------------------- |
-| `ui`           | `../../start-os/web/ui`           |
-| `setup-wizard` | `../../start-os/web/setup-wizard` |
-| `start-tunnel` | `../../start-tunnel/web`          |
-| `brochure`     | `../../brochure`                  |
+| `ui`           | `../../projects/start-os/web/ui`           |
+| `setup-wizard` | `../../projects/start-os/web/setup-wizard` |
+| `start-tunnel` | `../../projects/start-tunnel/web`          |
+| `brochure-marketplace` | `../../projects/brochure-marketplace`      |
 
-Apps import the libs via the `tsconfig.json` path aliases `@start9labs/shared` → `./shared/src/public-api` and `@start9labs/marketplace` → `./marketplace/index`.
+Apps import the libs via the root `tsconfig.json` path aliases `@start9labs/shared` → `./shared-libs/ts-modules/shared/src/public-api` and `@start9labs/marketplace` → `./shared-libs/ts-modules/marketplace/index`.
 
 ## API Layer (JSON-RPC)
 
@@ -73,7 +73,7 @@ Three WebSocket use cases, all opened via `api.openWebsocket$<T>(guid)`:
 
 ## Navigation & Routing
 
-- **Main app** (`ui/src/app/routing.module.ts`) — NgModule-based with guards (`AuthGuard`, `UnauthGuard`, `stateNot()`), lazy loading via `loadChildren`, `PreloadAllModules`.
+- **Main app** (`ui/src/app/app.routes.ts`) — Route-based configuration with guards (`AuthGuard`, `UnauthGuard`, `stateNot()`), lazy loading via `loadChildren`, `PreloadAllModules`.
 - **Portal routes** (`ui/src/app/routes/portal/portal.routes.ts`) — Modern array-based routes with `loadChildren` and `loadComponent`.
 - **Setup wizard** (`setup-wizard/src/app/app.routes.ts`) — Standalone `loadComponent()` per step.
 - Route config uses `bindToComponentInputs: true` — route params bind directly to component `@Input()`.

@@ -11,7 +11,7 @@ The repo root's docs split across four files:
 - `CONTRIBUTING.md` — this file; how to contribute
 - `AGENTS.md` — AI-developer/agent operating rules (`CLAUDE.md` is a one-line `@AGENTS.md` import)
 
-**These docs must be kept up to date.** When you change project structure, conventions, build process, or product context, update the relevant file(s) in the same change — do not defer. Each component keeps its own `AGENTS.md`/`ARCHITECTURE.md` when it has distinct conventions, build steps, or test surfaces — see `shared-libs/crates/start-core/`, `shared-libs/ts-modules/`, `start-os/container-runtime/`, and `start-sdk/`.
+**These docs must be kept up to date.** When you change project structure, conventions, build process, or product context, update the relevant file(s) in the same change — do not defer. Each component keeps its own `AGENTS.md`/`ARCHITECTURE.md` when it has distinct conventions, build steps, or test surfaces — see `shared-libs/crates/start-core/`, `shared-libs/ts-modules/`, `projects/start-os/container-runtime/`, and `projects/start-sdk/`.
 
 ## Collaboration
 
@@ -48,8 +48,8 @@ nvm alias default 24 # this prevents your machine from reverting back to another
 ### Cloning the Repository
 
 ```sh
-git clone --recursive https://github.com/Start9Labs/start-os.git
-cd projects/start-os
+git clone https://github.com/Start9Labs/start-os.git
+cd start-os
 ```
 
 StartOS has 4 major branches for integration. `master` is for the current release. If the current latest release is a pre-release (i.e. "beta.X"), PRs for new features and bugfixes should go here. Otherwise we have `next/` branches depending on which release of StartOS the changes should be included in; `next/patch` for the next patch release, `next/minor` for the next minor release, and `next/major` for the next major release. If you are unsure which branch to target, ask a maintainer.
@@ -107,9 +107,8 @@ This project uses [GNU Make](https://www.gnu.org/software/make/) to build its co
 
 | Target        | Description                                    |
 | ------------- | ---------------------------------------------- |
-| `iso`         | Create full `.iso` image (not for raspberrypi) |
-| `img`         | Create full `.img` image (raspberrypi only)    |
-| `deb`         | Build Debian package                           |
+| `startos-$(IMAGE_TYPE)` | Create full image (`startos-iso`, or `startos-img` for raspberrypi) |
+| `startos-deb` | Build Debian package                           |
 | `all`         | Build all Rust binaries                        |
 | `uis`         | Build all web UIs                              |
 | `ui`          | Build main UI only                             |
@@ -121,19 +120,19 @@ For devices on the same network:
 
 | Target                               | Description                                     |
 | ------------------------------------ | ----------------------------------------------- |
-| `update-startbox REMOTE=start9@<ip>` | Deploy binary + UI only (fastest)               |
-| `update-deb REMOTE=start9@<ip>`      | Deploy full Debian package                      |
-| `update REMOTE=start9@<ip>`          | OTA-style update                                |
-| `reflash REMOTE=start9@<ip>`         | Reflash as if using live ISO                    |
-| `update-overlay REMOTE=start9@<ip>`  | Deploy to in-memory overlay (reverts on reboot) |
+| `startos-update-startbox REMOTE=start9@<ip>` | Deploy binary + UI only (fastest)               |
+| `startos-update-deb REMOTE=start9@<ip>`      | Deploy full Debian package                      |
+| `startos-update REMOTE=start9@<ip>`          | OTA-style update                                |
+| `startos-emulate-reflash REMOTE=start9@<ip>` | Reflash as if using live ISO                    |
+| `startos-update-overlay REMOTE=start9@<ip>`  | Deploy to in-memory overlay (reverts on reboot) |
 
 For devices on different networks (uses [magic-wormhole](https://github.com/magic-wormhole/magic-wormhole)):
 
 | Target              | Description          |
 | ------------------- | -------------------- |
-| `wormhole`          | Send startbox binary |
-| `wormhole-deb`      | Send Debian package  |
-| `wormhole-squashfs` | Send squashfs image  |
+| `startos-wormhole`          | Send startbox binary |
+| `startos-wormhole-deb`      | Send Debian package  |
+| `startos-wormhole-squashfs` | Send squashfs image  |
 
 ### Creating a VM
 
@@ -192,7 +191,7 @@ make format
 
 # Or scope it:
 cd shared-libs/crates/start-core && cargo +nightly fmt   # Rust
-npm --prefix shared-libs/ts-modules run format                  # TypeScript/HTML/SCSS
+npm run format                  # TypeScript/HTML/SCSS
 cd projects/start-sdk && make fmt                             # SDK
 ```
 

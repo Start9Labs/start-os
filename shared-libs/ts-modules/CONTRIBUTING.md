@@ -15,8 +15,9 @@ This directory's docs split across four files:
 
 ## Web Setup
 
+From the repo root (the Angular workspace is rooted there):
+
 ```sh
-cd shared-libs/ts-modules
 npm ci
 npm run build:deps   # builds start-sdk (make bundle) + patch-db client; both are file: deps
 ```
@@ -24,7 +25,7 @@ npm run build:deps   # builds start-sdk (make bundle) + patch-db client; both ar
 #### Configure `config.json`
 
 ```sh
-cp config-sample.json config.json
+cp shared-libs/ts-modules/config-sample.json config.json
 ```
 
 - By default, "useMocks" is set to `true`.
@@ -62,7 +63,7 @@ npm run start:ui:proxy
 
 ## Type-checking, formatting & builds
 
-Run from `shared-libs/ts-modules`:
+Run from the repo root:
 
 ```sh
 npm run check          # type-check every project (i18n, shared, marketplace, ui, setup, brochure)
@@ -107,7 +108,7 @@ Translate the English dictionary below into `<language>`. Format the result as a
 - In the `shared` project:
   1. Create a new file (`language.ts`) in `src/i18n/dictionaries`
   2. Update the `I18N_PROVIDERS` array in `src/i18n/i18n.providers.ts` (2 places)
-  3. Update the `languages` array in `/src/i18n/i18n.service.ts`
+  3. Update the `languages` array in `src/i18n/i18n.service.ts`
   4. Add the name of the new language (lowercase) to the English dictionary in `src/i18n/dictionaries/en.ts`. Add the translations of the new language's name (lowercase) to ALL non-English dictionaries in `src/i18n/dictionaries/` (e.g., `es.ts`, `pl.ts`, etc.).
 
   If you have any doubt about the above steps, check the [French example PR](https://github.com/Start9Labs/start-os/pull/2945/files) for reference.
@@ -137,4 +138,4 @@ Languages:
 
 #### Adding to StartOS
 
-In the `shared` project, copy/paste the translations into their corresponding dictionaries in `/src/i18n/dictionaries`.
+In the `shared` project, copy/paste the translations into their corresponding dictionaries in `src/i18n/dictionaries`.

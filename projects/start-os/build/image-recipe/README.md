@@ -1,6 +1,6 @@
 # StartOS Image Recipes
 
-Code and `debos` recipes that are used to create the StartOS live and installer
+Code that uses `live-build` to create the StartOS live and installer
 images.
 
 If you want to build a local image in the exact same environment used to build

@@ -15,10 +15,10 @@ All product binaries are thin wrappers that depend on this crate:
 
 | Binary | Product crate | Source |
 |--------|---------------|--------|
-| `startbox` / `start-container` | `start-os` | `start-os/src/bin/*.rs` |
-| `start-cli` | `start-cli` | `start-cli/src/main.rs` |
-| `registrybox` | `start-registry` | `start-registry/src/main.rs` |
-| `tunnelbox` | `start-tunnel` | `start-tunnel/src/main.rs` |
+| `startbox` / `start-container` | `start-os` | `projects/start-os/src/bin/*.rs` |
+| `start-cli` | `start-cli` | `projects/start-cli/src/main.rs` |
+| `registrybox` | `start-registry` | `projects/start-registry/src/main.rs` |
+| `tunnelbox` | `start-tunnel` | `projects/start-tunnel/src/main.rs` |
 
 Key module groups under `crates/start-core/src/` include `bins`, `service`,
 `s9pk`, `net`, `db`, `install`, `update`, `lxc`, `os_install`, `backup`, `sign`,
@@ -27,34 +27,37 @@ first-party `shared-libs/crates/patch-db/` (`patch-db = { path = "../patch-db/co
 See [`crates/start-core/ARCHITECTURE.md`](crates/start-core/ARCHITECTURE.md) for
 the internal design.
 
-## `web` — Angular workspace + shared libraries
+## `ts-modules` — Angular shared libraries (workspace rooted at repo root)
 
-`web/` is the single Angular workspace root for every front end in the monorepo:
-`angular.json`, `package.json`, and `package-lock.json` live here, and the app
-projects' `angular.json` roots point back into the product `web/` dirs.
+The single Angular workspace root for every front end is at the monorepo root:
+`angular.json`, `package.json`, and `package-lock.json` live at the repo root, and
+app projects define their UIs in their own `web/` subdirectories (e.g.
+`projects/start-os/web/`, `projects/start-tunnel/web/`).
 
-Within `web/` are two publishable libraries:
+The shared libraries live under `shared-libs/ts-modules/` and are two publishable
+packages:
 
-- **`web/shared/` → `@start9labs/shared`** — API clients, shared components,
-  i18n dictionaries, and global styles used by every UI.
-- **`web/marketplace/` → `@start9labs/marketplace`** — service discovery /
-  marketplace UI, shared between the StartOS `ui` app and the public
-  `brochure` marketplace site.
+- **`shared-libs/ts-modules/shared/` → `@start9labs/shared`** — API clients, shared
+  components, i18n dictionaries, and global styles used by every UI.
+- **`shared-libs/ts-modules/marketplace/` → `@start9labs/marketplace`** — service
+  discovery / marketplace UI, shared between the StartOS `ui` app and the public
+  `brochure-marketplace` marketplace site.
 
-App projects defined in `web/angular.json` (`ui`, `setup-wizard`, `start-tunnel`,
-`brochure`) reference these two libraries via the TypeScript path mappings in
-`web/tsconfig.json`. The libraries also depend on `@start9labs/start-sdk`
-(built from `start-sdk/baseDist`) and `patch-db-client` (built from
-`shared-libs/crates/patch-db/client`).
+App projects defined in the root `angular.json` (`ui`, `setup-wizard`, `start-tunnel`,
+`brochure-marketplace`) reference these two libraries via the TypeScript path
+mappings in the root `tsconfig.json`. The libraries also depend on
+`@start9labs/start-sdk` (built from `projects/start-sdk/baseDist`) and
+`patch-db-client` (built from `shared-libs/crates/patch-db/client`).
 
 ## Data flow
 
 ```
 shared-libs/crates/patch-db (first-party)
-  ├── core  ──────────────► crates/start-core (Rust) ──► product binaries
-  └── client ─────────────► web/* (Angular)        ──► product web apps
+  ├── core  ──────────────► crates/start-core (Rust)   ──► product binaries
+  └── client ─────────────► projects/*/web (Angular)   ──► product web apps
+                            shared-libs/ts-modules/*
                                   ▲
-start-sdk/baseDist ───────────────┘
+projects/start-sdk/baseDist ──────┘
 ```
 
 The Rust backend emits RFC-6902 JSON Patches via patch-db core; the web client

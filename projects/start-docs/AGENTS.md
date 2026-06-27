@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Operating instructions for AI developers working on the docs-site project (the `docs/` dir of the `start-os` monorepo). `CLAUDE.md` just imports this file. See `ARCHITECTURE.md` for how the build works and `CONTRIBUTING.md` for the human workflow.
+Operating instructions for AI developers working on the docs-site project (the `projects/start-docs/` project in the `start-os` monorepo). `CLAUDE.md` just imports this file. See `ARCHITECTURE.md` for how the build works and `CONTRIBUTING.md` for the human workflow.
 
 ## What this project is
 
@@ -34,8 +34,8 @@ This project owns the **site build infra** (`build.sh`, `serve.sh`, `versions.co
 ## Adding or moving a book
 
 1. Add `book-name=version` to `versions.conf` (build, deploy, and nginx routing all derive from it — no other config to touch).
-2. If the book lives outside this `docs/` project, add a `book_dir()` case in `build.sh` pointing at its source dir. Books with no mapping default to `docs/<book-name>/`.
+2. If the book lives outside this project, add a `book_dir()` case in `build.sh` pointing at its source dir. Books with no mapping default to `<book-name>/` (relative to this project).
 
 ## Deployment
 
-GitHub Actions `.github/workflows/docs-deploy.yml` (at the monorepo root) builds and rsyncs to the VPS on push to `master` touching `docs/**`, `start-os/docs/**`, `start-tunnel/docs/**`, or `start-sdk/docs/**`. It regenerates nginx routing from `versions.conf`. Don't hardcode book names in nginx — the generated `book_versions.conf` handles that.
+GitHub Actions `.github/workflows/docs-deploy.yml` (at the monorepo root) builds and rsyncs to the VPS on push to `master` touching `projects/start-docs/**`, `projects/start-os/docs/**`, `projects/start-tunnel/docs/**`, or `projects/start-sdk/docs/**`. It regenerates nginx routing from `versions.conf`. Don't hardcode book names in nginx — the generated `book_versions.conf` handles that.

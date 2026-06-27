@@ -8,7 +8,7 @@
 
 <!--
 TODO: Write this README per the packaging guide:
-  start-docs/packaging/src/writing-readmes.md
+  ../src/writing-readmes.md
 
 It documents how the StartOS package differs from upstream — for developers and AI
 assistants, not end users (those get instructions.md). Fill in the sections below,

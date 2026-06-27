@@ -7,10 +7,10 @@ Start with the root [`CONTRIBUTING.md`](../../CONTRIBUTING.md) and [`AGENTS.md`]
 ## Where to make changes
 
 - **Server/CLI entry, RPC API, data model, persistence, migrations** → `shared-libs/crates/start-core/src/registry/` and `shared-libs/crates/start-core/src/bins/registry.rs`.
-- **Bin wiring, systemd unit, docs** → this directory (`start-registry/`).
+- **Bin wiring, systemd unit, docs** → this directory (`projects/start-registry/`).
 - **Browsing/search/download UI** → `shared-libs/ts-modules/marketplace/` (`@start9labs/marketplace`).
 
-If you find yourself adding registry logic directly to `start-registry/src`, it almost certainly belongs in `start-core` instead.
+If you find yourself adding registry logic directly to `projects/start-registry/src`, it almost certainly belongs in `start-core` instead.
 
 ## Build, test, format (from the monorepo root)
 
@@ -46,7 +46,7 @@ Update the matching docs in the same PR:
 
 - This dir's `README.md` / `ARCHITECTURE.md` for behavior, flags, or structure changes.
 - `CHANGELOG.md` (Keep a Changelog style) for any user-visible change.
-- OS-level packaging/registry docs in `start-os/docs`, and the marketplace UI, if you change the API contract or the install/run flow.
+- OS-level packaging/registry docs in `projects/start-os/docs`, and the marketplace UI, if you change the API contract or the install/run flow.
 
 ## Commits / PRs
 

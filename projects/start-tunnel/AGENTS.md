@@ -2,7 +2,7 @@
 
 Practical instructions for working on the StartTunnel product inside the
 `start-os` monorepo. Read the root `AGENTS.md` for monorepo-wide conventions
-first; this file is scoped to `start-tunnel/`.
+first; this file is scoped to `projects/start-tunnel/`.
 
 ## What this project is
 
@@ -18,7 +18,7 @@ entry/CLI dispatch in `shared-libs/crates/start-core/src/bins/tunnel.rs`.
   to `start-core`. Rarely needs changes.
 - `Cargo.toml` — crate `start-tunnel`, bin `tunnelbox`. Depends on `start-core`.
 - `start-tunneld.service` — systemd unit running `/usr/bin/start-tunneld`.
-- `web/` — Angular project `start-tunnel` (registered in `shared-libs/ts-modules/angular.json`).
+- `web/` — Angular project `start-tunnel` (registered in the root `angular.json`).
 - `docs/` — mdbook (book title "StartTunnel"), output to `docs/book`.
 
 ## Where to make changes
@@ -43,7 +43,7 @@ Rust file is `src/main.rs`.
 make tunnel                                   # build tunnelbox (UI + daemon)
 cargo build -p start-tunnel --bin tunnelbox   # cargo only (UI must be prebuilt)
 cargo check -p start-tunnel                    # fast type-check
-npm --prefix shared-libs/ts-modules run build:tunnel       # build just the Angular UI
+npm run build:tunnel                          # build just the Angular UI
 make tunnel-deb                                # build the .deb
 make test-core                                 # backend tests (tunnel logic lives in start-core)
 ```

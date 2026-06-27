@@ -4,22 +4,21 @@ The public **Start9 Marketplace** website — [marketplace.start9.com](https://m
 
 Despite the historical name "brochure," this is not a static landing page. It is a single-page Angular app that lets anyone browse the packages published to Start9's registries (and any arbitrary registry you point it at) without owning a server. It reuses the exact same `@start9labs/marketplace` UI that ships inside StartOS, so what you see here matches what a server owner sees in their marketplace tab.
 
-The actual marketing/landing site lives elsewhere (`docs/landing`); this project is named for legacy reasons.
+The actual marketing/landing site lives elsewhere (`projects/start-docs/landing`); this project is named for legacy reasons.
 
 ## Where it lives
 
-This is a thin Angular application project inside the monorepo's single Angular workspace, rooted at `shared-libs/ts-modules`:
+This is a thin Angular application project inside the monorepo's single Angular workspace, rooted at the repo root:
 
-- App source: `brochure/src/`
-- Workspace + build config: `shared-libs/ts-modules/angular.json` (project `brochure`), `shared-libs/ts-modules/package.json`
+- App source: `projects/brochure-marketplace/src/`
+- Workspace + build config: `angular.json` (project `brochure-marketplace`) and `package.json`, both at the repo root
 - Shared libraries it consumes: `@start9labs/marketplace` (`shared-libs/ts-modules/marketplace`) and `@start9labs/shared` (`shared-libs/ts-modules/shared`)
 
-Run all `npm` scripts from `shared-libs/ts-modules`, not from this directory.
+Run all `npm` scripts from the repo root, not from this directory.
 
 ## Quickstart
 
 ```bash
-cd shared-libs/ts-modules
 npm ci                     # install workspace deps (run once)
 npm run build:deps         # build the SDK bundle + patch-db client (run once)
 
@@ -31,13 +30,12 @@ The dev build uses `MockApiService` (fixtures in `src/app/services/api.fixures.t
 ## Build
 
 ```bash
-cd shared-libs/ts-modules
-npm run build:brochure     # production build -> brochure/dist/raw/brochure
+npm run build:brochure     # production build -> projects/brochure-marketplace/dist/raw/brochure-marketplace
 ```
 
 ## Deploy
 
-Merges to `master` that touch `brochure/**` (or its shared deps) auto-deploy to marketplace.start9.com via `.github/workflows/deploy-brochure.yml`. There is no manual deploy step.
+Merges to `master` that touch `projects/brochure-marketplace/**` (or its shared deps) auto-deploy to marketplace.start9.com via `.github/workflows/deploy-brochure.yml`. There is no manual deploy step.
 
 ## More
 

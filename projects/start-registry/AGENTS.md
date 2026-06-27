@@ -56,4 +56,4 @@ Defaults: listen `127.0.0.1:5959`, datadir `/var/lib/startos` (state in `<datadi
 
 ## Docs to update with changes
 
-If you change a flag, the API surface, the data model, or the install/run flow, update this dir's `README.md` / `ARCHITECTURE.md`, add a `CHANGELOG.md` entry, and check the OS-level packaging docs (`start-os/docs`) plus the marketplace UI if the API contract changed.
+If you change a flag, the API surface, the data model, or the install/run flow, update this dir's `README.md` / `ARCHITECTURE.md`, add a `CHANGELOG.md` entry, and check the OS-level packaging docs (`projects/start-os/docs/`) plus the marketplace UI if the API contract changed.

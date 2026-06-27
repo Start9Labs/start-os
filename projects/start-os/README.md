@@ -47,8 +47,9 @@ start-os/
 ```
 
 OS-image packaging shared across products lives at the repo root: `debian/`
-(maintainer scripts), `apt/`, `build/` (image-recipe, firmware, env scripts),
-and `assets/`. The root `Makefile` drives the full ISO/img build.
+(maintainer scripts), `apt/`, and `build/` (image-recipe, firmware, env scripts);
+this product's own assets live in `assets/` here. The root `Makefile` drives the
+full ISO/img build.
 
 ## Quickstart
 
@@ -64,10 +65,11 @@ make all                                 # build everything for the current plat
 make $(IMAGE_TYPE)                       # build the OS image (iso, or img on Pi)
 ```
 
-`make` targets relevant to this product: `ui`, `uis`, `cli`, `cli-deb`, `install-cli`,
-`deb`, `squashfs`, `update*`/`reflash`/`wormhole*` (deploy to a live device —
-slow and destructive). Run `make test` for the full Rust + SDK + runtime test
-suite.
+`make` targets relevant to this product: `ui`, `uis`, `startos`, `startos-deb`,
+`install-startos`, `startos-$(IMAGE_TYPE)`, `startos-squashfs`,
+`startos-update`/`startos-emulate-reflash`/`startos-wormhole*` (deploy to a live
+device — slow and destructive). Run `make test` for the full Rust + SDK + runtime
+test suite.
 
 ## Documentation
 

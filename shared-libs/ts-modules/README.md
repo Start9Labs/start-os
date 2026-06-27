@@ -1,6 +1,6 @@
 # StartOS Web
 
-The single [Angular](https://angular.dev/) + TypeScript workspace (Angular 22, [Taiga UI 5](https://taiga-ui.dev/)) shared by every Start9 front-end. This directory (`shared-libs/ts-modules`) is the workspace **root** — it holds `angular.json`, `package.json`, `tsconfig.json`, and the two shared libraries. The individual app projects live in their product directories and reference these libs.
+The single [Angular](https://angular.dev/) + TypeScript workspace (Angular 22, [Taiga UI 5](https://taiga-ui.dev/)) shared by every Start9 front-end. This directory (`shared-libs/ts-modules`) contains the two shared libraries and is part of the Angular workspace (whose root config files `angular.json`, `package.json`, `tsconfig.json` are at the repo root). The individual app projects live in their product directories and reference these libs.
 
 ## Libraries (in this directory)
 
@@ -11,20 +11,21 @@ The single [Angular](https://angular.dev/) + TypeScript workspace (Angular 22, [
 
 `angular.json` declares these applications; their `root`/`sourceRoot` point into the product directories:
 
-- **ui** — primary StartOS admin interface — `../../start-os/web/ui`
-- **setup-wizard** — initial-setup UI (`start.local`) — `../../start-os/web/setup-wizard`
-- **start-tunnel** — StartTunnel VPN/forwarding management UI — `../../start-tunnel/web`
-- **brochure** — public marketplace front (marketplace.start9.com); auto-deploys on merge to `master` — `../../brochure`
+- **ui** — primary StartOS admin interface — `../../projects/start-os/web/ui`
+- **setup-wizard** — initial-setup UI (`start.local`) — `../../projects/start-os/web/setup-wizard`
+- **start-tunnel** — StartTunnel VPN/forwarding management UI — `../../projects/start-tunnel/web`
+- **brochure-marketplace** — public marketplace front (marketplace.start9.com); auto-deploys on merge to `master` — `../../projects/brochure-marketplace`
 
 All four consume the `shared` and `marketplace` libs from this workspace.
 
 ## Quickstart
 
+From the repo root (the Angular workspace is rooted there):
+
 ```sh
-cd shared-libs/ts-modules
 npm ci
 npm run build:deps      # builds start-sdk + patch-db client (file: deps)
-cp config-sample.json config.json
+cp shared-libs/ts-modules/config-sample.json config.json
 npm run start:ui        # mock-backed dev server
 ```
 

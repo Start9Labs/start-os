@@ -66,9 +66,9 @@ Follow the [install guide](https://docs.start9.com/start-os/installing-startos.h
 See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, build instructions, and the development workflow. In short:
 
 ```sh
-git clone --recursive https://github.com/Start9Labs/start-os.git
+git clone https://github.com/Start9Labs/start-os.git
 cd start-os
-PLATFORM=$(uname -m) ENVIRONMENT=dev make iso   # build a StartOS image
+PLATFORM=$(uname -m) ENVIRONMENT=dev make startos   # build a StartOS image
 ```
 
 ## The rest of the monorepo

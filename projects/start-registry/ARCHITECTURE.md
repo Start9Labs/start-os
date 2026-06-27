@@ -75,7 +75,8 @@ The registry has no bundled UI of its own; the browsing/search/download UI is th
 
 ```
 start-os/ (monorepo root)
-├── start-registry/                 ← this wrapper (registrybox bin + service)
+├── projects/
+│   └── start-registry/             ← this wrapper (registrybox bin + service)
 ├── shared-libs/crates/start-core/       ← all backend logic, incl. src/registry/
 │   └── src/bins/registry.rs        ← server + CLI entry points
 ├── shared-libs/ts-modules/marketplace/         ← @start9labs/marketplace UI library
