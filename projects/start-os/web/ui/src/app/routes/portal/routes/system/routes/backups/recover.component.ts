@@ -4,7 +4,7 @@ import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import { Router } from '@angular/router'
 import { ErrorService, i18nKey, i18nPipe } from '@start9labs/shared'
-import { Version } from '@start9labs/start-sdk'
+import { Version } from '@start9labs/start-core'
 import { TuiMapperPipe } from '@taiga-ui/cdk'
 import {
   TuiButton,

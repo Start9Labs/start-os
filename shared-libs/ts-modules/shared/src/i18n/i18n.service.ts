@@ -1,7 +1,7 @@
 import { inject, Injectable, signal } from '@angular/core'
 import { TuiLanguageName, TuiLanguageSwitcherService } from '@taiga-ui/i18n'
 import { I18N, I18N_LOADER, I18N_STORAGE } from './i18n.providers'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 
 export const languages = ['en_US', 'es_ES', 'de_DE', 'fr_FR', 'pl_PL'] as const
 export type Languages = (typeof languages)[number]

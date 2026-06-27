@@ -7,7 +7,7 @@ import {
   ValidatorFn,
   Validators,
 } from '@angular/forms'
-import { IST, utils } from '@start9labs/start-sdk'
+import { IST, utils } from '@start9labs/start-core'
 import { tuiCreateFileFormatValidator } from '@taiga-ui/kit'
 import Mustache from 'mustache'
 

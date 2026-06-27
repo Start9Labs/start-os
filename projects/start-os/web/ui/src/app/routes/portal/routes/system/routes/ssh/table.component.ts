@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms'
 import { i18nPipe } from '@start9labs/shared'
 import { TuiFade, TuiSkeleton } from '@taiga-ui/kit'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 
 @Component({
   selector: '[keys]',

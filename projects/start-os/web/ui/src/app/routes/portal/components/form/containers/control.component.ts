@@ -1,7 +1,7 @@
 import { Component, inject, Input } from '@angular/core'
 import { ReactiveFormsModule } from '@angular/forms'
 import { DialogService, i18nPipe } from '@start9labs/shared'
-import { IST } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-core'
 import { tuiAsControl, TuiControl } from '@taiga-ui/cdk'
 import { TUI_VALIDATION_ERRORS, TuiError } from '@taiga-ui/core'
 import { TUI_FORMAT_ERROR } from '@taiga-ui/kit'

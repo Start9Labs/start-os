@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core'
-import { T, utils } from '@start9labs/start-sdk'
+import { T, utils } from '@start9labs/start-core'
 import { ConfigService } from 'src/app/services/config.service'
 import { GatewayPlus } from 'src/app/services/gateway.service'
 import {

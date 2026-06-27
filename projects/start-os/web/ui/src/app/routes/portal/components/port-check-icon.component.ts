@@ -1,5 +1,5 @@
 import { Component, input } from '@angular/core'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { TuiIcon, TuiLoader } from '@taiga-ui/core'
 
 @Component({

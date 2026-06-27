@@ -9,7 +9,7 @@ import * as net from "net"
 import { Effects } from "../Models/Effects"
 
 import { CallbackHolder } from "../Models/CallbackHolder"
-import { asError } from "@start9labs/start-sdk/base/lib/util"
+import { asError } from "@start9labs/start-core/util"
 const matchRpcError = z.object({
   error: z.object({
     code: z.number(),

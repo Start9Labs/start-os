@@ -1,4 +1,4 @@
-import { ISB } from '@start9labs/start-sdk'
+import { ISB } from '@start9labs/start-core'
 
 export const dropboxSpec = ISB.InputSpec.of({
   name: ISB.Value.text({

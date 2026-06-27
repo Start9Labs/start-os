@@ -1,6 +1,6 @@
 import { Pipe, PipeTransform } from '@angular/core'
 import { i18nKey, leafProgress } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 
 @Pipe({
   name: 'installingProgress',

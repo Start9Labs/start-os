@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { ExtendedVersion, VersionRange } from '@start9labs/start-sdk'
+import { ExtendedVersion, VersionRange } from '@start9labs/start-core'
 
 @Injectable({
   providedIn: 'root',

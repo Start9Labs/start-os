@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { TuiButton, TuiDialogContext } from '@taiga-ui/core'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { ActionSuccessMemberComponent } from 'src/app/routes/portal/routes/services/modals/action-success/action-success-member.component'

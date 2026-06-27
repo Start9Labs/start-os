@@ -22,6 +22,7 @@
     "@iarna/toml": "^2.2.5",
     "@noble/curves": "^1.4.0",
     "@noble/hashes": "^1.4.0",
+    "@start9labs/start-core": "file:../../../shared-libs/ts-modules/start-core/dist",
     "@start9labs/start-sdk": "file:../../start-sdk/dist",
     "esbuild-plugin-resolve": "^2.0.0",
     "filebrowser": "^1.0.0",

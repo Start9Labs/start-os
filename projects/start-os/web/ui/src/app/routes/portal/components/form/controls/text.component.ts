@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { i18nPipe } from '@start9labs/shared'
-import { IST, utils } from '@start9labs/start-sdk'
+import { IST, utils } from '@start9labs/start-core'
 import { tuiInjectElement } from '@taiga-ui/cdk'
 import { TuiButton, TuiIcon, TuiInput } from '@taiga-ui/core'
 import { TuiTooltip } from '@taiga-ui/kit'

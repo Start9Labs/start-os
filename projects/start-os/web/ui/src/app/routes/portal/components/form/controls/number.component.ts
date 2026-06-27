@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { IST } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-core'
 import { TuiIcon, TuiNumberFormat, TuiInput } from '@taiga-ui/core'
 import { TuiInputNumber, TuiTooltip } from '@taiga-ui/kit'
 

@@ -6,7 +6,7 @@ import {
 } from '@ng-web-apis/intersection-observer'
 import { WaMutationObserver } from '@ng-web-apis/mutation-observer'
 import { i18nPipe } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { tuiProvide } from '@taiga-ui/cdk'
 import { TuiButton, TuiLoader, TuiScrollbar } from '@taiga-ui/core'
 import { NgDompurifyPipe } from '@taiga-ui/dompurify'

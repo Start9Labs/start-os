@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common'
 import { Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { ErrorService } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { TuiMapperPipe } from '@taiga-ui/cdk'
 import {
   TuiButton,

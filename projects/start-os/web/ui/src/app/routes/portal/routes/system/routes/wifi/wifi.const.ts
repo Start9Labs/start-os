@@ -1,4 +1,4 @@
-import { IST } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-core'
 
 export const wifiSpec: IST.ValueSpecObject = {
   type: 'object',

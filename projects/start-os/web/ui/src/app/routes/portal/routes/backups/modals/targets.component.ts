@@ -1,6 +1,6 @@
 import { Component, inject, OnInit, signal } from '@angular/core'
 import { DocsLinkDirective, ErrorService } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { TuiButton, TuiLink, TuiNotification } from '@taiga-ui/core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'

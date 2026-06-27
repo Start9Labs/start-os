@@ -14,7 +14,7 @@ import {
   RpcError,
   RPCOptions,
 } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { ApiService } from './api.service'
 
 @Injectable()

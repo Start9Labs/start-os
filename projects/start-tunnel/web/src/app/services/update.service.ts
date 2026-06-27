@@ -1,7 +1,7 @@
 import { computed, inject, Injectable, signal } from '@angular/core'
 import { toObservable } from '@angular/core/rxjs-interop'
 import { ErrorService } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import {
   catchError,

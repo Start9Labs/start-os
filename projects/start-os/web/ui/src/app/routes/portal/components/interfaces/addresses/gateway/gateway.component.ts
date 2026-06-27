@@ -1,6 +1,6 @@
 import { Component, inject, input } from '@angular/core'
 import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
-import { ISB, utils } from '@start9labs/start-sdk'
+import { ISB, utils } from '@start9labs/start-core'
 import { TuiButton, TuiIcon } from '@taiga-ui/core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'

@@ -2,7 +2,7 @@ import { Component, computed, inject, signal, Signal } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import { ErrorService } from '@start9labs/shared'
-import { utils } from '@start9labs/start-sdk'
+import { utils } from '@start9labs/start-core'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import {
   TuiButton,

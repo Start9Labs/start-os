@@ -7,7 +7,7 @@ import {
   Output,
 } from '@angular/core'
 import { ControlContainer } from '@angular/forms'
-import { IST } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-core'
 import { TuiButton, TuiIcon, TuiExpand } from '@taiga-ui/core'
 import { TuiTooltip } from '@taiga-ui/kit'
 

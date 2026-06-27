@@ -7,7 +7,7 @@ import {
   ViewEncapsulation,
 } from '@angular/core'
 import { ControlContainer, ReactiveFormsModule } from '@angular/forms'
-import { IST } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-core'
 import { TUI_DEFAULT_ERROR_MESSAGE } from '@taiga-ui/core'
 import { identity } from 'rxjs'
 

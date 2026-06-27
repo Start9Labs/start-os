@@ -13,7 +13,7 @@ import {
   take,
   tap,
 } from 'rxjs'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConnectionService } from 'src/app/services/connection.service'
 

@@ -6,7 +6,7 @@ import {
   i18nPipe,
   i18nService,
 } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { defaultIfEmpty, defer, filter, firstValueFrom, of } from 'rxjs'

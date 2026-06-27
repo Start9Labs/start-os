@@ -12,7 +12,7 @@ import { PortCheckIconComponent } from 'src/app/routes/portal/components/port-ch
 import { PortCheckWarningsComponent } from 'src/app/routes/portal/components/port-check-warnings.component'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { parse } from 'tldts'
 
 export type DnsGateway = T.NetworkInterfaceInfo & {

@@ -1,7 +1,7 @@
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import { Component, inject, input, model, signal } from '@angular/core'
 import { CopyService, DialogService, i18nPipe } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import {
   TuiButton,
   tuiButtonOptionsProvider,

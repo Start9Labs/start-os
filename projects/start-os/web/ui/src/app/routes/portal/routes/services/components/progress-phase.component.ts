@@ -5,7 +5,7 @@ import {
   input,
 } from '@angular/core'
 import { i18nPipe, LeafProgress, LeafProgressPipe } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { TuiExpand } from '@taiga-ui/core'
 import { TuiProgress } from '@taiga-ui/kit'
 import { InstallingProgressPipe } from '../pipes/install-progress.pipe'

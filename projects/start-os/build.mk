@@ -146,7 +146,7 @@ startos-upload-ota: results/$(BASENAME).squashfs
 projects/start-os/container-runtime/debian.$(ARCH).squashfs: ./projects/start-os/container-runtime/download-base-image.sh
 	ARCH=$(ARCH) ./projects/start-os/container-runtime/download-base-image.sh
 
-projects/start-os/container-runtime/package-lock.json: projects/start-sdk/dist/package.json
+projects/start-os/container-runtime/package-lock.json: projects/start-sdk/dist/package.json shared-libs/ts-modules/start-core/dist/package.json
 	npm --prefix projects/start-os/container-runtime i
 	touch projects/start-os/container-runtime/package-lock.json
 
@@ -158,7 +158,7 @@ projects/start-os/container-runtime/node_modules/.package-lock.json: projects/st
 projects/start-os/container-runtime/dist/index.js: projects/start-os/container-runtime/node_modules/.package-lock.json $(call ls-files, projects/start-os/container-runtime/src) projects/start-os/container-runtime/package.json projects/start-os/container-runtime/tsconfig.json 
 	npm --prefix projects/start-os/container-runtime run build
 
-projects/start-os/container-runtime/dist/node_modules/.package-lock.json projects/start-os/container-runtime/dist/package.json projects/start-os/container-runtime/dist/package-lock.json: projects/start-os/container-runtime/package.json projects/start-os/container-runtime/package-lock.json projects/start-sdk/dist/package.json projects/start-os/container-runtime/install-dist-deps.sh
+projects/start-os/container-runtime/dist/node_modules/.package-lock.json projects/start-os/container-runtime/dist/package.json projects/start-os/container-runtime/dist/package-lock.json: projects/start-os/container-runtime/package.json projects/start-os/container-runtime/package-lock.json projects/start-sdk/dist/package.json shared-libs/ts-modules/start-core/dist/package.json projects/start-os/container-runtime/install-dist-deps.sh
 	./projects/start-os/container-runtime/install-dist-deps.sh
 	touch projects/start-os/container-runtime/dist/node_modules/.package-lock.json
 

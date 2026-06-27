@@ -9,7 +9,7 @@ import { Manifest } from "./matchManifest"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import * as cp from "child_process"
 import { Effects } from "../../../Models/Effects"
-import { Mounts } from "@start9labs/start-sdk/package/lib/mainFn/Mounts"
+import { Mounts } from "@start9labs/start-sdk/lib/mainFn/Mounts"
 export const execFile = promisify(cp.execFile)
 export const polyfillEffects = (
   effects: Effects,

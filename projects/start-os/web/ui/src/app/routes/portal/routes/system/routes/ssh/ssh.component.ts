@@ -7,7 +7,7 @@ import {
   ErrorService,
   i18nPipe,
 } from '@start9labs/shared'
-import { ISB, T } from '@start9labs/start-sdk'
+import { ISB, T } from '@start9labs/start-core'
 import { TuiButton } from '@taiga-ui/core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { filter, from, merge, Subject } from 'rxjs'

@@ -1,5 +1,5 @@
 import { FullKeyboard, Languages } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 
 export type DataModel = {
   ui: UIData

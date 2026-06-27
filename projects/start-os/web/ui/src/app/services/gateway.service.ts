@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core'
 import { PatchDB } from 'patch-db-client'
-import { T, utils } from '@start9labs/start-sdk'
+import { T, utils } from '@start9labs/start-core'
 import { map } from 'rxjs'
 import { DataModel } from './patch-db/data-model'
 import { toSignal } from '@angular/core/rxjs-interop'

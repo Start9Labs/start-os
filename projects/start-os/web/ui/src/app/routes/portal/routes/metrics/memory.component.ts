@@ -1,6 +1,6 @@
 import { Component, computed, input } from '@angular/core'
 import { TuiProgress } from '@taiga-ui/kit'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { DataComponent } from './data.component'
 import { ValuePipe } from './value.pipe'
 import { i18nKey } from '@start9labs/shared'

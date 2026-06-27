@@ -20,12 +20,12 @@ import { promisify } from "node:util"
 import * as U from "./oldEmbassyTypes"
 import { MainLoop } from "./MainLoop"
 import { z } from "@start9labs/start-sdk"
-import { AddSslOptions } from "@start9labs/start-sdk/base/lib/osBindings"
+import { AddSslOptions } from "@start9labs/start-core/osBindings"
 import {
   BindOptionsByProtocol,
   MultiHost,
-} from "@start9labs/start-sdk/base/lib/interfaces/Host"
-import { ServiceInterfaceBuilder } from "@start9labs/start-sdk/base/lib/interfaces/ServiceInterfaceBuilder"
+} from "@start9labs/start-core/interfaces/Host"
+import { ServiceInterfaceBuilder } from "@start9labs/start-core/interfaces/ServiceInterfaceBuilder"
 import { Effects } from "../../../Models/Effects"
 import {
   OldConfigSpec,
@@ -34,8 +34,8 @@ import {
   transformNewConfigToOld,
   transformOldConfigToNew,
 } from "./transformConfigSpec"
-import { partialDiff } from "@start9labs/start-sdk/base/lib/util"
-import { Volume } from "@start9labs/start-sdk/package/lib/util/Volume"
+import { partialDiff } from "@start9labs/start-core/util"
+import { Volume } from "@start9labs/start-sdk/lib/util/Volume"
 
 type Optional<A> = A | undefined | null
 function todo(): never {

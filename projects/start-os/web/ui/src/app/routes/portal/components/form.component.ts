@@ -1,7 +1,7 @@
 import { Component, inject, Input, OnInit } from '@angular/core'
 import { FormGroup, ReactiveFormsModule } from '@angular/forms'
 import { RouterModule } from '@angular/router'
-import { IST } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-core'
 import {
   tuiMarkControlAsTouchedAndValidate,
   TuiValueChanges,

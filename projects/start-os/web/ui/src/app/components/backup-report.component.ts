@@ -6,7 +6,7 @@ import { TuiDialogContext, TuiIcon } from '@taiga-ui/core'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { map } from 'rxjs'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { getManifest } from '../utils/get-package-data'
 import { DataModel } from '../services/patch-db/data-model'
 

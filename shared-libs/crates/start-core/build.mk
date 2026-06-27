@@ -2,8 +2,8 @@ test-core: $(CORE_SRC) $(ENVIRONMENT_FILE)
 	./shared-libs/crates/start-core/run-tests.sh
 
 ts-bindings: shared-libs/crates/start-core/bindings/index.ts
-	mkdir -p projects/start-sdk/base/lib/osBindings
-	rsync -ac --delete shared-libs/crates/start-core/bindings/ projects/start-sdk/base/lib/osBindings/
+	mkdir -p shared-libs/ts-modules/start-core/lib/osBindings
+	rsync -ac --delete shared-libs/crates/start-core/bindings/ shared-libs/ts-modules/start-core/lib/osBindings/
 
 shared-libs/crates/start-core/bindings/index.ts: $(call ls-files, shared-libs/crates/start-core) $(ENVIRONMENT_FILE)
 	rm -rf shared-libs/crates/start-core/bindings
@@ -13,7 +13,7 @@ shared-libs/crates/start-core/bindings/index.ts: $(call ls-files, shared-libs/cr
 		ls shared-libs/crates/start-core/bindings/tunnel/*.ts | sed 's|.*/bindings/tunnel/\([^.]*\)\.ts|export { \1 } from "./\1";|g' | grep -v '"./index"' > shared-libs/crates/start-core/bindings/tunnel/index.ts; \
 		echo 'export * as Tunnel from "./tunnel";' >> shared-libs/crates/start-core/bindings/index.ts; \
 	fi
-	npm --prefix projects/start-sdk/base exec -- prettier --config=./projects/start-sdk/base/package.json -w './shared-libs/crates/start-core/bindings/**/*.ts'
+	npm --prefix shared-libs/ts-modules/start-core exec -- prettier --config=./shared-libs/ts-modules/start-core/package.json -w './shared-libs/crates/start-core/bindings/**/*.ts'
 	touch shared-libs/crates/start-core/bindings/index.ts
 
 .PHONY: clean-core

@@ -1,6 +1,6 @@
 import { inject, Pipe, PipeTransform } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
-import { IST } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-core'
 
 @Pipe({
   name: 'hint',

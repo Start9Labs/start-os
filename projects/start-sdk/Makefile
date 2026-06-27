@@ -1,88 +1,63 @@
-PACKAGE_TS_FILES := $(shell git ls-files package/lib)
-BASE_TS_FILES := $(shell git ls-files base/lib)
-version = $(shell git tag --sort=committerdate | tail -1)
+TS_FILES := $(shell git ls-files lib)
+START_CORE := ../../shared-libs/ts-modules/start-core
+START_CORE_DIST := $(START_CORE)/dist
 
-.PHONY: test base/test package/test clean bundle fmt check-fmt buildOutput check
+.PHONY: all test clean bundle fmt check-fmt check publish link node_modules
 
 all: bundle
 
-package/test: $(PACKAGE_TS_FILES) package/node_modules base/node_modules
-	cd package && npm test
+# start-core is an external dependency now: the SDK imports it and bundles its
+# built lib into the published dist so external authors still install one package.
+$(START_CORE_DIST)/package.json:
+	$(MAKE) -C $(START_CORE) dist
 
-base/test: $(BASE_TS_FILES) base/node_modules
-	cd base && npm test
-
-test: base/test package/test
+test: node_modules
+	npm test
 
 clean:
-	rm -rf base/node_modules
-	rm -rf dist
-	rm -rf baseDist
-	rm -f package/lib/test/output.ts
-	rm -rf package/node_modules
-	
+	rm -rf dist node_modules lib/test/output.ts
+
 # Build artifacts only — verification (test/check-fmt) is intentionally NOT a
 # prerequisite so consumers (the OS build) don't re-run the jest suite every
 # build. CI and `publish` run test/check-fmt explicitly.
-bundle: baseDist dist
+bundle: dist
 	touch dist
 
-base/lib/exver/exver.ts: base/node_modules base/lib/exver/exver.pegjs
-	cd base && npm run peggy
-
-baseDist: $(PACKAGE_TS_FILES) $(BASE_TS_FILES) base/package.json base/node_modules base/README.md LICENSE
-	(cd base && npm run tsc)
-	rsync -ac --include='*.js' --include='*.d.ts' --include='*/' --exclude='*' base/lib/ baseDist/
-	rsync -ac base/node_modules baseDist/
-	cp base/package.json baseDist/package.json
-	cp base/README.md baseDist/README.md
-	cp LICENSE baseDist/LICENSE
-	touch baseDist
-
-dist: $(PACKAGE_TS_FILES) $(BASE_TS_FILES) package/package.json package/.npmignore package/node_modules README.md LICENSE CHANGELOG.md s9pk.mk tsconfig.base.json package/eslint.config.base.mjs package/lint.mjs
-	(cd package && npm run tsc)
-	rsync -ac --include='*.js' --include='*.d.ts' --include='*/' --exclude='*' base/lib/ dist/base/lib/
-	rsync -ac package/node_modules dist/
-	cp package/.npmignore dist/.npmignore
-	cp package/package.json dist/package.json
+dist: $(TS_FILES) package.json .npmignore node_modules README.md LICENSE CHANGELOG.md s9pk.mk tsconfig.base.json eslint.config.base.mjs lint.mjs $(START_CORE_DIST)/package.json
+	npm run tsc
+	rsync -ac node_modules dist/
+	rm -rf dist/node_modules/@start9labs/start-core
+	mkdir -p dist/node_modules/@start9labs
+	rsync -aL $(START_CORE_DIST)/ dist/node_modules/@start9labs/start-core/
+	cp package.json dist/package.json
+	cp .npmignore dist/.npmignore
 	cp README.md dist/README.md
 	cp LICENSE dist/LICENSE
 	cp CHANGELOG.md dist/CHANGELOG.md
 	cp s9pk.mk dist/s9pk.mk
 	cp tsconfig.base.json dist/tsconfig.base.json
-	cp package/eslint.config.base.mjs dist/eslint.config.base.mjs
-	cp package/lint.mjs dist/lint.mjs
+	cp eslint.config.base.mjs dist/eslint.config.base.mjs
+	cp lint.mjs dist/lint.mjs
 	touch dist
 
 full-bundle: bundle
 
-check:
-	cd package
-	npm run check
-	cd ../base
+check: node_modules
 	npm run check
 
-fmt: package/node_modules base/node_modules
-	npx --prefix base prettier "**/*.ts" --write
+fmt: node_modules
+	npx prettier "**/*.ts" --write
 
-check-fmt: package/node_modules base/node_modules
-	npx --prefix base prettier "**/*.ts" --check
+check-fmt: node_modules
+	npx prettier "**/*.ts" --check
 
-package/package-lock.json: package/package.json
-	cd package && npm i
+package-lock.json: package.json $(START_CORE_DIST)/package.json
+	npm i
 
-base/package-lock.json: base/package.json
-	cd base && npm i
+node_modules: package-lock.json $(START_CORE_DIST)/package.json
+	npm ci
 
-package/node_modules: package/package-lock.json
-	cd package && npm ci
-
-base/node_modules: base/package-lock.json
-	cd base && npm ci
-
-node_modules: package/node_modules base/node_modules
-
-publish: bundle test check-fmt package/package.json README.md LICENSE CHANGELOG.md
+publish: bundle test check-fmt package.json README.md LICENSE CHANGELOG.md
 	cd dist && npm publish --access=public --tag=latest $(if $(OTP),--otp=$(OTP))
 
 link: bundle

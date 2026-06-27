@@ -1,6 +1,6 @@
 import { Component, input } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 
 @Component({
   selector: 'port-check-warnings',

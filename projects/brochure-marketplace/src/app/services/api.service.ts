@@ -3,7 +3,7 @@ import {
   GetPackagesRes,
   MarketplacePkg,
 } from '@start9labs/marketplace'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 
 export abstract class ApiService {
   abstract getRegistryInfo(registryUrl: string): Promise<T.RegistryInfo>

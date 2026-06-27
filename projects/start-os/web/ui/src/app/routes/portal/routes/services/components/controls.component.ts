@@ -1,7 +1,7 @@
 import { AsyncPipe } from '@angular/common'
 import { Component, computed, DOCUMENT, inject, input } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { TuiButton, TuiDataList, TuiDropdown } from '@taiga-ui/core'
 import { TuiChevron } from '@taiga-ui/kit'
 import { map } from 'rxjs'

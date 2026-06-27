@@ -1,6 +1,6 @@
 import { Component, computed, inject, input, signal } from '@angular/core'
 import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { TuiCell, TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiNotificationMiddleService, TuiSegmented } from '@taiga-ui/kit'
 import { PORT_RANGE_FORWARD } from 'src/app/routes/portal/components/port-ranges/port-range-forward.component'

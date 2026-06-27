@@ -1,5 +1,5 @@
 import { GetPackagesRes } from '@start9labs/marketplace'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { BTC_ICON, LND_ICON, PROXY_ICON, REGISTRY_ICON } from './api-icons'
 
 const mockMerkleArchiveCommitment: T.MerkleArchiveCommitment = {

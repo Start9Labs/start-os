@@ -1,6 +1,6 @@
 import { inject, Pipe, PipeTransform } from '@angular/core'
 import { map, Observable } from 'rxjs'
-import { T, Version } from '@start9labs/start-sdk'
+import { T, Version } from '@start9labs/start-core'
 import { ConfigService } from 'src/app/services/config.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { RecoverOption } from '../types/recover-option'

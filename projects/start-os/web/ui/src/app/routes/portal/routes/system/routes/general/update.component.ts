@@ -6,7 +6,7 @@ import {
   MarkdownPipe,
   SafeLinksDirective,
 } from '@start9labs/shared'
-import { Version } from '@start9labs/start-sdk'
+import { Version } from '@start9labs/start-core'
 import { TuiAutoFocus } from '@taiga-ui/cdk'
 import { TuiButton, TuiDialogContext, TuiScrollbar } from '@taiga-ui/core'
 import { NgDompurifyPipe } from '@taiga-ui/dompurify'

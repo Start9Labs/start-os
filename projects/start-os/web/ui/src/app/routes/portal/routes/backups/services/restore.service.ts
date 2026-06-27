@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core'
 import { Router } from '@angular/router'
 import { verify } from '@start9labs/argon2'
 import { ErrorService, StartOSDiskInfo } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import {

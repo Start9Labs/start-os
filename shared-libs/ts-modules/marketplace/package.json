@@ -10,7 +10,7 @@
     "@angular/router": ">=22.0.0",
     "@ng-web-apis/platform": ">=5.0.0",
     "@start9labs/shared": "*",
-    "@start9labs/start-sdk": ">=1.5.3",
+    "@start9labs/start-core": ">=1.5.3",
     "@taiga-ui/cdk": ">=5.0.0",
     "@taiga-ui/core": ">=5.0.0",
     "@taiga-ui/dompurify": ">=5.0.0",

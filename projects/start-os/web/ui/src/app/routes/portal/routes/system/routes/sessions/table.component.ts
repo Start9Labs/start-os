@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms'
 import { TuiIcon, TuiCheckbox } from '@taiga-ui/core'
 import { TuiFade, TuiSkeleton } from '@taiga-ui/kit'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { PlatformInfoPipe } from './platform-info.pipe'
 import { i18nPipe } from '@start9labs/shared'
 

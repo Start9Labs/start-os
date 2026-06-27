@@ -1,5 +1,5 @@
 import { Component, computed, input } from '@angular/core'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { DataComponent } from './data.component'
 import { i18nKey } from '@start9labs/shared'
 

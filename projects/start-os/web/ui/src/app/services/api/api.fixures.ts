@@ -1,5 +1,5 @@
 import { GetPackagesRes } from '@start9labs/marketplace'
-import { ISB, IST, T } from '@start9labs/start-sdk'
+import { ISB, IST, T } from '@start9labs/start-core'
 import {
   InstalledState,
   PackageDataEntry,

@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { LogsComponent } from 'src/app/routes/portal/components/logs/logs.component'
 import { LogsHeaderComponent } from 'src/app/routes/portal/routes/logs/components/header.component'
 import { FollowServerLogsReq } from 'src/app/services/api/api.types'

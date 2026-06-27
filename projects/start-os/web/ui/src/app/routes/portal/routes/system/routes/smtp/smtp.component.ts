@@ -9,7 +9,7 @@ import {
   i18nKey,
   i18nPipe,
 } from '@start9labs/shared'
-import { inputSpec, ISB, utils } from '@start9labs/start-sdk'
+import { inputSpec, ISB, utils } from '@start9labs/start-core'
 import { TuiButton, TuiError, TuiInput, TuiTitle } from '@taiga-ui/core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'

@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
-import { ISB, utils } from '@start9labs/start-sdk'
+import { ISB, utils } from '@start9labs/start-core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'

@@ -9,7 +9,7 @@ import {
   SetLanguageParams,
   StartOSDiskInfo,
 } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import * as jose from 'node-jose'
 import { Observable } from 'rxjs'
 import { webSocket } from 'rxjs/webSocket'

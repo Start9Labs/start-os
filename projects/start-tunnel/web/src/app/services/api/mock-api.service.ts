@@ -3,7 +3,7 @@ import { shareReplay, Subject, tap } from 'rxjs'
 import { WebSocketSubject } from 'rxjs/webSocket'
 import { ApiService, SubscribeRes } from './api.service'
 import { pauseFor } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { AuthService } from '../auth.service'
 import {
   AddOperation,

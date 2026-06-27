@@ -12,7 +12,7 @@
 // import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 // import { ApiService } from './api/embassy-api.service'
 // import { DataModel } from './patch-db/data-model'
-// import { ISB } from '@start9labs/start-sdk'
+// import { ISB } from '@start9labs/start-core'
 
 // @Injectable({
 //   providedIn: 'root',

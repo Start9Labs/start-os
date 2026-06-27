@@ -14,7 +14,7 @@ import {
   ReactiveFormsModule,
 } from '@angular/forms'
 import { DialogService, i18nKey, i18nPipe } from '@start9labs/shared'
-import { IST } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-core'
 import { TuiAnimated } from '@taiga-ui/cdk'
 import { TuiButton, TuiError, TuiIcon, TuiInput, TuiLink } from '@taiga-ui/core'
 import { TuiTooltip } from '@taiga-ui/kit'

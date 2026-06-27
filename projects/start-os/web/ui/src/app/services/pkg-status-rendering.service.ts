@@ -1,5 +1,5 @@
 import { i18nKey } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 
 export const INACTIVE_STATUSES: PrimaryStatus[] = [

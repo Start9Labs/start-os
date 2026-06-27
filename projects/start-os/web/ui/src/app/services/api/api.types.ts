@@ -1,4 +1,4 @@
-import { IST, T } from '@start9labs/start-sdk'
+import { IST, T } from '@start9labs/start-core'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import { GetPackageReq, GetPackagesReq } from '@start9labs/marketplace'
 

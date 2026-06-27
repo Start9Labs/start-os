@@ -8,7 +8,7 @@ import {
 } from '@taiga-ui/core'
 import { TuiConfirmData, TUI_CONFIRM, TuiSkeleton } from '@taiga-ui/kit'
 import { filter, map, Subject, switchMap } from 'rxjs'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
 
 @Component({

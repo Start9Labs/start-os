@@ -4,7 +4,7 @@ import {
   DownloadHTMLService,
   ErrorService,
 } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { LogsComponent } from './logs.component'
 

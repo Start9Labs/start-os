@@ -1,7 +1,7 @@
 import { NgTemplateOutlet } from '@angular/common'
 import { ChangeDetectorRef, Component, inject, Input } from '@angular/core'
 import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
-import { IST } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-core'
 import {
   TuiButton,
   TuiCell,

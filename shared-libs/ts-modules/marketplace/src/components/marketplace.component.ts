@@ -12,7 +12,7 @@ import {
 import { FormsModule } from '@angular/forms'
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import { i18nPipe, LocalizePipe } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import {
   TuiButton,
   tuiButtonOptionsProvider,

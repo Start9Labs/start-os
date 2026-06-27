@@ -1,6 +1,6 @@
 import { Component, inject, signal } from '@angular/core'
 import { ErrorService, i18nPipe } from '@start9labs/shared'
-import { utils } from '@start9labs/start-sdk'
+import { utils } from '@start9labs/start-core'
 import { TuiButton, TuiDialogContext, TuiIcon, TuiLoader } from '@taiga-ui/core'
 import { TuiButtonLoading } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'

@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core'
 import { DialogService, ErrorService } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'

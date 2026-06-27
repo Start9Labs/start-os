@@ -1,4 +1,4 @@
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 
 export type TunnelData = Pick<
   T.Tunnel.TunnelDatabase,

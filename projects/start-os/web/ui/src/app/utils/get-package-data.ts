@@ -7,7 +7,7 @@ import {
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
 import { firstValueFrom } from 'rxjs'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 
 export async function getPackage(
   patch: PatchDB<DataModel>,

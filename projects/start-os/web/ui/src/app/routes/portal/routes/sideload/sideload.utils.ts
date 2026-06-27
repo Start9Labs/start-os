@@ -1,6 +1,6 @@
 import { MarketplacePkgBase } from '@start9labs/marketplace'
 import { i18nKey } from '@start9labs/shared'
-import { S9pk, ExtendedVersion } from '@start9labs/start-sdk'
+import { S9pk, ExtendedVersion } from '@start9labs/start-core'
 
 const MAGIC = new Uint8Array([59, 59])
 const VERSION_1 = new Uint8Array([1])

@@ -8,15 +8,15 @@ import {
   CommandOptions,
   ExecOptions,
   SubContainer as SubContainerNS,
-} from "@start9labs/start-sdk/package/lib/util/SubContainer"
-import { Mounts } from "@start9labs/start-sdk/package/lib/mainFn/Mounts"
-import { Manifest } from "@start9labs/start-sdk/base/lib/osBindings"
+} from "@start9labs/start-sdk/lib/util/SubContainer"
+import { Mounts } from "@start9labs/start-sdk/lib/mainFn/Mounts"
+import { Manifest } from "@start9labs/start-core/osBindings"
 import {
   BackupEffects,
   mountBackupTarget,
-} from "@start9labs/start-sdk/package/lib/backup/Backups"
-import { Drop } from "@start9labs/start-sdk/package/lib/util"
-import { SDKManifest } from "@start9labs/start-sdk/base/lib/types"
+} from "@start9labs/start-sdk/lib/backup/Backups"
+import { Drop } from "@start9labs/start-sdk/lib/util"
+import { SDKManifest } from "@start9labs/start-core/types"
 export const exec = promisify(cp.exec)
 export const execFile = promisify(cp.execFile)
 

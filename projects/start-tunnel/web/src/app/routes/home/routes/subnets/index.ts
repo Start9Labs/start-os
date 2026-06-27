@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { T, utils } from '@start9labs/start-sdk'
+import { T, utils } from '@start9labs/start-core'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiButton, TuiDataList, TuiDropdown, TuiTitle } from '@taiga-ui/core'
 import {

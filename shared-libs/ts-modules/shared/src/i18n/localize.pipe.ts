@@ -1,7 +1,7 @@
 import { inject, Injectable, Pipe, PipeTransform } from '@angular/core'
 import { i18nService } from './i18n.service'
 import { I18N } from './i18n.providers'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 
 @Pipe({
   name: 'localize',

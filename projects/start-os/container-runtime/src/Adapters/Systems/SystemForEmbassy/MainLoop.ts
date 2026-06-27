@@ -2,12 +2,12 @@ import { polyfillEffects } from "./polyfillEffects"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import { SystemForEmbassy } from "."
 import { T, utils } from "@start9labs/start-sdk"
-import { Daemon } from "@start9labs/start-sdk/package/lib/mainFn/Daemon"
+import { Daemon } from "@start9labs/start-sdk/lib/mainFn/Daemon"
 import { Effects } from "../../../Models/Effects"
 import { off } from "node:process"
-import { CommandController } from "@start9labs/start-sdk/package/lib/mainFn/CommandController"
-import { SDKManifest } from "@start9labs/start-sdk/base/lib/types"
-import { SubContainer } from "@start9labs/start-sdk/package/lib/util/SubContainer"
+import { CommandController } from "@start9labs/start-sdk/lib/mainFn/CommandController"
+import { SDKManifest } from "@start9labs/start-core/types"
+import { SubContainer } from "@start9labs/start-sdk/lib/util/SubContainer"
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000
 /**

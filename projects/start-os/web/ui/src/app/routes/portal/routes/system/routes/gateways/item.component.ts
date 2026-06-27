@@ -1,6 +1,6 @@
 import { Component, inject, input } from '@angular/core'
 import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
-import { ISB } from '@start9labs/start-sdk'
+import { ISB } from '@start9labs/start-core'
 import {
   TuiButton,
   TuiDataList,

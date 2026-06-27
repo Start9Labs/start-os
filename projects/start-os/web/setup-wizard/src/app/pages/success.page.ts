@@ -6,7 +6,7 @@ import {
   computed,
 } from '@angular/core'
 import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { TuiCell, TuiIcon, TuiLoader, TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar } from '@taiga-ui/kit'
 import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'

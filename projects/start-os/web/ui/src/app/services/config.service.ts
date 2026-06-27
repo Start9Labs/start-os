@@ -1,6 +1,6 @@
 import { Inject, Injectable, DOCUMENT } from '@angular/core'
 import { AccessType, WorkspaceConfig } from '@start9labs/shared'
-import { T, utils } from '@start9labs/start-sdk'
+import { T, utils } from '@start9labs/start-core'
 
 const {
   gitHash,

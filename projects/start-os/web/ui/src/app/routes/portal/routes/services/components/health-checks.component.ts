@@ -1,5 +1,5 @@
 import { Component, input } from '@angular/core'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { TuiTable } from '@taiga-ui/addon-table'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
 import { ServiceHealthCheckComponent } from './health-check.component'

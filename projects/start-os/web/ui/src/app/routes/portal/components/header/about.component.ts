@@ -5,7 +5,7 @@ import {
   i18nPipe,
   ROOT_CA_DOWNLOAD_HREF,
 } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { TuiButton, TuiHint, TuiTitle, TuiCell } from '@taiga-ui/core'
 import { TuiFade } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'

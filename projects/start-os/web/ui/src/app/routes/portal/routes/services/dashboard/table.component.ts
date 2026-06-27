@@ -1,7 +1,7 @@
 import { Component, inject, input } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import {
   PackageDataEntry,
   StateInfo,

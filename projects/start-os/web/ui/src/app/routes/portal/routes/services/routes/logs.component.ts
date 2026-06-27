@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core'
 import { getPkgId } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { LogsComponent } from 'src/app/routes/portal/components/logs/logs.component'
 import { FollowServerLogsReq } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'

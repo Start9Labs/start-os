@@ -10,7 +10,7 @@ import {
 import deepEqual from 'fast-deep-equal'
 import { Observable } from 'rxjs'
 import { isInstalled } from 'src/app/utils/get-package-data'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { getInstalledBaseStatus } from './pkg-status-rendering.service'
 
 export type AllDependencyErrors = Record<string, PkgDependencyErrors>

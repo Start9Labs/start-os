@@ -6,7 +6,7 @@ import {
   i18nKey,
   i18nPipe,
 } from '@start9labs/shared'
-import { T, utils } from '@start9labs/start-sdk'
+import { T, utils } from '@start9labs/start-core'
 import {
   TuiButton,
   TuiDialogContext,

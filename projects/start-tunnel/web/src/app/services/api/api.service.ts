@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { Dump } from 'patch-db-client'
 import { Observable } from 'rxjs'
 import { TunnelData } from '../patch-db/data-model'

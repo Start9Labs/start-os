@@ -17,7 +17,7 @@ import {
 } from '@angular/forms'
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import { ErrorService } from '@start9labs/shared'
-import { utils } from '@start9labs/start-sdk'
+import { utils } from '@start9labs/start-core'
 import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
 import {
   TuiButton,

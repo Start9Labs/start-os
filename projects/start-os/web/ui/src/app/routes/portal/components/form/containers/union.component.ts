@@ -4,7 +4,7 @@ import {
   FormGroupName,
   ReactiveFormsModule,
 } from '@angular/forms'
-import { IST } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-core'
 import { tuiProvide, TuiValueChanges } from '@taiga-ui/cdk'
 import { TuiElasticContainer } from '@taiga-ui/layout'
 import { FormService } from 'src/app/services/form.service'

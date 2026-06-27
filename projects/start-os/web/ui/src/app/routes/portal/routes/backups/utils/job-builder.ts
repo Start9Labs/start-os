@@ -1,4 +1,4 @@
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { BackupJob, RR } from 'src/app/services/api/api.types'
 
 export class BackupJobBuilder {

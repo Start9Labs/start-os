@@ -8,7 +8,7 @@ import {
 } from '@start9labs/shared'
 import { filter, firstValueFrom, Observable } from 'rxjs'
 import { webSocket } from 'rxjs/webSocket'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { ApiService, SubscribeRes } from './api.service'
 import { AuthService } from '../auth.service'
 import { PATCH_CACHE } from '../patch-db/patch-db-source'

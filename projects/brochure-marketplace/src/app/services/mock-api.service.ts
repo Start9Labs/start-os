@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core'
 import { ApiService } from './api.service'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { GetPackageRes, GetPackagesRes } from '@start9labs/marketplace'
 import { Mock } from './api.fixures'
 

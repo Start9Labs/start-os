@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { IST } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-core'
 import {
   TUI_FIRST_DAY,
   TUI_LAST_DAY,

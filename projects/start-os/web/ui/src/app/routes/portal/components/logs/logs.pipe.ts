@@ -1,6 +1,6 @@
 import { inject, Pipe, PipeTransform } from '@angular/core'
 import { convertAnsi, i18nPipe, toLocalIsoString } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import {
   bufferTime,
   catchError,

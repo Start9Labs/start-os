@@ -1,7 +1,7 @@
 import { Component, computed } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { invert } from '@start9labs/shared'
-import { IST } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-core'
 import { TuiIcon, TuiTextfield } from '@taiga-ui/core'
 import { TuiChevron, TuiMultiSelect, TuiTooltip } from '@taiga-ui/kit'
 import { HintPipe } from '../pipes/hint.pipe'

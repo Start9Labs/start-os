@@ -1,4 +1,4 @@
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { toLocalIsoString } from './to-local-iso-string'
 import Convert from 'ansi-to-html'
 

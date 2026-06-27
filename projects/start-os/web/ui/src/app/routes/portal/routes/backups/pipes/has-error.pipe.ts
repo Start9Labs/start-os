@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 
 @Pipe({
   name: 'hasError',

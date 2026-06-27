@@ -3,7 +3,7 @@ import { FormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
 import { DocsLinkDirective, ErrorService, i18nPipe } from '@start9labs/shared'
-import { ISB } from '@start9labs/start-sdk'
+import { ISB } from '@start9labs/start-core'
 import { TuiButton, TuiInput, TuiTitle } from '@taiga-ui/core'
 import {
   TuiChevron,

@@ -5,7 +5,7 @@ import {
   Validators,
 } from '@angular/forms'
 import { ErrorService } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { TuiButton, TuiDialogContext, TuiError, TuiInput } from '@taiga-ui/core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'

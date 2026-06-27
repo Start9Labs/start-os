@@ -1,6 +1,6 @@
 import { Component, computed, inject, input } from '@angular/core'
 import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { T } from '@start9labs/start-core'
 import { TuiButton } from '@taiga-ui/core'
 import { TuiAvatar, TuiFade, TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { filter } from 'rxjs'

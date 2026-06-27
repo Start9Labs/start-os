@@ -1,7 +1,7 @@
 import { Signal } from '@angular/core'
 import { AbstractControl } from '@angular/forms'
-import { T, utils } from '@start9labs/start-sdk'
-import { IpNet } from '@start9labs/start-sdk/util'
+import { T, utils } from '@start9labs/start-core'
+import { IpNet } from '@start9labs/start-core/util'
 
 export interface MappedDevice {
   readonly subnet: {

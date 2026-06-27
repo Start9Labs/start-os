@@ -1,6 +1,6 @@
 import { inject, Injectable, signal } from '@angular/core'
 import { ErrorService, getErrorMessage } from '@start9labs/shared'
-import { T, Version } from '@start9labs/start-sdk'
+import { T, Version } from '@start9labs/start-core'
 import {
   CifsBackupTarget,
   DiskBackupTarget,

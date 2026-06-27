@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
-import { IST } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-core'
 import { TuiIcon } from '@taiga-ui/core'
 import { TuiSegmented, TuiTooltip } from '@taiga-ui/kit'
 

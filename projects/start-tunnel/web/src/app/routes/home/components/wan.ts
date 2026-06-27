@@ -1,4 +1,4 @@
-import { utils } from '@start9labs/start-sdk'
+import { utils } from '@start9labs/start-core'
 import { TunnelData } from 'src/app/services/patch-db/data-model'
 
 type Gateways = TunnelData['gateways']

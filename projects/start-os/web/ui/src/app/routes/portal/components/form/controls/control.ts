@@ -1,5 +1,5 @@
 import { inject } from '@angular/core'
-import { IST } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-core'
 import { TuiControl } from '@taiga-ui/cdk'
 
 export type ControlSpec = Exclude<

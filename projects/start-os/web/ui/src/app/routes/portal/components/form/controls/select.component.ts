@@ -3,7 +3,7 @@ import { Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { Router, RouterLink } from '@angular/router'
 import { invert } from '@start9labs/shared'
-import { IST } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-core'
 import { TuiDataList, TuiIcon, TuiInput } from '@taiga-ui/core'
 import {
   TuiChevron,

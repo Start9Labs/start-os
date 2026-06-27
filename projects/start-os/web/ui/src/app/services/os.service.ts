@@ -11,7 +11,7 @@ import {
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { getServerInfo } from 'src/app/utils/get-server-info'
 import { DataModel } from './patch-db/data-model'
-import { T, Version } from '@start9labs/start-sdk'
+import { T, Version } from '@start9labs/start-core'
 
 @Injectable({
   providedIn: 'root',
