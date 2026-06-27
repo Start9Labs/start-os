@@ -5,14 +5,26 @@ StartTunnel is one product in the `start-os` monorepo. Start with the root
 toolchain, Node), collaboration channels, and repo-wide conventions. This file
 covers what is specific to building, testing, and changing StartTunnel.
 
-## Before you start
+## Documentation
+
+- [`README.md`](README.md) — what StartTunnel is and how to use it.
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — how the code is laid out and how a
+  request flows through the system.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — this file: building, testing, and
+  changing StartTunnel.
+- [`AGENTS.md`](AGENTS.md) — rules for AI agents working in this scope.
+  `CLAUDE.md` is a one-line `@AGENTS.md` import.
+
+Keep these docs in sync with the changes you make.
+
+## Prerequisites
 
 - Read [`AGENTS.md`](AGENTS.md) and [`ARCHITECTURE.md`](ARCHITECTURE.md).
 - Most backend work happens in `shared-libs/crates/start-core/src/tunnel/`, **not** in
   this directory. The `projects/start-tunnel/` dir is a thin wrapper (entry point, UI,
   systemd unit, docs).
 
-## Build (from the repo root)
+## Building (from the repo root)
 
 ```bash
 make tunnel                                   # full daemon build (UI + tunnelbox)
@@ -27,7 +39,7 @@ make tunnel-deb                                # Debian package
 via `include_dir!`. Output:
 `target/<arch>-unknown-linux-musl/<profile>/tunnelbox`.
 
-## Test
+## Testing
 
 ```bash
 make test-core    # backend tests — tunnel logic lives in start-core
@@ -38,7 +50,7 @@ wrapper with no independent tests). For runtime verification, build the `.deb`
 and install it on a Debian 13 VPS, or use a local VM. Backend changes should be
 checked against the full CI matrix concerns — see the cross-platform note below.
 
-## Format
+## Formatting
 
 ```bash
 make format          # apply formatting across the repo
@@ -56,7 +68,12 @@ change touching Rust dependencies or `libc`/platform APIs needs the darwin
 target considered. For a code path that is dead on the other platform, `cfg`-gate
 it rather than reimplementing cross-platform.
 
-## Making a change
+## Versioning
+
+The crate version lives in `Cargo.toml` (marked with `# VERSION_BUMP`). Record
+notable changes in [`CHANGELOG.md`](CHANGELOG.md) following Keep a Changelog.
+
+## Commits / PRs
 
 1. Branch off the latest default branch.
 2. Make focused commits with conventional messages (`feat:`, `fix:`, `chore:`,
@@ -71,8 +88,3 @@ it rather than reimplementing cross-platform.
    entry under `## [Unreleased]`.
 6. Run `make format-check` and `make test-core` before pushing.
 7. Open a PR against the `start-os` repo.
-
-## Versioning
-
-The crate version lives in `Cargo.toml` (marked with `# VERSION_BUMP`). Record
-notable changes in [`CHANGELOG.md`](CHANGELOG.md) following Keep a Changelog.

@@ -1,9 +1,23 @@
-# Contributing to shared/
+# Contributing to shared-libs
 
-`shared/` groups two cross-product libraries. Contribute inside the relevant
-sub-library; each has its own `CONTRIBUTING.md` with the full detail. Start from
-the root [`CONTRIBUTING.md`](../CONTRIBUTING.md) for environment setup (Debian/
-Ubuntu deps, Docker, Rust, Node) and the overall workflow.
+`shared-libs/` groups two cross-product libraries. Contribute inside the relevant
+sub-library; each has its own `CONTRIBUTING.md` with the full detail.
+
+## Documentation
+
+- `README.md` — what this directory is and how to use it.
+- [ARCHITECTURE.md](ARCHITECTURE.md) — how the two sub-libs fit into the monorepo.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — this file; build/test/format workflow.
+- `AGENTS.md` — agent rules; `CLAUDE.md` is a one-line `@AGENTS.md` import.
+
+Keep these docs current: if you change structure, build steps, or conventions,
+update the affected `README`/`ARCHITECTURE`/`AGENTS`/`CONTRIBUTING` in the same
+change. Do not edit `CLAUDE.md` (it is a one-line `@AGENTS.md` import).
+
+## Prerequisites
+
+Start from the root [`CONTRIBUTING.md`](../CONTRIBUTING.md) for environment setup
+(Debian/Ubuntu deps, Docker, Rust, Node) and the overall workflow.
 
 ## crates/start-core (Rust)
 
@@ -47,10 +61,7 @@ npm run format:check
 - Web UI work follows Taiga UI 5 conventions and mandatory i18n; see
   [`ts-modules/CONTRIBUTING.md`](ts-modules/CONTRIBUTING.md) and `ts-modules/AGENTS.md`.
 
-## Conventions
+## Commits / PRs
 
 - Conventional commit messages (`feat:`, `fix:`, `chore:`, `docs:`).
-- Keep these docs current: if you change structure, build steps, or conventions,
-  update the affected `README`/`ARCHITECTURE`/`AGENTS`/`CONTRIBUTING` in the same
-  change. Do not edit `CLAUDE.md` (it is a one-line `@AGENTS.md` import).
 - Format before committing (`cargo fmt -p start-core`, `npm run format`).

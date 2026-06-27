@@ -4,6 +4,15 @@
 
 Start with the root [`CONTRIBUTING.md`](../../CONTRIBUTING.md) and [`AGENTS.md`](../../AGENTS.md) for repo-wide workflow, the doc map, and cross-layer verification rules. This file covers what's specific to the registry.
 
+## Documentation
+
+- [`README.md`](./README.md) — what the registry is and how to run it.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — how it's wired (binary, server, routing, data model).
+- `CONTRIBUTING.md` — this file: how to build, test, and contribute.
+- [`AGENTS.md`](./AGENTS.md) — rules for agents working in this dir; `CLAUDE.md` is a one-line `@AGENTS.md` import.
+
+Keep these docs in sync with your changes (see [Docs are part of the change](#docs-are-part-of-the-change)).
+
 ## Where to make changes
 
 - **Server/CLI entry, RPC API, data model, persistence, migrations** → `shared-libs/crates/start-core/src/registry/` and `shared-libs/crates/start-core/src/bins/registry.rs`.
@@ -12,14 +21,13 @@ Start with the root [`CONTRIBUTING.md`](../../CONTRIBUTING.md) and [`AGENTS.md`]
 
 If you find yourself adding registry logic directly to `projects/start-registry/src`, it almost certainly belongs in `start-core` instead.
 
-## Build, test, format (from the monorepo root)
+## Building
+
+From the monorepo root:
 
 ```bash
 cargo build -p start-registry --bin registrybox   # build the wrapper bin
 cargo check -p start-core                          # type-check the real logic
-cargo test  -p start-core registry                 # registry tests
-cargo clippy -p start-core                         # lints
-cargo fmt                                           # format (run before committing)
 make registry                                       # release musl build
 ```
 
@@ -30,7 +38,24 @@ Run a local server while iterating:
 ./target/debug/registrybox start-registry --help
 ```
 
-Run the checks that apply to what you touched and make sure `cargo fmt` is clean before opening a PR.
+## Testing
+
+From the monorepo root:
+
+```bash
+cargo test  -p start-core registry                 # registry tests
+cargo clippy -p start-core                         # lints
+```
+
+Run the checks that apply to what you touched before opening a PR.
+
+## Formatting
+
+```bash
+cargo fmt                                           # format (run before committing)
+```
+
+Make sure `cargo fmt` is clean before opening a PR.
 
 ## Conventions
 

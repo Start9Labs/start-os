@@ -215,7 +215,7 @@ Types in `base/lib/osBindings/` mirror Rust types from the monorepo's `shared-li
 - Use the `.test.ts` extension
 - Tests run in Node.js with ts-jest — no browser environment
 
-## Commit Messages
+## Commits / PRs
 
 Follow [Conventional Commits](https://www.conventionalcommits.org/):
 

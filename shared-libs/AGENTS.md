@@ -1,10 +1,11 @@
-# AGENTS — shared-libs/
+# AGENTS.md — shared-libs
 
 This directory is a container for two cross-product libraries. There is no build
 or test target for `shared-libs/` itself — operate inside the relevant sub-library and
-read its own `AGENTS.md` first.
+read its own `AGENTS.md` first. `CLAUDE.md` is a one-line `@AGENTS.md` import. See
+[ARCHITECTURE.md](ARCHITECTURE.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Where things are
+## Layout
 
 - `crates/start-core/` — Rust backend lib (`start-core`, lib name `start_core`).
   Has its own `AGENTS.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, plus topic notes
@@ -15,7 +16,7 @@ read its own `AGENTS.md` first.
   root, where `angular.json` lives). Has its own `AGENTS.md` and
   `ARCHITECTURE.md` (Taiga UI 5 rules, component conventions, i18n).
 
-## Build & test
+## Build & test (run from the repo root)
 
 Rust (`crates/start-core`) — runs from the root Cargo workspace:
 

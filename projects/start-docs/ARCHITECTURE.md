@@ -1,5 +1,11 @@
 # Architecture
 
+How the documentation site is built, versioned, and deployed.
+
+## Place in the monorepo
+
+This is the `projects/start-docs/` project in the `start-os` monorepo. It owns the site build infra (`build.sh`, `serve.sh`, `versions.conf`), the shared mdBook `theme/`, the `landing/` page, and the Bitcoin Guides book — and it wires together the per-product books that live in their own product dirs (`../start-os/docs/`, `../start-tunnel/docs/`, `../start-sdk/docs/`) into one deployed site. CI (`.github/workflows/docs-deploy.yml`) consumes its output to deploy `docs.start9.com`.
+
 ## Multi-Book Design
 
 The site is composed of independent mdBook instances — one per product. Each book has its own `book.toml`, `src/SUMMARY.md`, and content tree. Books build into subdirectories of `docs/` (the build output, gitignored) and are deployed together under a shared domain.
@@ -107,3 +113,9 @@ Run via `cd scripts && npm run generate-llms-txt` (uses `tsx`).
 ## Cross-Book Links
 
 mdBook validates links only within a single book. Links between books use unversioned absolute paths (`/start-tunnel/devices.html`) — nginx redirects these to the latest versioned path. They are not validated at build time, so keep them few and correct.
+
+## Further reading
+
+- [README.md](README.md) — what this project is and where the books live
+- [CONTRIBUTING.md](CONTRIBUTING.md) — local setup and how to submit changes
+- [AGENTS.md](AGENTS.md) — operating rules for AI developers (`CLAUDE.md` is a one-line `@AGENTS.md` import)

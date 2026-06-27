@@ -6,7 +6,7 @@ the monorepo and how a request flows through the system. For the product-level
 "what it is and how it compares" writeup, see
 [`docs/src/architecture.md`](docs/src/architecture.md).
 
-## Where the code lives
+## Place in the monorepo
 
 The `projects/start-tunnel/` directory is a thin product wrapper. The substance is in the
 shared `start-core` crate.
@@ -113,3 +113,9 @@ Build output: `npm run build:tunnel` (from the repo root) →
   the systemd unit.
 - TS bindings for the tunnel API are generated into
   `shared-libs/crates/start-core/bindings/tunnel/` (`make ts-bindings`).
+
+## Further reading
+
+- [`README.md`](README.md) — what StartTunnel is and how to use it.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — building, testing, and changing it.
+- [`AGENTS.md`](AGENTS.md) — rules for AI agents working in this scope.

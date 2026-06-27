@@ -45,6 +45,8 @@ Built with [mdBook](https://rust-lang.github.io/mdBook/). Each book is an indepe
 2. Generates `llms.txt` and `llms-full.txt` for LLM consumption
 3. rsyncs to the VPS and regenerates nginx routing from `versions.conf`
 
-## Getting started
+## Documentation
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup and how to submit changes, and [ARCHITECTURE.md](ARCHITECTURE.md) for how the build is structured.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — local setup and how to submit changes
+- [ARCHITECTURE.md](ARCHITECTURE.md) — how the build is structured
+- [AGENTS.md](AGENTS.md) — operating rules for AI developers (`CLAUDE.md` is a one-line `@AGENTS.md` import)

@@ -4,7 +4,16 @@
 
 See the repo root [CONTRIBUTING.md](../../CONTRIBUTING.md) for org-wide conventions; this file covers the brochure-specific workflow.
 
-## Setup
+## Documentation
+
+- [README.md](README.md) — what this app is and how to run it.
+- [ARCHITECTURE.md](ARCHITECTURE.md) — how it's structured (services, data flow, build/deploy).
+- [CONTRIBUTING.md](CONTRIBUTING.md) — this file: the brochure-specific dev workflow.
+- [AGENTS.md](AGENTS.md) — instructions for AI/dev agents; CLAUDE.md is a one-line `@AGENTS.md` import.
+
+Keep these docs in sync with the changes you make.
+
+## Prerequisites
 
 From the repo root:
 
@@ -12,6 +21,34 @@ From the repo root:
 npm ci
 npm run build:deps   # builds start-sdk baseDist + patch-db client — required before any brochure build
 ```
+
+## Building
+
+From the repo root:
+
+```bash
+npm run build:brochure   # production build must succeed (this is what gets deployed)
+```
+
+## Testing
+
+From the repo root:
+
+```bash
+npm run check:brochure   # type check (tsc --noEmit)
+```
+
+Lint: `npm run ng -- lint brochure-marketplace` (run from the repo root).
+
+## Formatting
+
+From the repo root:
+
+```bash
+npm run format:check     # prettier
+```
+
+Fix formatting with `npm run format` (formats all web projects, including brochure).
 
 ## Develop
 
@@ -22,20 +59,6 @@ npm run start:brochure   # dev server at http://localhost:8200 (MockApiService +
 ```
 
 The dev server uses mock data (`projects/brochure-marketplace/src/app/services/api.fixures.ts`). If your change affects the data contract (`ApiService`) or the shapes returned, update the fixtures so dev mode reflects reality. Production uses `LiveApiService` against real registries.
-
-## Verify before pushing
-
-From the repo root:
-
-```bash
-npm run check:brochure   # type check (tsc --noEmit)
-npm run build:brochure   # production build must succeed (this is what gets deployed)
-npm run format:check     # prettier
-```
-
-Lint: `npm run ng -- lint brochure-marketplace` (run from the repo root).
-
-Fix formatting with `npm run format` (formats all web projects, including brochure).
 
 ## Conventions
 

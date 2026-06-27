@@ -102,6 +102,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, building from sour
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for a detailed overview of the SDK's internal structure, module responsibilities, and data flow.
 
+For agent/dev instructions, see [AGENTS.md](AGENTS.md) (`CLAUDE.md` is a one-line `@AGENTS.md` import).
+
 ## License
 
 MIT

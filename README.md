@@ -82,6 +82,12 @@ StartOS is the flagship, but it shares this repo with the rest of the Start9 sta
 - **[Marketplace site](projects/brochure-marketplace/)** — the public marketplace at [marketplace.start9.com](https://marketplace.start9.com), built on the same UI components the OS uses.
 - **[Docs site](projects/start-docs/)** — the documentation website at [docs.start9.com](https://docs.start9.com).
 
+## Documentation
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) — how the monorepo fits together
+- [CONTRIBUTING.md](CONTRIBUTING.md) — environment setup, build, test, and format workflow
+- [AGENTS.md](AGENTS.md) — AI-developer/agent operating rules (`CLAUDE.md` is a one-line `@AGENTS.md` import)
+
 ## Contributing
 
 There are multiple ways to contribute: work directly on a product in this repo, package a service for the marketplace, or help with documentation and guides. See [CONTRIBUTING.md](CONTRIBUTING.md) or visit [start9.com/contribute](https://start9.com/contribute/).

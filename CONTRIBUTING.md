@@ -183,7 +183,7 @@ make test-container-runtime  # Container runtime tests
 cd shared-libs/crates/start-core && cargo test <test_name> --features=test
 ```
 
-## Code Formatting
+## Formatting
 
 ```bash
 # Everything (Rust nightly fmt + web prettier + SDK)
@@ -197,11 +197,9 @@ cd projects/start-sdk && make fmt                             # SDK
 
 CI runs `make format-check` (read-only prettier `--check` for web + SDK).
 
-## Code Style Guidelines
-
-### Formatting
-
 Run the formatters before committing. Configuration is handled by `rustfmt.toml` (Rust) and prettier configs (TypeScript).
+
+## Code Style Guidelines
 
 ### Documentation & Comments
 
@@ -222,7 +220,7 @@ Run the formatters before committing. Configuration is handled by `rustfmt.toml`
 - Update or remove comments when code changes
 - TODOs should include context: `// TODO(username): reason`
 
-### Commit Messages
+## Commits / PRs
 
 Use [Conventional Commits](https://www.conventionalcommits.org/):
 

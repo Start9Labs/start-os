@@ -29,4 +29,6 @@ cp shared-libs/ts-modules/config-sample.json config.json
 npm run start:ui        # mock-backed dev server
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup, live-server proxying, and translation guides, and [ARCHITECTURE.md](ARCHITECTURE.md) for how the front end is structured.
+## Documentation
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup, live-server proxying, and translation guides, [ARCHITECTURE.md](ARCHITECTURE.md) for how the front end is structured, and [AGENTS.md](AGENTS.md) for agent / day-to-day operating rules.

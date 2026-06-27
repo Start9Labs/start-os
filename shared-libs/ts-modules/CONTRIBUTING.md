@@ -13,7 +13,7 @@ This directory's docs split across four files:
 
 **These docs must be kept up to date.** When you change project structure, conventions, build process, or product context, update the relevant file(s) in the same change — do not defer.
 
-## Web Setup
+## Prerequisites
 
 From the repo root (the Angular workspace is rooted there):
 
@@ -61,19 +61,35 @@ cp proxy.conf-sample.json proxy.conf.json
 npm run start:ui:proxy
 ```
 
-## Type-checking, formatting & builds
+## Building
 
 Run from the repo root:
 
 ```sh
-npm run check          # type-check every project (i18n, shared, marketplace, ui, setup, brochure)
-npm run check:ui       # or a single project (check:shared / check:marketplace / check:setup / check:tunnel / check:brochure)
-npm run format         # prettier --write across the libs and all app dirs
-npm run format:check   # prettier --check (CI)
 npm run build:ui       # production build of a single app (build:setup / build:tunnel / build:brochure)
 ```
 
-A pre-commit hook runs `lint-staged` (prettier on staged files). `npm run check:i18n` validates that every language dictionary stays in sync with `en.ts`.
+## Testing
+
+There is no unit-test runner wired up — type-checking (tsc, strict + strictTemplates) plus a successful build is the verification bar. Run from the repo root:
+
+```sh
+npm run check          # type-check every project (i18n, shared, marketplace, ui, setup, brochure)
+npm run check:ui       # or a single project (check:shared / check:marketplace / check:setup / check:tunnel / check:brochure)
+```
+
+`npm run check:i18n` validates that every language dictionary stays in sync with `en.ts`.
+
+## Formatting
+
+Run from the repo root:
+
+```sh
+npm run format         # prettier --write across the libs and all app dirs
+npm run format:check   # prettier --check (CI)
+```
+
+A pre-commit hook runs `lint-staged` (prettier on staged files).
 
 ## Translations
 

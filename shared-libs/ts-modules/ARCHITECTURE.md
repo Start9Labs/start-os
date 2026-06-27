@@ -2,7 +2,7 @@
 
 Angular 22 + TypeScript workspace using [Taiga UI 5](https://taiga-ui.dev/) component library.
 
-## Workspace layout
+## Place in the monorepo
 
 This directory (`shared-libs/ts-modules`) holds the two shared **libraries**; the Angular workspace root config (`angular.json`, `package.json`, `tsconfig.json`) lives at the repo root. The libraries live here directly:
 
@@ -124,3 +124,9 @@ Services often extend `Observable` and expose reactive streams via DI:
 - **`toSignal()`** to convert Observables (e.g., PatchDB watches) to signals.
 - **OnPush change detection** is the Angular 22 default, so components are OnPush without an explicit decorator. Components that need eager (CheckAlways) detection opt in with **`ChangeDetectionStrategy.Eager`** (the renamed, non-deprecated form of the old `Default`).
 - **`takeUntilDestroyed(inject(DestroyRef))`** for subscription cleanup.
+
+## Further reading
+
+- [README.md](README.md) — what this is and how to use it
+- [CONTRIBUTING.md](CONTRIBUTING.md) — setup, build/test/format, translations
+- [AGENTS.md](AGENTS.md) — agent / day-to-day operating rules (`CLAUDE.md` is a one-line `@AGENTS.md` import)

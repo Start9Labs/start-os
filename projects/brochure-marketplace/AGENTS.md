@@ -1,12 +1,12 @@
 # AGENTS.md — brochure
 
-Practical instructions for agents working on the public Start9 Marketplace web app (marketplace.start9.com).
+Practical instructions for agents working on the public Start9 Marketplace web app (marketplace.start9.com). CLAUDE.md is a one-line `@AGENTS.md` import. See [ARCHITECTURE.md](ARCHITECTURE.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## What this is
 
 A single-page Angular 22 app that wraps the shared `@start9labs/marketplace` library to browse package registries. It is **not** the marketing landing page (that's `projects/start-docs/landing`), despite the "brochure" name. It is a **public website** that **auto-deploys on merge to `master`** via `.github/workflows/deploy-brochure.yml` — unlike `ui`, `setup-wizard`, and `start-tunnel`, which ship inside the OS image.
 
-## Where things are
+## Layout
 
 - App source: `projects/brochure-marketplace/src/` (this directory).
 - Build/lint/serve config: `angular.json` (project `brochure-marketplace`) at repo root — **not** here.
@@ -14,7 +14,7 @@ A single-page Angular 22 app that wraps the shared `@start9labs/marketplace` lib
 - `projects/brochure-marketplace/tsconfig.json` extends the repo root `tsconfig.json` and only adds path mappings; the real compiler settings live there.
 - It consumes `@start9labs/marketplace` (`shared-libs/ts-modules/marketplace`) and `@start9labs/shared` (`shared-libs/ts-modules/shared`). Most UI building blocks already exist in those libs — reuse before reinventing.
 
-## Build / run / check (always from the repo root)
+## Build & test (run from the repo root)
 
 ```bash
 npm ci                 # once

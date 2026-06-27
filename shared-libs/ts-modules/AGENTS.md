@@ -1,14 +1,14 @@
-# AGENTS.md
+# AGENTS.md — shared-libs/ts-modules
 
-Agent/dev instructions for `shared-libs/ts-modules` — the two shared Angular libs (`@start9labs/shared`, `@start9labs/marketplace`). The Angular workspace root config (`angular.json`, `package.json`, `tsconfig.json`) lives at the repo root. See `ARCHITECTURE.md` for structure, `CONTRIBUTING.md` for full setup.
+Agent/dev instructions for `shared-libs/ts-modules` — the two shared Angular libs (`@start9labs/shared`, `@start9labs/marketplace`). The Angular workspace root config (`angular.json`, `package.json`, `tsconfig.json`) lives at the repo root. `CLAUDE.md` is a one-line `@AGENTS.md` import. See `ARCHITECTURE.md` for structure, `CONTRIBUTING.md` for full setup.
 
-## Where things are
+## Layout
 
 - **The workspace root is the repo root.** `angular.json`, `package.json`, `tsconfig.json` all live at the repo root. Only the libs `shared/` and `marketplace/` live here.
 - **Apps live elsewhere.** `ui` → `../../projects/start-os/web/ui`, `setup-wizard` → `../../projects/start-os/web/setup-wizard`, `start-tunnel` → `../../projects/start-tunnel/web`, `brochure-marketplace` → `../../projects/brochure-marketplace`. Editing app code means editing those dirs even though `ng`/`tsc` are run from the repo root.
 - i18n dictionaries: `shared/src/i18n/dictionaries/`.
 
-## Build / test / check (run from the repo root)
+## Build & test (run from the repo root)
 
 ```sh
 npm ci
@@ -19,13 +19,11 @@ npm run start:ui             # mock dev server (needs config.json — cp shared-
 npm run build:ui             # prod build of a single app
 ```
 
-Gotchas:
+## Gotchas
 
 - `@start9labs/start-sdk` and `patch-db-client` are `file:` deps built by `build:deps`; a fresh checkout won't type-check until you run it.
 - There is no unit-test runner wired up — `npm run check` (tsc, strict + strictTemplates) plus a successful `build:*` is the verification bar.
 - `shared-libs/crates/patch-db` is a first-party crate; `build:deps` runs `npm ci && npm run build` inside it.
-
-## Operating rules
 
 - **Taiga does it all.** This codebase uses Taiga UI 5 for components, directives, layout, dialogs, forms, icons, and styling. Do not hand-roll HTML/CSS when Taiga provides a solution. If you think Taiga can't do something, you're probably wrong — look it up first.
 - **Never guess Taiga APIs.** Taiga 5 has its own component names, directive names, input bindings, and usage patterns. Don't invent them from memory — verify against the docs.

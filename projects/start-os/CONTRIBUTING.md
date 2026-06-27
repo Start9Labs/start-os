@@ -10,12 +10,27 @@ If you want to **package a service** for StartOS instead, see the
 [service packaging guide](https://github.com/Start9Labs/ai-service-packaging).
 For other ways to help, see [start9.com/contribute](https://start9.com/contribute).
 
+## Documentation
+
+User-facing changes (UI, CLI, install/setup flow) must update the end-user docs
+under `docs/` (an mdbook served at `/start-os/`) in the same change. Keep this
+product's [README.md](README.md) (what it is / usage),
+[ARCHITECTURE.md](ARCHITECTURE.md) (how it's wired), this file (how to build &
+contribute), and [AGENTS.md](AGENTS.md) (agent rules; `CLAUDE.md` is a one-line
+`@AGENTS.md` import) current when you change structure, build steps, or
+conventions.
+
 ## Collaboration
 
 - [Matrix](https://matrix.to/#/#dev-startos:matrix.start9labs.com)
 - Security issues: [security@start9.com](mailto:security@start9.com)
 
-## Repo and branches
+## Prerequisites
+
+This is a monorepo. The OS product is a thin wrapper over the shared
+`start-core` crate (`shared-libs/crates/start-core`), the shared Angular libs
+(`shared-libs/ts-modules`), and the SDK (`projects/start-sdk`). Build commands run from the **repo
+root** unless noted.
 
 Clone and target the right integration branch (`master` for the
 current release; `next/patch`, `next/minor`, `next/major` otherwise — ask a
@@ -25,11 +40,6 @@ maintainer if unsure):
 git clone https://github.com/Start9Labs/start-os.git
 cd projects/start-os
 ```
-
-This is a monorepo. The OS product is a thin wrapper over the shared
-`start-core` crate (`shared-libs/crates/start-core`), the shared Angular libs
-(`shared-libs/ts-modules`), and the SDK (`projects/start-sdk`). Build commands run from the **repo
-root** unless noted.
 
 ## Building
 
@@ -51,6 +61,25 @@ CONTRIBUTING) and `npm run start:ui`.
 Deploy/flash targets (`startos-update*`, `startos-wormhole*`, `startos-emulate-reflash`)
 push to a live device and are slow/destructive — be deliberate.
 
+## Testing
+
+```sh
+make test                      # Rust + SDK + container-runtime
+make test-core                 # backend only
+```
+
+The container-runtime has its own test suite and prettier config (double quotes,
+no semicolons) — see [container-runtime/CONTRIBUTING.md](container-runtime/CONTRIBUTING.md).
+Note CI builds a multi-platform matrix (apple-darwin + aarch64/x86_64/riscv64
+musl); local `cargo check` is linux-only, so consider platform-specific impact.
+
+## Formatting
+
+```sh
+make format                    # format Rust + web + runtime
+make format-check              # CI-style check
+```
+
 ## Cross-layer changes
 
 When a change crosses Rust → bindings → SDK → web/runtime, verify in order:
@@ -62,24 +91,9 @@ When a change crosses Rust → bindings → SDK → web/runtime, verify in order
 4. `npm run check:ui && npm run check:setup`
 5. `cd projects/start-os/container-runtime && npm run check`
 
-## Testing & formatting
+## Commits / PRs
 
-```sh
-make test                      # Rust + SDK + container-runtime
-make test-core                 # backend only
-make format                    # format Rust + web + runtime
-make format-check              # CI-style check
-```
-
-The container-runtime has its own test suite and prettier config (double quotes,
-no semicolons) — see [container-runtime/CONTRIBUTING.md](container-runtime/CONTRIBUTING.md).
-Note CI builds a multi-platform matrix (apple-darwin + aarch64/x86_64/riscv64
-musl); local `cargo check` is linux-only, so consider platform-specific impact.
-
-## Documentation
-
-User-facing changes (UI, CLI, install/setup flow) must update the end-user docs
-under `docs/` (an mdbook served at `/start-os/`) in the same change. Keep this
-product's [README.md](README.md), [ARCHITECTURE.md](ARCHITECTURE.md), and
-[AGENTS.md](AGENTS.md) current when you change structure, build steps, or
-conventions.
+Open your PR against the integration branch you cloned against (see
+[Prerequisites](#prerequisites) for branch selection). Follow the root
+[CONTRIBUTING.md](../../CONTRIBUTING.md) for branch policy, commit conventions,
+and the cross-product workflow.

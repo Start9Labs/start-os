@@ -4,7 +4,7 @@ Agent/developer operating rules for the **start-os monorepo root**. This repo is
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the layout and [CONTRIBUTING.md](CONTRIBUTING.md) for the build/test/format workflow.
 
-## What lives where
+## Layout
 
 Each product lives under `projects/` as a thin wrapper; the bulk of the code lives in the top-level shared libs (`shared-libs/`).
 
@@ -19,13 +19,18 @@ Each product lives under `projects/` as a thin wrapper; the bulk of the code liv
 - `shared-libs/ts-modules/` — the shared Angular libs `shared/` (`@start9labs/shared`) and `marketplace/` (`@start9labs/marketplace`); the Angular workspace itself is rooted at the repo root (`angular.json`/`package.json`). Product apps reference the libs by package name.
 - Top level also holds the shared build infra (`build/`, `Makefile`), `apt/`, the shared `debian/build.sh`, `rfcs/` (protocol drafts), and `shared-libs/crates/patch-db/` (first-party crate, consumed by `start-core` and web).
 
-## Operating rules
+## Build & test (run from the repo root)
+
+- **Use `make` recipes when they exist** rather than re-deriving the underlying commands. The root `Makefile` is a thin orchestrator that `include`s `build/common.mk` (shared vars/macros) and one `<project>/build.mk` per product (`projects/<name>/build.mk`, `shared-libs/*/build.mk`) — run everything from the repo root (`make all`, `make registry`, etc.); a product's targets live in its `build.mk`.
+- **Build a single product** with `cargo build -p <crate> --bin <bin>` (bins: `startbox`/`start-container` in package `start-os`; `start-cli`; `registrybox` in `start-registry`; `tunnelbox` in `start-tunnel`).
+- **Tests:** `make test` (all), `make test-core` / `make test-sdk` / `make test-container-runtime` (scoped). A single Rust test: `cd shared-libs/crates/start-core && cargo test <test_name> --features=test`.
+- **Format:** `make format` (Rust nightly fmt + web prettier + SDK); CI runs `make format-check`. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full build/test/format workflow.
+
+## Gotchas
 
 - **Polyglot repo.** Per-component gotchas live in component-level `AGENTS.md` files — read the relevant one before operating on that component (see Sub-scopes).
 - **Verify cross-layer changes in order.** Rust → ts-bindings → SDK rebuild → web/container-runtime type checks. See [ARCHITECTURE.md](ARCHITECTURE.md#cross-layer-verification). Editing `projects/start-sdk/base/lib/osBindings/*.ts` alone is NOT sufficient — the SDK bundle must be rebuilt before web/container-runtime see the change.
 - **Ask before destructive `make` recipes.** Image flashing, deploy targets (`update*`, `reflash`, `wormhole*`), and `make clean*` consume hours and disk — confirm with the user first.
-- **Use `make` recipes when they exist** rather than re-deriving the underlying commands. The root `Makefile` is a thin orchestrator that `include`s `build/common.mk` (shared vars/macros) and one `<project>/build.mk` per product (`projects/<name>/build.mk`, `shared-libs/*/build.mk`) — run everything from the repo root (`make all`, `make registry`, etc.); a product's targets live in its `build.mk`.
-- **Build a single product** with `cargo build -p <crate> --bin <bin>` (bins: `startbox`/`start-container` in package `start-os`; `start-cli`; `registrybox` in `start-registry`; `tunnelbox` in `start-tunnel`).
 - **Stale-path watch.** Old docs referenced `core/`, `web/`, `sdk/`, `container-runtime/`, `patch-db/` at the repo root, and the products + `shared/` directly at the root. Those are gone — products now live under `projects/`, the shared libs under `shared-libs/`; use the locations above.
 
 ## Coupled changes (keep in sync)

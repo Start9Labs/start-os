@@ -4,19 +4,22 @@
 [CONTRIBUTING.md](../../CONTRIBUTING.md) for repo-wide workflow, commit, and review conventions;
 this file covers what's specific to this crate.
 
-## Where code lives
+## Documentation
 
-This crate holds only `src/main.rs` and `Cargo.toml`. **Almost all changes belong in
-`start-core`** (`shared-libs/crates/start-core`):
+- [`README.md`](./README.md) — what `start-cli` is and how to use it.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — how it's built (entrypoint, request flow, config).
+- `CONTRIBUTING.md` — this file (how to contribute).
+- [`AGENTS.md`](./AGENTS.md) — agent/dev rules; `CLAUDE.md` is a one-line `@AGENTS.md` import.
 
-- A new or changed CLI command → `main_api()` in
-  `shared-libs/crates/start-core/src/lib.rs` and the relevant `src/<area>/` module.
-- CLI argument/config changes → `start-core::context::config` (`ClientConfig`).
-- The CLI entrypoint behavior → `shared-libs/crates/start-core/src/bins/start_cli.rs`.
+Keep these docs in sync with your changes.
 
-Edit this crate only when the entrypoint, Cargo features, or bin wiring change.
+## Prerequisites
 
-## Build
+A Rust toolchain matching the workspace `edition = "2024"`, plus the local container backend
+(Docker or Podman) if you exercise `s9pk` packaging. Everything builds from the monorepo root
+(single Cargo workspace, single `Cargo.lock`).
+
+## Building
 
 From the monorepo root (single Cargo workspace, single `Cargo.lock`):
 
@@ -26,7 +29,7 @@ cargo build -p start-cli --bin start-cli --release
 cargo check -p start-cli
 ```
 
-## Test
+## Testing
 
 No unit tests live in this crate. Exercise CLI behavior through `start-core` and by running
 the built binary:
@@ -41,7 +44,7 @@ For end-to-end verification, build the binary and run it against a StartOS test 
 commands need `-H https://<host>` + `auth login`; local commands like `s9pk`/`init-key`/`pubkey`
 need no server).
 
-## Format & lint
+## Formatting
 
 Use the repo-standard Rust tooling (run from the root, or scoped to this package):
 
@@ -50,7 +53,19 @@ cargo fmt
 cargo clippy -p start-cli
 ```
 
-## Pull requests
+## Where code lives
+
+This crate holds only `src/main.rs` and `Cargo.toml`. **Almost all changes belong in
+`start-core`** (`shared-libs/crates/start-core`):
+
+- A new or changed CLI command → `main_api()` in
+  `shared-libs/crates/start-core/src/lib.rs` and the relevant `src/<area>/` module.
+- CLI argument/config changes → `start-core::context::config` (`ClientConfig`).
+- The CLI entrypoint behavior → `shared-libs/crates/start-core/src/bins/start_cli.rs`.
+
+Edit this crate only when the entrypoint, Cargo features, or bin wiring change.
+
+## Commits / PRs
 
 Follow the root contribution workflow: focused commits with conventional messages
 (`fix:`, `feat:`, `chore:`), branch off the latest default branch, and open a PR. If your change

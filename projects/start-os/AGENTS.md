@@ -1,10 +1,11 @@
-# AGENTS — StartOS OS product
+# AGENTS.md — StartOS OS product
 
-Operating rules for AI developers working in `start-os/`. See the root
-[AGENTS.md](../../AGENTS.md) for monorepo-wide rules and
-[ARCHITECTURE.md](ARCHITECTURE.md) for how this product is wired.
+Operating rules for AI developers working in `start-os/`. `CLAUDE.md` is a
+one-line `@AGENTS.md` import. See the root [AGENTS.md](../../AGENTS.md) for
+monorepo-wide rules, and [ARCHITECTURE.md](ARCHITECTURE.md) and
+[CONTRIBUTING.md](CONTRIBUTING.md) for how this product is wired and built.
 
-## Where things are
+## Layout
 
 - `src/bin/startbox.rs`, `src/bin/start-container.rs` — the only Rust in this
   dir. They are thin entry points; backend logic lives in
@@ -18,7 +19,7 @@ Operating rules for AI developers working in `start-os/`. See the root
   packaging (`debian/`, `apt/`, `build/`) is at the **repo root**; `assets/` is
   directly in this dir.
 
-## Build & verify (run from the repo root)
+## Build & test (run from the repo root)
 
 - Compile the OS bins: `cargo check -p start-os` (or `cargo build -p start-os
   --bin startbox`). Local `cargo check` is **linux-only** — CI also builds

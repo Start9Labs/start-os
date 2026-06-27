@@ -2,9 +2,11 @@
 
 Practical instructions for working on the StartTunnel product inside the
 `start-os` monorepo. Read the root `AGENTS.md` for monorepo-wide conventions
-first; this file is scoped to `projects/start-tunnel/`.
+first; this file is scoped to `projects/start-tunnel/`. `CLAUDE.md` is a one-line
+`@AGENTS.md` import. See [ARCHITECTURE.md](ARCHITECTURE.md) and
+[CONTRIBUTING.md](CONTRIBUTING.md).
 
-## What this project is
+## What this is
 
 A WireGuard virtual private router with kernel-level clearnet port forwarding.
 This directory is a **thin wrapper**: the binary entry point, the Angular UI, the
@@ -21,7 +23,7 @@ entry/CLI dispatch in `shared-libs/crates/start-core/src/bins/tunnel.rs`.
 - `web/` — Angular project `start-tunnel` (registered in the root `angular.json`).
 - `docs/` — mdbook (book title "StartTunnel"), output to `docs/book`.
 
-## Where to make changes
+Where to make changes:
 
 | You want to change…                  | Edit…                                                        |
 | ------------------------------------ | ----------------------------------------------------------- |
@@ -37,7 +39,7 @@ entry/CLI dispatch in `shared-libs/crates/start-core/src/bins/tunnel.rs`.
 Almost all backend work happens in `start-core`, not here. The one tunnel-local
 Rust file is `src/main.rs`.
 
-## Build & test (run from repo root)
+## Build & test (run from the repo root)
 
 ```bash
 make tunnel                                   # build tunnelbox (UI + daemon)
@@ -57,15 +59,6 @@ Notes:
   the Makefile target chains the UI build → `compress-uis.sh` automatically.
 - TS bindings for the tunnel API regenerate via `make ts-bindings` into
   `shared-libs/crates/start-core/bindings/tunnel/`.
-
-## Format
-
-```bash
-make format          # formats the whole repo
-make format-check    # CI check
-```
-
-Rust: `cargo fmt` (edition 2024). Web: prettier via the shared Angular config.
 
 ## Gotchas
 
@@ -90,6 +83,15 @@ Rust: `cargo fmt` (edition 2024). Web: prettier via the shared Angular config.
 - **Manpages** for `start-tunnel` are generated (and committed) into this
   project's `man/` dir by `cargo test -p start-core export_manpage_start_tunnel`
   (the generator lives in `start-core`'s `bins/tunnel.rs`).
+
+## Format
+
+```bash
+make format          # formats the whole repo
+make format-check    # CI check
+```
+
+Rust: `cargo fmt` (edition 2024). Web: prettier via the shared Angular config.
 
 ## Docs are part of the change
 

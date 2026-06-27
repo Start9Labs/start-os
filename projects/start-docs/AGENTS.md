@@ -2,9 +2,13 @@
 
 Operating instructions for AI developers working on the docs-site project (the `projects/start-docs/` project in the `start-os` monorepo). `CLAUDE.md` just imports this file. See `ARCHITECTURE.md` for how the build works and `CONTRIBUTING.md` for the human workflow.
 
-## What this project is
+## What this is
 
-This project owns the **site build infra** (`build.sh`, `serve.sh`, `versions.conf`, `theme/`, `scripts/`), the **landing page** (`landing/`), and the **Bitcoin Guides** book (`bitcoin-guides/`). The StartOS, StartTunnel, and Packaging books are NOT here — they moved into their product dirs:
+This project owns the **site build infra** (`build.sh`, `serve.sh`, `versions.conf`, `theme/`, `scripts/`), the **landing page** (`landing/`), and the **Bitcoin Guides** book (`bitcoin-guides/`).
+
+## Layout
+
+The StartOS, StartTunnel, and Packaging books are NOT here — they moved into their product dirs:
 
 - StartOS → `../start-os/docs/`
 - StartTunnel → `../start-tunnel/docs/`
@@ -12,7 +16,7 @@ This project owns the **site build infra** (`build.sh`, `serve.sh`, `versions.co
 
 `build.sh`'s `book_dir()` maps each book name to its source dir. If you're editing content for one of those products, edit it in the product dir, not here — but you can build/preview the whole site from here.
 
-## Build and test
+## Build & test (run from `projects/start-docs/`)
 
 - `./build.sh` — builds every book in `versions.conf` into the gitignored `docs/` output dir. Run this to verify your change compiles (mdBook fails on broken intra-book links). This is the primary check.
 - `./serve.sh` — build + serve at http://localhost:3000.
@@ -20,7 +24,7 @@ This project owns the **site build infra** (`build.sh`, `serve.sh`, `versions.co
 - `cd scripts && npm run generate-llms-txt` — regenerate `llms.txt` / `llms-full.txt` (uses `tsx`).
 - Tooling: mdBook **v0.5.2**, mdbook-tabs **0.3.4** (match CI). Node v22+ for scripts.
 
-## Gotchas / rules
+## Gotchas
 
 - Always re-read a file before subsequent edits — a linter/formatter may auto-modify files after changes.
 - Never use custom admonition titles. `> [!WARNING] Custom Title` is broken in mdBook; use plain `> [!WARNING]` and put context in the body.

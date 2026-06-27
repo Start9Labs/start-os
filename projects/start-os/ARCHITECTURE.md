@@ -5,11 +5,14 @@ whole, see [../../ARCHITECTURE.md](../../ARCHITECTURE.md).
 For the Rust backend internals, see the `start-core` crate at
 [../../shared-libs/crates/start-core](../../shared-libs/crates/start-core).
 
-## What this product is
+## Place in the monorepo
 
-`start-os/` is a thin wrapper that assembles the StartOS server operating system
-from shared building blocks. It contributes the entry points and the
-OS-specific surface; almost all backend logic is in the `start-core` crate.
+`start-os/` is the package `start-os` (binaries `startbox` + `start-container`):
+a thin wrapper that assembles the StartOS server operating system from shared
+building blocks. It contributes the entry points and the OS-specific surface;
+almost all backend logic is in the `start-core` crate, and it is consumed by the
+root OS image build. Sibling product crates (`start-cli`, `start-registry`,
+`start-tunnel`) are analogous wrappers over the same `start-core` lib.
 
 ## Binaries
 

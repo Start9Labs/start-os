@@ -71,6 +71,12 @@ Run `start-cli <group> --help` for any group.
 Cargo features forward to `start-core`: `beta`, `console`, `dev`, `test`, `unstable`.
 None are enabled by default.
 
+## Documentation
+
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — how the crate is built (entrypoint, request flow, config).
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md) — how to contribute.
+- [`AGENTS.md`](./AGENTS.md) — agent/dev rules; `CLAUDE.md` is a one-line `@AGENTS.md` import.
+
 ## License
 
 MIT. See [LICENSE](../../LICENSE).

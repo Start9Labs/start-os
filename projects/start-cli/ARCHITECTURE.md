@@ -1,4 +1,4 @@
-# Architecture
+# start-cli Architecture
 
 `start-cli` is intentionally tiny. Almost all behavior lives in the shared
 [`start-core`](../../shared-libs/crates/start-core) crate (cargo package `start-core`, lib name
@@ -95,3 +95,9 @@ to write the committed man pages into this project's `man/` dir
 - New/changed CLI commands → `start-core` (`main_api()` and the relevant `src/<area>/` module),
   not here. This crate only changes when the entrypoint, features, or bin wiring change.
 - Verifying a command end to end → build `start-cli` and run it against a test server/VM.
+
+## Further reading
+
+- [`README.md`](./README.md) — what `start-cli` is and how to use it.
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md) — how to contribute to this crate.
+- [`AGENTS.md`](./AGENTS.md) — agent/dev rules; `CLAUDE.md` is a one-line `@AGENTS.md` import.

@@ -54,3 +54,9 @@ Taiga UI 5 + the shared marketplace/shared libraries. The app is dark-themed (`t
 ## Build & deploy
 
 `@angular/build:application` builds to `projects/brochure-marketplace/dist/raw/brochure-marketplace`. Assets are pulled from `shared/assets`, `projects/brochure-marketplace/src/assets/img`, and the Taiga icon set. Production builds apply the `environment.prod.ts` file replacement and output hashing. The deploy is automated on merge to `master` (`.github/workflows/deploy-brochure.yml`), which builds the SDK baseDist + patch-db client first, then the brochure bundle, and ships it to the VPS hosting marketplace.start9.com.
+
+## Further reading
+
+- [README.md](README.md) — what this app is and how to run it.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — build/test/format workflow.
+- [AGENTS.md](AGENTS.md) — instructions for AI/dev agents working here.
