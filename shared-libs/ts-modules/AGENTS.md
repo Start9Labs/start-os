@@ -1,12 +1,12 @@
 # AGENTS.md — shared-libs/ts-modules
 
-Agent/dev instructions for `shared-libs/ts-modules` — the directory of shared TypeScript modules (currently the two Angular libs `@start9labs/shared`, `@start9labs/marketplace`). The Angular workspace root config (`angular.json`, `package.json`, `tsconfig.json`) lives at the repo root. `CLAUDE.md` is a one-line `@AGENTS.md` import. See `ARCHITECTURE.md` for structure, `CONTRIBUTING.md` for full setup.
+Agent/dev instructions for `shared-libs/ts-modules` — the directory of shared TypeScript modules: the two Angular libs `@start9labs/shared`, `@start9labs/marketplace`, and the non-Angular `@start9labs/start-core` (`start-core/` — the SDK's core types/ABI/effects/OS bindings, consumed by web and bundled into the SDK; it has its own `Makefile`/`package.json` and builds outside the Angular workspace). The Angular workspace root config (`angular.json`, `package.json`, `tsconfig.json`) lives at the repo root. `CLAUDE.md` is a one-line `@AGENTS.md` import. See `ARCHITECTURE.md` for structure, `CONTRIBUTING.md` for full setup.
 
 **Read up the tree first.** These docs are hierarchical: before working here, read the `AGENTS.md` in each enclosing directory up to the repo root (and their `ARCHITECTURE.md` / `CONTRIBUTING.md` where relevant). This file covers only what is specific to this scope and does not repeat rules already stated higher up.
 
 ## Layout
 
-- **The workspace root is the repo root.** `angular.json`, `package.json`, `tsconfig.json` all live at the repo root. Only the libs `shared/` and `marketplace/` live here.
+- **The workspace root is the repo root.** `angular.json`, `package.json`, `tsconfig.json` all live at the repo root. The Angular libs `shared/` and `marketplace/` live here, alongside the non-Angular `start-core/` (`@start9labs/start-core`), which has its own `Makefile`/`package.json` and is built separately (not part of the Angular workspace).
 - **Apps live elsewhere.** `ui` → `../../projects/start-os/web/ui`, `setup-wizard` → `../../projects/start-os/web/setup-wizard`, `start-tunnel` → `../../projects/start-tunnel/web`, `brochure-marketplace` → `../../projects/brochure-marketplace`. Editing app code means editing those dirs even though `ng`/`tsc` are run from the repo root.
 - i18n dictionaries: `shared/src/i18n/dictionaries/`.
 
@@ -14,7 +14,7 @@ Agent/dev instructions for `shared-libs/ts-modules` — the directory of shared 
 
 ```sh
 npm ci
-npm run build:deps           # MUST run first after install — builds the file: deps (start-sdk, patch-db client)
+npm run build:deps           # MUST run first after install — builds the file: deps (@start9labs/start-core, patch-db client)
 npm run check                # type-check all projects; or check:shared / check:ui / etc. for one
 make format-web              # prettier; make format-check-web for CI
 npm run start:ui             # mock dev server (needs config.json — cp shared-libs/ts-modules/config-sample.json config.json)

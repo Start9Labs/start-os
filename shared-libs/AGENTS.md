@@ -13,9 +13,11 @@ read its own `AGENTS.md` first. `CLAUDE.md` is a one-line `@AGENTS.md` import. S
   Has its own `AGENTS.md`, `ARCHITECTURE.md`, `CONTRIBUTING.md`, plus topic notes
   (`core-rust-patterns.md`, `i18n-patterns.md`, `patchdb.md`, `rpc-toolkit.md`,
   `s9pk-structure.md`, `exver.md`, `VERSION_BUMP.md`).
-- `ts-modules/` — shared TypeScript modules; currently the `@start9labs/shared`
-  and `@start9labs/marketplace` Angular libraries (the workspace root is the repo
-  root, where `angular.json` lives). Has its own `AGENTS.md` and
+- `ts-modules/` — shared TypeScript modules; the `@start9labs/shared`
+  and `@start9labs/marketplace` Angular libraries plus the non-Angular
+  `@start9labs/start-core` (`start-core/` — the SDK's core types/ABI/effects/OS
+  bindings, consumed by web and bundled into the SDK; the workspace root is the
+  repo root, where `angular.json` lives). Has its own `AGENTS.md` and
   `ARCHITECTURE.md` (Taiga UI 5 rules, component conventions, i18n).
 
 ## Build & test (run from the repo root)
@@ -34,7 +36,7 @@ Web (`ts-modules/`) — runs from the repo root (the Angular workspace root, whe
 
 ```bash
 npm ci
-npm run build:deps                   # builds start-sdk bundle + patch-db client (required before typecheck/build)
+npm run build:deps                   # builds @start9labs/start-core + patch-db client (required before typecheck/build)
 npm run check                        # typechecks i18n, shared, marketplace, ui, setup, brochure
 make format-check-web                # prettier check across the Angular workspace (make format-web to write)
 ```
@@ -55,8 +57,8 @@ make format-check-web                # prettier check across the Angular workspa
   `projects/brochure-marketplace`) build through this root workspace; their
   `angular.json` entries point into the product dirs. Editing
   a shared lib affects every app — run `npm run check` (all projects) after.
-- **`build:deps` is a prerequisite.** `@start9labs/start-sdk` resolves to
-  `projects/start-sdk/baseDist` and `patch-db-client` to `shared-libs/crates/patch-db/client`
+- **`build:deps` is a prerequisite.** `@start9labs/start-core` resolves to
+  `shared-libs/ts-modules/start-core/dist` and `patch-db-client` to `shared-libs/crates/patch-db/client`
   (from the workspace root); both must be built before typecheck/build will succeed.
 - **patch-db is a first-party crate** at repo-root `shared-libs/crates/patch-db/` (not the old
   root `patch-db/`). start-core consumes its Rust `core`; web consumes its

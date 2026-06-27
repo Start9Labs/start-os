@@ -19,7 +19,7 @@ From the repo root (the Angular workspace is rooted there):
 
 ```sh
 npm ci
-npm run build:deps   # builds start-sdk (make bundle) + patch-db client; both are file: deps
+npm run build:deps   # builds @start9labs/start-core (make dist) + patch-db client; both are file: deps
 ```
 
 #### Configure `config.json`

@@ -28,9 +28,9 @@ monorepo-wide rules, and [ARCHITECTURE.md](ARCHITECTURE.md) and
   apple-darwin and aarch64/riscv64 musl; platform-specific changes can pass here
   yet break those.
 - Regenerate TS bindings after any change to exported Rust types:
-  `make ts-bindings`. Then rebuild the SDK (`cd projects/start-sdk && make bundle`) before
-  web/runtime type-checks — editing `projects/start-sdk/base/lib/osBindings/*.ts`
-  alone is not enough.
+  `make ts-bindings`. Then rebuild start-core (`cd shared-libs/ts-modules/start-core && make dist`)
+  and the SDK (`cd projects/start-sdk && make bundle`) before web/runtime type-checks —
+  editing `shared-libs/ts-modules/start-core/lib/osBindings/*.ts` alone is not enough.
 - Type-check web apps: `npm run check:ui && npm run check:setup`.
 - Type-check the runtime: `cd projects/start-os/container-runtime && npm run check`.
 - Build the UI: `make startos-ui` (or `make startos-uis` for ui + setup-wizard).
@@ -50,7 +50,7 @@ monorepo-wide rules, and [ARCHITECTURE.md](ARCHITECTURE.md) and
 - **Don't normalize style across components.** The container-runtime uses double
   quotes + no semicolons (its own prettier config); the SDK uses single quotes.
 - **Don't edit generated binding files** like
-  `projects/start-sdk/base/lib/osBindings/index.ts` or `projects/start-sdk/s9pk.mk`.
+  `shared-libs/ts-modules/start-core/lib/osBindings/index.ts` or `projects/start-sdk/s9pk.mk`.
 - **Ask before destructive `make` recipes** — `update*`, `reflash`, `wormhole*`,
   image flashing, and `make clean*` consume hours/disk and may touch a live
   device.

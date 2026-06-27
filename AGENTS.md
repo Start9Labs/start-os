@@ -18,11 +18,11 @@ Each product lives under `projects/` as a thin wrapper; the bulk of the code liv
 - `projects/start-cli/` — `start-cli` bin (`src/main.rs`); thin wrapper over `start-core`.
 - `projects/start-registry/` — `registrybox` bin; registry server, serves the shared marketplace UI lib.
 - `projects/start-tunnel/` — `tunnelbox` bin + `web/` (StartTunnel UI).
-- `projects/start-sdk/` — `@start9labs/start-sdk` (`base/` + `package/`, kept cohesive) + `Makefile`/`s9pk.mk` + `docs/` (packaging mdbook).
+- `projects/start-sdk/` — `@start9labs/start-sdk` (flattened, source in `lib/`; imports the shared `@start9labs/start-core` lib and bundles it into its published `dist/`) + `Makefile`/`s9pk.mk` + `docs/` (packaging mdbook).
 - `projects/brochure-marketplace/` — public marketplace/landing Angular app (deploys to marketplace.start9.com).
 - `projects/start-docs/` — the documentation website (build infra + landing + Bitcoin guides; each product's own book lives in its `docs/`).
 - `shared-libs/crates/start-core/` — the **entire** Rust backend lib (package `start-core`, lib name `start_core`). All five bins depend on it. Internally unchanged from the old `core/` crate.
-- `shared-libs/ts-modules/` — shared **TypeScript** modules (the common thread is just that they are TS — not Angular-specific). Today these are the Angular libs `shared/` (`@start9labs/shared`) and `marketplace/` (`@start9labs/marketplace`); the Angular workspace itself is rooted at the repo root (`angular.json`/`package.json`). Product apps reference the libs by package name.
+- `shared-libs/ts-modules/` — shared **TypeScript** modules (the common thread is just that they are TS — not Angular-specific). These are the Angular libs `shared/` (`@start9labs/shared`) and `marketplace/` (`@start9labs/marketplace`), plus the non-Angular `start-core/` (`@start9labs/start-core`: SDK core types/ABI/effects/OS bindings, the TS projection of the `start-core` crate, consumed by web and bundled into the SDK; versionless, not published separately). The Angular workspace is rooted at the repo root (`angular.json`/`package.json`). Product apps reference the libs by package name.
 - Top level also holds the shared build infra (`build/`, `Makefile`), `apt/`, the shared `debian/build.sh`, `rfcs/` (protocol drafts), and `shared-libs/crates/patch-db/` (first-party crate, consumed by `start-core` and web).
 
 ## Build & test (run from the repo root)
@@ -35,7 +35,7 @@ Each product lives under `projects/` as a thin wrapper; the bulk of the code liv
 ## Gotchas
 
 - **Polyglot repo.** Per-component gotchas live in component-level `AGENTS.md` files — read the relevant one before operating on that component (see Sub-scopes).
-- **Verify cross-layer changes in order.** Rust → ts-bindings → SDK rebuild → web/container-runtime type checks. See [ARCHITECTURE.md](ARCHITECTURE.md#cross-layer-verification). Editing `projects/start-sdk/base/lib/osBindings/*.ts` alone is NOT sufficient — the SDK bundle must be rebuilt before web/container-runtime see the change.
+- **Verify cross-layer changes in order.** Rust → ts-bindings → SDK rebuild → web/container-runtime type checks. See [ARCHITECTURE.md](ARCHITECTURE.md#cross-layer-verification). Editing `shared-libs/ts-modules/start-core/lib/osBindings/*.ts` alone is NOT sufficient — start-core (and the SDK bundle, for container-runtime) must be rebuilt before web/container-runtime see the change.
 - **Ask before destructive `make` recipes.** Image flashing, deploy targets (`update*`, `reflash`, `wormhole*`), and `make clean*` consume hours and disk — confirm with the user first.
 - **Stale-path watch.** Old docs referenced `core/`, `web/`, `sdk/`, `container-runtime/`, `patch-db/` at the repo root, and the products + `shared/` directly at the root. Those are gone — products now live under `projects/`, the shared libs under `shared-libs/`; use the locations above.
 

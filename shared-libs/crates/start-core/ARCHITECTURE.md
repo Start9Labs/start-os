@@ -81,9 +81,10 @@ and the package container-runtime, via the SDK). They do **not** propagate autom
 the repo root:
 
 1. `make ts-bindings` — regenerates `shared-libs/crates/start-core/bindings/` (via `build/build-ts.sh`),
-   then rsyncs it into `projects/start-sdk/base/lib/osBindings/`.
-2. `cd projects/start-sdk && make baseDist dist` — rebuilds the SDK bundles that the web app and
-   container-runtime actually import.
+   then rsyncs it into `shared-libs/ts-modules/start-core/lib/osBindings/`.
+2. `cd shared-libs/ts-modules/start-core && make dist` (what web imports) and
+   `cd projects/start-sdk && make bundle` (the SDK bundle container-runtime imports) — rebuilds the
+   TS bundles that downstream actually imports.
 
 Until both steps run, a changed `#[ts(export)]` type is out of sync with everything downstream.
 

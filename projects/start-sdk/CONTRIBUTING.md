@@ -33,20 +33,13 @@ make --version
 ## Repository Layout
 
 ```
-start-sdk/
-├── base/              # @start9labs/start-sdk-base (core types, ABI, effects)
-│   ├── lib/           #   TypeScript source
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── jest.config.js
-├── package/           # @start9labs/start-sdk (full developer-facing SDK)
-│   ├── lib/           #   TypeScript source
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── jest.config.js
-├── baseDist/          # Build output for base (generated)
-├── dist/              # Build output for package (generated, published to npm)
+start-sdk/                 # @start9labs/start-sdk (full developer-facing SDK)
+├── lib/               #   TypeScript source
+├── dist/              # Build output (generated, published to npm; bundles @start9labs/start-core)
 ├── docs/              # "Service Packaging" mdbook (docs.start9.com/packaging)
+├── package.json
+├── tsconfig.json
+├── jest.config.js
 ├── s9pk.mk            # Build plumbing shipped in the published package
 ├── tsconfig.base.json # tsconfig shipped in the published package
 ├── Makefile           # Build orchestration
@@ -56,17 +49,19 @@ start-sdk/
 └── AGENTS.md
 ```
 
+The foundational types, ABI, effects, and OS bindings live in the separate `@start9labs/start-core` lib at `shared-libs/ts-modules/start-core/`; the SDK imports it and its `dist/` bundles it (npm `bundleDependencies`).
+
 `s9pk.mk` and `tsconfig.base.json` are copied into `dist/` so service packages can `include node_modules/@start9labs/start-sdk/s9pk.mk` and `extends "@start9labs/start-sdk/tsconfig.base.json"` — they are a public contract; editing them changes every package's build.
 
 ## Getting Started
 
-From `projects/start-sdk/`, install dependencies for both sub-packages:
+From `projects/start-sdk/`, install dependencies:
 
 ```bash
 make node_modules
 ```
 
-This runs `npm ci` in both `base/` and `package/`.
+This runs `npm ci` (the start-core lib it bundles is built separately via `shared-libs/ts-modules/start-core`'s own Makefile).
 
 ## Building
 
@@ -76,56 +71,52 @@ This runs `npm ci` in both `base/` and `package/`.
 make bundle
 ```
 
-This runs the complete pipeline: TypeScript compilation, hand-written pair copying, node_modules bundling, formatting, and tests. Outputs land in `baseDist/` (base) and `dist/` (package).
+This runs the complete pipeline: build `@start9labs/start-core` (prerequisite), TypeScript compilation, hand-written pair copying, node_modules bundling, formatting, and tests. The output lands in `dist/` (with start-core bundled in).
 
 ### Individual Targets
 
 | Target | Description |
 |--------|-------------|
 | `make bundle` | Full build: compile + format + test |
-| `make baseDist` | Compile base package only |
-| `make dist` | Compile full package (depends on base) |
+| `make dist` | Compile the SDK (depends on the built start-core) |
 | `make fmt` | Run Prettier on all `.ts` files |
-| `make check` | Type-check without emitting (both packages) |
+| `make check` | Type-check without emitting |
 | `make clean` | Remove all build artifacts and node_modules |
+
+To build the bundled start-core lib on its own: `cd shared-libs/ts-modules/start-core && make dist`.
 
 ### What the Build Does
 
-1. **Peggy parser generation** — `base/lib/exver/exver.pegjs` is compiled to `exver.ts` (the ExVer version parser)
+1. **Peggy parser generation** — `shared-libs/ts-modules/start-core/lib/exver/exver.pegjs` is compiled to `exver.ts` (the ExVer version parser) when start-core builds
 2. **TypeScript compilation** — Strict mode, CommonJS output, declaration files
-   - `base/` compiles to `baseDist/`
-   - `package/` compiles to `dist/`
+   - `@start9labs/start-core` compiles to `shared-libs/ts-modules/start-core/dist/`
+   - the SDK compiles to `dist/`
 3. **Hand-written pair copying** — `.js`/`.d.ts` files without a corresponding `.ts` source are copied into the output directories. These are manually maintained JavaScript files with hand-written type declarations.
-4. **Dependency bundling** — `node_modules/` is rsynced into both output directories so the published package is self-contained
+4. **Dependency bundling** — `node_modules/` (including the bundled `@start9labs/start-core`) is rsynced into the output directory so the published package is self-contained
 5. **Formatting** — Prettier formats all TypeScript source
 6. **Testing** — Jest runs both test suites
 
 ## Testing
 
 ```bash
-# Run all tests (base + package)
+# Run the SDK tests
 make test
 
-# Run base tests only
-make base/test
-
-# Run package tests only
-make package/test
-
 # Run a specific test file directly
-cd base && npx jest --testPathPattern=exver
-cd package && npx jest --testPathPattern=host
+npx jest --testPathPattern=host
 ```
 
-Tests use [Jest](https://jestjs.io/) with [ts-jest](https://kulshekhar.github.io/ts-jest/) for TypeScript support. Configuration is in each sub-package's `jest.config.js`.
+The start-core lib has its own test suite: `cd shared-libs/ts-modules/start-core && make test` (or `npx jest --testPathPattern=exver` there).
+
+Tests use [Jest](https://jestjs.io/) with [ts-jest](https://kulshekhar.github.io/ts-jest/) for TypeScript support. Configuration is in each package's `jest.config.js`.
 
 ### Test Files
 
 Tests live alongside their subjects or in dedicated `test/` directories:
 
-- `base/lib/test/` — ExVer parsing, input spec types, deep merge, graph utilities, type validation
-- `base/lib/util/inMs.test.ts` — Time conversion utility
-- `package/lib/test/` — Health checks, host binding, input spec builder
+- `shared-libs/ts-modules/start-core/lib/test/` — ExVer parsing, input spec types, deep merge, graph utilities, type validation
+- `shared-libs/ts-modules/start-core/lib/util/inMs.test.ts` — Time conversion utility
+- `lib/test/` — Health checks, host binding, input spec builder
 
 Test files use the `.test.ts` extension and are excluded from compilation via `tsconfig.json`.
 
@@ -154,11 +145,11 @@ To check types without building:
 make check
 ```
 
-Or directly per package:
+Or directly:
 
 ```bash
-cd base && npm run check
-cd package && npm run check
+npm run check                                            # the SDK
+cd ../../shared-libs/ts-modules/start-core && npm run check   # start-core
 ```
 
 Both packages use strict TypeScript (`"strict": true`) targeting ES2021 with CommonJS module output.
@@ -189,23 +180,23 @@ Only the `dist/` directory is published — it contains the compiled JavaScript,
 
 ## Adding New Features
 
-### Base vs Package
+### start-core vs SDK
 
 Decide where new code belongs:
 
-- **`base/`** — Types, interfaces, ABI contracts, OS bindings, and low-level builders that have no dependency on the package layer. Code here should be usable independently.
-- **`package/`** — Developer-facing API, convenience wrappers, runtime helpers (daemons, health checks, backups, file helpers, subcontainers). Code here imports from base and adds higher-level abstractions.
+- **`@start9labs/start-core`** (`shared-libs/ts-modules/start-core/`) — Types, interfaces, ABI contracts, OS bindings, and low-level builders that have no dependency on the SDK layer. Code here should be usable independently.
+- **SDK** (`projects/start-sdk/lib/`) — Developer-facing API, convenience wrappers, runtime helpers (daemons, health checks, backups, file helpers, subcontainers). Code here imports from `@start9labs/start-core` and adds higher-level abstractions.
 
 ### Key Conventions
 
 - **Builder pattern** — Most APIs use immutable builder chains (`.addDaemon()`, `.mountVolume()`, `.addAction()`). Each call returns a new type that accumulates configuration.
 - **Effects boundary** — All runtime interactions go through the `Effects` interface. Never call system APIs directly.
 - **Manifest type threading** — The manifest type flows through generics so that volume names, image IDs, and dependency IDs are type-constrained.
-- **Re-export from package** — If you add a new export to base, also re-export it from `package/lib/index.ts` (or expose it through `StartSdk.build()`).
+- **Re-export from the SDK** — If you add a new export to `@start9labs/start-core`, also re-export it from the SDK's `lib/index.ts` (or expose it through `StartSdk.build()`).
 
 ### Adding OS Bindings
 
-Types in `base/lib/osBindings/` mirror Rust types from the monorepo's `shared-libs/crates/start-core` (the `start_core` lib). When those Rust types change, the corresponding TypeScript bindings need regenerating. These are re-exported through `base/lib/osBindings/index.ts`.
+Types in `shared-libs/ts-modules/start-core/lib/osBindings/` mirror Rust types from the monorepo's `shared-libs/crates/start-core` (the `start_core` lib). When those Rust types change, the corresponding TypeScript bindings need regenerating. These are re-exported through `shared-libs/ts-modules/start-core/lib/osBindings/index.ts`.
 
 ### Writing Tests
 

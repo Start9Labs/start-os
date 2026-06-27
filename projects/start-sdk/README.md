@@ -72,10 +72,10 @@ export const { createBackup, restoreBackup } = sdk.setupBackups(
 
 ## Packages
 
-| Package | npm | Description |
-|---------|-----|-------------|
-| `package/` | `@start9labs/start-sdk` | Full SDK for service developers |
-| `base/` | `@start9labs/start-sdk-base` | Core types, ABI definitions, and effects interface |
+| Source | npm | Description |
+|--------|-----|-------------|
+| `projects/start-sdk/lib/` | `@start9labs/start-sdk` | Full SDK for service developers (the one package you install) |
+| `shared-libs/ts-modules/start-core/` | `@start9labs/start-core` | Core types, ABI definitions, and effects interface — bundled into the SDK, not published separately |
 
 The published package also ships `s9pk.mk` and `tsconfig.base.json` at its root, so a service package consumes the canonical build plumbing by reference: `include node_modules/@start9labs/start-sdk/s9pk.mk` in its `Makefile` and `"extends": "@start9labs/start-sdk/tsconfig.base.json"` in its `tsconfig.json`.
 

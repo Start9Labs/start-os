@@ -4,7 +4,7 @@ Extended semver supporting **downstream versioning** (wrapper updates independen
 
 Two implementations exist:
 - **Rust crate** (`exver`) — used in `core/`. Source: https://github.com/Start9Labs/exver-rs
-- **TypeScript** (`sdk/base/lib/exver/index.ts`) — used in `sdk/` and `web/`
+- **TypeScript** (`shared-libs/ts-modules/start-core/lib/exver/index.ts`, package `@start9labs/start-core`) — used in `sdk/` and `web/`
 
 Both parse the same string format and agree on `satisfies` semantics.
 
@@ -251,7 +251,7 @@ When no operator is specified in a range string, `^` (caret) is the default.
 
 ### TypeScript: `normalize()` (deep, canonical)
 
-`VersionRange.normalize(): VersionRange` in `sdk/base/lib/exver/index.ts` performs full normalization by converting the range AST into a canonical form. This is a deep operation that produces a semantically equivalent but simplified range.
+`VersionRange.normalize(): VersionRange` in `shared-libs/ts-modules/start-core/lib/exver/index.ts` performs full normalization by converting the range AST into a canonical form. This is a deep operation that produces a semantically equivalent but simplified range.
 
 **How it works:**
 

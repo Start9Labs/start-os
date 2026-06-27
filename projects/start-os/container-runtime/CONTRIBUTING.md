@@ -15,10 +15,10 @@ This sub-tree's docs are:
 ## Prerequisites
 
 - Node.js v20+ (see root CONTRIBUTING for the recommended version pin).
-- The **built** SDK at `../../start-sdk/dist`. `package.json` references `@start9labs/start-sdk` via `file:../../start-sdk/dist`, so build the SDK whenever it changes:
+- The **built** SDK at `../../start-sdk/dist` and **built** `@start9labs/start-core` at `../../../shared-libs/ts-modules/start-core/dist`. `package.json` references both via `file:` deps, so build them whenever they change:
 
   ```bash
-  cd projects/start-sdk && make bundle && cd -      # or: make baseDist dist
+  cd projects/start-sdk && make bundle && cd -      # builds @start9labs/start-core and bundles it into the SDK dist
   ```
 
 ## Building

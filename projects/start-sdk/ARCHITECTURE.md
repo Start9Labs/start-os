@@ -1,15 +1,16 @@
 # SDK Architecture
 
-The Start SDK is split into two npm packages that form a layered architecture: **base** provides the foundational types, ABI contract, and effects interface; **package** builds on base to provide the developer-facing SDK facade.
+The Start SDK builds on a shared core library to form a layered architecture: **`@start9labs/start-core`** (`shared-libs/ts-modules/start-core/`) provides the foundational types, ABI contract, and effects interface; the flattened **`@start9labs/start-sdk`** (`projects/start-sdk/lib/`) imports it to provide the developer-facing SDK facade.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  package/ (@start9labs/start-sdk)                           │
+│  projects/start-sdk/lib/ (@start9labs/start-sdk)            │
 │  Developer-facing facade, daemon management, health checks, │
 │  backup system, file helpers, triggers, subcontainers       │
 │                                                             │
 │  ┌───────────────────────────────────────────────────────┐  │
-│  │  base/ (@start9labs/start-sdk-base)                   │  │
+│  │  @start9labs/start-core                               │  │
+│  │  (shared-libs/ts-modules/start-core/)                 │  │
 │  │  ABI, Effects, OS bindings, actions/input builders,   │  │
 │  │  ExVer parser, interfaces, dependencies, S9pk, utils  │  │
 │  └───────────────────────────────────────────────────────┘  │
@@ -27,17 +28,17 @@ The SDK follows [Semantic Versioning](https://semver.org/) and is versioned inde
 
 ## Place in the monorepo
 
-The SDK lives at `projects/start-sdk/` inside the start-os monorepo. It ships as two npm packages — `@start9labs/start-sdk-base` (built from `base/` to `baseDist/`) and `@start9labs/start-sdk` (built from `package/` to `dist/`, the published package). Service-package developers consume the published `@start9labs/start-sdk` from npm, and the web and container-runtime projects in this monorepo consume the built `baseDist/`/`dist/` (not the source). The SDK's OS bindings mirror Rust types in `shared-libs/crates/start-core`.
+The SDK lives at `projects/start-sdk/` inside the start-os monorepo, flattened so its source is directly under `lib/`. Its foundational layer was extracted into its own shared lib, `@start9labs/start-core` (`shared-libs/ts-modules/start-core/`), which is versionless and not published to npm on its own. Service-package developers consume the single published `@start9labs/start-sdk` from npm (its built `dist/` bundles `@start9labs/start-core` via npm `bundleDependencies`, so they install only one package); the container-runtime project in this monorepo consumes the built `dist/` (not the source), while web consumes `@start9labs/start-core` directly. The OS bindings in start-core mirror Rust types in `shared-libs/crates/start-core`.
 
-## Base Package (`base/`)
+## Core Library (`@start9labs/start-core`)
 
-The base package is a self-contained library of types, interfaces, and low-level builders. It has no dependency on the package layer and can be used independently when only type definitions or validation are needed.
+The core library (`shared-libs/ts-modules/start-core/`) is a self-contained library of types, interfaces, and low-level builders. It has no dependency on the SDK layer and can be used independently when only type definitions or validation are needed.
 
-### OS Bindings (`base/lib/osBindings/`)
+### OS Bindings (`shared-libs/ts-modules/start-core/lib/osBindings/`)
 
 Auto-generated TypeScript files defining every type exchanged between the SDK and the StartOS runtime. They mirror the Rust types in the monorepo's `shared-libs/crates/start-core` (the `start-core` crate with library name `start_core`) and cover the full surface area of the system: manifests, actions, health checks, service interfaces, bind parameters, dependency requirements, SSL, domains, SMTP, networking, images, and more. When the Rust types change, these bindings must be regenerated.
 
-All bindings are re-exported through `base/lib/osBindings/index.ts`.
+All bindings are re-exported through `shared-libs/ts-modules/start-core/lib/osBindings/index.ts`.
 
 Key types include:
 - `Manifest` — The full service package manifest as understood by the OS
@@ -48,7 +49,7 @@ Key types include:
 - `SetHealth` — Health check result reporting
 - `HostnameInfo` / `Host` — Hostname and host metadata
 
-### ABI and Core Types (`base/lib/types.ts`)
+### ABI and Core Types (`shared-libs/ts-modules/start-core/lib/types.ts`)
 
 Defines the Application Binary Interface — the contract every service package must fulfill:
 
@@ -72,7 +73,7 @@ Also defines foundational types used throughout the SDK:
 - `DependsOn` — Package-to-health-check dependency mapping
 - `PathMaker`, `MaybePromise`, `DeepPartial`, `DeepReadonly` — Utility types
 
-### Effects Interface (`base/lib/Effects.ts`)
+### Effects Interface (`shared-libs/ts-modules/start-core/lib/Effects.ts`)
 
 The bridge between TypeScript service code and the StartOS runtime. Every runtime capability is accessed through an `Effects` object passed to lifecycle hooks.
 
@@ -93,7 +94,7 @@ Effects are organized by subsystem:
 
 Effects also support reactive callbacks: many methods accept an optional `callback` parameter that the runtime invokes when the underlying value changes, enabling the reactive subscription patterns (`const()`, `watch()`, etc.).
 
-### Action and Input System (`base/lib/actions/`)
+### Action and Input System (`shared-libs/ts-modules/start-core/lib/actions/`)
 
 #### Actions (`setupActions.ts`)
 
@@ -127,12 +128,12 @@ Supported field types via `Value`:
 - `object` — Nested sub-form
 - `union` / `dynamicUnion` — Conditional fields based on a discriminator
 
-### Dependencies (`base/lib/dependencies/`)
+### Dependencies (`shared-libs/ts-modules/start-core/lib/dependencies/`)
 
 - `setupDependencies.ts` — Declare what the service depends on (package IDs, version ranges, health checks)
 - `dependencies.ts` — Runtime dependency checking via `checkDependencies()`
 
-### Interfaces (`base/lib/interfaces/`)
+### Interfaces (`shared-libs/ts-modules/start-core/lib/interfaces/`)
 
 Network interface declaration and port binding:
 
@@ -141,7 +142,7 @@ Network interface declaration and port binding:
 - `ServiceInterfaceBuilder.ts` — Builder for constructing `ServiceInterface` objects with name, type, description, scheme overrides, username, path, and query params
 - `setupExportedUrls.ts` — URL plugin support for exporting URLs to other services
 
-### Initialization (`base/lib/inits/`)
+### Initialization (`shared-libs/ts-modules/start-core/lib/inits/`)
 
 - `setupInit.ts` — Compose init scripts that run on install, update, restore, or boot
 - `setupUninit.ts` — Compose uninit scripts that run on uninstall, update, or shutdown
@@ -149,7 +150,7 @@ Network interface declaration and port binding:
 
 Init scripts receive a `kind` parameter (`'install' | 'update' | 'restore' | null`) so they can branch logic based on the initialization context.
 
-### Extended Versioning (`base/lib/exver/`)
+### Extended Versioning (`shared-libs/ts-modules/start-core/lib/exver/`)
 
 A PEG parser-based versioning system that extends semver:
 
@@ -161,7 +162,7 @@ The parser is generated from `exver.pegjs` via Peggy and emitted as `exver.ts`.
 
 ExVer separates upstream project versions from StartOS wrapper versions, allowing the package maintainer's versioning to evolve independently from the upstream software.
 
-### S9pk Format (`base/lib/s9pk/`)
+### S9pk Format (`shared-libs/ts-modules/start-core/lib/s9pk/`)
 
 Parser and verifier for `.s9pk` service package archives:
 
@@ -169,7 +170,7 @@ Parser and verifier for `.s9pk` service package archives:
 - Merkle archive support for cryptographic verification of package integrity
 - Methods: `deserialize()`, `icon()`, `license()`, etc.
 
-### Utilities (`base/lib/util/`)
+### Utilities (`shared-libs/ts-modules/start-core/lib/util/`)
 
 ~28 utility modules including:
 
@@ -184,11 +185,11 @@ Parser and verifier for `.s9pk` service package archives:
 - `Drop` — RAII-style cleanup utility
 - `graph` — Dependency graph utilities
 
-## Package Layer (`package/`)
+## SDK Layer (`projects/start-sdk/lib/`)
 
-The package layer provides the developer-facing API. It re-exports everything from base and adds higher-level abstractions.
+The SDK layer provides the developer-facing API. It re-exports everything from `@start9labs/start-core` and adds higher-level abstractions.
 
-### StartSdk Facade (`package/lib/StartSdk.ts`)
+### StartSdk Facade (`lib/StartSdk.ts`)
 
 The primary entry point for service developers. Constructed via a builder chain:
 
@@ -218,7 +219,7 @@ The `.build()` method returns an object containing the entire SDK surface area, 
 | **Effects** | `restart`, `shutdown`, `setHealth`, `mount`, `clearBindings`, ... | Direct effect wrappers |
 | **Utilities** | `nullIfEmpty`, `useEntrypoint`, `patterns`, `setDataVersion`, `getDataVersion` | Misc helpers |
 
-### Daemon Management (`package/lib/mainFn/`)
+### Daemon Management (`lib/mainFn/`)
 
 The daemon subsystem manages long-running processes:
 
@@ -284,7 +285,7 @@ sdk.Mounts.of()
   .mountBackup('/backup')
 ```
 
-### Health Checks (`package/lib/health/`)
+### Health Checks (`lib/health/`)
 
 ```
 health/
@@ -300,7 +301,7 @@ Health checks are paired with **triggers** that control polling behavior:
 - `cooldownTrigger` — Fixed interval between checks
 - `statusTrigger` — Per-status polling intervals with a default fallback
 
-### Backup System (`package/lib/backup/`)
+### Backup System (`lib/backup/`)
 
 ```
 backup/
@@ -313,7 +314,7 @@ Three builder patterns:
 - `Backups.ofSyncs([{ dataPath, backupPath }])` — Custom sync pairs
 - `Backups.withOptions({ exclude: ['cache/'] })` — Rsync options
 
-### File Helpers (`package/lib/util/fileHelper.ts`)
+### File Helpers (`lib/util/fileHelper.ts`)
 
 Type-safe configuration file management:
 
@@ -335,7 +336,7 @@ await configFile.write({ port: 9090, debug: true })
 
 Supported formats: JSON, YAML, TOML, INI, ENV, and custom parsers.
 
-### Subcontainers (`package/lib/util/SubContainer.ts`)
+### Subcontainers (`lib/util/SubContainer.ts`)
 
 Execute commands in isolated container environments:
 
@@ -349,7 +350,7 @@ await sdk.SubContainer.withTemp(effects, { imageId: 'main' }, mounts, 'migrate',
 })
 ```
 
-### Manifest Building (`package/lib/manifest/`)
+### Manifest Building (`lib/manifest/`)
 
 ```typescript
 const manifest = setupManifest({
@@ -368,7 +369,7 @@ export default buildManifest(manifest)
 
 `buildManifest()` finalizes the manifest with the current SDK version, OS version compatibility, and migration version ranges.
 
-### Versioning (`package/lib/version/`)
+### Versioning (`lib/version/`)
 
 Helpers for data version management during migrations:
 
@@ -379,7 +380,7 @@ const version = await sdk.getDataVersion(effects)
 
 Used in init scripts to track which migration version the service's data has been brought to.
 
-### Internationalization (`package/lib/i18n/`)
+### Internationalization (`lib/i18n/`)
 
 ```typescript
 const t = setupI18n({ en_US: enStrings, es_ES: esStrings })
@@ -388,7 +389,7 @@ const greeting = t('hello', { name: 'World' }) // "Hello, World!" or "Hola, Worl
 
 Supports locale fallback and Intl-based formatting.
 
-### Triggers (`package/lib/trigger/`)
+### Triggers (`lib/trigger/`)
 
 Polling strategy functions that determine when health checks run:
 
@@ -402,7 +403,7 @@ sdk.trigger.statusTrigger(30_000, { starting: 5_000, failure: 5_000 })
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed build instructions, make targets, and development workflow.
 
-At a high level: Peggy generates the ExVer parser, TypeScript compiles both packages in strict mode (base to `baseDist/`, package to `dist/`), hand-written `.js`/`.d.ts` pairs are copied into the output, and `node_modules` are bundled for self-contained distribution.
+At a high level: `@start9labs/start-core` builds first (Peggy generates the ExVer parser, TypeScript compiles it in strict mode to its own `dist/`), then the SDK compiles in strict mode to `dist/`, hand-written `.js`/`.d.ts` pairs are copied into the output, and `node_modules` (including the bundled `@start9labs/start-core`) are bundled for self-contained distribution.
 
 ## Data Flow
 

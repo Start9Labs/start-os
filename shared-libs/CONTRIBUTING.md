@@ -44,14 +44,14 @@ through the single Angular workspace rooted at the repo root.
 ```bash
 # from the repo root
 npm ci
-npm run build:deps                      # build start-sdk bundle + patch-db client (required first)
+npm run build:deps                      # build @start9labs/start-core + patch-db client (required first)
 npm run check                           # typecheck i18n, shared, marketplace, ui, setup, brochure
 make format-web                         # prettier --write across the Angular workspace
 make format-check-web                   # prettier check (CI)
 ```
 
-- `build:deps` must run before any typecheck/build: `@start9labs/start-sdk`
-  resolves to `projects/start-sdk/baseDist` and `patch-db-client` to
+- `build:deps` must run before any typecheck/build: `@start9labs/start-core`
+  resolves to `shared-libs/ts-modules/start-core/dist` and `patch-db-client` to
   `shared-libs/crates/patch-db/client`.
 - Changes to `ts-modules/shared` or `ts-modules/marketplace` affect every app — run the full
   `npm run check` (it covers all projects) before opening a PR.

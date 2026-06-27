@@ -29,7 +29,7 @@ Tests are Jest + `ts-jest` (`jest.config.js`, `rootDir: ./src`). `mime` is mocke
 
 ## Gotchas
 
-- **Depends on the _built_ SDK at `../../start-sdk/dist`** (declared in `package.json` as `"@start9labs/start-sdk": "file:../../start-sdk/dist"`). Editing `projects/start-sdk/` source alone has no effect here — rebuild the SDK first: `cd projects/start-sdk && make bundle` (or `make baseDist dist`). The Makefile target `projects/start-os/container-runtime/package-lock.json` also depends on `projects/start-sdk/dist/package.json`, so a stale SDK can break `npm ci`/`check`/`test`.
+- **Depends on the _built_ SDK at `../../start-sdk/dist`** (declared in `package.json` as `"@start9labs/start-sdk": "file:../../start-sdk/dist"`) **and on `@start9labs/start-core` at `../../../shared-libs/ts-modules/start-core/dist`** (for what were the deep `base/lib/...` imports). Editing `projects/start-sdk/` or `shared-libs/ts-modules/start-core/` source alone has no effect here — rebuild first: `cd projects/start-sdk && make bundle` (which builds start-core and bundles it). The Makefile target `projects/start-os/container-runtime/package-lock.json` also depends on `projects/start-sdk/dist/package.json`, so a stale SDK can break `npm ci`/`check`/`test`.
 - **Style: double quotes, no semicolons.** Prettier config lives in `package.json` (`semi: false`, `singleQuote: false`, `trailingComma: "all"`, `tabWidth: 2`). This differs from `start-sdk` / `shared-libs/ts-modules` (single quotes there) — do NOT "normalize" to single quotes. `npm run build` runs Prettier `--write` before compiling.
 - **`CLAUDE.md` is just `@AGENTS.md`** — edit this file, not `CLAUDE.md`.
 

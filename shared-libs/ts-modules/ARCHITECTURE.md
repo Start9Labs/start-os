@@ -4,10 +4,11 @@ Angular 22 + TypeScript workspace using [Taiga UI 5](https://taiga-ui.dev/) comp
 
 ## Place in the monorepo
 
-This directory (`shared-libs/ts-modules`) holds the two shared **libraries**; the Angular workspace root config (`angular.json`, `package.json`, `tsconfig.json`) lives at the repo root. The libraries live here directly:
+This directory (`shared-libs/ts-modules`) holds the shared **libraries**; the Angular workspace root config (`angular.json`, `package.json`, `tsconfig.json`) lives at the repo root. The libraries live here directly:
 
-- `shared/src/` — `@start9labs/shared`
-- `marketplace/src/` — `@start9labs/marketplace`
+- `shared/src/` — `@start9labs/shared` (Angular)
+- `marketplace/src/` — `@start9labs/marketplace` (Angular)
+- `start-core/lib/` — `@start9labs/start-core` (non-Angular; the SDK's core types/ABI/effects/OS bindings, consumed by web and bundled into the SDK. Has its own `Makefile`/`package.json`, built separately from the Angular workspace.)
 
 The four **apps** are declared in `angular.json` but rooted in their product dirs, so paths below prefixed `ui/`, `setup-wizard/`, etc. actually live outside this directory:
 

@@ -20,7 +20,7 @@ A single-page Angular 22 app that wraps the shared `@start9labs/marketplace` lib
 
 ```bash
 npm ci                 # once
-npm run build:deps     # once: builds start-sdk baseDist + patch-db client (required)
+npm run build:deps     # once: builds @start9labs/start-core + patch-db client (required)
 
 npm run start:brochure # dev server, http://localhost:8200, uses MockApiService
 npm run build:brochure # production build -> projects/brochure-marketplace/dist/raw/brochure-marketplace
@@ -33,7 +33,7 @@ Run `npm run check:brochure` and `make format-check-web` before pushing changes 
 ## Gotchas
 
 - **Dev vs prod data source.** `app.config.ts` picks the API impl from `environment.production`: dev → `MockApiService` (fixtures in `src/app/services/api.fixures.ts`), prod → `LiveApiService` (real RPC). When testing data-shape changes, update the fixtures or you'll see stale/empty results in dev.
-- **`build:deps` is a prerequisite.** The app resolves `@start9labs/start-sdk` from `projects/start-sdk/baseDist` and transitively needs the patch-db client. A fresh checkout that skips `build:deps` fails the brochure build/type-check.
+- **`build:deps` is a prerequisite.** The app resolves `@start9labs/start-core` from `shared-libs/ts-modules/start-core/dist` and transitively needs the patch-db client. A fresh checkout that skips `build:deps` fails the brochure build/type-check.
 - **Registry state lives in `MarketplaceService`** (`src/app/services/marketplace.service.ts`), which extends `AbstractMarketplaceService` from the shared lib. Custom registries persist in `localStorage` under the `_startos/` prefix. Don't add a parallel state store.
 - **i18n is mandatory** for user-facing strings: route them through the `i18n` pipe and add entries to every dictionary under `shared-libs/ts-modules/shared/src/i18n/dictionaries/`.
 - **Taiga UI 5 does the UI.** Don't hand-roll HTML/CSS where Taiga has a primitive; verify Taiga APIs against the docs, not memory. See `shared-libs/ts-modules/AGENTS.md` for the workspace-wide Taiga idioms (DI on root/node only, `tuiProvide`, attribute-selector controls, etc.).

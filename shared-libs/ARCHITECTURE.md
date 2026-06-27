@@ -42,19 +42,23 @@ The single Angular workspace root for every front end is at the monorepo root:
 app projects define their UIs in their own `web/` subdirectories (e.g.
 `projects/start-os/web/`, `projects/start-tunnel/web/`).
 
-`shared-libs/ts-modules/` holds shared TypeScript modules; today these are two
-publishable Angular packages:
+`shared-libs/ts-modules/` holds shared TypeScript modules; two publishable Angular
+packages and one non-Angular core lib:
 
 - **`shared-libs/ts-modules/shared/` → `@start9labs/shared`** — API clients, shared
   components, i18n dictionaries, and global styles used by every UI.
 - **`shared-libs/ts-modules/marketplace/` → `@start9labs/marketplace`** — service
   discovery / marketplace UI, shared between the StartOS `ui` app and the public
   `brochure-marketplace` marketplace site.
+- **`shared-libs/ts-modules/start-core/` → `@start9labs/start-core`** — the SDK's core
+  types, ABI, effects interface, and OS bindings (the TS projection of the `start-core`
+  Rust crate). Consumed directly by web and bundled into `@start9labs/start-sdk`.
+  Versionless; not published to npm on its own.
 
 App projects defined in the root `angular.json` (`ui`, `setup-wizard`, `start-tunnel`,
-`brochure-marketplace`) reference these two libraries via the TypeScript path
+`brochure-marketplace`) reference the two Angular libraries via the TypeScript path
 mappings in the root `tsconfig.json`. The libraries also depend on
-`@start9labs/start-sdk` (built from `projects/start-sdk/baseDist`) and
+`@start9labs/start-core` (built from `shared-libs/ts-modules/start-core/dist`) and
 `patch-db-client` (built from `shared-libs/crates/patch-db/client`).
 
 ## Data flow
@@ -65,7 +69,7 @@ shared-libs/crates/patch-db (first-party)
   └── client ─────────────► projects/*/web (Angular)   ──► product web apps
                             shared-libs/ts-modules/*
                                   ▲
-projects/start-sdk/baseDist ──────┘
+shared-libs/ts-modules/start-core/dist ──┘
 ```
 
 The Rust backend emits RFC-6902 JSON Patches via patch-db core; the web client

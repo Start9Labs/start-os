@@ -28,5 +28,5 @@ identical service browsing UI as the in-OS marketplace.
 ### Changed
 
 - Migrated into the start-os monorepo as an application project of the `shared-libs/ts-modules` Angular workspace. Build and serve via the `brochure` Angular project (`npm run build:brochure` / `npm run start:brochure` from `shared-libs/ts-modules`); deploys automatically to marketplace.start9.com on merge to `master`.
-- **Consolidated into the StartOS web workspace (da6a89e05)** earlier in the cycle: the previously-standalone brochure source moved in as a workspace app consuming the in-repo `shared`/`marketplace` libraries and the browser-safe SDK (`baseDist`) directly, retiring its published-SDK patch hack (the `postinstall` patch hook, `scripts/patch-start-sdk.js`, and the pinned `@start9labs/start-sdk` dependency).
+- **Consolidated into the StartOS web workspace (da6a89e05)** earlier in the cycle: the previously-standalone brochure source moved in as a workspace app consuming the in-repo `shared`/`marketplace` libraries and the browser-safe SDK core (`@start9labs/start-core`) directly, retiring its published-SDK patch hack (the `postinstall` patch hook, `scripts/patch-start-sdk.js`, and the pinned `@start9labs/start-sdk` dependency).
 - **Conformity polish (99f487292):** i18n alignment, category derivation, and parity with the in-OS marketplace twin.

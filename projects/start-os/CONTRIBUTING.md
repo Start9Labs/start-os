@@ -84,7 +84,7 @@ When a change crosses Rust → bindings → SDK → web/runtime, verify in order
 
 1. `cargo check -p start-os`
 2. `make ts-bindings` — regenerate ts-rs types from `start-core`
-3. `cd projects/start-sdk && make bundle` — rebuild `baseDist` + `dist` (required before
-   the web apps / runtime can see new bindings)
+3. `cd projects/start-sdk && make bundle` — rebuild the SDK `dist` (builds `@start9labs/start-core`
+   first and bundles it; required before the web apps / runtime can see new bindings)
 4. `npm run check:ui && npm run check:setup`
 5. `cd projects/start-os/container-runtime && npm run check`

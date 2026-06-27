@@ -63,7 +63,7 @@ The package manifest contains all metadata:
 
 ### javascript.squashfs
 
-Contains the package JavaScript that implements the `ABI` interface from `@start9labs/start-sdk-base`. This code runs in the container runtime and manages the package lifecycle.
+Contains the package JavaScript that implements the `ABI` interface from `@start9labs/start-core` (re-exported via `@start9labs/start-sdk`). This code runs in the container runtime and manages the package lifecycle.
 
 The squashfs is mounted at `/usr/lib/startos/package/` and the runtime loads `index.js`.
 

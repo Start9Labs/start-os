@@ -52,11 +52,11 @@ start-os/                          # repo root (monorepo)
   - `start-registry` → `registrybox` (package registry)
   - `start-tunnel` → `tunnelbox` (VPN/tunnel server)
 
-- **`shared-libs/ts-modules/`** — shared **TypeScript** modules consumed across products. The common thread is just that they are TS — the directory is not Angular-specific. Today it holds the two Angular 22 / Taiga UI 5 libraries `shared` (`@start9labs/shared`) and `marketplace` (`@start9labs/marketplace`). The single Angular workspace (root `angular.json`/`package.json`) defines six projects whose roots point into product dirs: `ui` and `setup-wizard` (`projects/start-os/web/`), `start-tunnel` (`projects/start-tunnel/web/`), `brochure-marketplace` (`projects/brochure-marketplace/`), plus those two libraries. Apps talk to the backend exclusively via JSON-RPC. See [shared-libs/ts-modules/ARCHITECTURE.md](shared-libs/ts-modules/ARCHITECTURE.md).
+- **`shared-libs/ts-modules/`** — shared **TypeScript** modules consumed across products. The common thread is just that they are TS — the directory is not Angular-specific. It holds the two Angular 22 / Taiga UI 5 libraries `shared` (`@start9labs/shared`) and `marketplace` (`@start9labs/marketplace`), plus the non-Angular `start-core` (`@start9labs/start-core`: the SDK's core types/ABI/effects/OS bindings, mirroring the `start-core` Rust crate; consumed directly by web and bundled into the SDK). The single Angular workspace (root `angular.json`/`package.json`) defines six projects whose roots point into product dirs: `ui` and `setup-wizard` (`projects/start-os/web/`), `start-tunnel` (`projects/start-tunnel/web/`), `brochure-marketplace` (`projects/brochure-marketplace/`), plus the two Angular libraries. Apps talk to the backend exclusively via JSON-RPC. See [shared-libs/ts-modules/ARCHITECTURE.md](shared-libs/ts-modules/ARCHITECTURE.md).
 
 - **`projects/start-os/container-runtime/`** — Node.js runtime that runs inside each service's LXC container. Loads the service's JavaScript from its S9PK and manages subcontainers; talks to the host daemon via JSON-RPC over a Unix socket. See [projects/start-os/container-runtime/AGENTS.md](projects/start-os/container-runtime/AGENTS.md).
 
-- **`projects/start-sdk/`** — TypeScript SDK for packaging services (`@start9labs/start-sdk`). Kept cohesive: `base/` (core types, ABI, effects interface — consumed by web as `@start9labs/start-sdk-base`) and `package/` (full SDK for service developers — consumed by container-runtime as `@start9labs/start-sdk`). Its `Makefile`/`s9pk.mk` is the source of truth for the published tarball.
+- **`projects/start-sdk/`** — TypeScript SDK for packaging services (`@start9labs/start-sdk`), flattened with source in `lib/`. It imports the shared `@start9labs/start-core` lib (`shared-libs/ts-modules/start-core/` — core types, ABI, effects interface, also consumed directly by web) and bundles it into its published `dist/`, so container-runtime and external service developers install a single package. Its `Makefile`/`s9pk.mk` is the source of truth for the published tarball.
 
 - **`shared-libs/crates/patch-db/`** — first-party crate providing diff-based state sync (CBOR encoded). Backend mutations produce diffs pushed to the frontend over WebSocket for reactive UI. See the [patch-db repo](https://github.com/Start9Labs/patch-db).
 
@@ -66,10 +66,11 @@ One root Cargo workspace (members: the product bin crates + every shared crate u
 
 ```
 Rust (shared-libs/crates/start-core)
-  → make ts-bindings: ts-rs export → shared-libs/crates/start-core/bindings/ → rsync to projects/start-sdk/base/lib/osBindings/
-    → SDK build (cd projects/start-sdk && make bundle) → baseDist/ + dist/
-      → shared-libs/ts-modules consumes baseDist/ (via @start9labs/start-sdk-base)
-      → projects/start-os/container-runtime consumes dist/ (via @start9labs/start-sdk)
+  → make ts-bindings: ts-rs export → shared-libs/crates/start-core/bindings/ → rsync to shared-libs/ts-modules/start-core/lib/osBindings/
+    → start-core build (cd shared-libs/ts-modules/start-core && make dist) → dist/
+      → shared-libs/ts-modules + web apps consume it (via @start9labs/start-core)
+    → SDK build (cd projects/start-sdk && make bundle) → dist/ (bundles @start9labs/start-core)
+      → projects/start-os/container-runtime consumes the SDK dist/ (via @start9labs/start-sdk) + @start9labs/start-core
 ```
 
 Key make targets along the chain:
@@ -77,16 +78,16 @@ Key make targets along the chain:
 | Step | Command | What it does |
 |---|---|---|
 | 1 | `cargo check -p start-core` | Verify the backend lib compiles |
-| 2 | `make ts-bindings` | Export ts-rs types → rsync to `projects/start-sdk/base/lib/osBindings/` |
-| 3 | `cd projects/start-sdk && make bundle` | Build SDK `baseDist/` + `dist/` |
+| 2 | `make ts-bindings` | Export ts-rs types → rsync to `shared-libs/ts-modules/start-core/lib/osBindings/` |
+| 3 | `cd projects/start-sdk && make bundle` | Build the SDK `dist/` (builds `@start9labs/start-core` first and bundles it) |
 | 4 | `npm run check` | Type-check Angular projects (from the repo root) |
 | 5 | `cd projects/start-os/container-runtime && npm run check` | Type-check the runtime |
 
-**Important**: editing `projects/start-sdk/base/lib/osBindings/*.ts` alone is NOT enough — rebuild the SDK bundle (step 3) before web/container-runtime can see the change.
+**Important**: editing `shared-libs/ts-modules/start-core/lib/osBindings/*.ts` alone is NOT enough — rebuild start-core (and the SDK bundle, step 3) before web/container-runtime can see the change.
 
 ## Cross-layer verification
 
-When a change spans Rust, SDK, web, and container-runtime, verify in the order above (1→5). `make ts-bindings` runs the `start-core` export and rsyncs `shared-libs/crates/start-core/bindings/` → `projects/start-sdk/base/lib/osBindings/`; the SDK bundle (step 3) is what web and container-runtime actually reference, not the source files.
+When a change spans Rust, SDK, web, and container-runtime, verify in the order above (1→5). `make ts-bindings` runs the `start-core` export and rsyncs `shared-libs/crates/start-core/bindings/` → `shared-libs/ts-modules/start-core/lib/osBindings/`; the built `@start9labs/start-core` is what web references, and the SDK bundle (step 3) is what container-runtime references, not the source files.
 
 ## Data flow: backend → frontend
 

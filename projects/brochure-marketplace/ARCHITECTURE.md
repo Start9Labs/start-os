@@ -8,7 +8,7 @@ This is one application project in the single Angular workspace rooted at the re
 
 - `@start9labs/marketplace` → `shared-libs/ts-modules/marketplace`
 - `@start9labs/shared` → `shared-libs/ts-modules/shared`
-- `@start9labs/start-sdk` → built from `start-sdk` (baseDist bundle)
+- `@start9labs/start-core` → built from `shared-libs/ts-modules/start-core/dist`
 
 Because brochure renders the same `@start9labs/marketplace` library used by the in-OS `ui` app, the marketplace experience is identical whether viewed here or inside a server.
 
@@ -53,7 +53,7 @@ Taiga UI 5 + the shared marketplace/shared libraries. The app is dark-themed (`t
 
 ## Build & deploy
 
-`@angular/build:application` builds to `projects/brochure-marketplace/dist/raw/brochure-marketplace`. Assets are pulled from `shared/assets`, `projects/brochure-marketplace/src/assets/img`, and the Taiga icon set. Production builds apply the `environment.prod.ts` file replacement and output hashing. The deploy is automated on merge to `master` (`.github/workflows/deploy-brochure.yml`), which builds the SDK baseDist + patch-db client first, then the brochure bundle, and ships it to the VPS hosting marketplace.start9.com.
+`@angular/build:application` builds to `projects/brochure-marketplace/dist/raw/brochure-marketplace`. Assets are pulled from `shared/assets`, `projects/brochure-marketplace/src/assets/img`, and the Taiga icon set. Production builds apply the `environment.prod.ts` file replacement and output hashing. The deploy is automated on merge to `master` (`.github/workflows/deploy-brochure.yml`), which builds `@start9labs/start-core` + patch-db client first, then the brochure bundle, and ships it to the VPS hosting marketplace.start9.com.
 
 ## Further reading
 

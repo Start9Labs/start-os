@@ -19,7 +19,7 @@ From the repo root:
 
 ```bash
 npm ci
-npm run build:deps   # builds start-sdk baseDist + patch-db client — required before any brochure build
+npm run build:deps   # builds @start9labs/start-core + patch-db client — required before any brochure build
 ```
 
 ## Building

@@ -11,7 +11,7 @@ LXC Container (uniform base image for all services)
                 └── Package JS launches subcontainers (from images in s9pk)
 ```
 
-The `start-container` binary (built from package `start-os`, see `shared-libs/crates/start-core`) supervises the Node process and wraps its stdio. Package JavaScript must export functions conforming to the `ABI` type defined in `start-sdk/base/lib/types.ts`; the runtime imports `@start9labs/start-sdk` from the built SDK at `../../start-sdk/dist`.
+The `start-container` binary (built from package `start-os`, see `shared-libs/crates/start-core`) supervises the Node process and wraps its stdio. Package JavaScript must export functions conforming to the `ABI` type defined in `shared-libs/ts-modules/start-core/lib/types.ts` (package `@start9labs/start-core`); the runtime imports `@start9labs/start-sdk` from the built SDK at `../../start-sdk/dist` and `@start9labs/start-core` from `../../../shared-libs/ts-modules/start-core/dist`.
 
 ## Place in the monorepo
 

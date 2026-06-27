@@ -11,15 +11,15 @@ on:
       - "projects/brochure-marketplace/**"
       - "shared-libs/ts-modules/shared/**"
       - "shared-libs/ts-modules/marketplace/**"
+      - "shared-libs/ts-modules/start-core/**"
       - "angular.json"
       - "package.json"
       - "package-lock.json"
       - "tsconfig.json"
       - "tsconfig.lib.json"
-      - "projects/start-sdk/**"
       - "shared-libs/crates/patch-db"
       - ".github/workflows/deploy-brochure.yml"
-      # Doc-only edits under the allowlisted paths (e.g. sdk/**) shouldn't redeploy.
+      # Doc-only edits under the allowlisted paths (e.g. start-core/**) shouldn't redeploy.
       - "!**/*.md"
   workflow_dispatch:
 
@@ -48,12 +48,12 @@ jobs:
           cache: npm
           cache-dependency-path: "**/package-lock.json"
 
-      # web resolves the SDK via file:../projects/start-sdk/baseDist, so baseDist must exist
+      # web resolves start-core via file:shared-libs/ts-modules/start-core/dist, so it must exist
       # before web's `npm ci` and the brochure build.
-      - name: Build SDK (baseDist)
+      - name: Build start-core
         run: |
-          npm --prefix projects/start-sdk/base ci
-          cd projects/start-sdk && make baseDist
+          npm --prefix shared-libs/ts-modules/start-core ci
+          cd shared-libs/ts-modules/start-core && make dist
 
       # brochure transitively bundles patch-db-client (file:../shared-libs/crates/patch-db/client),
       # so its dist must be built too.
