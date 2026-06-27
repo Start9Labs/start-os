@@ -11,8 +11,6 @@ this file covers what's specific to this crate.
 - `CONTRIBUTING.md` — this file (how to contribute).
 - [`AGENTS.md`](./AGENTS.md) — agent/dev rules; `CLAUDE.md` is a one-line `@AGENTS.md` import.
 
-Keep these docs in sync with your changes.
-
 ## Prerequisites
 
 A Rust toolchain matching the workspace `edition = "2024"`, plus the local container backend
@@ -65,9 +63,5 @@ This crate holds only `src/main.rs` and `Cargo.toml`. **Almost all changes belon
 
 Edit this crate only when the entrypoint, Cargo features, or bin wiring change.
 
-## Commits / PRs
-
-Follow the root contribution workflow: focused commits with conventional messages
-(`fix:`, `feat:`, `chore:`), branch off the latest default branch, and open a PR. If your change
-touches the CLI surface a user or package author sees, update the relevant docs in `projects/start-sdk/docs`
-(packaging) and the `projects/start-os/docs` in the same change set.
+If your change touches the CLI surface a user or package author sees, update the relevant docs in
+`projects/start-sdk/docs` (packaging) and the `projects/start-os/docs` in the same change set.

@@ -7,14 +7,11 @@ For general monorepo setup, see the repo-root [CONTRIBUTING.md](../../../CONTRIB
 
 This sub-tree's docs split across four files:
 
-- `README.md` — what this is and how to use it (the upstream usage/API reference).
+- `README.md` — what this is and how to use it (usage/API reference).
 - `ARCHITECTURE.md` — how it's built (parse → walk flow, public API surface, place in the monorepo).
 - `CONTRIBUTING.md` — this file; how to contribute.
 - `AGENTS.md` — AI/dev operating rules and layout map (`CLAUDE.md` is a one-line `@AGENTS.md`
   import; don't edit it).
-
-**Keep these docs in sync with your changes.** When you change the module layout, public API,
-build/test process, or fork-tracking status, update the relevant file(s) in the same change.
 
 ## Prerequisites
 
@@ -52,15 +49,13 @@ examples in `src/lib.rs` and `README.md`.
 cargo +nightly fmt -p jsonpath_lib
 ```
 
-The workspace uses nightly rustfmt. Note this crate carries pre-existing upstream warnings (unused
-imports, lifetime elisions); don't churn unrelated lines to silence them.
+The workspace uses nightly rustfmt. Note this crate carries pre-existing warnings (unused imports,
+lifetime elisions) that predate the divergence; don't churn unrelated lines to silence them.
 
-## Commits / PRs
+## Working in this crate
 
-- Conventional commits (`fix:`, `feat:`, `chore:`, `docs:`).
-- Keep PRs focused; update the docs above in the same change.
-- **This is a vendored fork** of [freestrings/jsonpath](https://github.com/freestrings/jsonpath).
-  Prefer pulling fixes from upstream over local divergence, and keep local changes minimal and
-  well-described so they can be reconciled with upstream later. The main intentional divergence is
-  operating on `imbl_value::Value` instead of `serde_json::Value`. New code should target the
-  preferred `paths`/`selector` APIs, not the deprecated `parser`/`select`/`ffi` modules.
+It began as a fork of [freestrings/jsonpath](https://github.com/freestrings/jsonpath) but has fully
+diverged — there is no upstream to reconcile with, so edit it freely as first-party code. New code
+should target the preferred `paths`/`selector` APIs, not the deprecated `parser`/`select`/`ffi`
+modules. The main divergence from the original is operating on `imbl_value::Value` instead of
+`serde_json::Value`.

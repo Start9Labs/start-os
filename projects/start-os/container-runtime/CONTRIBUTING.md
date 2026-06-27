@@ -12,8 +12,6 @@ This sub-tree's docs are:
 - `CONTRIBUTING.md` — this file
 - `RPCSpec.md` — the JSON-RPC wire protocol
 
-**Keep these up to date.** When you change the runtime's structure, conventions, build process, or RPC surface, update the relevant file(s) in the same change — don't defer.
-
 ## Prerequisites
 
 - Node.js v20+ (see root CONTRIBUTING for the recommended version pin).
@@ -53,7 +51,3 @@ Prettier config lives in `package.json`:
 - `trailingComma: "all"`, `tabWidth: 2`, `semi: false`, `singleQuote: false`.
 
 The runtime uses **double quotes**, unlike `start-sdk` and `shared-libs/ts-modules` (single quotes there) — do not normalize. `npm run build` runs Prettier `--write` before compiling, so formatting is applied automatically during a build.
-
-## Branch / commit / PR
-
-Follow the conventions in the root [CONTRIBUTING.md](../../../CONTRIBUTING.md#commit-messages) — Conventional Commits with the `container-runtime` scope, e.g. `fix(container-runtime): ...`.

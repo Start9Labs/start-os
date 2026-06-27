@@ -11,8 +11,6 @@ Start with the root [`CONTRIBUTING.md`](../../CONTRIBUTING.md) and [`AGENTS.md`]
 - `CONTRIBUTING.md` — this file: how to build, test, and contribute.
 - [`AGENTS.md`](./AGENTS.md) — rules for agents working in this dir; `CLAUDE.md` is a one-line `@AGENTS.md` import.
 
-Keep these docs in sync with your changes (see [Docs are part of the change](#docs-are-part-of-the-change)).
-
 ## Where to make changes
 
 - **Server/CLI entry, RPC API, data model, persistence, migrations** → `shared-libs/crates/start-core/src/registry/` and `shared-libs/crates/start-core/src/bins/registry.rs`.
@@ -72,7 +70,3 @@ Update the matching docs in the same PR:
 - This dir's `README.md` / `ARCHITECTURE.md` for behavior, flags, or structure changes.
 - `CHANGELOG.md` (Keep a Changelog style) for any user-visible change.
 - OS-level packaging/registry docs in `projects/start-os/docs`, and the marketplace UI, if you change the API contract or the install/run flow.
-
-## Commits / PRs
-
-Use Conventional Commit messages (`feat:`, `fix:`, `chore:`, `docs:`). Keep PRs focused; describe rationale in the PR body rather than in source comments.

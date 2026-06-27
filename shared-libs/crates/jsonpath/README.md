@@ -17,8 +17,9 @@ and`Javascript` too.
 
 ## Place in the monorepo
 
-This is a **first-party, vendored fork** of [freestrings/jsonpath](https://github.com/freestrings/jsonpath)
-living in the start-os monorepo.
+This is a **first-party crate** in the start-os monorepo. It originated as a fork of
+[freestrings/jsonpath](https://github.com/freestrings/jsonpath) and has since fully diverged — it is
+maintained here as first-party code, with no intent to sync back upstream.
 
 - **Path:** `shared-libs/crates/jsonpath`
 - **Package name:** `jsonpath_lib` (differs from the directory name `jsonpath`; build/test with
@@ -720,7 +721,7 @@ console.log(
 
 - [ARCHITECTURE.md](ARCHITECTURE.md) — how it's built (parse → walk flow, public API, place in the
   monorepo).
-- [CONTRIBUTING.md](CONTRIBUTING.md) — toolchain, build/test/format, fork-tracking expectations.
+- [CONTRIBUTING.md](CONTRIBUTING.md) — toolchain, build/test/format, conventions.
 - [AGENTS.md](AGENTS.md) — AI/dev operating rules and layout map (`CLAUDE.md` is a one-line
   `@AGENTS.md` import).
 

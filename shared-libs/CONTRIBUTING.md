@@ -10,10 +10,6 @@ sub-library; each has its own `CONTRIBUTING.md` with the full detail.
 - [CONTRIBUTING.md](CONTRIBUTING.md) — this file; build/test/format workflow.
 - `AGENTS.md` — agent rules; `CLAUDE.md` is a one-line `@AGENTS.md` import.
 
-Keep these docs current: if you change structure, build steps, or conventions,
-update the affected `README`/`ARCHITECTURE`/`AGENTS`/`CONTRIBUTING` in the same
-change. Do not edit `CLAUDE.md` (it is a one-line `@AGENTS.md` import).
-
 ## Prerequisites
 
 Start from the root [`CONTRIBUTING.md`](../CONTRIBUTING.md) for environment setup
@@ -60,8 +56,3 @@ npm run format:check
   `npm run check` (it covers all projects) before opening a PR.
 - Web UI work follows Taiga UI 5 conventions and mandatory i18n; see
   [`ts-modules/CONTRIBUTING.md`](ts-modules/CONTRIBUTING.md) and `ts-modules/AGENTS.md`.
-
-## Commits / PRs
-
-- Conventional commit messages (`feat:`, `fix:`, `chore:`, `docs:`).
-- Format before committing (`cargo fmt -p start-core`, `npm run format`).

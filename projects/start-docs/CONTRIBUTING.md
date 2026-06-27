@@ -11,8 +11,6 @@ This is the docs-site project inside the monorepo. See the [root CONTRIBUTING](.
 - `CONTRIBUTING.md` — this file
 - `AGENTS.md` — operating rules for AI developers (`CLAUDE.md` is a one-line `@AGENTS.md` import)
 
-Keep these up to date. When you change the build process, conventions, or where a book lives, update the relevant file(s) in the same change.
-
 ## Where the books live
 
 Only the **Bitcoin Guides** book (`bitcoin-guides/`), the landing page, the theme, and the build infra live in this project. The other books live in their product dirs:
@@ -125,9 +123,3 @@ See the [StartTunnel docs](/start-tunnel/).
 ```
 
 Within a book, use relative paths as usual.
-
-## Commits / PRs
-
-1. Fork `start-os` and create a branch
-2. Make your changes
-3. Submit a PR against `master`

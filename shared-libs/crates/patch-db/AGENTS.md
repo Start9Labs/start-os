@@ -1,6 +1,6 @@
 # AGENTS.md — patch-db
 
-patch-db is a JSON Patch–based database with a Rust backend and a TypeScript client. It is a first-party crate in the start-os monorepo, carrying **its own Cargo workspace** (excluded from the root workspace) — `start-core` consumes the Rust `core` via a path dep, and the web front ends consume the TS `client`. `CLAUDE.md` is a one-line `@AGENTS.md` import. See [README.md](README.md) for what it is and quick-start examples, [ARCHITECTURE.md](ARCHITECTURE.md) for design/storage/concurrency, and [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
+patch-db is a JSON Patch–based database with a Rust backend and a TypeScript client. Its six Rust crates are first-party members of the start-os root Cargo workspace — `start-core` consumes the Rust `core` via a path dep, and the web front ends consume the TS `client`. `CLAUDE.md` is a one-line `@AGENTS.md` import. See [README.md](README.md) for what it is and quick-start examples, [ARCHITECTURE.md](ARCHITECTURE.md) for design/storage/concurrency, and [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
 
 ## Layout
 
@@ -20,18 +20,17 @@ patch-db is a JSON Patch–based database with a Rust backend and a TypeScript c
 
 Workspace members (`Cargo.toml`): `patch-db` (`core/`), `json-patch`, `json-ptr`, `patch-db-macro` (`macro/`), `patch-db-macro-internals` (`macro-internals/`), `patch-db-util` (`util/`).
 
-## Build & test (run from `shared-libs/crates/patch-db/`)
+## Build & test (run from the repo root)
 
-This crate is its own Cargo workspace, so build/test from its directory (not the repo root):
+The six Rust crates are members of the start-os root Cargo workspace:
 
 ```bash
-cargo build                  # all Rust crates
-cargo build --features debug # with tracing support
-cargo test                   # all Rust tests (core uses proptest)
-cargo test -p patch-db       # core crate only (also -p json-ptr / -p json-patch)
+cargo build -p patch-db                  # core crate (also -p json-patch / json-ptr / patch-db-macro / …)
+cargo build -p patch-db --features debug # with tracing support
+cargo test -p patch-db                   # core tests (uses proptest); also -p json-ptr / -p json-patch
 
-cd client && npm install && npm run build   # TypeScript client → dist/
-cd client && npm run check                  # type-check only
+cd shared-libs/crates/patch-db/client && npm install && npm run build   # TypeScript client → dist/
+cd shared-libs/crates/patch-db/client && npm run check                  # type-check only
 ```
 
 The web workspace consumes the built TS client; the monorepo's root `build/common.mk` builds `client/dist` as a prerequisite of the UIs.

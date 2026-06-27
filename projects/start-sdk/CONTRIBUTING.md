@@ -16,8 +16,6 @@ This sub-tree's docs:
 
 The developer-facing reference is the packaging mdbook in `docs/` (published at [docs.start9.com/packaging](https://docs.start9.com/packaging)).
 
-**These docs must be kept up to date.** When you change the SDK's structure, conventions, build process, or developer surface, update the relevant file(s) — including the packaging mdbook — in the same change. Do not defer.
-
 ## Prerequisites
 
 - **Node.js v22+** (via [nvm](https://github.com/nvm-sh/nvm) recommended)
@@ -214,15 +212,3 @@ Types in `base/lib/osBindings/` mirror Rust types from the monorepo's `shared-li
 - Place test files next to the code they test, or in the `test/` directory
 - Use the `.test.ts` extension
 - Tests run in Node.js with ts-jest — no browser environment
-
-## Commits / PRs
-
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
-
-```
-feat(sdk): add WebSocket health check
-fix(sdk): correct ExVer range parsing for pre-release versions
-test(sdk): add coverage for MultiHost port binding
-```
-
-See the root [CONTRIBUTING.md](../../CONTRIBUTING.md#commit-messages) for the full convention.

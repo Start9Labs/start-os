@@ -10,9 +10,6 @@ How to build, test, and change the `exver` crate.
 - CONTRIBUTING.md — this file: toolchain and workflow.
 - AGENTS.md — agent-facing rules and gotchas. `CLAUDE.md` is a one-line `@AGENTS.md` import.
 
-Keep these in sync with code changes. A change to the version/range format, the public API, or
-the wasm bindings should update the matching docs in the same PR.
-
 ## Prerequisites
 
 - Rust stable (the workspace toolchain) for the Rust library and tests.
@@ -52,9 +49,7 @@ cargo fmt
 `exver.d.ts` into the generated `pkg/` (gitignored). Run it only when intentionally cutting an
 npm release.
 
-## Commits / PRs
+## Making a change
 
-- Conventional commits (`feat:`, `fix:`, `chore:`, …); focused PRs.
 - If you change the version or range string format, update `src/grammar.pest` and the `FromStr`
   impls together, and update README.md/ARCHITECTURE.md to match.
-- Keep the docs above in sync with behavior changes.

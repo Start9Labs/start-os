@@ -12,9 +12,6 @@ This crate's docs split across four files:
 - `CONTRIBUTING.md` — this file; how to contribute.
 - `AGENTS.md` — AI/dev operating rules (`CLAUDE.md` is a one-line `@AGENTS.md` import; don't edit it).
 
-**Keep these in sync with the code.** If you change the API, the representations, the locking
-discipline, the feature set, or the consumer list, update the relevant doc(s) in the same change.
-
 ## Prerequisites
 
 - [Rust](https://rustup.rs) with a toolchain supporting **edition 2024** (`Cargo.toml` sets
@@ -43,6 +40,9 @@ The `intern_drop_race_does_not_deadlock` test runs a multi-threaded stress loop 
 a 30-second watchdog. If you touch the `TABLE` locking or `TableString::drop`, keep this test green —
 it is the guard against the self-deadlock described in [ARCHITECTURE.md](ARCHITECTURE.md).
 
+Behavior changes that affect `exver` or `imbl-value` (the only consumers) should be considered
+against those crates' use before merging.
+
 ## Formatting
 
 ```bash
@@ -50,10 +50,3 @@ cargo fmt -p yasi
 ```
 
 Stable rustfmt; no nightly required.
-
-## Commits / PRs
-
-- Conventional commits (`fix: …`, `feat: …`, `chore: …`).
-- Keep PRs focused; update the docs above in the same change.
-- Behavior changes that affect `exver` or `imbl-value` (the only consumers) should be considered
-  against those crates' use before merging.

@@ -15,8 +15,6 @@ covers what is specific to building, testing, and changing StartTunnel.
 - [`AGENTS.md`](AGENTS.md) — rules for AI agents working in this scope.
   `CLAUDE.md` is a one-line `@AGENTS.md` import.
 
-Keep these docs in sync with the changes you make.
-
 ## Prerequisites
 
 - Read [`AGENTS.md`](AGENTS.md) and [`ARCHITECTURE.md`](ARCHITECTURE.md).
@@ -73,18 +71,12 @@ it rather than reimplementing cross-platform.
 The crate version lives in `Cargo.toml` (marked with `# VERSION_BUMP`). Record
 notable changes in [`CHANGELOG.md`](CHANGELOG.md) following Keep a Changelog.
 
-## Commits / PRs
+## Making a change
 
-1. Branch off the latest default branch.
-2. Make focused commits with conventional messages (`feat:`, `fix:`, `chore:`,
-   `docs:`).
-3. If you change the db schema, add a numbered migration in
-   `shared-libs/crates/start-core/src/tunnel/migrations/` and register it in
-   `shared-libs/crates/start-core/src/tunnel/migrations/mod.rs`.
-4. If you change the API, regenerate TS bindings: `make ts-bindings`.
-5. **Update docs in the same change** if the behavior is user-facing (UI, CLI
-   flags/output, install flow, subnets/devices/forwarding). Docs live in
-   `docs/src/` and publish to `start9.com/start-tunnel/`. Add a `CHANGELOG.md`
-   entry under `## [Unreleased]`.
-6. Run `make format-check` and `make test-core` before pushing.
-7. Open a PR against the `start-os` repo.
+- If you change the db schema, add a numbered migration in
+  `shared-libs/crates/start-core/src/tunnel/migrations/` and register it in
+  `shared-libs/crates/start-core/src/tunnel/migrations/mod.rs`.
+- If you change the API, regenerate TS bindings: `make ts-bindings`.
+- For user-facing behavior (UI, CLI flags/output, install flow,
+  subnets/devices/forwarding), the docs live in `docs/src/` and publish to
+  `start9.com/start-tunnel/`. Add a `CHANGELOG.md` entry under `## [Unreleased]`.

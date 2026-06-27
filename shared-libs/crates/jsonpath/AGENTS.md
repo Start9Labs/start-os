@@ -1,13 +1,14 @@
 # AGENTS.md — jsonpath
 
-A JsonPath query engine for selecting, deleting, and transforming JSON values. It is a **vendored
-fork** of [freestrings/jsonpath](https://github.com/freestrings/jsonpath), living as a first-party
-crate in the start-os monorepo at `shared-libs/crates/jsonpath`. The Cargo package name is
+A JsonPath query engine for selecting, deleting, and transforming JSON values. It originated as a
+fork of [freestrings/jsonpath](https://github.com/freestrings/jsonpath) but has since **fully
+diverged** — it is maintained as first-party code in the start-os monorepo at
+`shared-libs/crates/jsonpath`, with no intent to sync back upstream. The Cargo package name is
 `jsonpath_lib` (it differs from the directory name `jsonpath`), so all cargo commands use
 `-p jsonpath_lib`. `CLAUDE.md` is a one-line `@AGENTS.md` import — don't edit it.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for how it's built and [CONTRIBUTING.md](CONTRIBUTING.md) for
-how to contribute. [README.md](README.md) is the upstream usage/API reference.
+how to contribute. [README.md](README.md) is the usage/API reference.
 
 ## Layout
 
@@ -27,10 +28,10 @@ how to contribute. [README.md](README.md) is the upstream usage/API reference.
   `value_walker.rs`, `mod.rs`.
 - `src/parser/` — **deprecated** legacy AST parser (`tokenizer.rs`, `path_reader.rs`, `mod.rs`),
   used only by the deprecated `compile()` and `Compiled`.
-- `src/ffi/mod.rs` — **deprecated** C FFI bindings (`ffi_select`, `ffi_path_compile`, …); upstream
-  moved these to `wasm/` in 0.5.x. Do not add new FFI here.
+- `src/ffi/mod.rs` — **deprecated** C FFI bindings (`ffi_select`, `ffi_path_compile`, …). Do not add
+  new FFI here.
 - `wasm/`, `benchmark/` — auxiliary build targets (separate Cargo manifests, own READMEs). `lua/`,
-  `docs/`, `*.sh` build scripts are upstream artifacts. Do not edit these from the main crate.
+  `docs/`, `*.sh` build scripts are inherited from the original project and unused by the Rust crate.
 - `tests/` — one integration-test crate (11 modules: `array_filter`, `common`, `filter`,
   `jsonpath_examples`, `lib`, `op`, `paths`, `precompile`, `readme`, `return_type`, `selector`).
 
@@ -47,11 +48,12 @@ cargo test  -p jsonpath_lib selector_delete   # a single test by name
 
 ## Gotchas
 
-- **Vendored fork.** Upstream is `freestrings/jsonpath`. Carry bug fixes from upstream rather than
-  diverging; the largest local change is the switch from `serde_json::Value` to `imbl_value::Value`.
+- **Diverged fork (history, not an ongoing concern).** It began as `freestrings/jsonpath` but has
+  fully diverged; there is no upstream to track or reconcile with — treat it as first-party and edit
+  freely. The largest divergence is operating on `imbl_value::Value` instead of `serde_json::Value`.
 - **Edition 2015.** `Cargo.toml` sets no `edition`, so it defaults to 2015 — old `extern crate`
   syntax, two-element `use {a, b}` paths, etc. Pre-existing warnings (unused imports, lifetime
-  elisions, unused fields) come from upstream and are not critical.
+  elisions, unused fields) predate the divergence and are not critical.
 - **Package name ≠ dir name.** The crate is `jsonpath_lib`; cargo `-p` flags must use that.
 - **`cdylib` + `rlib`.** The lib emits both crate types; the `cdylib` feeds the `wasm/` bindings.
   Changing public types may require rebuilding those bindings.

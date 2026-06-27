@@ -13,9 +13,6 @@ This crate's docs split across four files:
 - `CONTRIBUTING.md` — this file; how to contribute.
 - `AGENTS.md` — AI/dev operating rules (`CLAUDE.md` is a one-line `@AGENTS.md` import; don't edit it).
 
-**Keep these docs in sync with the code.** If you change the CLI surface, build process, or the
-sysfs interaction, update the relevant file(s) in the same change.
-
 ## Prerequisites
 
 - [Rust](https://rustup.rs) (stable) for host builds.
@@ -50,9 +47,3 @@ cargo +nightly fmt -p pi-beep
 ```
 
 The monorepo formats with nightly rustfmt; match it.
-
-## Commits / PRs
-
-- Conventional commits (`feat:`, `fix:`, `chore:`, `docs:`).
-- Keep PRs focused and keep the docs above in sync with any behavior change.
-- This is a small first-party tool, not a vendored fork — there is no upstream to track.

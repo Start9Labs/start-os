@@ -4,6 +4,8 @@ Agent/developer operating rules for the **start-os monorepo root**. This repo is
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the layout and [CONTRIBUTING.md](CONTRIBUTING.md) for the build/test/format workflow.
 
+**Keep these docs current.** Every scope carries `AGENTS.md` / `ARCHITECTURE.md` / `CONTRIBUTING.md` / `README.md` (with `CLAUDE.md` a one-line `@AGENTS.md` import). When a change alters structure, conventions, the build/test/release flow, or product context, update the matching doc(s) in the **same change** — never defer. These docs are **hierarchical**: a scope's docs cover only what is specific to that scope and must not repeat anything already stated at a higher scope (e.g. commit/PR conventions live only in this root `CONTRIBUTING.md`; a child links up to it rather than restating it).
+
 ## Layout
 
 Each product lives under `projects/` as a thin wrapper; the bulk of the code lives in the top-level shared libs (`shared-libs/`).

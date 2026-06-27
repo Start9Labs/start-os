@@ -62,7 +62,7 @@ start-os/                          # repo root (monorepo)
 
 ## Build pipeline
 
-One root Cargo workspace (members: the product bin crates + `shared-libs/crates/start-core`; `shared-libs/crates/patch-db` excluded) and one Angular workspace rooted at the repo root (shared libs under `shared-libs/ts-modules`). Cross-layer changes flow in one direction:
+One root Cargo workspace (members: the product bin crates + every shared crate under `shared-libs/crates/`, including `start-core` and the `patch-db` crates) and one Angular workspace rooted at the repo root (shared libs under `shared-libs/ts-modules`). Cross-layer changes flow in one direction:
 
 ```
 Rust (shared-libs/crates/start-core)

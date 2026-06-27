@@ -15,8 +15,9 @@ laid out and how a query flows through it. For usage and the full API surface, s
 - **Consumers:** `start-core` (`shared-libs/crates/start-core`) uses `jsonpath_lib::Compiled` in
   `src/config/hook.rs` for configuration-hook processing.
 - **First-party.** A direct path dependency (`jsonpath_lib = { path = "../jsonpath" }` in
-  start-core's `Cargo.toml`) — no `[patch]`, no crates.io pull. It is a vendored fork of
-  [freestrings/jsonpath](https://github.com/freestrings/jsonpath).
+  start-core's `Cargo.toml`) — no `[patch]`, no crates.io pull. It originated as a fork of
+  [freestrings/jsonpath](https://github.com/freestrings/jsonpath) and has since fully diverged; it is
+  maintained as first-party code with no upstream sync.
 - **Dependencies:** `imbl-value` (sibling crate; supplies the immutable `Value`/`Vector` types this
   engine operates on), `serde` / `serde_json`, and `log`.
 
@@ -67,7 +68,7 @@ examples.
 
 ## Further reading
 
-- [README.md](README.md) — usage and API examples (Rust, plus the upstream JS/WASM bindings).
-- [CONTRIBUTING.md](CONTRIBUTING.md) — toolchain, build/test/format, fork-tracking expectations.
+- [README.md](README.md) — usage and API examples (Rust, plus the JS/WASM bindings inherited from the original project).
+- [CONTRIBUTING.md](CONTRIBUTING.md) — toolchain, build/test/format, conventions.
 - [AGENTS.md](AGENTS.md) — agent operating rules and layout map.
 - Sibling: [`imbl-value`](../imbl-value) — the value types this engine queries.
