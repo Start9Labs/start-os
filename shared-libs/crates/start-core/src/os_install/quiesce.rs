@@ -48,28 +48,6 @@ async fn canonical(path: &Path) -> PathBuf {
         .unwrap_or_else(|_| path.to_path_buf())
 }
 
-/// Block device backing the running live/install medium. Ventoy exposes the
-/// booted ISO as a device-mapper device (`/dev/mapper/ventoy`); teardown must
-/// never touch it or the OS we're running from disappears mid-install. Returns
-/// `None` when there's no such mount (a directly-written USB boots off a plain
-/// loop/partition that isn't a teardown target anyway).
-async fn live_medium_device() -> Option<PathBuf> {
-    let out = Command::new("findmnt")
-        .arg("-n")
-        .arg("-o")
-        .arg("SOURCE")
-        .arg("/run/live/medium")
-        .invoke(ErrorKind::Filesystem)
-        .await
-        .ok()?;
-    let src = String::from_utf8(out).ok()?;
-    let src = src.trim().split('[').next().unwrap_or("").trim();
-    if src.is_empty() {
-        return None;
-    }
-    Some(canonical(Path::new(src)).await)
-}
-
 /// Direct holders of `dev` (`/sys/class/block/<dev>/holders/*`) as `/dev/<name>`.
 async fn holders_of(dev: &Path) -> Vec<PathBuf> {
     let Some(name) = dev.file_name() else {
@@ -99,23 +77,18 @@ async fn dm_name(dev: &Path) -> Option<String> {
 
 /// Every device-mapper device stacked on `partitions`, ordered top-of-stack
 /// first (deepest holder first) so `dmsetup remove` never hits a still-held
-/// parent. Walks the holder graph in sysfs; anything in `exclude` (and devices
-/// reached only through it) is skipped.
-async fn stacked_dm_devices(partitions: &[PathBuf], exclude: &BTreeSet<PathBuf>) -> Vec<PathBuf> {
+/// parent. Walks the holder graph in sysfs, so it only ever returns devices
+/// that actually build on the target disk — a live boot medium on another disk
+/// (e.g. a Ventoy `/dev/mapper` device) is never reached, and so never removed.
+async fn stacked_dm_devices(partitions: &[PathBuf]) -> Vec<PathBuf> {
     let mut depth: BTreeMap<PathBuf, usize> = BTreeMap::new();
     let mut frontier: Vec<PathBuf> = partitions.to_vec();
     let mut d = 0usize;
     while !frontier.is_empty() && d < 64 {
         let mut next = Vec::new();
         for dev in &frontier {
-            if exclude.contains(&canonical(dev).await) {
-                continue;
-            }
             for holder in holders_of(dev).await {
                 let ch = canonical(&holder).await;
-                if exclude.contains(&ch) {
-                    continue;
-                }
                 let slot = depth.entry(ch.clone()).or_insert(0);
                 *slot = (*slot).max(d + 1);
                 next.push(ch);
@@ -153,18 +126,14 @@ async fn target_vgs(target_devs: &BTreeSet<PathBuf>) -> Vec<String> {
 /// cache) on `disk_path` **and only `disk_path`**. Every step is scoped to the
 /// target disk's own partitions and the devices stacked on them, so a live boot
 /// medium on another disk — notably a Ventoy `/dev/mapper` device the running OS
-/// reads from — is never torn down. Doesn't touch on-disk bytes, so `protect`ed
+/// reads from — is never torn down (it doesn't build on the target disk, so it
+/// never enters any of these sets). Doesn't touch on-disk bytes, so `protect`ed
 /// partitions stay intact. Failures are logged and ignored — the subsequent
 /// `partx --update` is the source of truth.
 pub async fn quiesce_disk(disk_path: &Path) -> Result<(), Error> {
     let partitions = list_partitions(disk_path).await?;
 
-    let mut exclude = BTreeSet::new();
-    if let Some(medium) = live_medium_device().await {
-        exclude.insert(medium);
-    }
-
-    let dm_devices = stacked_dm_devices(&partitions, &exclude).await;
+    let dm_devices = stacked_dm_devices(&partitions).await;
 
     // Canonical set of every block device that belongs to the target disk.
     let mut target_devs: BTreeSet<PathBuf> = BTreeSet::new();
@@ -234,7 +203,7 @@ pub async fn quiesce_disk(disk_path: &Path) -> Result<(), Error> {
     }
 
     // Drop btrfs scan cache for the target's partitions only, so a later mount
-    // doesn't race with a pending re-scan — without forgetting the live medium.
+    // doesn't race with a pending re-scan.
     for part in &partitions {
         if let Err(e) = Command::new("btrfs")
             .arg("device")
