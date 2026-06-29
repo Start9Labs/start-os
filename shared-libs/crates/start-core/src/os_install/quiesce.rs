@@ -41,9 +41,10 @@ pub async fn list_partitions(disk_path: &Path) -> Result<Vec<PathBuf>, Error> {
     Ok(out)
 }
 
-/// Canonical `/dev` node for `path`, falling back to the input on error.
+/// Canonical `/dev` node for `path`, falling back to the input on error so it
+/// stays usable as a set key even for an unresolvable device.
 async fn canonical(path: &Path) -> PathBuf {
-    tokio::fs::canonicalize(path)
+    crate::util::io::canonicalize(path, false)
         .await
         .unwrap_or_else(|_| path.to_path_buf())
 }
