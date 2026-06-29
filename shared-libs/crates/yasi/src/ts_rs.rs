@@ -28,6 +28,7 @@ mod test {
 
     #[derive(TS)]
     struct HasString {
+        #[allow(dead_code)]
         s: InternedString,
     }
 

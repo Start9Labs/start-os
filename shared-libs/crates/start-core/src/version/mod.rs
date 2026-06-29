@@ -562,6 +562,8 @@ unsafe impl Send for DynVersion {}
 trait DynVersionT: RefUnwindSafe + Send + Sync {
     fn previous(&self) -> DynVersion;
     fn semver(&self) -> exver::Version;
+    // part of the DynVersionT surface; kept intentionally though not dynamically dispatched
+    #[allow(dead_code)]
     fn compat(&self) -> &'static exver::VersionRange;
     fn pre_up(&self) -> BoxFuture<'static, Result<Box<dyn Any + UnwindSafe + Send>, Error>>;
     fn up(&self, db: &mut Value, input: Box<dyn Any + Send>) -> Result<Value, Error>;
@@ -637,7 +639,7 @@ impl DynVersionT for DynVersion {
 }
 
 #[derive(Debug, Clone)]
-struct LTWrapper<T>(T, exver::Version);
+struct LTWrapper<T>(T, #[allow(dead_code)] exver::Version);
 impl<T> serde::Serialize for LTWrapper<T>
 where
     T: VersionT,
