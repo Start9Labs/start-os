@@ -18,9 +18,12 @@ use ts_rs::TS;
 
 use crate::prelude::*;
 
-/// OS CSPRNG as an infallible rand_core 0.10 source — the form ed25519-dalek and
-/// ssh-key key generation expect (`SysRng` is fallible; `UnwrapErr` panics on the
-/// effectively-never OS RNG failure, matching the old `OsRng` behavior).
+/// Infallible OS CSPRNG for ed25519-dalek / ssh-key key generation, which require a
+/// `rand_core` 0.10 `CryptoRng` (i.e. infallible). `rand::rng()` does not qualify:
+/// our `rand` is 0.9 (a different `rand_core`, so its `ThreadRng` doesn't implement
+/// the bound at all), and even on `rand` 0.10 `ThreadRng` is only `TryCryptoRng`
+/// (fallible). `UnwrapErr(SysRng)` is the OS source made infallible — it panics only
+/// on the effectively-never OS RNG failure, as the old `OsRng` did.
 pub fn os_rng() -> getrandom::rand_core::UnwrapErr<getrandom::SysRng> {
     getrandom::rand_core::UnwrapErr(getrandom::SysRng)
 }
