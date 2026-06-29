@@ -217,17 +217,10 @@ async fn control(
     handle_control(&ctx, peer, &headers, &body).await
 }
 
-pub(super) async fn apply_peer_forward(
-    ctx: &TunnelContext,
-    source: SocketAddrV4,
-    target: SocketAddrV4,
-) -> Result<(), u16> {
-    apply_peer_forward_range(ctx, source, target, 1, "UPnP").await
-}
-
-/// Like [`apply_peer_forward`] but forwards `count` contiguous ports (a PCP
-/// PORT_SET range). `protocol_label` is the DB label (e.g. "UPnP", "PCP"); the
-/// requesting device is already shown by the forward's target.
+/// Installs (or re-asserts) a forward of `count` contiguous ports (a PCP
+/// PORT_SET range) from `source` to `target`. `protocol_label` is the DB label
+/// (e.g. "UPnP", "PCP"); the requesting device is already shown by the forward's
+/// target.
 pub(super) async fn apply_peer_forward_range(
     ctx: &TunnelContext,
     source: SocketAddrV4,

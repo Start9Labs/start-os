@@ -223,7 +223,6 @@ impl<'a> Tokenizer<'a> {
 pub(super) struct TokenReader<'a> {
     tokenizer: Tokenizer<'a>,
     curr_pos: usize,
-    err: Option<TokenError>,
     peeked: Option<Result<Token, TokenError>>,
 }
 
@@ -232,7 +231,6 @@ impl<'a> TokenReader<'a> {
         TokenReader {
             tokenizer: Tokenizer::new(input),
             curr_pos: 0,
-            err: None,
             peeked: None,
         }
     }

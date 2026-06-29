@@ -43,7 +43,7 @@ pub struct NetController {
     pub(super) dns_update: DnsUpdateController,
     pub(super) forward: InterfacePortForwardController,
     pub(crate) port_map: PortMapController,
-    pub(super) socks: SocksController,
+    pub(super) _socks: SocksController,
     pub(crate) callbacks: Arc<ServiceCallbacks>,
 }
 
@@ -120,7 +120,7 @@ impl NetController {
             ),
             port_map,
             net_iface,
-            socks,
+            _socks: socks,
             callbacks: Arc::new(ServiceCallbacks::default()),
         })
     }

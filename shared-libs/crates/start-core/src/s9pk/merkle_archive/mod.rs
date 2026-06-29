@@ -31,7 +31,12 @@ pub mod write_queue;
 
 #[derive(Debug, Clone)]
 enum Signer {
-    Signed(VerifyingKey, Signature, u64, InternedString),
+    Signed(
+        VerifyingKey,
+        Signature,
+        u64,
+        #[allow(dead_code)] InternedString,
+    ),
     Signer(SigningKey, InternedString),
 }
 
