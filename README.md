@@ -1,6 +1,6 @@
 <div align="center">
   <img src="shared-libs/ts-modules/shared/assets/img/icon.png" alt="StartOS Logo" width="16%" />
-  <h1 style="margin-top: 0;">Start9 Technologies</h1>
+  <h1 style="margin-top: 0;">Start Technologies</h1>
   <a href="https://github.com/Start9Labs/start-technologies/releases">
     <img alt="GitHub release (with filter)" src="https://img.shields.io/github/v/release/start9labs/start-technologies?logo=github">
   </a>
