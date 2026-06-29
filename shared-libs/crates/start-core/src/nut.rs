@@ -16,6 +16,16 @@ const NUT_ETC_DIR: &str = "/etc/nut";
 const NUT_OVERLAY_DIR: &str = "/media/startos/config/overlay/etc/nut";
 const NUT_PORT: u16 = 3493;
 
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct NutConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub settings: Option<NutSettings>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, TS)]
 #[serde(
     tag = "mode",
@@ -23,8 +33,7 @@ const NUT_PORT: u16 = 3493;
     rename_all_fields = "camelCase"
 )]
 #[ts(export)]
-pub enum NutConfig {
-    Disabled,
+pub enum NutSettings {
     Server {
         ups_name: String,
         driver: String,
@@ -51,11 +60,6 @@ pub enum NutConfig {
         shutdown_delay: u16,
     },
 }
-impl Default for NutConfig {
-    fn default() -> Self {
-        Self::Disabled
-    }
-}
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -81,6 +85,12 @@ const fn default_shutdown_delay() -> u16 {
 }
 
 pub async fn set_nut(ctx: RpcContext, SetNutParams { config }: SetNutParams) -> Result<(), Error> {
+    if config.enabled && config.settings.is_none() {
+        return Err(Error::new(
+            eyre!("{}", t!("nut.enabled-without-settings")),
+            ErrorKind::InvalidRequest,
+        ));
+    }
     sync_nut(config.clone()).await?;
     ctx.db
         .mutate(|db| {
@@ -97,7 +107,7 @@ pub async fn clear_nut(ctx: RpcContext, _: Empty) -> Result<(), Error> {
     set_nut(
         ctx,
         SetNutParams {
-            config: NutConfig::Disabled,
+            config: NutConfig::default(),
         },
     )
     .await
@@ -119,15 +129,31 @@ pub async fn get_nut_status(ctx: RpcContext, _: Empty) -> Result<NutStatus, Erro
 
 pub async fn sync_nut(config: NutConfig) -> Result<(), Error> {
     match config {
-        NutConfig::Disabled => {
-            write_nut_file("nut.conf", "MODE=none\n", 0o644).await?;
-            delete_nut_file("ups.conf").await?;
-            delete_nut_file("upsd.conf").await?;
-            delete_nut_file("upsd.users").await?;
-            delete_nut_file("upsmon.conf").await?;
-            stop_disable(&["nut-monitor.service", "nut-server.service", "nut-driver.target"]).await
-        }
-        NutConfig::Server {
+        NutConfig {
+            enabled: true,
+            settings: Some(settings),
+        } => apply_nut(settings).await,
+        _ => disable_nut().await,
+    }
+}
+
+async fn disable_nut() -> Result<(), Error> {
+    write_nut_file("nut.conf", "MODE=none\n", 0o644).await?;
+    delete_nut_file("ups.conf").await?;
+    delete_nut_file("upsd.conf").await?;
+    delete_nut_file("upsd.users").await?;
+    delete_nut_file("upsmon.conf").await?;
+    stop_disable(&[
+        "nut-monitor.service",
+        "nut-server.service",
+        "nut-driver.target",
+    ])
+    .await
+}
+
+async fn apply_nut(settings: NutSettings) -> Result<(), Error> {
+    match settings {
+        NutSettings::Server {
             ups_name,
             driver,
             port,
@@ -201,7 +227,7 @@ pub async fn sync_nut(config: NutConfig) -> Result<(), Error> {
             ])
             .await
         }
-        NutConfig::Client {
+        NutSettings::Client {
             ups_name,
             host,
             port,
@@ -241,12 +267,8 @@ pub async fn sync_nut(config: NutConfig) -> Result<(), Error> {
 }
 
 async fn nut_status(config: NutConfig) -> Result<NutStatus, Error> {
-    let target = upsc_target(&config).ok_or_else(|| {
-        Error::new(
-            eyre!("{}", t!("nut.disabled")),
-            ErrorKind::InvalidRequest,
-        )
-    })?;
+    let target = upsc_target(&config)
+        .ok_or_else(|| Error::new(eyre!("{}", t!("nut.disabled")), ErrorKind::InvalidRequest))?;
 
     let target_for_ctx = target.clone();
     let output = Command::new("upsc")
@@ -287,10 +309,12 @@ async fn nut_status(config: NutConfig) -> Result<NutStatus, Error> {
 }
 
 fn upsc_target(config: &NutConfig) -> Option<String> {
-    match config {
-        NutConfig::Disabled => None,
-        NutConfig::Server { ups_name, .. } => Some(format!("{ups_name}@localhost:{NUT_PORT}")),
-        NutConfig::Client {
+    if !config.enabled {
+        return None;
+    }
+    match config.settings.as_ref()? {
+        NutSettings::Server { ups_name, .. } => Some(format!("{ups_name}@localhost:{NUT_PORT}")),
+        NutSettings::Client {
             ups_name,
             host,
             port,

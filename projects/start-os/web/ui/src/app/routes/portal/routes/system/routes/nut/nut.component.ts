@@ -34,34 +34,44 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 
+type ServerValue = {
+  upsName: string
+  driver: string
+  port: string
+  monitorUsername: string
+  monitorPassword: string | null
+  listenAll: boolean
+  remoteUsername: string | null
+  remotePassword: string | null
+  shutdownDelay: number
+}
+
+type ClientValue = {
+  upsName: string
+  host: string
+  port: number
+  monitorUsername: string
+  monitorPassword: string | null
+  shutdownDelay: number
+}
+
 type NutForm = {
-  config:
-    | { selection: 'disabled'; value: Record<string, never> }
-    | {
-        selection: 'server'
-        value: {
-          upsName: string
-          driver: string
-          port: string
-          monitorUsername: string
-          monitorPassword: string | null
-          listenAll: boolean
-          remoteUsername: string | null
-          remotePassword: string | null
-          shutdownDelay: number
-        }
-      }
-    | {
-        selection: 'client'
-        value: {
-          upsName: string
-          host: string
-          port: number
-          monitorUsername: string
-          monitorPassword: string | null
-          shutdownDelay: number
-        }
-      }
+  enabled: boolean
+  settings:
+    | { selection: 'server'; value: ServerValue }
+    | { selection: 'client'; value: ClientValue }
+}
+
+const DEFAULT_SERVER: ServerValue = {
+  upsName: 'ups',
+  driver: 'usbhid-ups',
+  port: 'auto',
+  monitorUsername: 'monuser',
+  monitorPassword: null,
+  listenAll: false,
+  remoteUsername: null,
+  remotePassword: null,
+  shutdownDelay: 5,
 }
 
 @Component({
@@ -109,7 +119,7 @@ type NutForm = {
         </footer>
       </form>
 
-      @if (data.config.mode !== 'disabled') {
+      @if (data.config.enabled && data.config.settings) {
         <section class="status-section">
           <header tuiHeader="body-l">
             <h3 tuiTitle>
@@ -273,7 +283,8 @@ export default class SystemNutComponent {
   readonly data = toSignal(
     this.patch.watch$('serverInfo', 'nut').pipe(
       switchMap(async config => {
-        const savedConfig = config ?? ({ mode: 'disabled' } as T.NutConfig)
+        const savedConfig =
+          config ?? ({ enabled: false, settings: null } as T.NutConfig)
         const spec = await configBuilderToSpec(this.nutSpec())
         const formData = this.toNutForm(savedConfig)
         const form = this.formService.createForm(spec, formData)
@@ -291,25 +302,26 @@ export default class SystemNutComponent {
         this.status.set(null)
         this.statusError.set(null)
 
-        if (config?.mode !== 'disabled') {
+        if (config?.enabled && config.settings) {
           void this.refreshStatus(false, config)
         }
       })
   }
 
   target(config: T.NutConfig): string {
-    switch (config.mode) {
+    if (!config.enabled || !config.settings) {
+      return ''
+    }
+    switch (config.settings.mode) {
       case 'server':
-        return `${config.upsName}@localhost:3493`
+        return `${config.settings.upsName}@localhost:3493`
       case 'client':
-        return `${config.upsName}@${config.host}:${config.port}`
-      default:
-        return ''
+        return `${config.settings.upsName}@${config.settings.host}:${config.settings.port}`
     }
   }
 
   async refreshStatus(notifyOnError: boolean, config = this.data()?.config) {
-    if (!config || config.mode === 'disabled') {
+    if (!config || !config.enabled || !config.settings) {
       this.status.set(null)
       this.statusError.set(null)
       return
@@ -348,7 +360,7 @@ export default class SystemNutComponent {
     try {
       await this.api.setNut({ config })
 
-      if (config.mode === 'disabled') {
+      if (!config.enabled) {
         this.status.set(null)
         this.statusError.set(null)
       } else {
@@ -383,17 +395,17 @@ export default class SystemNutComponent {
 
   private nutSpec() {
     return ISB.InputSpec.of({
-      config: ISB.Value.union({
-        name: this.i18n.transform('Mode'),
-        default: 'disabled',
+      enabled: ISB.Value.toggle({
+        name: this.i18n.transform('Enabled'),
+        default: false,
         description: this.i18n.transform(
-          'NUT shuts down StartOS when the UPS battery is low.',
+          'NUT shuts down StartOS when the UPS battery is low. Disabling keeps your configuration but stops monitoring.',
         ),
+      }),
+      settings: ISB.Value.union({
+        name: this.i18n.transform('Mode'),
+        default: 'server',
         variants: ISB.Variants.of({
-          disabled: {
-            name: this.i18n.transform('Disabled'),
-            spec: ISB.InputSpec.of({}),
-          },
           server: {
             name: this.i18n.transform('Direct UPS'),
             spec: ISB.InputSpec.of({
@@ -506,49 +518,46 @@ export default class SystemNutComponent {
   }
 
   private toNutForm(config: T.NutConfig): NutForm {
-    switch (config.mode) {
-      case 'server':
-        return {
-          config: {
-            selection: 'server',
-            value: config,
-          },
-        }
+    return {
+      enabled: config.enabled,
+      settings: this.toSettingsForm(config.settings),
+    }
+  }
+
+  private toSettingsForm(settings: T.NutSettings | null): NutForm['settings'] {
+    switch (settings?.mode) {
       case 'client':
-        return {
-          config: {
-            selection: 'client',
-            value: config,
-          },
-        }
+        return { selection: 'client', value: settings }
+      case 'server':
+        return { selection: 'server', value: settings }
       default:
-        return {
-          config: {
-            selection: 'disabled',
-            value: {},
-          },
-        }
+        return { selection: 'server', value: DEFAULT_SERVER }
     }
   }
 
   private toNutConfig(value: NutForm): T.NutConfig {
-    switch (value.config.selection) {
-      case 'server':
-        return {
-          mode: 'server',
-          ...value.config.value,
-          monitorPassword: value.config.value.monitorPassword || '',
-          remoteUsername: value.config.value.remoteUsername || null,
-          remotePassword: value.config.value.remotePassword || null,
-        }
+    return {
+      enabled: value.enabled,
+      settings: this.toNutSettings(value.settings),
+    }
+  }
+
+  private toNutSettings(settings: NutForm['settings']): T.NutSettings {
+    switch (settings.selection) {
       case 'client':
         return {
           mode: 'client',
-          ...value.config.value,
-          monitorPassword: value.config.value.monitorPassword || '',
+          ...settings.value,
+          monitorPassword: settings.value.monitorPassword || '',
         }
-      default:
-        return { mode: 'disabled' }
+      case 'server':
+        return {
+          mode: 'server',
+          ...settings.value,
+          monitorPassword: settings.value.monitorPassword || '',
+          remoteUsername: settings.value.remoteUsername || null,
+          remotePassword: settings.value.remotePassword || null,
+        }
     }
   }
 }

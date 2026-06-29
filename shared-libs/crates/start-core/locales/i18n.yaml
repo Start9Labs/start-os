@@ -1580,6 +1580,13 @@ nut.disabled:
   fr_FR: "Network UPS Tools est désactivé"
   pl_PL: "Network UPS Tools jest wyłączony"
 
+nut.enabled-without-settings:
+  en_US: "Network UPS Tools cannot be enabled without configuration"
+  de_DE: "Network UPS Tools kann nicht ohne Konfiguration aktiviert werden"
+  es_ES: "Network UPS Tools no puede activarse sin configuración"
+  fr_FR: "Network UPS Tools ne peut pas être activé sans configuration"
+  pl_PL: "Nie można włączyć Network UPS Tools bez konfiguracji"
+
 nut.status-command-failed:
   en_US: "NUT status command failed for %{target}: %{error}"
   de_DE: "NUT-Statusbefehl für %{target} fehlgeschlagen: %{error}"
