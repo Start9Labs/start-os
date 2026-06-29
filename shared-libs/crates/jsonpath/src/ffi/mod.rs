@@ -30,14 +30,11 @@ pub extern "C" fn ffi_select(json_str: *const c_char, path: *const c_char) -> *c
 }
 
 #[no_mangle]
-#[allow(clippy::forget_copy)]
 pub extern "C" fn ffi_path_compile(path: *const c_char) -> *mut c_void {
     let path = to_str(path, INVALID_PATH);
     #[allow(deprecated)]
     let ref_node = Box::into_raw(Box::new(parser::Parser::compile(path).unwrap()));
-    let ptr = ref_node as *mut c_void;
-    std::mem::forget(ref_node);
-    ptr
+    ref_node as *mut c_void
 }
 
 #[no_mangle]

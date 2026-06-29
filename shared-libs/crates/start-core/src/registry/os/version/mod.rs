@@ -198,7 +198,7 @@ pub async fn get_version(
         }
     }
     let target = target.unwrap_or(VersionRange::Any);
-    let mut res = to_value::<BTreeMap<Version, OsVersionInfo>>(
+    let res = to_value::<BTreeMap<Version, OsVersionInfo>>(
         &ctx.db
             .peek()
             .await

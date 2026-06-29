@@ -684,7 +684,7 @@ impl Service {
         if let Some(mut finalization_progress) = service.seed.init_phase.replace(None) {
             finalization_progress.complete();
         }
-        if let Some(mut overall_progress) = overall_progress {
+        if let Some(overall_progress) = overall_progress {
             overall_progress.complete();
             tokio::task::yield_now().await;
         }

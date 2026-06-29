@@ -90,6 +90,7 @@ impl SignatureScheme for AnyScheme {
             (Self::Ed25519(s), AnySigningKey::Ed25519(key), AnyDigest::Sha512(digest)) => {
                 Ok(AnySignature::Ed25519(s.sign(key, digest, context)?))
             }
+            #[allow(unreachable_patterns)]
             _ => Err(Error::new(
                 eyre!("mismatched signature algorithm"),
                 ErrorKind::InvalidSignature,
@@ -110,6 +111,7 @@ impl SignatureScheme for AnyScheme {
                 AnyDigest::Sha512(digest),
                 AnySignature::Ed25519(signature),
             ) => s.verify(key, digest, context, signature),
+            #[allow(unreachable_patterns)]
             _ => Err(Error::new(
                 eyre!("mismatched signature algorithm"),
                 ErrorKind::InvalidSignature,
