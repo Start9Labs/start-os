@@ -2,7 +2,7 @@
 
 This guide covers developing the SDK itself. If you're building a service package *using* the SDK, see the [packaging docs](https://docs.start9.com/packaging).
 
-The SDK lives at `projects/start-sdk/` inside the [start-os monorepo](../../README.md). For contributing to the broader StartOS project, see the root [CONTRIBUTING.md](../../CONTRIBUTING.md) and root [AGENTS.md](../../AGENTS.md).
+The SDK lives at `projects/start-sdk/` inside the [start-technologies monorepo](../../README.md). For contributing to the broader StartOS project, see the root [CONTRIBUTING.md](../../CONTRIBUTING.md) and root [AGENTS.md](../../AGENTS.md).
 
 ## Documentation
 

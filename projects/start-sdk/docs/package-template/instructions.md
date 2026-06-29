@@ -2,7 +2,7 @@
 
 <!--
 TODO: Write user-facing instructions per the packaging guide:
-  start-docs/packaging/src/writing-instructions.md
+  start-technologies/projects/start-sdk/docs/src/writing-instructions.md
 
 This is shown on the Instructions tab in StartOS, for the person running the service —
 not for developers. Start from "I just installed this — now what?", reference real

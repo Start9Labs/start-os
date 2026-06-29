@@ -17,7 +17,7 @@ and`Javascript` too.
 
 ## Place in the monorepo
 
-This is a **first-party crate** in the start-os monorepo. It originated as a fork of
+This is a **first-party crate** in the start-technologies monorepo. It originated as a fork of
 [freestrings/jsonpath](https://github.com/freestrings/jsonpath) and has since fully diverged — it is
 maintained here as first-party code, with no intent to sync back upstream.
 

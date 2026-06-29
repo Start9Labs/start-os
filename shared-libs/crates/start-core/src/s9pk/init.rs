@@ -35,16 +35,21 @@ registry:
 "#;
 
 /// Default source for the packaging guide (which also carries the package
-/// template). Re-point the `start-docs` remote afterward to track a fork; the
-/// session-start sync follows whatever remote is configured.
-const START_DOCS_URL: &str = "https://github.com/Start9Labs/start-docs.git";
-/// Workspace-relative path to the cloned guide.
-const START_DOCS_DIR: &str = "start-docs";
+/// template). The guide lives in the start-technologies monorepo; the clone is
+/// sparse (see GUIDE_SUBPATH) so packagers don't pull the whole repo. Re-point the
+/// `start-technologies` remote afterward to track a fork; the session-start sync
+/// follows whatever remote is configured.
+const MONOREPO_URL: &str = "https://github.com/Start9Labs/start-technologies.git";
+/// Workspace-relative path to the sparse monorepo checkout that carries the guide.
+const MONOREPO_DIR: &str = "start-technologies";
+/// Monorepo subtree holding the packaging guide + package template; the clone is
+/// sparse-checked-out to just this path.
+const GUIDE_SUBPATH: &str = "projects/start-sdk/docs";
 /// Symlink target for the workspace `AGENTS.md` — the guide's canonical copy, so
 /// a sync keeps the workspace context current with no extra step.
-const AGENTS_SYMLINK_TARGET: &str = "start-docs/packaging/AGENTS.md";
-/// Path to the package template inside the cloned guide.
-const TEMPLATE_SUBPATH: &str = "packaging/package-template";
+const AGENTS_SYMLINK_TARGET: &str = "start-technologies/projects/start-sdk/docs/AGENTS.md";
+/// Path to the package template inside the cloned guide (joined onto MONOREPO_DIR).
+const TEMPLATE_SUBPATH: &str = "projects/start-sdk/docs/package-template";
 
 /// Claude Code does not auto-read `AGENTS.md`, so the workspace `CLAUDE.md`
 /// imports both it and the user's local prefs.
@@ -55,7 +60,7 @@ const AGENTS_LOCAL_STUB: &str = r#"# AGENTS.local.md — your workspace preferen
 
 <!--
 Notes and preferences for AI assistants working in this workspace. This file is yours;
-syncing start-docs never overwrites it. Put anything you want always in scope here — the
+syncing the guide never overwrites it. Put anything you want always in scope here — the
 registry you publish to, the packages you're focused on, local conventions, and so on.
 -->
 "#;
@@ -104,18 +109,38 @@ pub async fn init_workspace(
     }
 
     // Provision the guide. Clone only when absent — refreshing is the session-start
-    // sync's job, not this command's, so an existing checkout is left untouched.
-    let docs = root.join(START_DOCS_DIR);
+    // sync's job, not this command's, so an existing checkout is left untouched. A
+    // blobless, sparse, depth-1 clone fetches only GUIDE_SUBPATH, not the whole monorepo.
+    let docs = root.join(MONOREPO_DIR);
     if !docs.exists() {
-        eprintln!("{}", t!("s9pk.init.cloning-start-docs"));
+        eprintln!("{}", t!("s9pk.init.cloning-guide"));
         Command::new("git")
             .arg("clone")
+            .arg("--filter=blob:none")
+            .arg("--no-checkout")
             .arg("--depth")
             .arg("1")
             .arg("--branch")
             .arg("master")
-            .arg(START_DOCS_URL)
+            .arg(MONOREPO_URL)
             .arg(&docs)
+            .capture(false)
+            .invoke(ErrorKind::Git)
+            .await?;
+        Command::new("git")
+            .arg("-C")
+            .arg(&docs)
+            .arg("sparse-checkout")
+            .arg("set")
+            .arg("--no-cone")
+            .arg(GUIDE_SUBPATH)
+            .capture(false)
+            .invoke(ErrorKind::Git)
+            .await?;
+        Command::new("git")
+            .arg("-C")
+            .arg(&docs)
+            .arg("checkout")
             .capture(false)
             .invoke(ErrorKind::Git)
             .await?;
@@ -205,7 +230,7 @@ pub async fn init_package(
         ));
     }
 
-    let template = root.join(START_DOCS_DIR).join(TEMPLATE_SUBPATH);
+    let template = root.join(MONOREPO_DIR).join(TEMPLATE_SUBPATH);
     if !template.exists() {
         return Err(Error::new(
             eyre!(

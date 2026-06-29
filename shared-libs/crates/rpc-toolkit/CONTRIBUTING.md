@@ -1,6 +1,6 @@
 # Contributing to rpc-toolkit
 
-How to build, test, and change `rpc-toolkit`, a first-party crate in the start-os monorepo.
+How to build, test, and change `rpc-toolkit`, a first-party crate in the start-technologies monorepo.
 
 ## Documentation
 

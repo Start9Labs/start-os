@@ -53,6 +53,12 @@ When you can't verify something, surface it as an open question or a `TODO.md` i
 
 Before concluding the SDK can't do what you need — or working around a limitation you've assumed — grep the installed type definitions: `node_modules/@start9labs/start-sdk/**/*.d.ts`. The SDK exposes far more than the recipes show, and the option you want is often a field on a type you're already using (this is how `runAsInit` is found, for example). "The SDK doesn't support X" is a claim to verify in the types, not a conclusion to reach from the docs alone. If it genuinely isn't there, say so and explain the workaround — don't silently route around a capability that exists.
 
+## Read the monorepo source only when the guide can't answer
+
+Your workspace's `start-technologies/` is a sparse checkout of the Start9 monorepo, so the full **SDK source** (`projects/start-sdk/lib`) and **StartOS source** (`projects/start-os`, and the shared core in `shared-libs/`) are there when you need them — past the recipes, reference pages, real packages, and the installed `@start9labs/start-sdk` types.
+
+This is a **last resort, not a starting point.** Drop into the source only to answer a specific question those layers can't — exactly what an SDK call does, how an OS effect behaves — and read the one file that settles it instead of browsing. Fetch a path that isn't checked out with `git -C start-technologies sparse-checkout add <path>`.
+
 ## Don't create unnecessary version files
 
 Most version bumps edit `startos/versions/current.ts` in place — change the `version` and `releaseNotes`, leave `index.ts` and the filename alone. A new file is only spun off when the bump carries a migration. See [Versions — When to Create a New Version File](./versions.md#when-to-create-a-new-version-file) for the rule, and [Release Notes](./versions.md#release-notes) for how to write the notes that accompany a bump.

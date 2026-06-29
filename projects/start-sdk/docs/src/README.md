@@ -8,10 +8,7 @@ Through the StartOS web interface, users can discover, download, install, config
 
 StartOS service packaging is designed to be done with an AI coding agent. This guide, the SDK, and every existing package are structured so that an AI assistant can read the docs, study real packages, and write or modify package code with minimal human intervention. You do not need to be an expert TypeScript developer -- you need to understand *what* your service requires and let the AI handle *how* to implement it.
 
-The recommended setup is [Claude Code](https://claude.com/claude-code) with this guide and your package in the same workspace. See [Environment Setup](./environment-setup.md) and the [Quick Start](./quick-start.md) to get going.
-<!-- sdk-2.0: restore the init-workspace wording when start-cli ships it (replaces the line above):
-The recommended setup is [Claude Code](https://claude.com/claude-code) with this guide and your package in the same workspace, scaffolded by `start-cli s9pk init-workspace`. See [Environment Setup](./environment-setup.md#set-up-your-packaging-workspace) for instructions.
--->
+The recommended setup is [Claude Code](https://claude.com/claude-code) with this guide and your package in the same workspace, scaffolded by `start-cli s9pk init-workspace`. See [Environment Setup](./environment-setup.md#set-up-your-packaging-workspace) and the [Quick Start](./quick-start.md) to get going.
 
 
 ## What is a StartOS Package?

@@ -2,7 +2,7 @@
 
 A JsonPath query engine for selecting, deleting, and transforming JSON values. It originated as a
 fork of [freestrings/jsonpath](https://github.com/freestrings/jsonpath) but has since **fully
-diverged** — it is maintained as first-party code in the start-os monorepo at
+diverged** — it is maintained as first-party code in the start-technologies monorepo at
 `shared-libs/crates/jsonpath`, with no intent to sync back upstream. The Cargo package name is
 `jsonpath_lib` (it differs from the directory name `jsonpath`), so all cargo commands use
 `-p jsonpath_lib`. `CLAUDE.md` is a one-line `@AGENTS.md` import — don't edit it.

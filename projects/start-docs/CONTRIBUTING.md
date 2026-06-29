@@ -1,6 +1,6 @@
 # Contributing
 
-We welcome contributions! Whether you spot a typo or want to suggest new content, fork the [`start-os`](https://github.com/Start9Labs/start-os) monorepo and submit a PR. If you're not comfortable with that process, [open an issue](https://github.com/Start9Labs/start-os/issues) or reach out via our [community channels](https://start9.com/contact).
+We welcome contributions! Whether you spot a typo or want to suggest new content, fork the [`start-os`](https://github.com/Start9Labs/start-technologies) monorepo and submit a PR. If you're not comfortable with that process, [open an issue](https://github.com/Start9Labs/start-technologies/issues) or reach out via our [community channels](https://start9.com/contact).
 
 This is the docs-site project inside the monorepo. See the [root CONTRIBUTING](../../CONTRIBUTING.md) for the monorepo-wide workflow.
 

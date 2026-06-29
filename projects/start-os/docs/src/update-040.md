@@ -9,7 +9,7 @@ StartOS 0.4.0 is a completely new operating system. It will eventually be availa
 
 ## Before You Begin
 
-StartOS 0.4.0 is currently in beta. The latest beta release is available on the [GitHub releases page](https://github.com/Start9Labs/start-os/releases/latest).
+StartOS 0.4.0 is currently in beta. The latest beta release is available on the [GitHub releases page](https://github.com/Start9Labs/start-technologies/releases/latest).
 
 ### Services with special handling
 
@@ -34,7 +34,7 @@ If you use a password manager, before updating, make sure your saved passwords h
 
 ## Step 1: Flash the USB Drive
 
-Download the 0.4.0-beta ISO for your platform from the [GitHub releases page](https://github.com/Start9Labs/start-os/releases/latest). Under "ISO Downloads" at the top of the release notes, select the ISO for your hardware:
+Download the 0.4.0-beta ISO for your platform from the [GitHub releases page](https://github.com/Start9Labs/start-technologies/releases/latest). Under "ISO Downloads" at the top of the release notes, select the ISO for your hardware:
 
 - **Server One (2023)** or other x86_64 hardware — download the **x86_64 (AMD64)** ISO
 - **Server Pure** — download the **x86_64 (AMD64) Slim (FOSS-only)** ISO

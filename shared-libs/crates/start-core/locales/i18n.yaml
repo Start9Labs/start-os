@@ -141,12 +141,12 @@ bins.tunnel.error-updating-webserver-bind:
   pl_PL: "błąd podczas aktualizacji powiązania serwera WWW: %{error}"
 
 # s9pk/init.rs
-s9pk.init.cloning-start-docs:
-  en_US: "Cloning the packaging guide (start-docs)…"
-  de_DE: "Paketierungsleitfaden (start-docs) wird geklont…"
-  es_ES: "Clonando la guía de empaquetado (start-docs)…"
-  fr_FR: "Clonage du guide d'empaquetage (start-docs)…"
-  pl_PL: "Klonowanie przewodnika pakowania (start-docs)…"
+s9pk.init.cloning-guide:
+  en_US: "Cloning the packaging guide…"
+  de_DE: "Paketierungsleitfaden wird geklont…"
+  es_ES: "Clonando la guía de empaquetado…"
+  fr_FR: "Clonage du guide d'empaquetage…"
+  pl_PL: "Klonowanie przewodnika pakowania…"
 
 s9pk.init.installing-deps:
   en_US: "Installing dependencies (npm install)…"
@@ -191,11 +191,11 @@ s9pk.init.package-exists:
   pl_PL: "%{path} już istnieje; wybierz inną nazwę lub usuń je."
 
 s9pk.init.template-missing:
-  en_US: "Package template not found at %{path}. Re-run `start-cli s9pk init-workspace` to restore start-docs."
-  de_DE: "Paketvorlage unter %{path} nicht gefunden. Führe `start-cli s9pk init-workspace` erneut aus, um start-docs wiederherzustellen."
-  es_ES: "No se encontró la plantilla de paquete en %{path}. Vuelve a ejecutar `start-cli s9pk init-workspace` para restaurar start-docs."
-  fr_FR: "Modèle de paquet introuvable à %{path}. Relancez `start-cli s9pk init-workspace` pour restaurer start-docs."
-  pl_PL: "Nie znaleziono szablonu pakietu w %{path}. Uruchom ponownie `start-cli s9pk init-workspace`, aby przywrócić start-docs."
+  en_US: "Package template not found at %{path}. Re-run `start-cli s9pk init-workspace` to restore the packaging guide."
+  de_DE: "Paketvorlage unter %{path} nicht gefunden. Führe `start-cli s9pk init-workspace` erneut aus, um den Paketierungsleitfaden wiederherzustellen."
+  es_ES: "No se encontró la plantilla de paquete en %{path}. Vuelve a ejecutar `start-cli s9pk init-workspace` para restaurar la guía de empaquetado."
+  fr_FR: "Modèle de paquet introuvable à %{path}. Relancez `start-cli s9pk init-workspace` pour restaurer le guide d'empaquetage."
+  pl_PL: "Nie znaleziono szablonu pakietu w %{path}. Uruchom ponownie `start-cli s9pk init-workspace`, aby przywrócić przewodnik pakowania."
 
 s9pk.init.workspace-ready:
   en_US: "Packaging workspace ready at %{path}. Next: start-cli s9pk init-package \"<Name>\"."

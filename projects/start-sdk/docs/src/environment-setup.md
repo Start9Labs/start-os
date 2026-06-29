@@ -59,7 +59,7 @@ brew install squashfs
 
 ## Start CLI
 
-[start-cli](https://github.com/Start9Labs/start-os) is the core development toolkit for building StartOS packages. It provides package validation, s9pk file creation, and development workflow management.
+[start-cli](https://github.com/Start9Labs/start-technologies) is the core development toolkit for building StartOS packages. It provides package validation, s9pk file creation, and development workflow management.
 
 Install using the automated installer script:
 
@@ -82,8 +82,6 @@ start-cli --version
 > [!TIP]
 > If any command is not found, revisit the installation steps for that tool and ensure it is on your system PATH.
 
-<!-- sdk-2.0: Hidden until start-cli ships `init-workspace` / `init-package` (SDK 2.0). These commands don't exist in the released CLI yet — restore this entire section, and the references marked `sdk-2.0:` in quick-start.md and README.md, when 2.0 publishes.
-
 ## Set Up Your Packaging Workspace
 
 StartOS packaging is designed to be done with an AI coding agent. `start-cli` scaffolds an AI-ready **packaging workspace** in one command — a directory that holds the packaging guide and an agent-context file, so any assistant you open there already knows how to build a StartOS package. If you use [Claude Code](https://docs.anthropic.com/en/docs/claude-code), Start9 recommends the Opus 4.7 or later model.
@@ -95,15 +93,15 @@ start-cli s9pk init-workspace my-workspace
 cd my-workspace
 ```
 
-This clones the packaging guide into `start-docs/`, sets up the agent-context files (`AGENTS.md`, your own `AGENTS.local.md`, and a `CLAUDE.md` that loads both), and creates a `.startos/` directory that marks the workspace and holds your package-signing key and host/registry config:
+This clones the packaging guide into `start-technologies/` — a sparse, blobless checkout of just the `projects/start-sdk/docs/` subtree of the Start9 monorepo, not the whole repo — sets up the agent-context files (`AGENTS.md`, your own `AGENTS.local.md`, and a `CLAUDE.md` that loads both), and creates a `.startos/` directory that marks the workspace and holds your package-signing key and host/registry config:
 
 ```
 my-workspace/
 ├── .startos/              ← workspace marker: build-key (signs your packages) + config.yaml (hosts, registries)
-├── AGENTS.md              ← agent context (symlink into start-docs), read by AI assistants
+├── AGENTS.md              ← agent context (symlink into start-technologies/projects/start-sdk/docs), read by AI assistants
 ├── AGENTS.local.md        ← your own notes, kept across guide updates
 ├── CLAUDE.md              ← loads AGENTS.md + AGENTS.local.md (Claude Code)
-└── start-docs/            ← the packaging guide, read locally
+└── start-technologies/    ← sparse monorepo checkout; the guide lives at projects/start-sdk/docs/
 ```
 
 The context lives once, at the workspace root — it is never copied into your package repos. Open the workspace in your AI tool and it picks up `AGENTS.md` / `CLAUDE.md` automatically.
@@ -124,11 +122,11 @@ my-workspace/
 ├── AGENTS.md
 ├── AGENTS.local.md
 ├── CLAUDE.md
-├── start-docs/
+├── start-technologies/
 └── my-service-startos/    ← your new package
 ```
 
-To work on an existing package instead, clone it into the workspace alongside `start-docs/`.
+To work on an existing package instead, clone it into the workspace alongside `start-technologies/`.
 
 ### Hosts and registries
 
@@ -162,13 +160,11 @@ With no flag, the `default` entry is used. `start-cli` finds this config by walk
 
 ### Keep it current
 
-The guide, the package template, and the agent context all live in `start-docs/`, so syncing it refreshes everything at once. Pull it at the start of each session:
+The guide, the package template, and the agent context all live in `start-technologies/`, so syncing it refreshes everything at once. Pull it at the start of each session:
 
 ```sh
-git -C start-docs pull --ff-only
+git -C start-technologies pull --ff-only
 ```
 
 There's no separate update command — re-running `init-workspace` on an existing workspace just fills in anything missing, and your `AGENTS.local.md` is never touched.
-
--->
 

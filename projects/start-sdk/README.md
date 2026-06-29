@@ -1,8 +1,8 @@
 # Start SDK
 
-The Start SDK (`@start9labs/start-sdk`) is a TypeScript framework for packaging services to run on [StartOS](https://github.com/Start9Labs/start-os). It provides a strongly-typed, builder-pattern API for defining every aspect of a service package: manifests, daemons, health checks, networking interfaces, actions, backups, dependencies, configuration, and more.
+The Start SDK (`@start9labs/start-sdk`) is a TypeScript framework for packaging services to run on [StartOS](https://github.com/Start9Labs/start-technologies). It provides a strongly-typed, builder-pattern API for defining every aspect of a service package: manifests, daemons, health checks, networking interfaces, actions, backups, dependencies, configuration, and more.
 
-It lives at `projects/start-sdk/` inside the [start-os monorepo](https://github.com/Start9Labs/start-os) and is published to npm as [`@start9labs/start-sdk`](https://www.npmjs.com/package/@start9labs/start-sdk).
+It lives at `projects/start-sdk/` inside the [start-technologies monorepo](https://github.com/Start9Labs/start-technologies) and is published to npm as [`@start9labs/start-sdk`](https://www.npmjs.com/package/@start9labs/start-sdk).
 
 ## Features
 

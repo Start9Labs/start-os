@@ -5,7 +5,7 @@ based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and StartOS
 uses an [extended version](https://docs.start9.com) of semantic versioning.
 
 Full per-release notes are published on the
-[GitHub releases page](https://github.com/Start9Labs/start-os/releases). This
+[GitHub releases page](https://github.com/Start9Labs/start-technologies/releases). This
 file tracks notable changes since the move to the monorepo.
 
 ## [Unreleased]
@@ -99,9 +99,9 @@ file tracks notable changes since the move to the monorepo.
 
 ## [0.4.0-beta.9] and earlier
 
-See the [GitHub releases page](https://github.com/Start9Labs/start-os/releases)
+See the [GitHub releases page](https://github.com/Start9Labs/start-technologies/releases)
 for the full 0.4.0 beta and alpha history and all prior releases.
 
-[Unreleased]: https://github.com/Start9Labs/start-os/compare/v0.4.0-beta.10...HEAD
-[0.4.0-beta.10]: https://github.com/Start9Labs/start-os/compare/v0.4.0-beta.9...v0.4.0-beta.10
-[0.4.0-beta.9]: https://github.com/Start9Labs/start-os/releases/tag/v0.4.0-beta.9
+[Unreleased]: https://github.com/Start9Labs/start-technologies/compare/v0.4.0-beta.10...HEAD
+[0.4.0-beta.10]: https://github.com/Start9Labs/start-technologies/compare/v0.4.0-beta.9...v0.4.0-beta.10
+[0.4.0-beta.9]: https://github.com/Start9Labs/start-technologies/releases/tag/v0.4.0-beta.9

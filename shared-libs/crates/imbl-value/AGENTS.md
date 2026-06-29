@@ -1,6 +1,6 @@
 # AGENTS.md — imbl-value
 
-`imbl-value` is a first-party library crate in the start-os monorepo (`shared-libs/crates/imbl-value`).
+`imbl-value` is a first-party library crate in the start-technologies monorepo (`shared-libs/crates/imbl-value`).
 It provides a JSON `Value` type that mirrors `serde_json::Value` but is backed by the persistent
 immutable data structures from the [`imbl`](https://crates.io/crates/imbl) crate, so clones are cheap
 and structural sharing is preserved. `CLAUDE.md` is a one-line `@AGENTS.md` import — edit this file,

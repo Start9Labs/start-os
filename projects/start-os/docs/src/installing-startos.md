@@ -8,7 +8,7 @@ This guide is for flashing StartOS to a USB drive, then installing it onto a des
 
 ## Download
 
-1.  Visit the [Github release page](https://github.com/Start9Labs/start-os/releases/latest) to find the latest version of StartOS.
+1.  Visit the [Github release page](https://github.com/Start9Labs/start-technologies/releases/latest) to find the latest version of StartOS.
 
 1.  Under "ISO Downloads", select the ISO for your architecture. StartOS is available in x86_64 (AMD64), aarch64 (ARM64), and RISC-V (RVA23). For x86_64 and aarch64, two variants are available:
 

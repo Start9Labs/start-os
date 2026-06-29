@@ -1,7 +1,7 @@
 # AGENTS.md — exver
 
 A semver extension that tracks an upstream version and a downstream (packaging) version
-separately, with an optional flavor prefix. First-party crate in the start-os monorepo at
+separately, with an optional flavor prefix. First-party crate in the start-technologies monorepo at
 `shared-libs/crates/exver` (Cargo package `exver`, crate-type `cdylib` + `rlib`). `CLAUDE.md`
 is a one-line `@AGENTS.md` import. See ARCHITECTURE.md for how it works and CONTRIBUTING.md for
 the workflow.

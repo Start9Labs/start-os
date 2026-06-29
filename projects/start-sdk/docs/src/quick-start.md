@@ -49,7 +49,5 @@ See [Installation](./makefile.md#installation).
 
 With Hello World running on your server, you're ready to package your own service. Browse the [Recipes](./recipes.md) to find the patterns your service needs — each recipe describes the approach and points you to reference docs and real package code.
 
-<!-- sdk-2.0: restore when start-cli ships init-workspace (workspace section hidden in environment-setup.md)
 If you set up a [packaging workspace](./environment-setup.md#set-up-your-packaging-workspace) during environment setup, point your agent at the recipe for your first task and let it work from there.
--->
 

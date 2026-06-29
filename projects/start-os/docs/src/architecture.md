@@ -2,7 +2,7 @@
 
 StartOS is a Linux distribution purpose-built for running a personal server. Unlike general-purpose operating systems designed for desktops and laptops, StartOS provides a graphical interface for discovering, installing, configuring, and managing self-hosted services — no command line required.
 
-This page describes how StartOS is designed and how its components fit together. For implementation details, see the [start-os repository](https://github.com/Start9Labs/start-os).
+This page describes how StartOS is designed and how its components fit together. For implementation details, see the [start-os repository](https://github.com/Start9Labs/start-technologies).
 
 ## Components
 
@@ -136,4 +136,4 @@ S9PK files are signed with Ed25519 keys. The registry and StartOS verify signatu
 
 ## Source Code
 
-StartOS is fully open source. The main repository is [Start9Labs/start-os](https://github.com/Start9Labs/start-os) on GitHub. See the repository's CONTRIBUTING.md for build instructions and development setup.
+StartOS is fully open source. The main repository is [Start9Labs/start-technologies](https://github.com/Start9Labs/start-technologies) on GitHub. See the repository's CONTRIBUTING.md for build instructions and development setup.

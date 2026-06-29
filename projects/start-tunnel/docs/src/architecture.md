@@ -103,6 +103,6 @@ StartTunnel is built on [WireGuard](https://www.wireguard.com/), a modern VPN pr
 
 ## Source Code
 
-The StartTunnel source code and release binaries live in the [StartOS monorepo](https://github.com/Start9Labs/start-os). The installer script is hosted at [start9.com/start-tunnel/install.sh](https://start9.com/start-tunnel/install.sh).
+The StartTunnel source code and release binaries live in the [StartOS monorepo](https://github.com/Start9Labs/start-technologies). The installer script is hosted at [start9.com/start-tunnel/install.sh](https://start9.com/start-tunnel/install.sh).
 
-To report bugs or request features, [open an issue](https://github.com/Start9Labs/start-os/issues).
+To report bugs or request features, [open an issue](https://github.com/Start9Labs/start-technologies/issues).

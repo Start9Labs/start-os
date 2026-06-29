@@ -36,7 +36,7 @@ current release; `next/patch`, `next/minor`, `next/major` otherwise — ask a
 maintainer if unsure):
 
 ```sh
-git clone https://github.com/Start9Labs/start-os.git
+git clone https://github.com/Start9Labs/start-technologies.git
 cd projects/start-os
 ```
 

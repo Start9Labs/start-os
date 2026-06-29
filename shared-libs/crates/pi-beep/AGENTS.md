@@ -1,6 +1,6 @@
 # AGENTS.md — pi-beep
 
-A tiny first-party bin in the start-os monorepo at `shared-libs/crates/pi-beep` (Cargo package
+A tiny first-party bin in the start-technologies monorepo at `shared-libs/crates/pi-beep` (Cargo package
 `pi-beep`, binary `pi-beep`). It reimplements the Unix `beep` command using the Raspberry Pi's PWM
 hardware exposed through `/sys/class/pwm/`. The whole crate is a single ~117-line `src/main.rs` whose
 only dependency is `clap`. `CLAUDE.md` is a one-line `@AGENTS.md` import; edit this file instead.

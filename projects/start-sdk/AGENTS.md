@@ -1,6 +1,6 @@
 # AGENTS.md — start-sdk
 
-The TypeScript SDK (`@start9labs/start-sdk`) for building StartOS service packages. Lives at `projects/start-sdk/` inside the start-os monorepo. One npm package plus the packaging build wrapper and the packaging mdbook. `CLAUDE.md` is a one-line `@AGENTS.md` import. See `ARCHITECTURE.md` and `CONTRIBUTING.md` for structure and contribution details.
+The TypeScript SDK (`@start9labs/start-sdk`) for building StartOS service packages. Lives at `projects/start-sdk/` inside the start-technologies monorepo. One npm package plus the packaging build wrapper and the packaging mdbook. `CLAUDE.md` is a one-line `@AGENTS.md` import. See `ARCHITECTURE.md` and `CONTRIBUTING.md` for structure and contribution details.
 
 **Read up the tree first.** These docs are hierarchical: before working here, read the `AGENTS.md` in each enclosing directory up to the repo root (and their `ARCHITECTURE.md` / `CONTRIBUTING.md` where relevant). This file covers only what is specific to this scope and does not repeat rules already stated higher up.
 

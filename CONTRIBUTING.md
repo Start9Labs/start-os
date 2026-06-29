@@ -48,7 +48,7 @@ nvm alias default 24 # this prevents your machine from reverting back to another
 ### Cloning the Repository
 
 ```sh
-git clone https://github.com/Start9Labs/start-os.git
+git clone https://github.com/Start9Labs/start-technologies.git
 cd start-os
 ```
 

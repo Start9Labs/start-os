@@ -1,11 +1,11 @@
 <div align="center">
   <img src="shared-libs/ts-modules/shared/assets/img/icon.png" alt="StartOS Logo" width="16%" />
   <h1 style="margin-top: 0;">Start9 Technologies</h1>
-  <a href="https://github.com/Start9Labs/start-os/releases">
-    <img alt="GitHub release (with filter)" src="https://img.shields.io/github/v/release/start9labs/start-os?logo=github">
+  <a href="https://github.com/Start9Labs/start-technologies/releases">
+    <img alt="GitHub release (with filter)" src="https://img.shields.io/github/v/release/start9labs/start-technologies?logo=github">
   </a>
-  <a href="https://github.com/Start9Labs/start-os/actions/workflows/startos-iso.yaml">
-    <img src="https://github.com/Start9Labs/start-os/actions/workflows/startos-iso.yaml/badge.svg">
+  <a href="https://github.com/Start9Labs/start-technologies/actions/workflows/startos-iso.yaml">
+    <img src="https://github.com/Start9Labs/start-technologies/actions/workflows/startos-iso.yaml/badge.svg">
   </a>
   <a href="https://docs.start9.com">
     <img alt="Static Badge" src="https://img.shields.io/badge/docs-orange?label=%F0%9F%91%A4%20support">
@@ -66,7 +66,7 @@ Follow the [install guide](https://docs.start9.com/start-os/installing-startos.h
 See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, build instructions, and the development workflow. In short:
 
 ```sh
-git clone https://github.com/Start9Labs/start-os.git
+git clone https://github.com/Start9Labs/start-technologies.git
 cd start-os
 PLATFORM=$(uname -m) ENVIRONMENT=dev make startos   # build a StartOS image
 ```

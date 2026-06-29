@@ -96,7 +96,7 @@ concurrency:
 jobs:
   build:
     if: github.event.pull_request.draft == false
-    uses: Start9Labs/start-os/.github/workflows/build.yml@master
+    uses: Start9Labs/start-technologies/.github/workflows/build.yml@master
     secrets:
       DEV_KEY: ${{ secrets.DEV_KEY }}
 ```
@@ -117,7 +117,7 @@ concurrency:
 
 jobs:
   tag-and-release:
-    uses: Start9Labs/start-os/.github/workflows/tagAndRelease.yml@master
+    uses: Start9Labs/start-technologies/.github/workflows/tagAndRelease.yml@master
     with:
       REFERENCE_REGISTRY: ${{ vars.REFERENCE_REGISTRY }}
       RELEASE_REGISTRY: ${{ vars.RELEASE_REGISTRY }}
@@ -142,7 +142,7 @@ on:
 
 jobs:
   release:
-    uses: Start9Labs/start-os/.github/workflows/release.yml@master
+    uses: Start9Labs/start-technologies/.github/workflows/release.yml@master
     with:
       RELEASE_REGISTRY: ${{ vars.RELEASE_REGISTRY }}
       S3_S9PKS_BASE_URL: ${{ vars.S3_S9PKS_BASE_URL }}
@@ -158,7 +158,7 @@ jobs:
 
 These two files are **pointers, not content.** Generic packaging knowledge — SDK patterns, the disciplines on the [Development Workflow](./workflow.md) page, the rules throughout this guide — lives in one canonical place: the packaging guide. It is **not** copied into each package repo, where 40+ duplicates would drift out of sync. `AGENTS.md` and `CLAUDE.md` only identify the repo and point an agent at the repo's own `CONTRIBUTING.md`.
 
-`AGENTS.md` is a short, repo-identical pointer: it states that this is a StartOS service-package repo and tells any AI coding agent to read `CONTRIBUTING.md` (and the documents it links) before doing anything. Keep it to a few lines; carry no substantive rules here, and **do not turn it into a web-fetch driver** — don't instruct the agent to pull guide pages over the web up front. Developers are expected to work with the guide checked out locally alongside the package (see [Environment Setup](./environment-setup.md)). The local-first navigation — read `start-docs/packaging/src/` directly, fall back to <https://docs.start9.com/packaging> only when no local copy exists — is set up once by the workspace-level `CLAUDE.md`, not repeated per repo.
+`AGENTS.md` is a short, repo-identical pointer: it states that this is a StartOS service-package repo and tells any AI coding agent to read `CONTRIBUTING.md` (and the documents it links) before doing anything. Keep it to a few lines; carry no substantive rules here, and **do not turn it into a web-fetch driver** — don't instruct the agent to pull guide pages over the web up front. Developers are expected to work with the guide checked out locally alongside the package (see [Environment Setup](./environment-setup.md)). The local-first navigation — read `start-technologies/projects/start-sdk/docs/src/` directly, fall back to <https://docs.start9.com/packaging> only when no local copy exists — is set up once by the workspace-level `CLAUDE.md`, not repeated per repo.
 
 `CLAUDE.md` is a one-line import of that same file:
 

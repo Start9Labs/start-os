@@ -1,6 +1,6 @@
 # AGENTS.md — rpc-toolkit
 
-`rpc-toolkit` is a first-party library crate in the start-os monorepo. It provides a toolkit
+`rpc-toolkit` is a first-party library crate in the start-technologies monorepo. It provides a toolkit
 for building JSON-RPC 2.0 servers whose operations double as CLI subcommands: you write
 typed, composable handlers once, then serve them over HTTP, a Unix socket, or TCP, and/or
 bind them to a `clap` command-line application. `CLAUDE.md` is a one-line `@AGENTS.md` import.

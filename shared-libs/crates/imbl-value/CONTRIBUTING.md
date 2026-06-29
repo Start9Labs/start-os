@@ -1,6 +1,6 @@
 # Contributing to imbl-value
 
-`imbl-value` is a first-party library crate at `shared-libs/crates/imbl-value` in the start-os monorepo.
+`imbl-value` is a first-party library crate at `shared-libs/crates/imbl-value` in the start-technologies monorepo.
 
 ## Documentation
 

@@ -41,5 +41,5 @@ or the CLI's externally observable behavior.
 - `ws_continuation` honors `--root-ca` / `--insecure` (#3274).
 - `choose` falls back to a generic non-tty prompt instead of failing when stdin isn't a terminal (#3265).
 
-[Unreleased]: https://github.com/Start9Labs/start-os/compare/v0.4.0-beta.10...HEAD
-[0.4.0-beta.10]: https://github.com/Start9Labs/start-os/releases/tag/v0.4.0-beta.10
+[Unreleased]: https://github.com/Start9Labs/start-technologies/compare/v0.4.0-beta.10...HEAD
+[0.4.0-beta.10]: https://github.com/Start9Labs/start-technologies/releases/tag/v0.4.0-beta.10

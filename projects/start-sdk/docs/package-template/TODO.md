@@ -5,7 +5,7 @@ image, no interface, no health check, no dependencies. The arbitrary ids are nam
 `example-*` (e.g. `example-volume`, `example-image`, `example-daemon`) to signal that you
 rename them freely; they are not required namings. Work the list top to bottom; it takes
 you from the clone to a release-ready package. Consult the packaging guide as you go
-(`start-docs/packaging/src/recipes.md` is the intent index). Remove items as you finish
+(`start-technologies/projects/start-sdk/docs/src/recipes.md` is the intent index). Remove items as you finish
 them, and add items when you defer work.
 
 ## Identity & metadata
@@ -32,7 +32,7 @@ them, and add items when you defer work.
       `startos/i18n/dictionaries` — only the keys actually referenced should remain there.
 - [ ] Interfaces: `startos/interfaces.ts` ships wired into `startos/init/index.ts` but
       returns an empty list. If the service exposes a network interface, bind a port and
-      export the interface there (see `start-docs/packaging/src/interfaces.md`).
+      export the interface there (see `start-technologies/projects/start-sdk/docs/src/interfaces.md`).
 - [ ] `startos/backups.ts`: choose what to back up.
 - [ ] `startos/dependencies.ts`: declare any dependencies (or confirm none).
 - [ ] `startos/actions/`: add user-facing actions / config as needed.
@@ -41,8 +41,8 @@ them, and add items when you defer work.
 
 ## Docs
 
-- [ ] Write `README.md` (per `start-docs/packaging/src/writing-readmes.md`).
-- [ ] Write `instructions.md` (per `start-docs/packaging/src/writing-instructions.md`).
+- [ ] Write `README.md` (per `start-technologies/projects/start-sdk/docs/src/writing-readmes.md`).
+- [ ] Write `instructions.md` (per `start-technologies/projects/start-sdk/docs/src/writing-instructions.md`).
 - [ ] Fill in `UPDATING.md` (upstream-version tracking).
 
 ## Build, test, ship

@@ -120,7 +120,7 @@ RUN useradd --create-home --uid 1000 --shell /bin/bash app \
  && echo 'app:1001:64535' > /etc/subgid
 
 # runc wrapper — strips the sysctl runc can't apply across the nested
-# userns boundary. See https://github.com/Start9Labs/start-os/pull/3209.
+# userns boundary. See https://github.com/Start9Labs/start-technologies/pull/3209.
 COPY runc-nested.sh /usr/local/bin/runc-nested
 RUN chmod +x /usr/local/bin/runc-nested
 

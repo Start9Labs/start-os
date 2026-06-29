@@ -3,7 +3,7 @@
 <!--
 TODO: Describe what "upstream" means for {{name}} (a Docker image pinned by tag, a git
 submodule, or a self-built image) and how to track its version. See UPDATING.md in other
-packages for the pattern, and start-docs/packaging/src/versions.md for the version rules.
+packages for the pattern, and start-technologies/projects/start-sdk/docs/src/versions.md for the version rules.
 Remove these comments.
 -->
 
