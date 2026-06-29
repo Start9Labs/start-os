@@ -1,23 +1,23 @@
 use std::io::{self, Read, Write};
 use std::ops::RangeInclusive;
 
-use rand::{CryptoRng, RngCore};
+use rand::{CryptoRng, Rng};
 use serde::{Deserialize, Serialize};
 use sha2::digest::Output;
 use sha2::Digest;
 
-pub struct RandReader<R: RngCore>(R);
-impl<R: RngCore> RandReader<R> {
+pub struct RandReader<R: Rng>(R);
+impl<R: Rng> RandReader<R> {
     pub fn new(rng: R) -> Self {
         Self(rng)
     }
 }
-impl<R: RngCore + CryptoRng> RandReader<R> {
+impl<R: Rng + CryptoRng> RandReader<R> {
     pub fn new_crypto(rng: R) -> Self {
         Self(rng)
     }
 }
-impl<R: RngCore> Read for RandReader<R> {
+impl<R: Rng> Read for RandReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.0.fill_bytes(buf);
         Ok(buf.len())

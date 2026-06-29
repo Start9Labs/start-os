@@ -8,7 +8,7 @@ use futures::channel::oneshot;
 use iddqd::{IdOrdItem, IdOrdMap};
 use imbl::OrdMap;
 use ipnet::{IpNet, Ipv4Net};
-use rand::Rng;
+use rand::RngExt;
 use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
@@ -57,7 +57,7 @@ impl AvailablePorts {
         Self(BTreeMap::new())
     }
     pub fn alloc(&mut self, ssl: bool) -> Result<u16, Error> {
-        let mut rng = rand::rng();
+        let mut rng = crate::util::crypto::os_rng();
         for _ in 0..1000 {
             let port = rng.random_range(EPHEMERAL_PORT_START..u16::MAX);
             if !self.0.contains_key(&port) {

@@ -19,7 +19,8 @@ use std::collections::BTreeMap;
 use std::io;
 use std::sync::OnceLock;
 
-use rand::{rng, RngCore};
+use rand::rand_core::UnwrapErr;
+use rand::{rng, Rng};
 
 use crate::blockstore::{self, CHUNK_SIZE};
 use crate::compress::{self, Codec};
@@ -545,7 +546,7 @@ impl Contents {
         if padded > bytes.len() {
             let start = bytes.len();
             bytes.resize(padded, 0);
-            rng().fill_bytes(&mut bytes[start..]);
+            UnwrapErr(rng()).fill_bytes(&mut bytes[start..]);
         }
     }
 

@@ -46,7 +46,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use chacha20::Key;
 use log::warn;
-use rand::{rng, RngCore};
+use rand::rand_core::UnwrapErr;
+use rand::{rng, Rng};
 use zeroize::{Zeroize, Zeroizing};
 
 use crate::atomic_file::AtomicFile;
@@ -357,7 +358,7 @@ impl Superblock {
         let constants = Constants::create(ecc);
         constants.validate()?;
         let mut master = Zeroizing::new([0u8; 32]);
-        rng().fill_bytes(&mut *master);
+        UnwrapErr(rng()).fill_bytes(&mut *master);
         let sb = Superblock {
             key: Key::from(*master),
             constants,
@@ -441,7 +442,7 @@ impl Superblock {
     pub fn persist(&self, primary: &Path, password: &str) -> BkfsResult<()> {
         use std::io::Write;
         let mut salt = [0u8; PBKDF2_SALT_LEN];
-        rng().fill_bytes(&mut salt);
+        UnwrapErr(rng()).fill_bytes(&mut salt);
         let key = vault::derive_key(password, &salt, PBKDF2_ROUNDS)?;
 
         let mut master = Zeroizing::new([0u8; 32]);

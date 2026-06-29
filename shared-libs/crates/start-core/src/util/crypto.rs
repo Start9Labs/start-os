@@ -11,6 +11,8 @@ pub fn ed25519_expand_key(key: &SecretKey) -> [u8; EXPANDED_SECRET_KEY_LENGTH] {
 use aes::cipher::{KeyIvInit, StreamCipher};
 use hmac::Hmac;
 use josekit::jwk::Jwk;
+use rand::rand_core::UnwrapErr;
+use rand::rngs::ThreadRng;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use tracing::instrument;
@@ -18,14 +20,12 @@ use ts_rs::TS;
 
 use crate::prelude::*;
 
-/// Infallible OS CSPRNG for ed25519-dalek / ssh-key key generation, which require a
-/// `rand_core` 0.10 `CryptoRng` (i.e. infallible). `rand::rng()` does not qualify:
-/// our `rand` is 0.9 (a different `rand_core`, so its `ThreadRng` doesn't implement
-/// the bound at all), and even on `rand` 0.10 `ThreadRng` is only `TryCryptoRng`
-/// (fallible). `UnwrapErr(SysRng)` is the OS source made infallible — it panics only
-/// on the effectively-never OS RNG failure, as the old `OsRng` did.
-pub fn os_rng() -> getrandom::rand_core::UnwrapErr<getrandom::SysRng> {
-    getrandom::rand_core::UnwrapErr(getrandom::SysRng)
+/// Infallible CSPRNG for ed25519-dalek / ssh-key key generation, which require a
+/// `rand_core` 0.10 `CryptoRng` (i.e. infallible). `rand::rng()` alone does not
+/// qualify — in rand 0.10 `ThreadRng` is only the fallible `TryCryptoRng` — so wrap
+/// it in `UnwrapErr`, which panics only on the effectively-never RNG failure.
+pub fn os_rng() -> UnwrapErr<ThreadRng> {
+    UnwrapErr(rand::rng())
 }
 
 // aes 0.7's `Aes256Ctr` was a 64-bit big-endian counter; keep that exact mode so

@@ -139,9 +139,9 @@ mod tests {
 
     #[test]
     fn incompressible_stored_raw() {
-        use rand::RngCore;
+        use rand::Rng;
         let mut data = vec![0u8; 65536];
-        rand::rng().fill_bytes(&mut data); // genuinely incompressible
+        rand::rand_core::UnwrapErr(rand::rng()).fill_bytes(&mut data); // genuinely incompressible
         let c = compress(&data, Codec::Zstd(9));
         assert_eq!(c[0], TAG_RAW, "incompressible data must fall back to raw");
         assert_eq!(decompress(&c, CAP).unwrap(), data);

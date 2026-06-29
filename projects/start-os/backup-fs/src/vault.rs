@@ -39,7 +39,8 @@ use chacha20::cipher::{KeyIvInit, StreamCipher};
 use chacha20::{ChaCha20, Key, Nonce};
 use pbkdf2::hmac::Hmac;
 use pbkdf2::pbkdf2;
-use rand::{rng, RngCore};
+use rand::rand_core::UnwrapErr;
+use rand::{rng, Rng};
 use sha2::{Digest, Sha256};
 use zeroize::Zeroizing;
 
@@ -164,7 +165,7 @@ fn seal_with(plaintext: &[u8], key: &Key, data: usize, parity: usize) -> Vec<u8>
 
     // Encrypt in place under a fresh random nonce.
     let mut nonce = [0u8; NONCE_LEN];
-    rng().fill_bytes(&mut nonce);
+    UnwrapErr(rng()).fill_bytes(&mut nonce);
     let mut cipher = ChaCha20::new(key, &Nonce::try_from(&nonce[..]).unwrap());
     cipher.apply_keystream(&mut secret);
     let payload_len = secret.len();

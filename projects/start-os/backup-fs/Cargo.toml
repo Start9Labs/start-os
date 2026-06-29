@@ -33,7 +33,7 @@ log = "0.4"
 nix = { version = "0.29.0", features = ["process"] }
 pbkdf2 = "0.13"
 ppv-lite86 = "0.2.17"
-rand = "0.9"
+rand = "0.10"
 serde = { version = "*", features = ["derive"] }
 sha2 = "0.11.0"
 smallvec = "1"
