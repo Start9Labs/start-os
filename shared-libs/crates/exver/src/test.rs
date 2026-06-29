@@ -265,5 +265,5 @@ fn caret() {
 #[cfg(feature = "serde")]
 #[test]
 fn deser() {
-    let v: ExtendedVersion = serde_yaml::from_str("---\n0.2.5:0\n").unwrap();
+    let _v: ExtendedVersion = serde_yaml::from_str("---\n0.2.5:0\n").unwrap();
 }

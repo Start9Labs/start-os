@@ -11,7 +11,6 @@ use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_f
 
 use crate::context::CliContext;
 use itertools::Itertools;
-use rpc_toolkit::CallRemote;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
@@ -20,7 +19,7 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::account::AccountInfo;
-use crate::auth::{PasswordType, write_shadow};
+use crate::auth::write_shadow;
 use crate::backup::restore::recover_full_server;
 use crate::backup::target::BackupTargetFS;
 use crate::bins::set_locale;
@@ -159,7 +158,7 @@ pub fn disk<C: Context>() -> ParentHandler<C> {
 
 const LIVE_MEDIUM_PATH: &str = "/run/live/medium";
 
-pub async fn list_disks(ctx: SetupContext) -> Result<Vec<DiskInfo>, Error> {
+pub async fn list_disks(_ctx: SetupContext) -> Result<Vec<DiskInfo>, Error> {
     let mut disks = crate::disk::util::list(
         &crate::disk::OsPartitionInfo::from_fstab()
             .await

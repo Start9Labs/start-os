@@ -8,8 +8,6 @@ use std::task::{Poll, Waker};
 use futures::Stream;
 use futures::stream::BoxStream;
 
-use crate::prelude::*;
-
 #[cfg(feature = "unstable")]
 lazy_static::lazy_static! {
     static ref ID_CTR: AtomicUsize = AtomicUsize::new(0);

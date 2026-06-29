@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use axum::Router;
 use futures::future::Either;
-use futures::{FutureExt, TryFutureExt};
+use futures::FutureExt;
 use http::Extensions;
 use hyper_util::rt::{TokioIo, TokioTimer};
 use tokio::net::TcpListener;

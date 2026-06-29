@@ -210,7 +210,7 @@ mod test {
     }
 
     fn mutate_fn(v: &mut Model<Foo>) {
-        let mut a = v.as_a_mut();
+        let a = v.as_a_mut();
         a.as_b_mut().ser(&"NotThis".into()).unwrap();
         a.as_b_mut().ser(&"Replaced".into()).unwrap();
     }

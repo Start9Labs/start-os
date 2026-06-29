@@ -1089,7 +1089,7 @@ impl ConnRegistry {
     }
 }
 
-struct ConnRegHandle {
+pub struct ConnRegHandle {
     id: u64,
     registry: Weak<ConnRegistry>,
 }
@@ -1151,7 +1151,7 @@ impl Default for AlpnInfo {
 }
 
 #[derive(Debug, Clone)]
-struct TargetEntry {
+pub struct TargetEntry {
     rc: Weak<()>,
     ctx: ProxyContext,
 }

@@ -288,7 +288,6 @@ impl<'a> TokenReader<'a> {
 
 #[cfg(test)]
 mod tokenizer_tests {
-    use imbl_value::imbl::vector;
     use paths::str_reader::StrRange;
     use paths::tokenizer::{TokenError, TokenReader};
     use paths::tokens::Token;
