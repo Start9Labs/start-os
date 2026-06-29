@@ -168,7 +168,7 @@ pub async fn init_workspace(
     let build_key = startos.join(BUILD_KEY_FILE);
     if tokio::fs::symlink_metadata(&build_key).await.is_err() {
         write_developer_key(
-            &SigningKey::generate(&mut ssh_key::rand_core::OsRng::default()),
+            &SigningKey::generate(&mut crate::util::crypto::os_rng()),
             &build_key,
         )
         .await?;

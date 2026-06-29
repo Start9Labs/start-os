@@ -46,10 +46,10 @@ impl AccountInfo {
         let branding = CertBranding::start_os(hostname.hostname.as_ref());
         let root_ca_cert = make_root_cert(&root_ca_key, &branding, start_time)?;
         let ssh_key = ssh_key::PrivateKey::from(ssh_key::private::Ed25519Keypair::random(
-            &mut ssh_key::rand_core::OsRng::default(),
+            &mut crate::util::crypto::os_rng(),
         ));
         let developer_key =
-            ed25519_dalek::SigningKey::generate(&mut ssh_key::rand_core::OsRng::default());
+            ed25519_dalek::SigningKey::generate(&mut crate::util::crypto::os_rng());
         Ok(Self {
             server_id,
             hostname,

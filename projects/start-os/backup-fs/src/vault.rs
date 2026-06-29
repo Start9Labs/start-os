@@ -165,7 +165,7 @@ fn seal_with(plaintext: &[u8], key: &Key, data: usize, parity: usize) -> Vec<u8>
     // Encrypt in place under a fresh random nonce.
     let mut nonce = [0u8; NONCE_LEN];
     rng().fill_bytes(&mut nonce);
-    let mut cipher = ChaCha20::new(key, Nonce::from_slice(&nonce));
+    let mut cipher = ChaCha20::new(key, &Nonce::try_from(&nonce[..]).unwrap());
     cipher.apply_keystream(&mut secret);
     let payload_len = secret.len();
 
@@ -246,7 +246,7 @@ pub fn open(blob: &[u8], key: &Key) -> BkfsResult<Vec<u8>> {
         return Err(corrupt());
     }
 
-    let mut cipher = ChaCha20::new(key, Nonce::from_slice(nonce));
+    let mut cipher = ChaCha20::new(key, &Nonce::try_from(nonce).unwrap());
     cipher.apply_keystream(&mut secret);
 
     let tag_start = secret.len() - TAG_LEN;
@@ -281,7 +281,7 @@ mod tests {
     use super::*;
 
     fn test_key() -> Key {
-        *Key::from_slice(&[7u8; 32])
+        Key::from([7u8; 32])
     }
 
     #[test]
@@ -297,7 +297,7 @@ mod tests {
     #[test]
     fn wrong_key_is_bad_checksum() {
         let blob = seal(b"secret data", &test_key(), EccParams::default());
-        let other = *Key::from_slice(&[9u8; 32]);
+        let other = Key::from([9u8; 32]);
         match open(&blob, &other) {
             Err(e) => assert!(matches!(e.kind, BkfsErrorKind::BadChecksum)),
             Ok(_) => panic!("wrong key should not open"),
@@ -328,12 +328,12 @@ mod tests {
         // The superblock composes derive_key + seal/open; mirror that here.
         let salt = [0x5au8; PBKDF2_SALT_LEN];
         let key = derive_key("hunter2", &salt, PBKDF2_ROUNDS).unwrap();
-        let blob = seal(b"header bytes", Key::from_slice(&*key), EccParams::default());
-        assert_eq!(open(&blob, Key::from_slice(&*key)).unwrap(), b"header bytes");
+        let blob = seal(b"header bytes", <&Key>::from(&*key), EccParams::default());
+        assert_eq!(open(&blob, <&Key>::from(&*key)).unwrap(), b"header bytes");
 
         let wrong = derive_key("wrong", &salt, PBKDF2_ROUNDS).unwrap();
         assert!(matches!(
-            open(&blob, Key::from_slice(&*wrong)).unwrap_err().kind,
+            open(&blob, <&Key>::from(&*wrong)).unwrap_err().kind,
             BkfsErrorKind::BadChecksum
         ));
     }

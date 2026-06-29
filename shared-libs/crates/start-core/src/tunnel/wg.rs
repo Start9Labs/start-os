@@ -153,7 +153,7 @@ pub struct WgKey(StaticSecret);
 impl WgKey {
     pub fn generate() -> Self {
         Self(StaticSecret::random_from_rng(
-            ssh_key::rand_core::OsRng::default(),
+            &mut crate::util::crypto::os_rng(),
         ))
     }
 }

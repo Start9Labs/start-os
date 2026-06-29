@@ -8,7 +8,6 @@ use clap::builder::ValueParserFactory;
 use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use color_eyre::eyre::eyre;
 use digest::Update;
-use digest::generic_array::GenericArray;
 use hashing_serializer::HashingSerializer;
 use imbl_value::imbl::OrdMap;
 use openssl::pkey::{PKey, Private};
@@ -1469,7 +1468,7 @@ pub fn is_partial_of(partial: &Value, full: &Value) -> bool {
 
 pub fn hash_serializable<D: Digest + Update, T: Serialize>(
     value: &T,
-) -> Result<GenericArray<u8, D::OutputSize>, Error> {
+) -> Result<digest::Output<D>, Error> {
     let mut digest = D::new();
     value
         .serialize(HashingSerializer {

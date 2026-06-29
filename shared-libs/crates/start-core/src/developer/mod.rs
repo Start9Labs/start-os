@@ -66,7 +66,7 @@ pub async fn init(ctx: CliContext) -> Result<(), Error> {
         println!("Developer key already exists at {}", OS_DEVELOPER_KEY_PATH);
     } else if tokio::fs::metadata(&ctx.developer_key_path).await.is_err() {
         tracing::info!("Generating new developer key...");
-        let secret = SigningKey::generate(&mut ssh_key::rand_core::OsRng::default());
+        let secret = SigningKey::generate(&mut crate::util::crypto::os_rng());
         tracing::info!("Writing key to {}", ctx.developer_key_path.display());
         write_developer_key(&secret, &ctx.developer_key_path).await?;
         println!(
