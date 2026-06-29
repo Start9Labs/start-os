@@ -19,9 +19,10 @@ use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::prelude::*;
 use crate::util::FromStrParser;
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, Parser, TS)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, Parser, TS)]
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct IdMap {
     pub from_id: u32,
     pub to_id: u32,
