@@ -10,6 +10,7 @@ use tokio::process::Command;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio_rustls::rustls::ClientConfig as TlsClientConfig;
+use tokio_rustls::rustls::crypto::CryptoProvider;
 use tracing::instrument;
 
 use crate::db::model::Database;
@@ -21,7 +22,9 @@ use crate::net::forward::{
     ForwardRequirements, InterfacePortForwardController, START9_BRIDGE_IFACE, nft_rule,
 };
 use crate::net::gateway::NetworkInterfaceController;
-use crate::net::host::binding::{AddSslOptions, BindId, BindOptions, RangeGatewayAccess};
+use crate::net::host::binding::{
+    AddSslOptions, BindId, BindOptions, RangeGatewayAccess, UpstreamCertValidation,
+};
 use crate::net::host::{Host, Hosts, host_for};
 use crate::net::port_map::{PortMapController, candidate_gateways};
 use crate::net::service_interface::HostnameMetadata;
@@ -31,13 +34,21 @@ use crate::prelude::*;
 use crate::service::effects::callbacks::ServiceCallbacks;
 use crate::util::Invoke;
 use crate::util::serde::MaybeUtf8String;
-use crate::util::sync::Watch;
+use crate::util::sync::{SyncMutex, Watch};
 use crate::{GatewayId, HOST_IP, HostId, OptionExt, PackageId};
 
 pub struct NetController {
     pub(crate) db: TypedPatchDb<Database>,
     pub(super) vhost: VHostController,
+    crypto_provider: Arc<CryptoProvider>,
     pub(super) tls_client_config: Arc<TlsClientConfig>,
+    tls_client_config_no_verify: Arc<TlsClientConfig>,
+    /// Cache of upstream client configs keyed by PEM, so a given
+    /// `UpstreamCertValidation::Certificate` yields a stable `Arc` across
+    /// rebuilds (keeps `ProxyTarget` equality from churning the vhost). Weak so
+    /// entries drop once no live `ProxyTarget` holds the config; dead entries
+    /// are pruned on insert.
+    upstream_cert_configs: SyncMutex<BTreeMap<String, Weak<TlsClientConfig>>>,
     pub(crate) net_iface: Arc<NetworkInterfaceController>,
     pub(super) dns: DnsController,
     pub(super) dns_update: DnsUpdateController,
@@ -68,6 +79,9 @@ impl NetController {
                 .de()?
                 .0],
         )?);
+        let tls_client_config_no_verify = Arc::new(crate::net::tls::client_config_no_verify(
+            crypto_provider.clone(),
+        )?);
         nft_rule(
             "forward",
             "lxcbr0-egress",
@@ -94,13 +108,16 @@ impl NetController {
             vhost: VHostController::new(
                 db.clone(),
                 net_iface.clone(),
-                crypto_provider,
+                crypto_provider.clone(),
                 branding,
                 passthroughs,
                 max_proxy_conns_per_target,
                 port_map.clone(),
             ),
+            crypto_provider,
             tls_client_config,
+            tls_client_config_no_verify,
+            upstream_cert_configs: SyncMutex::new(BTreeMap::new()),
             dns: DnsController::init(db, &net_iface.watcher).await?,
             dns_update: DnsUpdateController::new(
                 net_iface.watcher.subscribe(),
@@ -123,6 +140,44 @@ impl NetController {
             socks,
             callbacks: Arc::new(ServiceCallbacks::default()),
         })
+    }
+
+    /// Client config for the OS→container TLS leg when rewrapping SSL. Falls
+    /// back to validating against the root CA if a supplied certificate fails
+    /// to parse (fail closed — the handshake then fails, surfacing the misconfig).
+    fn upstream_client_config(
+        &self,
+        mode: &Option<UpstreamCertValidation>,
+    ) -> Arc<TlsClientConfig> {
+        match mode {
+            None => self.tls_client_config.clone(),
+            Some(UpstreamCertValidation::Disable) => self.tls_client_config_no_verify.clone(),
+            Some(UpstreamCertValidation::Certificate(pem)) => {
+                if let Some(cfg) = self
+                    .upstream_cert_configs
+                    .peek(|cache| cache.get(pem).and_then(Weak::upgrade))
+                {
+                    return cfg;
+                }
+                match crate::net::tls::client_config_with_cert(self.crypto_provider.clone(), pem) {
+                    Ok(cfg) => {
+                        let cfg = Arc::new(cfg);
+                        self.upstream_cert_configs.mutate(|cache| {
+                            cache.retain(|_, weak| weak.strong_count() > 0);
+                            cache.insert(pem.clone(), Arc::downgrade(&cfg));
+                        });
+                        cfg
+                    }
+                    Err(e) => {
+                        tracing::error!(
+                            "Invalid upstream certificate for SSL rewrap, falling back to root CA validation: {e}"
+                        );
+                        tracing::debug!("{e:?}");
+                        self.tls_client_config.clone()
+                    }
+                }
+            }
+        }
     }
 
     #[instrument(skip_all)]
@@ -169,6 +224,7 @@ impl NetController {
                             MaybeUtf8String("http/1.1".into()),
                         ])),
                         auth: None,
+                        upstream_cert_validation: Default::default(),
                     }),
                     secure: None,
                 },
@@ -256,13 +312,14 @@ impl NetServiceData {
 
             // SSL vhosts
             if let Some(ssl) = &bind.options.add_ssl {
-                let connect_ssl = if let Some(alpn) = ssl.alpn.clone() {
-                    Err(alpn)
-                } else if bind.options.secure.as_ref().map_or(false, |s| s.ssl) {
-                    Ok(())
-                } else {
-                    Err(AlpnInfo::Reflect)
-                };
+                let connect_ssl: Result<Arc<TlsClientConfig>, AlpnInfo> =
+                    if let Some(alpn) = ssl.alpn.clone() {
+                        Err(alpn)
+                    } else if bind.options.secure.as_ref().map_or(false, |s| s.ssl) {
+                        Ok(ctrl.upstream_client_config(&ssl.upstream_cert_validation))
+                    } else {
+                        Err(AlpnInfo::Reflect)
+                    };
 
                 if let Some(assigned_ssl_port) = bind.net.assigned_ssl_port {
                     // Collect private IPs from enabled private addresses' gateways
@@ -293,9 +350,7 @@ impl NetServiceData {
                                 addr,
                                 add_x_forwarded_headers: ssl.add_x_forwarded_headers,
                                 auth: ssl.auth.clone(),
-                                connect_ssl: connect_ssl
-                                    .clone()
-                                    .map(|_| ctrl.tls_client_config.clone()),
+                                connect_ssl: connect_ssl.clone(),
                                 passthrough: false,
                             },
                         );
@@ -328,7 +383,7 @@ impl NetServiceData {
                         addr,
                         add_x_forwarded_headers: ssl.add_x_forwarded_headers,
                         auth: ssl.auth.clone(),
-                        connect_ssl: connect_ssl.clone().map(|_| ctrl.tls_client_config.clone()),
+                        connect_ssl: connect_ssl.clone(),
                         passthrough: false,
                     });
                     if addr_info.public {

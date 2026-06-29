@@ -329,6 +329,22 @@ pub struct BindOptions {
     pub secure: Option<Security>,
 }
 
+/// How the OS reverse proxy validates the container's TLS certificate when it
+/// rewraps SSL (`add_ssl` set AND `secure.ssl == true`, so the OS terminates
+/// the client's TLS and initiates a fresh TLS connection to the container).
+/// Absent (`None`) means validate against the StartOS root CA — the default.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum UpstreamCertValidation {
+    /// Do not validate the container's certificate at all. Use when the
+    /// container serves a self-signed cert on the trusted internal bridge.
+    Disable,
+    /// Validate against this PEM-encoded certificate (or chain) instead of the
+    /// StartOS root CA.
+    Certificate(String),
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
@@ -340,6 +356,11 @@ pub struct AddSslOptions {
     #[serde(default)]
     pub add_x_forwarded_headers: bool,
     pub alpn: Option<AlpnInfo>,
+    /// Certificate validation for the OS→container TLS leg when rewrapping.
+    /// `None` (the default) validates against the StartOS root CA.
+    #[serde(default)]
+    #[ts(optional)]
+    pub upstream_cert_validation: Option<UpstreamCertValidation>,
     /// Optional reverse-proxy auth gate. When set, the OS reverse proxy
     /// will validate the `Authorization` header on incoming HTTP requests
     /// against this configuration before forwarding them upstream.

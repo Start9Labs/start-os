@@ -79,6 +79,7 @@ impl Public {
                                                 MaybeUtf8String("http/1.1".into()),
                                             ])),
                                             auth: None,
+                                            upstream_cert_validation: Default::default(),
                                         }),
                                         secure: None,
                                     },
