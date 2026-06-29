@@ -12,7 +12,9 @@ use tokio_rustls::LazyConfigAcceptor;
 use tokio_rustls::rustls::client::danger::{
     HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier,
 };
-use tokio_rustls::rustls::crypto::{CryptoProvider, verify_tls12_signature, verify_tls13_signature};
+use tokio_rustls::rustls::crypto::{
+    CryptoProvider, verify_tls12_signature, verify_tls13_signature,
+};
 use tokio_rustls::rustls::pki_types::{CertificateDer, ServerName, UnixTime};
 use tokio_rustls::rustls::server::{Acceptor, ClientHello, ResolvesServerCert};
 use tokio_rustls::rustls::sign::CertifiedKey;
@@ -365,7 +367,12 @@ impl ServerCertVerifier for NoCertVerifier {
         cert: &CertificateDer<'_>,
         dss: &DigitallySignedStruct,
     ) -> Result<HandshakeSignatureValid, tokio_rustls::rustls::Error> {
-        verify_tls12_signature(message, cert, dss, &self.0.signature_verification_algorithms)
+        verify_tls12_signature(
+            message,
+            cert,
+            dss,
+            &self.0.signature_verification_algorithms,
+        )
     }
     fn verify_tls13_signature(
         &self,
@@ -373,9 +380,124 @@ impl ServerCertVerifier for NoCertVerifier {
         cert: &CertificateDer<'_>,
         dss: &DigitallySignedStruct,
     ) -> Result<HandshakeSignatureValid, tokio_rustls::rustls::Error> {
-        verify_tls13_signature(message, cert, dss, &self.0.signature_verification_algorithms)
+        verify_tls13_signature(
+            message,
+            cert,
+            dss,
+            &self.0.signature_verification_algorithms,
+        )
     }
     fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
         self.0.signature_verification_algorithms.supported_schemes()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::BTreeSet;
+    use std::net::Ipv4Addr;
+
+    use openssl::pkey::{PKey, Private};
+    use openssl::x509::X509;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    use tokio::net::{TcpListener, TcpStream};
+    use tokio_rustls::rustls::ServerConfig;
+    use tokio_rustls::rustls::pki_types::{PrivatePkcs8KeyDer, ServerName};
+    use tokio_rustls::{TlsAcceptor, TlsConnector};
+
+    use super::*;
+    use crate::net::ssl::{CertBranding, SANInfo, gen_nistp256, make_self_signed};
+
+    fn provider() -> Arc<CryptoProvider> {
+        Arc::new(tokio_rustls::rustls::crypto::ring::default_provider())
+    }
+
+    fn self_signed_for_loopback() -> (PKey<Private>, X509) {
+        let key = gen_nistp256().unwrap();
+        let san = SANInfo::new(&BTreeSet::from([InternedString::intern("127.0.0.1")]));
+        let cert = make_self_signed((&key, &san), &CertBranding::start_os("test")).unwrap();
+        (key, cert)
+    }
+
+    fn server_config(key: &PKey<Private>, cert: &X509) -> ServerConfig {
+        let cert_der = CertificateDer::from(cert.to_der().unwrap());
+        let key_der = PrivatePkcs8KeyDer::from(key.private_key_to_pkcs8().unwrap());
+        ServerConfig::builder_with_provider(provider())
+            .with_safe_default_protocol_versions()
+            .unwrap()
+            .with_no_client_auth()
+            .with_single_cert(vec![cert_der], key_der.into())
+            .unwrap()
+    }
+
+    /// Stand up a one-shot TLS server presenting `(key, cert)`, then attempt a
+    /// single client handshake to it with `client`. Returns whether the client
+    /// completed the handshake (i.e. accepted the server cert).
+    async fn handshake_succeeds(key: &PKey<Private>, cert: &X509, client: ClientConfig) -> bool {
+        let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let acceptor = TlsAcceptor::from(Arc::new(server_config(key, cert)));
+
+        let server = tokio::spawn(async move {
+            let (tcp, _) = listener.accept().await.unwrap();
+            if let Ok(mut tls) = acceptor.accept(tcp).await {
+                let mut buf = [0u8; 4];
+                let _ = tls.read(&mut buf).await;
+                let _ = tls.write_all(b"ok").await;
+                let _ = tls.shutdown().await;
+            }
+        });
+
+        let connector = TlsConnector::from(Arc::new(client));
+        let tcp = TcpStream::connect(addr).await.unwrap();
+        let name = ServerName::IpAddress(Ipv4Addr::LOCALHOST.into());
+        let result = connector.connect(name, tcp).await;
+        let ok = if let Ok(mut tls) = result {
+            tls.write_all(b"ping").await.is_ok()
+        } else {
+            false
+        };
+        server.abort();
+        ok
+    }
+
+    #[tokio::test]
+    async fn disable_accepts_self_signed() {
+        let (key, cert) = self_signed_for_loopback();
+        let client = client_config_no_verify(provider()).unwrap();
+        assert!(handshake_succeeds(&key, &cert, client).await);
+    }
+
+    #[tokio::test]
+    async fn pinned_cert_accepts_matching_and_rejects_other() {
+        let (key, cert) = self_signed_for_loopback();
+        let pem = String::from_utf8(cert.to_pem().unwrap()).unwrap();
+
+        let matching = client_config_with_cert(provider(), &pem).unwrap();
+        assert!(
+            handshake_succeeds(&key, &cert, matching).await,
+            "pinned cert should accept the matching server cert"
+        );
+
+        let (other_key, other_cert) = self_signed_for_loopback();
+        let other_pem = String::from_utf8(other_cert.to_pem().unwrap()).unwrap();
+        let mismatched = client_config_with_cert(provider(), &other_pem).unwrap();
+        assert!(
+            !handshake_succeeds(&key, &cert, mismatched).await,
+            "pinning an unrelated cert must reject the server cert"
+        );
+        // sanity: the other cert is itself valid against its own pin
+        let other_match = client_config_with_cert(provider(), &other_pem).unwrap();
+        assert!(handshake_succeeds(&other_key, &other_cert, other_match).await);
+    }
+
+    #[tokio::test]
+    async fn empty_root_store_rejects_self_signed() {
+        let (key, cert) = self_signed_for_loopback();
+        let client = client_config(provider(), std::iter::empty()).unwrap();
+        assert!(
+            !handshake_succeeds(&key, &cert, client).await,
+            "default root-CA validation must reject an untrusted self-signed cert"
+        );
     }
 }
