@@ -562,6 +562,9 @@ unsafe impl Send for DynVersion {}
 trait DynVersionT: RefUnwindSafe + Send + Sync {
     fn previous(&self) -> DynVersion;
     fn semver(&self) -> exver::Version;
+    // part of the DynVersionT surface; kept intentionally though not dynamically dispatched
+    #[allow(dead_code)]
+    fn compat(&self) -> &'static exver::VersionRange;
     fn pre_up(&self) -> BoxFuture<'static, Result<Box<dyn Any + UnwindSafe + Send>, Error>>;
     fn up(&self, db: &mut Value, input: Box<dyn Any + Send>) -> Result<Value, Error>;
     fn post_up<'a>(&self, ctx: &'a RpcContext, input: Value) -> BoxFuture<'a, Result<(), Error>>;
@@ -577,6 +580,9 @@ where
     }
     fn semver(&self) -> exver::Version {
         VersionT::semver(*self)
+    }
+    fn compat(&self) -> &'static exver::VersionRange {
+        VersionT::compat(*self)
     }
     fn pre_up(&self) -> BoxFuture<'static, Result<Box<dyn Any + UnwindSafe + Send>, Error>> {
         let v = *self;
@@ -611,6 +617,9 @@ impl DynVersionT for DynVersion {
     }
     fn semver(&self) -> exver::Version {
         self.0.semver()
+    }
+    fn compat(&self) -> &'static exver::VersionRange {
+        self.0.compat()
     }
     fn pre_up(&self) -> BoxFuture<'static, Result<Box<dyn Any + UnwindSafe + Send>, Error>> {
         self.0.pre_up()
