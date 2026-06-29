@@ -713,9 +713,9 @@ async fn previous_account_info(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<Accoun
                     .as_bytes(),
             )
             .with_ctx(|_| (ErrorKind::Database, "X509::from_pem"))?,
-            developer_key: SigningKey::generate(&mut ssh_key::rand_core::OsRng::default()),
+            developer_key: SigningKey::generate(&mut crate::util::crypto::os_rng()),
             ssh_key: ssh_key::PrivateKey::random(
-                &mut ssh_key::rand_core::OsRng::default(),
+                &mut crate::util::crypto::os_rng(),
                 ssh_key::Algorithm::Ed25519,
             )
             .with_ctx(|_| (ErrorKind::Database, "X509::ssh_key::PrivateKey::random"))?,

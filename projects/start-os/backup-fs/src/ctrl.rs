@@ -11,7 +11,8 @@ use std::io::Write;
 use chacha20::Key;
 use fuser::{FileType, FUSE_ROOT_ID};
 use log::error;
-use rand::Rng;
+use rand::rand_core::UnwrapErr;
+use rand::RngExt;
 use sha2::{Digest, Sha256};
 
 use crate::atomic_file::AtomicFile;
@@ -483,7 +484,7 @@ impl Controller {
             .config
             .file_size_padding
             .map(|p| p * size as f64)
-            .map(|p| p * rand::rng().random_range(0_f64..=1_f64))
+            .map(|p| p * UnwrapErr(rand::rng()).random_range(0_f64..=1_f64))
             .map(|p| p as u64)
             .unwrap_or(0))
     }

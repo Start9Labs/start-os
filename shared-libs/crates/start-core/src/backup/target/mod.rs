@@ -5,8 +5,6 @@ use chrono::{DateTime, Utc};
 use clap::Parser;
 use clap::builder::ValueParserFactory;
 use color_eyre::eyre::eyre;
-use digest::OutputSizeUser;
-use digest::generic_array::GenericArray;
 use exver::Version;
 use imbl_value::InternedString;
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
@@ -132,7 +130,7 @@ impl FileSystem for BackupTargetFS {
     }
     async fn source_hash(
         &self,
-    ) -> Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error> {
+    ) -> Result<digest::Output<Sha256>, Error> {
         match self {
             BackupTargetFS::Disk(a) => a.source_hash().await,
             BackupTargetFS::Cifs(a) => a.source_hash().await,

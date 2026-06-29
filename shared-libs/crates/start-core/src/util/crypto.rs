@@ -8,10 +8,11 @@ pub fn ed25519_expand_key(key: &SecretKey) -> [u8; EXPANDED_SECRET_KEY_LENGTH] {
     .to_bytes()
 }
 
-use aes::Aes256Ctr;
-use aes::cipher::{CipherKey, NewCipher, Nonce, StreamCipher};
+use aes::cipher::{KeyIvInit, StreamCipher};
 use hmac::Hmac;
 use josekit::jwk::Jwk;
+use rand::rand_core::UnwrapErr;
+use rand::rngs::ThreadRng;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use tracing::instrument;
@@ -19,23 +20,28 @@ use ts_rs::TS;
 
 use crate::prelude::*;
 
-pub fn pbkdf2(password: impl AsRef<[u8]>, salt: impl AsRef<[u8]>) -> CipherKey<Aes256Ctr> {
-    let mut aeskey = CipherKey::<Aes256Ctr>::default();
-    pbkdf2::pbkdf2::<Hmac<Sha256>>(
-        password.as_ref(),
-        salt.as_ref(),
-        1000,
-        aeskey.as_mut_slice(),
-    )
-    .unwrap();
+/// Infallible CSPRNG for ed25519-dalek / ssh-key key generation, which require a
+/// `rand_core` 0.10 `CryptoRng` (i.e. infallible). `rand::rng()` alone does not
+/// qualify — in rand 0.10 `ThreadRng` is only the fallible `TryCryptoRng` — so wrap
+/// it in `UnwrapErr`, which panics only on the effectively-never RNG failure.
+pub fn os_rng() -> UnwrapErr<ThreadRng> {
+    UnwrapErr(rand::rng())
+}
+
+// aes 0.7's `Aes256Ctr` was a 64-bit big-endian counter; keep that exact mode so
+// password-wrapped backup keys written by older versions still decrypt.
+type Aes256Ctr = ctr::Ctr64BE<aes::Aes256>;
+
+pub fn pbkdf2(password: impl AsRef<[u8]>, salt: impl AsRef<[u8]>) -> aes::cipher::Key<Aes256Ctr> {
+    let mut aeskey = aes::cipher::Key::<Aes256Ctr>::default();
+    pbkdf2::pbkdf2::<Hmac<Sha256>>(password.as_ref(), salt.as_ref(), 1000, &mut aeskey).unwrap();
     aeskey
 }
 
 pub fn encrypt_slice(input: impl AsRef<[u8]>, password: impl AsRef<[u8]>) -> Vec<u8> {
     let prefix: [u8; 32] = rand::random();
     let aeskey = pbkdf2(password.as_ref(), &prefix[16..]);
-    let ctr = Nonce::<Aes256Ctr>::from_slice(&prefix[..16]);
-    let mut aes = Aes256Ctr::new(&aeskey, ctr);
+    let mut aes = Aes256Ctr::new_from_slices(&aeskey, &prefix[..16]).unwrap();
     let mut res = Vec::with_capacity(32 + input.as_ref().len());
     res.extend_from_slice(&prefix[..]);
     res.extend_from_slice(input.as_ref());
@@ -49,8 +55,7 @@ pub fn decrypt_slice(input: impl AsRef<[u8]>, password: impl AsRef<[u8]>) -> Vec
     }
     let (prefix, rest) = input.as_ref().split_at(32);
     let aeskey = pbkdf2(password.as_ref(), &prefix[16..]);
-    let ctr = Nonce::<Aes256Ctr>::from_slice(&prefix[..16]);
-    let mut aes = Aes256Ctr::new(&aeskey, ctr);
+    let mut aes = Aes256Ctr::new_from_slices(&aeskey, &prefix[..16]).unwrap();
     let mut res = rest.to_vec();
     aes.apply_keystream(&mut res);
     res

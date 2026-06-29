@@ -2,8 +2,7 @@ use std::fmt::Display;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
-use digest::generic_array::GenericArray;
-use digest::{Digest, OutputSizeUser};
+use digest::Digest;
 use itertools::Itertools;
 use sha2::Sha256;
 
@@ -51,7 +50,7 @@ impl<P0: AsRef<Path> + Send + Sync, P1: AsRef<Path> + Send + Sync, P2: AsRef<Pat
     }
     async fn source_hash(
         &self,
-    ) -> Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error> {
+    ) -> Result<digest::Output<Sha256>, Error> {
         tokio::fs::create_dir_all(self.upper.as_ref()).await?;
         tokio::fs::create_dir_all(self.work.as_ref()).await?;
         let mut sha = Sha256::new();

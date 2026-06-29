@@ -83,11 +83,11 @@ impl OsBackupV0 {
                 root_ca_key: self.root_ca_key.0,
                 root_ca_cert: self.root_ca_cert.0,
                 ssh_key: ssh_key::PrivateKey::random(
-                    &mut ssh_key::rand_core::OsRng::default(),
+                    &mut crate::util::crypto::os_rng(),
                     ssh_key::Algorithm::Ed25519,
                 )?,
                 developer_key: ed25519_dalek::SigningKey::generate(
-                    &mut ssh_key::rand_core::OsRng::default(),
+                    &mut crate::util::crypto::os_rng(),
                 ),
             },
             ui: self.ui,

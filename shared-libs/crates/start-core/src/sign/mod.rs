@@ -5,7 +5,7 @@ use ::ed25519::pkcs8::BitStringRef;
 use clap::builder::ValueParserFactory;
 use der::referenced::OwnedToRef;
 use pkcs8::der::AnyRef;
-use pkcs8::{PrivateKeyInfo, SubjectPublicKeyInfo};
+use pkcs8::{PrivateKeyInfoRef, SubjectPublicKeyInfo};
 use serde::{Deserialize, Serialize};
 use sha2::Sha512;
 use ts_rs::TS;
@@ -138,9 +138,9 @@ impl AnySigningKey {
         }
     }
 }
-impl<'a> TryFrom<PrivateKeyInfo<'a>> for AnySigningKey {
+impl<'a> TryFrom<PrivateKeyInfoRef<'a>> for AnySigningKey {
     type Error = pkcs8::Error;
-    fn try_from(value: PrivateKeyInfo<'a>) -> Result<Self, Self::Error> {
+    fn try_from(value: PrivateKeyInfoRef<'a>) -> Result<Self, Self::Error> {
         if value.algorithm == ed25519_dalek::pkcs8::ALGORITHM_ID {
             Ok(Self::Ed25519(ed25519_dalek::SigningKey::try_from(value)?))
         } else {
@@ -153,6 +153,7 @@ impl<'a> TryFrom<PrivateKeyInfo<'a>> for AnySigningKey {
 }
 impl pkcs8::EncodePrivateKey for AnySigningKey {
     fn to_pkcs8_der(&self) -> pkcs8::Result<pkcs8::SecretDocument> {
+        use pkcs8::EncodePrivateKey;
         match self {
             Self::Ed25519(s) => s.to_pkcs8_der(),
         }
@@ -221,6 +222,7 @@ impl<'a> TryFrom<SubjectPublicKeyInfo<AnyRef<'a>, BitStringRef<'a>>> for AnyVeri
 }
 impl pkcs8::EncodePublicKey for AnyVerifyingKey {
     fn to_public_key_der(&self) -> pkcs8::spki::Result<pkcs8::Document> {
+        use pkcs8::spki::EncodePublicKey;
         match self {
             Self::Ed25519(s) => s.to_public_key_der(),
         }
