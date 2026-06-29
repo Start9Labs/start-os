@@ -45,8 +45,10 @@ pub struct NetController {
     tls_client_config_no_verify: Arc<TlsClientConfig>,
     /// Cache of upstream client configs keyed by PEM, so a given
     /// `UpstreamCertValidation::Certificate` yields a stable `Arc` across
-    /// rebuilds (keeps `ProxyTarget` equality from churning the vhost).
-    upstream_cert_configs: SyncMutex<BTreeMap<String, Arc<TlsClientConfig>>>,
+    /// rebuilds (keeps `ProxyTarget` equality from churning the vhost). Weak so
+    /// entries drop once no live `ProxyTarget` holds the config; dead entries
+    /// are pruned on insert.
+    upstream_cert_configs: SyncMutex<BTreeMap<String, Weak<TlsClientConfig>>>,
     pub(crate) net_iface: Arc<NetworkInterfaceController>,
     pub(super) dns: DnsController,
     pub(super) dns_update: DnsUpdateController,
@@ -153,15 +155,17 @@ impl NetController {
             Some(UpstreamCertValidation::Certificate(pem)) => {
                 if let Some(cfg) = self
                     .upstream_cert_configs
-                    .peek(|cache| cache.get(pem).cloned())
+                    .peek(|cache| cache.get(pem).and_then(Weak::upgrade))
                 {
                     return cfg;
                 }
                 match crate::net::tls::client_config_with_cert(self.crypto_provider.clone(), pem) {
                     Ok(cfg) => {
                         let cfg = Arc::new(cfg);
-                        self.upstream_cert_configs
-                            .mutate(|cache| cache.insert(pem.clone(), cfg.clone()));
+                        self.upstream_cert_configs.mutate(|cache| {
+                            cache.retain(|_, weak| weak.strong_count() > 0);
+                            cache.insert(pem.clone(), Arc::downgrade(&cfg));
+                        });
                         cfg
                     }
                     Err(e) => {
