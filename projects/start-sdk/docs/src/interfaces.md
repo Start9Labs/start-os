@@ -164,6 +164,7 @@ The key steps are:
 | `addSsl.preferredExternalPort` | `number` | External port for SSL connections. |
 | `addSsl.addXForwardedHeaders` | `boolean` | Whether to add `X-Forwarded-*` headers. |
 | `addSsl.auth` | `ProxyAuth` \| `null` | Optional auth gate enforced by the OS reverse proxy. See [Authenticating at the Proxy](#authenticating-at-the-proxy). |
+| `addSsl.upstreamCertValidation` | `'disable'` \| `{ certificate: string }` \| _omitted_ | How the OS validates your container's TLS cert when it [rewraps SSL](#rewrapping-ssl-to-a-tls-container). Omit to validate against the StartOS root CA (default). See [Rewrapping SSL](#rewrapping-ssl-to-a-tls-container). |
 | `secure` | `{ ssl: boolean }` \| `null` | For non-HTTP protocols, whether the connection is secure. |
 
 ## Interface Options
@@ -216,6 +217,30 @@ return 200 '{"api_url":"https://$host/api"}';
 ```
 
 This applies to any configuration file generated in `setupMain` or any runtime response that includes absolute URLs — not just nginx. When in doubt, hardcode `https://`.
+
+## Rewrapping SSL to a TLS container
+
+The guidance above ("do not configure in-container HTTPS") applies when StartOS terminates TLS and forwards plain HTTP — the `http`/`ws` protocols. The `https`/`wss` protocols are different: the container serves its **own** TLS, StartOS terminates the client's TLS at the edge, and then opens a **fresh TLS connection to your container** (a "rewrap"). This happens whenever `addSsl` is set and the protocol's `secure.ssl` is `true`.
+
+On that inner OS→container leg, StartOS validates your container's certificate. By default it requires a certificate signed by the StartOS root CA. A container serving a **self-signed** certificate on the internal bridge will fail that check, so use `addSsl.upstreamCertValidation` to control it:
+
+| Value | Behavior |
+|-------|----------|
+| _omitted_ | Validate against the StartOS root CA (default). |
+| `'disable'` | Skip certificate validation entirely. Appropriate for a self-signed cert on the trusted internal bridge. |
+| `{ certificate: '<pem>' }` | Validate against the supplied PEM certificate/chain instead of the root CA. |
+
+```typescript
+const origin = await multi.bindPort(443, {
+  protocol: 'https',
+  addSsl: {
+    upstreamCertValidation: 'disable', // container serves its own self-signed cert
+  },
+})
+```
+
+> [!NOTE]
+> For `{ certificate }`, StartOS connects to the container by IP, so the pinned certificate must be valid for that internal IP (present in its SANs). If it isn't, use `'disable'` instead.
 
 ## Authenticating at the Proxy
 

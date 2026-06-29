@@ -6,14 +6,19 @@ use futures::future::BoxFuture;
 use futures::stream::FuturesUnordered;
 use futures::{FutureExt, StreamExt};
 use imbl_value::InternedString;
-use openssl::x509::X509Ref;
+use openssl::x509::{X509, X509Ref};
 use tokio::io::AsyncWriteExt;
 use tokio_rustls::LazyConfigAcceptor;
-use tokio_rustls::rustls::crypto::CryptoProvider;
-use tokio_rustls::rustls::pki_types::CertificateDer;
+use tokio_rustls::rustls::client::danger::{
+    HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier,
+};
+use tokio_rustls::rustls::crypto::{CryptoProvider, verify_tls12_signature, verify_tls13_signature};
+use tokio_rustls::rustls::pki_types::{CertificateDer, ServerName, UnixTime};
 use tokio_rustls::rustls::server::{Acceptor, ClientHello, ResolvesServerCert};
 use tokio_rustls::rustls::sign::CertifiedKey;
-use tokio_rustls::rustls::{ClientConfig, RootCertStore, ServerConfig};
+use tokio_rustls::rustls::{
+    ClientConfig, DigitallySignedStruct, RootCertStore, ServerConfig, SignatureScheme,
+};
 use visit_rs::{Visit, VisitFields};
 
 /// Result of a TLS handler's decision about how to handle a connection.
@@ -306,4 +311,71 @@ pub fn client_config<'a, I: IntoIterator<Item = &'a X509Ref>>(
         .with_kind(ErrorKind::OpenSsl)?
         .with_root_certificates(certs)
         .with_no_client_auth())
+}
+
+/// Like [`client_config`], but validates the upstream certificate against the
+/// PEM-encoded certificate(s) in `pem` instead of the StartOS root CA.
+pub fn client_config_with_cert(
+    crypto_provider: Arc<CryptoProvider>,
+    pem: &str,
+) -> Result<ClientConfig, Error> {
+    let mut certs = RootCertStore::empty();
+    for cert in X509::stack_from_pem(pem.as_bytes()).with_kind(ErrorKind::OpenSsl)? {
+        certs
+            .add(CertificateDer::from_slice(&cert.to_der()?))
+            .with_kind(ErrorKind::OpenSsl)?;
+    }
+    Ok(ClientConfig::builder_with_provider(crypto_provider.clone())
+        .with_safe_default_protocol_versions()
+        .with_kind(ErrorKind::OpenSsl)?
+        .with_root_certificates(certs)
+        .with_no_client_auth())
+}
+
+/// A client config that performs NO certificate validation. Only for the
+/// OS→container rewrap leg over the trusted internal bridge, when the package
+/// opts into `UpstreamCertValidation::Disable`.
+pub fn client_config_no_verify(
+    crypto_provider: Arc<CryptoProvider>,
+) -> Result<ClientConfig, Error> {
+    Ok(ClientConfig::builder_with_provider(crypto_provider.clone())
+        .with_safe_default_protocol_versions()
+        .with_kind(ErrorKind::OpenSsl)?
+        .dangerous()
+        .with_custom_certificate_verifier(Arc::new(NoCertVerifier(crypto_provider)))
+        .with_no_client_auth())
+}
+
+#[derive(Debug)]
+struct NoCertVerifier(Arc<CryptoProvider>);
+impl ServerCertVerifier for NoCertVerifier {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &CertificateDer<'_>,
+        _intermediates: &[CertificateDer<'_>],
+        _server_name: &ServerName<'_>,
+        _ocsp_response: &[u8],
+        _now: UnixTime,
+    ) -> Result<ServerCertVerified, tokio_rustls::rustls::Error> {
+        Ok(ServerCertVerified::assertion())
+    }
+    fn verify_tls12_signature(
+        &self,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, tokio_rustls::rustls::Error> {
+        verify_tls12_signature(message, cert, dss, &self.0.signature_verification_algorithms)
+    }
+    fn verify_tls13_signature(
+        &self,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, tokio_rustls::rustls::Error> {
+        verify_tls13_signature(message, cert, dss, &self.0.signature_verification_algorithms)
+    }
+    fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
+        self.0.signature_verification_algorithms.supported_schemes()
+    }
 }
