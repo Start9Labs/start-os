@@ -1,0 +1,19 @@
+[package]
+name = "uciedit"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+inpt = "0.1.5"
+fd-lock-rs = { workspace = true }
+bumpalo = "3.17"
+typed-arena = "2.0.2"
+uciedit_macros = { workspace = true }
+strum = { version = "0.27.1", features = ["derive"] }
+thiserror = { workspace = true}
+serde = { workspace = true }
+chrono = { workspace = true }
+tokio = { version = "1", features = ["fs", "io-util", "rt"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt"] }
