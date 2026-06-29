@@ -1,0 +1,22 @@
+[package]
+name = "start-tunnel"
+version = "1.0.0" # VERSION_BUMP
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/Start9Labs/start-os"
+
+[[bin]]
+name = "tunnelbox"
+path = "src/main.rs"
+
+[features]
+default = []
+beta = ["start-core/beta"]
+console = ["start-core/console"]
+dev = ["start-core/dev"]
+test = ["start-core/test"]
+unstable = ["start-core/unstable"]
+
+[dependencies]
+start-core = { path = "../../shared-libs/crates/start-core" }
+include_dir = "0.7.3"

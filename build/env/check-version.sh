@@ -2,11 +2,10 @@
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-FE_VERSION="$(cat ../../web/package.json | grep '"version"' | sed 's/[ \t]*"version":[ \t]*"\([^"]*\)",/\1/')"
-
-# TODO: Validate other version sources - backend/Cargo.toml, backend/src/version/mod.rs
-
-VERSION=$FE_VERSION
+# The StartOS image version is the start-os crate version (the source of truth).
+# Per-project versions are read from each project's manifest by basename.sh /
+# debian/build.sh; this only materializes the OS image's /usr/lib/startos/VERSION.txt.
+VERSION="$(grep -m1 '^version' ../../projects/start-os/Cargo.toml | sed -E 's/^version *= *"([^"]*)".*/\1/')"
 
 if ! [ -f ./VERSION.txt ] || [ "$(cat ./VERSION.txt)" != "$VERSION" ]; then
     echo -n "$VERSION" > ./VERSION.txt

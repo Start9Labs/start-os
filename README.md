@@ -1,17 +1,11 @@
 <div align="center">
-  <img src="web/projects/shared/assets/img/icon.png" alt="StartOS Logo" width="16%" />
-  <h1 style="margin-top: 0;">StartOS</h1>
-  <a href="https://github.com/Start9Labs/start-os/releases">
-    <img alt="GitHub release (with filter)" src="https://img.shields.io/github/v/release/start9labs/start-os?logo=github">
+  <img src="shared-libs/ts-modules/shared/assets/img/icon.png" alt="StartOS Logo" width="16%" />
+  <h1 style="margin-top: 0;">Start9 Technologies</h1>
+  <a href="https://github.com/Start9Labs/start-technologies/releases">
+    <img alt="GitHub release (with filter)" src="https://img.shields.io/github/v/release/start9labs/start-technologies?logo=github">
   </a>
-  <a href="https://github.com/Start9Labs/start-os/actions/workflows/startos-iso.yaml">
-    <img src="https://github.com/Start9Labs/start-os/actions/workflows/startos-iso.yaml/badge.svg">
-  </a>
-  <a href="https://heyapollo.com/product/startos">
-    <img alt="Static Badge" src="https://img.shields.io/badge/apollo-review%20%E2%AD%90%E2%AD%90%E2%AD%90%E2%AD%90%E2%AD%90%20-slateblue">
-  </a>
-  <a href="https://twitter.com/start9labs">
-    <img alt="X (formerly Twitter) Follow" src="https://img.shields.io/twitter/follow/start9labs">
+  <a href="https://github.com/Start9Labs/start-technologies/actions/workflows/startos-iso.yaml">
+    <img src="https://github.com/Start9Labs/start-technologies/actions/workflows/startos-iso.yaml/badge.svg">
   </a>
   <a href="https://docs.start9.com">
     <img alt="Static Badge" src="https://img.shields.io/badge/docs-orange?label=%F0%9F%91%A4%20support">
@@ -24,25 +18,38 @@
   </a>
 </div>
 
-## What is StartOS?
+## What is this?
 
-StartOS is an open-source Linux distribution for running a personal server. It handles discovery, installation, network configuration, data backup, dependency management, and health monitoring of self-hosted services.
+This repository is the **monorepo for all Start9 products**. Its flagship is **StartOS** — an open-source Linux distribution for running a personal server, handling discovery, installation, network configuration, data backup, dependency management, and health monitoring of self-hosted services.
 
-**Tech stack:** Rust backend (Tokio/Axum), Angular frontend, Node.js container runtime with LXC, and a custom diff-based database ([Patch-DB](https://github.com/Start9Labs/patch-db)) for reactive state synchronization.
+All products share a single Rust backend library (`start-core`) and a single Angular workspace; each product is a thin wrapper under `projects/` that adds only its own entry point and any product-specific frontend or packaging, while shared code lives at the top level under `shared-libs/`.
 
-Services run in isolated LXC containers, packaged as [S9PKs](https://github.com/Start9Labs/start-os/blob/master/core/s9pk-structure.md) — a signed, merkle-archived format that supports partial downloads and cryptographic verification.
+| Directory                        | Product          | What it is                                                                                                |
+| -------------------------------- | ---------------- | --------------------------------------------------------------------------------------------------------- |
+| `projects/start-os/`             | StartOS          | The server OS — `startbox`/`start-container` bins, web UI + setup wizard, container runtime, OS packaging |
+| `projects/start-cli/`            | start-cli        | CLI for managing servers, registries, and packaging                                                       |
+| `projects/start-registry/`       | start-registry   | Package registry server (`registrybox`); serves the marketplace UI                                        |
+| `projects/start-tunnel/`         | StartTunnel      | VPN/forwarding server (`tunnelbox`) + its web UI                                                          |
+| `projects/start-sdk/`            | Start SDK        | `@start9labs/start-sdk` for building StartOS service packages                                             |
+| `projects/brochure-marketplace/` | Marketplace site | Public marketplace/landing site (marketplace.start9.com)                                                  |
+| `projects/start-docs/`           | Docs site        | The documentation website (docs.start9.com)                                                               |
+| `shared-libs/crates/start-core/` | —                | The entire Rust backend library shared by all bins                                                        |
+| `shared-libs/ts-modules/`        | —                | Shared Angular libraries (the Angular workspace is rooted at the repo root)                               |
+| `shared-libs/crates/patch-db/`   | —                | Diff-based reactive state store (first-party crate)                                                       |
 
-## What can you do with it?
+**Tech stack:** Rust backend (Tokio/Axum), Angular frontend (Taiga UI), Node.js container runtime with LXC, and a custom diff-based database ([Patch-DB](https://github.com/Start9Labs/patch-db)) for reactive state synchronization. Services run in isolated LXC containers, packaged as S9PKs — a signed, merkle-archived format supporting partial downloads and cryptographic verification.
 
-StartOS lets you self-host services that would otherwise depend on third-party cloud providers — giving you full ownership of your data and infrastructure.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for how the pieces fit together.
 
-Browse available services on the [Start9 Marketplace](https://marketplace.start9.com/), including:
+## What can you do with StartOS?
 
-- **Bitcoin & Lightning** — Run a full Bitcoin node, Lightning node, BTCPay Server, and other payment infrastructure
-- **Communication** — Self-host Matrix, SimpleX, or other messaging platforms
-- **Cloud Storage** — Run Nextcloud, Vaultwarden, and other productivity tools
+StartOS lets you self-host services that would otherwise depend on third-party cloud providers — giving you full ownership of your data and infrastructure. Browse available services on the [Start9 Marketplace](https://marketplace.start9.com/), including:
 
-Services are added by the community. If a service you want isn't available, you can [package it yourself](https://github.com/Start9Labs/ai-service-packaging/).
+- **Bitcoin & Lightning** — full Bitcoin node, Lightning node, BTCPay Server, and other payment infrastructure
+- **Communication** — Matrix, SimpleX, and other messaging platforms
+- **Cloud Storage** — Nextcloud, Vaultwarden, and other productivity tools
+
+Services are added by the community. If a service you want isn't available, you can [package it yourself](https://docs.start9.com/packaging/).
 
 ## Getting StartOS
 
@@ -52,19 +59,37 @@ The easiest path. [Buy a server](https://store.start9.com) from Start9 and plug 
 
 ### Build your own
 
-Follow the [install guide](https://docs.start9.com/start-os/installing-startos.html) to install StartOS on your own hardware. . Reasons to go this route:
-
-1. You already have compatible hardware
-2. You want to save on shipping costs
-3. You prefer not to share your physical address
-4. You enjoy building things
+Follow the [install guide](https://docs.start9.com/start-os/installing-startos.html) to install StartOS on your own hardware.
 
 ### Build from source
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, build instructions, and development workflow.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, build instructions, and the development workflow. In short:
+
+```sh
+git clone https://github.com/Start9Labs/start-technologies.git
+cd start-os
+PLATFORM=$(uname -m) ENVIRONMENT=dev make startos   # build a StartOS image
+```
+
+## The rest of the monorepo
+
+StartOS is the flagship, but it shares this repo with the rest of the Start9 stack:
+
+- **[StartTunnel](projects/start-tunnel/)** — a self-hosted VPN / reverse-proxy server that gives a StartOS box a public address and clearnet port forwarding without relying on a third-party tunnel.
+- **[start-cli](projects/start-cli/)** — the command-line client for StartOS servers and registries, and the tool that builds and signs service packages (`.s9pk`).
+- **[Start SDK](projects/start-sdk/)** — the `@start9labs/start-sdk` TypeScript SDK and packaging toolchain for wrapping any app into an installable StartOS service.
+- **[start-registry](projects/start-registry/)** — the registry server that hosts and serves marketplaces of packaged services.
+- **[Marketplace site](projects/brochure-marketplace/)** — the public marketplace at [marketplace.start9.com](https://marketplace.start9.com), built on the same UI components the OS uses.
+- **[Docs site](projects/start-docs/)** — the documentation website at [docs.start9.com](https://docs.start9.com).
+
+## Documentation
+
+- [ARCHITECTURE.md](ARCHITECTURE.md) — how the monorepo fits together
+- [CONTRIBUTING.md](CONTRIBUTING.md) — environment setup, build, test, and format workflow
+- [AGENTS.md](AGENTS.md) — AI-developer/agent operating rules (`CLAUDE.md` is a one-line `@AGENTS.md` import)
 
 ## Contributing
 
-There are multiple ways to contribute: work directly on StartOS, package a service for the marketplace, or help with documentation and guides. See [CONTRIBUTING.md](CONTRIBUTING.md) or visit [start9.com/contribute](https://start9.com/contribute/).
+There are multiple ways to contribute: work directly on a product in this repo, package a service for the marketplace, or help with documentation and guides. See [CONTRIBUTING.md](CONTRIBUTING.md) or visit [start9.com/contribute](https://start9.com/contribute/).
 
 To report security issues, email [security@start9.com](mailto:security@start9.com).

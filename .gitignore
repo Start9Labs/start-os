@@ -18,12 +18,31 @@ secrets.db
 /dpkg-workdir
 /compiled.tar
 /compiled-*.tar
-/build/lib/firmware
+/projects/start-os/build/lib/firmware
 tmp
-web/.i18n-checked
+/.i18n-checked
 docs/USER.md
-CLAUDE.local.md
+*.local.md
 *.s9pk
-/build/lib/migration-images
+/projects/start-os/build/lib/migration-images
+/projects/start-os/build/lib/depends
+/projects/start-os/build/lib/conflicts
 .claude/*
 !.claude/settings.json
+
+# monorepo: per-product web build outputs
+/projects/start-os/web/dist/
+/projects/start-tunnel/web/dist/
+/projects/brochure-marketplace/dist/
+
+# migrated mdbook standalone build outputs
+/projects/start-os/docs/book/
+/projects/start-tunnel/docs/book/
+/projects/start-sdk/docs/book/
+/projects/start-docs/docs/
+
+# Angular workspace now rooted at repo root
+/node_modules
+/.angular
+/out-tsc
+/config.json

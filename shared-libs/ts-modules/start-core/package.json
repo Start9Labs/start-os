@@ -1,0 +1,53 @@
+{
+  "name": "@start9labs/start-core",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "sideEffects": true,
+  "scripts": {
+    "peggy": "peggy --allowed-start-rules \"*\" --plugin ./node_modules/ts-pegjs/dist/tspegjs -o lib/exver/exver.ts lib/exver/exver.pegjs",
+    "test": "jest -c ./jest.config.js --coverage",
+    "buildOutput": "npx prettier --write \"**/*.ts\"",
+    "check": "tsc --noEmit",
+    "tsc": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Start9Labs/start-os.git"
+  },
+  "author": "Start9 Labs",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Start9Labs/start-os/issues"
+  },
+  "homepage": "https://github.com/Start9Labs/start-os#readme",
+  "dependencies": {
+    "@iarna/toml": "^3.0.0",
+    "@noble/curves": "^1.9.7",
+    "@noble/hashes": "^1.8.0",
+    "deep-equality-data-structures": "^2.0.0",
+    "isomorphic-fetch": "^3.0.0",
+    "mime": "^4.1.0",
+    "yaml": "^2.8.3",
+    "zod": "4.4.3",
+    "zod-deep-partial": "^1.4.4"
+  },
+  "prettier": {
+    "trailingComma": "all",
+    "tabWidth": 2,
+    "semi": false,
+    "singleQuote": true,
+    "arrowParens": "avoid"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/lodash.merge": "^4.6.2",
+    "jest": "^30.0.0",
+    "peggy": "^3.0.2",
+    "prettier": "3.8.3",
+    "ts-jest": "^29.4.9",
+    "ts-node": "^10.9.1",
+    "ts-pegjs": "^4.2.1",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3"
+  }
+}

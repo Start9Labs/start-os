@@ -1,101 +1,111 @@
 # Architecture
 
-StartOS is an open-source Linux distribution for running personal servers. It manages discovery, installation, network configuration, backups, and health monitoring of self-hosted services.
+This repo is the **monorepo for all Start9 products**. Each product is a thin top-level wrapper (its own bin entry points and product-specific frontend/packaging); the bulk of the code lives in shared libraries — `start-core` on the Rust side, a single Angular workspace plus the SDK on the web side.
 
 ## Tech Stack
 
-- Backend: Rust (async/Tokio, Axum web framework)
-- Frontend: Angular 22 + TypeScript + Taiga UI 5
+- Backend: Rust (async/Tokio, Axum) — one library crate (`start-core`, lib name `start_core`) shared by all bins
+- Frontend: Angular 22 + TypeScript + Taiga UI 5 — one workspace rooted at the repo root (`angular.json`, `package.json` at root) with shared source libraries in `shared-libs/ts-modules`
 - Container runtime: Node.js/TypeScript with LXC
-- Database/State: Patch-DB (git submodule) - storage layer with reactive frontend sync
-- API: JSON-RPC via rpc-toolkit (see `core/rpc-toolkit.md`)
-- Auth: Password + session cookie, public/private key signatures, local authcookie (see `core/src/middleware/auth/`)
+- Database/State: Patch-DB (in-repo at `shared-libs/crates/patch-db`) — diff-based store with reactive frontend sync
+- API: JSON-RPC via rpc-toolkit (see `shared-libs/crates/start-core/rpc-toolkit.md`)
+- Auth: password + session cookie, public/private key signatures, local authcookie (see `shared-libs/crates/start-core/src/middleware/auth/`)
 
-## Project Structure
+## Repository layout
 
-```bash
-/
-├── assets/              # Screenshots for README
-├── build/               # Auxiliary files and scripts for deployed images
-├── container-runtime/   # Node.js program managing package containers
-├── core/                # Rust backend: API, daemon (startd), CLI (start-cli)
-├── debian/              # Debian package maintainer scripts
-├── image-recipe/        # Scripts for building StartOS images
-├── patch-db/            # (submodule) Diff-based data store for frontend sync
-├── sdk/                 # TypeScript SDK for building StartOS packages
-└── web/                 # Web UIs (Angular)
+```
+start-os/                          # repo root (monorepo)
+├── projects/start-os/             # OS product
+│   ├── src/bin/{startbox,start-container}.rs
+│   ├── web/                       #   Angular UI + setup-wizard
+│   ├── container-runtime/         #   Node LXC service runtime
+│   ├── debian/ apt/ assets/ build/
+│   ├── *.service  services.slice
+│   └── Cargo.toml                 #   → depends on start-core
+├── projects/start-cli/            # start-cli bin (src/main.rs)
+├── projects/start-registry/       # registrybox bin; serves the shared marketplace lib
+│   └── start-registryd.service
+├── projects/start-tunnel/         # tunnelbox bin + web/ (StartTunnel UI)
+│   └── start-tunneld.service
+├── projects/start-sdk/                     # @start9labs/start-sdk (base/ + package/) + Makefile/s9pk.mk + docs/
+├── projects/brochure-marketplace/ # marketing/landing Angular app
+├── shared-libs/
+│   ├── crates/
+│   │   ├── start-core/            # the ENTIRE backend lib (package start-core, lib name start_core)
+│   │   ├── patch-db/              #   first-party crate (Rust core + TS client)
+│   │   └── …                      #   exver, imbl-value, jsonpath, pi-beep, rpc-toolkit, yasi
+│   └── ts-modules/                # Angular shared libs (workspace rooted at repo root)
+│       ├── shared/                #   @start9labs/shared
+│       └── marketplace/           #   @start9labs/marketplace
+├── angular.json  package.json     # Angular workspace root
+├── Cargo.toml  Cargo.lock         # one root Cargo workspace
+└── Makefile                       # top-level build/test/deploy targets
 ```
 
 ## Components
 
-- **`core/`** — Rust backend daemon. Produces a single binary `startbox` that is symlinked as `startd` (main daemon), `start-cli` (CLI), `start-container` (runs inside LXC containers), `registrybox` (package registry), and `tunnelbox` (VPN/tunnel). Handles all backend logic: RPC API, service lifecycle, networking (DNS, ACME, WiFi, Tor, WireGuard), backups, and database state management. See [core/ARCHITECTURE.md](core/ARCHITECTURE.md).
+- **`shared-libs/crates/start-core/`** — the entire Rust backend, one library crate. Modules: `bins`, `registry`, `tunnel`, `service`, `s9pk`, `net`, `db`, `install`, `update`, `lxc`, `os_install`, `backup`, `sign`, `version`, … Handles RPC API, service lifecycle, networking (DNS, ACME, WiFi, Tor, WireGuard), backups, and database state. All product bins depend on it. See [shared-libs/crates/start-core/ARCHITECTURE.md](shared-libs/crates/start-core/ARCHITECTURE.md).
 
-- **`web/`** — Angular 22 + TypeScript workspace using Taiga UI 5. Contains four applications (admin UI, setup wizard, VPN management, and the public marketplace brochure) and two shared libraries (common components/services, marketplace). Communicates with the backend exclusively via JSON-RPC. See [web/ARCHITECTURE.md](web/ARCHITECTURE.md).
+- **Product bins** — thin wrappers (feature toggles + `include_dir!` UI embed) over `start-core`:
+  - `start-os` package → `startbox` (main daemon `startd`) and `start-container` (runs inside LXC containers)
+  - `start-cli` → `start-cli`
+  - `start-registry` → `registrybox` (package registry)
+  - `start-tunnel` → `tunnelbox` (VPN/tunnel server)
 
-- **`container-runtime/`** — Node.js runtime that runs inside each service's LXC container. Loads the service's JavaScript from its S9PK package and manages subcontainers. Communicates with the host daemon via JSON-RPC over Unix socket. See [container-runtime/CLAUDE.md](container-runtime/CLAUDE.md).
+- **`shared-libs/ts-modules/`** — shared **TypeScript** modules consumed across products. The common thread is just that they are TS — the directory is not Angular-specific. It holds the two Angular 22 / Taiga UI 5 libraries `shared` (`@start9labs/shared`) and `marketplace` (`@start9labs/marketplace`), plus the non-Angular `start-core` (`@start9labs/start-core`: the SDK's core types/ABI/effects/OS bindings, mirroring the `start-core` Rust crate; consumed directly by web and bundled into the SDK). The single Angular workspace (root `angular.json`/`package.json`) defines six projects whose roots point into product dirs: `ui` and `setup-wizard` (`projects/start-os/web/`), `start-tunnel` (`projects/start-tunnel/web/`), `brochure-marketplace` (`projects/brochure-marketplace/`), plus the two Angular libraries. Apps talk to the backend exclusively via JSON-RPC. See [shared-libs/ts-modules/ARCHITECTURE.md](shared-libs/ts-modules/ARCHITECTURE.md).
 
-- **`sdk/`** — TypeScript SDK for packaging services for StartOS (`@start9labs/start-sdk`). Split into `base/` (core types, ABI definitions, effects interface, consumed by web as `@start9labs/start-sdk-base`) and `package/` (full SDK for service developers, consumed by container-runtime as `@start9labs/start-sdk`).
+- **`projects/start-os/container-runtime/`** — Node.js runtime that runs inside each service's LXC container. Loads the service's JavaScript from its S9PK and manages subcontainers; talks to the host daemon via JSON-RPC over a Unix socket. See [projects/start-os/container-runtime/AGENTS.md](projects/start-os/container-runtime/AGENTS.md).
 
-- **`patch-db/`** — Git submodule providing diff-based state synchronization. Uses CBOR encoding. Backend mutations produce diffs that are pushed to the frontend via WebSocket, enabling reactive UI updates without polling. See [patch-db repo](https://github.com/Start9Labs/patch-db).
+- **`projects/start-sdk/`** — TypeScript SDK for packaging services (`@start9labs/start-sdk`), flattened with source in `lib/`. It imports the shared `@start9labs/start-core` lib (`shared-libs/ts-modules/start-core/` — core types, ABI, effects interface, also consumed directly by web) and bundles it into its published `dist/`, so container-runtime and external service developers install a single package. Its `Makefile`/`s9pk.mk` is the source of truth for the published tarball.
 
-## Build Pipeline
+- **`shared-libs/crates/patch-db/`** — first-party crate providing diff-based state sync (CBOR encoded). Backend mutations produce diffs pushed to the frontend over WebSocket for reactive UI. See the [patch-db repo](https://github.com/Start9Labs/patch-db).
 
-Components have a strict dependency chain. Changes flow in one direction:
+## Build pipeline
+
+One root Cargo workspace (members: the product bin crates + every shared crate under `shared-libs/crates/`, including `start-core` and the `patch-db` crates) and one Angular workspace rooted at the repo root (shared libs under `shared-libs/ts-modules`). Cross-layer changes flow in one direction:
 
 ```
-Rust (core/)
-  → cargo test exports ts-rs types to core/bindings/
-    → rsync copies to sdk/base/lib/osBindings/
-      → SDK build produces baseDist/ and dist/
-        → web/ consumes baseDist/ (via @start9labs/start-sdk-base)
-        → container-runtime/ consumes dist/ (via @start9labs/start-sdk)
+Rust (shared-libs/crates/start-core)
+  → make ts-bindings: ts-rs export → shared-libs/crates/start-core/bindings/ → rsync to shared-libs/ts-modules/start-core/lib/osBindings/
+    → start-core build (cd shared-libs/ts-modules/start-core && make dist) → dist/
+      → shared-libs/ts-modules + web apps consume it (via @start9labs/start-core)
+    → SDK build (cd projects/start-sdk && make bundle) → dist/ (bundles @start9labs/start-core)
+      → projects/start-os/container-runtime consumes the SDK dist/ (via @start9labs/start-sdk) + @start9labs/start-core
 ```
 
-Key make targets along this chain:
+Key make targets along the chain:
 
 | Step | Command | What it does |
 |---|---|---|
-| 1 | `cargo check -p start-os` | Verify Rust compiles |
-| 2 | `make ts-bindings` | Export ts-rs types → rsync to SDK |
-| 3 | `cd sdk && make baseDist dist` | Build SDK packages |
-| 4 | `cd web && npm run check` | Type-check Angular projects |
-| 5 | `cd container-runtime && npm run check` | Type-check runtime |
+| 1 | `cargo check -p start-core` | Verify the backend lib compiles |
+| 2 | `make ts-bindings` | Export ts-rs types → rsync to `shared-libs/ts-modules/start-core/lib/osBindings/` |
+| 3 | `cd projects/start-sdk && make bundle` | Build the SDK `dist/` (builds `@start9labs/start-core` first and bundles it) |
+| 4 | `npm run check` | Type-check Angular projects (from the repo root) |
+| 5 | `cd projects/start-os/container-runtime && npm run check` | Type-check the runtime |
 
-**Important**: Editing `sdk/base/lib/osBindings/*.ts` alone is NOT sufficient — you must rebuild the SDK bundle (step 3) before web/container-runtime can see the changes.
+**Important**: editing `shared-libs/ts-modules/start-core/lib/osBindings/*.ts` alone is NOT enough — rebuild start-core (and the SDK bundle, step 3) before web/container-runtime can see the change.
 
-## Cross-Layer Verification
+## Cross-layer verification
 
-When making changes across multiple layers (Rust, SDK, web, container-runtime), verify in this order:
+When a change spans Rust, SDK, web, and container-runtime, verify in the order above (1→5). `make ts-bindings` runs the `start-core` export and rsyncs `shared-libs/crates/start-core/bindings/` → `shared-libs/ts-modules/start-core/lib/osBindings/`; the built `@start9labs/start-core` is what web references, and the SDK bundle (step 3) is what container-runtime references, not the source files.
 
-1. **Rust**: `cargo check -p start-os` — verifies core compiles
-2. **TS bindings**: `make ts-bindings` — regenerates TypeScript types from Rust `#[ts(export)]` structs
-   - Runs `./core/build/build-ts.sh` to export ts-rs types to `core/bindings/`
-   - Syncs `core/bindings/` → `sdk/base/lib/osBindings/` via rsync
-   - If you manually edit files in `sdk/base/lib/osBindings/`, you must still rebuild the SDK (step 3)
-3. **SDK bundle**: `cd sdk && make baseDist dist` — compiles SDK source into packages
-   - `baseDist/` is consumed by `/web` (via `@start9labs/start-sdk-base`)
-   - `dist/` is consumed by `/container-runtime` (via `@start9labs/start-sdk`)
-   - Web and container-runtime reference the **built** SDK, not source files
-4. **Web type check**: `cd web && npm run check` — type-checks all Angular projects
-5. **Container runtime type check**: `cd container-runtime && npm run check` — type-checks the runtime
+## Data flow: backend → frontend
 
-## Data Flow: Backend to Frontend
+StartOS uses Patch-DB for reactive state sync:
 
-StartOS uses Patch-DB for reactive state synchronization:
+1. The backend mutates state via `db.mutate()`, producing CBOR diffs.
+2. Diffs are pushed to the frontend over a persistent WebSocket.
+3. The frontend applies diffs to its local state copy and notifies observers.
+4. Components watch specific DB paths via `PatchDB.watch$()`, receiving updates reactively.
 
-1. The backend mutates state via `db.mutate()`, producing CBOR diffs
-2. Diffs are pushed to the frontend over a persistent WebSocket connection
-3. The frontend applies diffs to its local state copy and notifies observers
-4. Components watch specific database paths via `PatchDB.watch$()`, receiving updates reactively
+The UI is therefore eventually consistent with the backend — after a mutating API call, the frontend waits for the corresponding PatchDB diff before resolving, so the UI reflects the result immediately.
 
-This means the UI is always eventually consistent with the backend — after any mutating API call, the frontend waits for the corresponding PatchDB diff before resolving, so the UI reflects the result immediately.
+## Further reading
 
-## Further Reading
-
-- [core/ARCHITECTURE.md](core/ARCHITECTURE.md) — Rust backend architecture
-- [web/ARCHITECTURE.md](web/ARCHITECTURE.md) — Angular frontend architecture
-- [container-runtime/CLAUDE.md](container-runtime/CLAUDE.md) — Container runtime details
-- [core/rpc-toolkit.md](core/rpc-toolkit.md) — JSON-RPC handler patterns
-- [core/s9pk-structure.md](core/s9pk-structure.md) — S9PK package format
-- [docs/exver.md](docs/exver.md) — Extended versioning format
-- [docs/VERSION_BUMP.md](docs/VERSION_BUMP.md) — Version bumping guide
+- [shared-libs/crates/start-core/ARCHITECTURE.md](shared-libs/crates/start-core/ARCHITECTURE.md) — Rust backend
+- [shared-libs/ts-modules/ARCHITECTURE.md](shared-libs/ts-modules/ARCHITECTURE.md) — Angular frontend
+- [projects/start-os/container-runtime/AGENTS.md](projects/start-os/container-runtime/AGENTS.md) — container runtime
+- [shared-libs/crates/start-core/rpc-toolkit.md](shared-libs/crates/start-core/rpc-toolkit.md) — JSON-RPC handler patterns
+- [shared-libs/crates/start-core/s9pk-structure.md](shared-libs/crates/start-core/s9pk-structure.md) — S9PK package format
+- [shared-libs/crates/start-core/exver.md](shared-libs/crates/start-core/exver.md) — extended versioning format
+- [shared-libs/crates/start-core/VERSION_BUMP.md](shared-libs/crates/start-core/VERSION_BUMP.md) — version bumping guide

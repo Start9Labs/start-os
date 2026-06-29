@@ -1,0 +1,12 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 1110a87abae4ce47c270e7991d0c41bf598e3e73f356b27b61f924cbaa341ea5 # shrinks to a = Any, obs = Version(0, 0, 0, 0)
+cc 2463f38496b51aadc30650b4a15195407178bf96937b113e50e010c67e8bd629 # shrinks to a = None, b = Any, obs = Version(0, 0, 0, 0)
+cc ea0ffe5d62934da3bd00b09b145a62cb40443b65403ee0b6212794ba76cd9e15 # shrinks to a = Anchor(Right(Less), Version(0, 0, 0, 0)), obs = Version(0, 0, 0, 0)
+cc 068a00a0cb19ce78719f8d8f84eeac66713588f189331627624e8e895712e7ec # shrinks to a = Anchor(Left(Equal), Version(0, 0, 0, 0)), obs = Version(0, 0, 0, 0)
+cc f0917dd8dbd279716f9e38134d2b33f923385c54df14074a1da3c31dddbb908f # shrinks to a = Anchor(Err(Greater), Version { flavor: None, major: 0, minor: 0, patch: 0, revision: 0, prerelease: [] }), obs = Version { flavor: None, major: 0, minor: 0, patch: 0, revision: 0, prerelease: [] }
+cc a98b145b5680bfda15e6a1167acd99864e5eed829257e906f350625166e68035 # shrinks to a = Anchor(Ok(Less), Version { flavor: None, major: 0, minor: 0, patch: 0, revision: 0, prerelease: [Right(0)] }), obs = Version { flavor: None, major: 0, minor: 0, patch: 0, revision: 0, prerelease: [] }

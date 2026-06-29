@@ -39,18 +39,46 @@ on:
           - NONE
           - alpha
           - beta
+  # `paths:` below mirror projects/start-os/build.mk's build inputs — keep both
+  # in sync (see root AGENTS.md "Coupled changes").
   push:
     branches:
       - master
       - next/*
-    paths-ignore:
-      - "**/*.md"
+    paths:
+      - "projects/start-os/**"
+      - "shared-libs/**"
+      - "projects/start-sdk/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "angular.json"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "build/**"
+      - "debian/**"
+      - "apt/**"
+      - ".github/workflows/startos-iso.yaml"
+      - ".github/actions/setup-build/**"
   pull_request:
     branches:
       - master
       - next/*
-    paths-ignore:
-      - "**/*.md"
+    paths:
+      - "projects/start-os/**"
+      - "shared-libs/**"
+      - "projects/start-sdk/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "angular.json"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "build/**"
+      - "debian/**"
+      - "apt/**"
+      - ".github/workflows/startos-iso.yaml"
+      - ".github/actions/setup-build/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -229,32 +257,33 @@ jobs:
 
       - name: Prevent rebuild of compiled artifacts
         run: |
-          mkdir -p web/node_modules
-          mkdir -p web/dist/raw
-          mkdir -p core/bindings
-          mkdir -p sdk/base/lib/osBindings
-          mkdir -p container-runtime/node_modules
-          mkdir -p container-runtime/dist
-          mkdir -p container-runtime/dist/node_modules
-          mkdir -p sdk/dist
-          mkdir -p sdk/baseDist
-          mkdir -p patch-db/client/node_modules
-          mkdir -p patch-db/client/dist
-          mkdir -p web/.angular
-          mkdir -p web/dist/raw/ui
-          mkdir -p web/dist/raw/setup-wizard
-          mkdir -p web/dist/static/ui
-          mkdir -p web/dist/static/setup-wizard
+          mkdir -p node_modules
+          mkdir -p projects/start-os/web/dist/raw
+          mkdir -p projects/start-tunnel/web/dist/raw
+          mkdir -p shared-libs/crates/start-core/bindings
+          mkdir -p shared-libs/ts-modules/start-core/lib/osBindings
+          mkdir -p projects/start-os/container-runtime/node_modules
+          mkdir -p projects/start-os/container-runtime/dist
+          mkdir -p projects/start-os/container-runtime/dist/node_modules
+          mkdir -p projects/start-sdk/dist
+          mkdir -p shared-libs/ts-modules/start-core/dist
+          mkdir -p shared-libs/crates/patch-db/client/node_modules
+          mkdir -p shared-libs/crates/patch-db/client/dist
+          mkdir -p .angular
+          mkdir -p projects/start-os/web/dist/raw/ui
+          mkdir -p projects/start-os/web/dist/raw/setup-wizard
+          mkdir -p projects/start-os/web/dist/static/ui
+          mkdir -p projects/start-os/web/dist/static/setup-wizard
           PLATFORM=${{ matrix.platform }} make -t compiled-${{ env.ARCH }}.tar
 
       - run: git status
 
       - name: Run iso build
-        run: PLATFORM=${{ matrix.platform }} make iso
+        run: PLATFORM=${{ matrix.platform }} make startos-iso
         if: ${{ matrix.platform != 'raspberrypi' }}
 
       - name: Run img build
-        run: PLATFORM=${{ matrix.platform }} make img
+        run: PLATFORM=${{ matrix.platform }} make startos-img
         if: ${{ matrix.platform == 'raspberrypi' }}
 
       - uses: actions/upload-artifact@v7
@@ -295,12 +324,12 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          sparse-checkout: web/package.json
+          sparse-checkout: package.json
 
       - name: Determine version
         id: version
         run: |
-          VERSION=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' web/package.json | head -1)
+          VERSION=$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' package.json | head -1)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "Version: $VERSION"
 

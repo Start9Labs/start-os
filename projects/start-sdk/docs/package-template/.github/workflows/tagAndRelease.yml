@@ -1,0 +1,38 @@
+name: Tag and Release
+
+on:
+  push:
+    branches: ['master']
+    paths-ignore: ['*.md']
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      id: ${{ steps.read.outputs.id }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: read
+        run: |
+          id="$(awk -F"'" '/id:/ {print $2; exit}' startos/manifest/index.ts)"
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
+  tag:
+    needs: guard
+    if: needs.guard.outputs.id != 'hello-world'
+    uses: Start9Labs/start-os/.github/workflows/tagAndRelease.yml@master
+    with:
+      REFERENCE_REGISTRY: ${{ vars.REFERENCE_REGISTRY }}
+      # FREE_DISK_SPACE: true
+      RELEASE_REGISTRY: ${{ vars.RELEASE_REGISTRY }}
+      S3_S9PKS_BASE_URL: ${{ vars.S3_S9PKS_BASE_URL }}
+    secrets:
+      DEV_KEY: ${{ secrets.DEV_KEY }}
+      S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+      S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+    permissions:
+      contents: write

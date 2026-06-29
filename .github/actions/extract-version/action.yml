@@ -1,0 +1,71 @@
+name: "Extract Version"
+description: "Extracts the package ID and current version from StartOS service source"
+outputs:
+  package_id:
+    description: "The package ID from startos/manifest/index.ts"
+    value: ${{ steps.extract.outputs.package_id }}
+  version:
+    description: "The full version string (e.g. 2.0.0:2 or #knots:29.3:2-beta.1)"
+    value: ${{ steps.extract.outputs.version }}
+  tag:
+    description: "The git tag (v prefix, : replaced with _, flavor appended as -<flavor> when present)"
+    value: ${{ steps.extract.outputs.tag }}
+runs:
+  using: "composite"
+  steps:
+    - name: Extract package ID and version
+      id: extract
+      run: |
+        # Extract package ID from manifest
+        PACKAGE_ID=$(grep -oP "id:\s*['\"]\\K[^'\"]*" startos/manifest/index.ts)
+        if [ -z "$PACKAGE_ID" ]; then
+          echo "::error::Could not extract package ID from startos/manifest/index.ts"
+          exit 1
+        fi
+        echo "package_id=${PACKAGE_ID}" >> "$GITHUB_OUTPUT"
+
+        # Locate the file holding the current version.
+        # New convention: the latest version always lives in startos/versions/current.ts,
+        # so read it directly regardless of how its export is named.
+        # Legacy fallback: chase the `current:` variable in index.ts back to its imported file.
+        if [ -f startos/versions/current.ts ]; then
+          VERSION_FILE="startos/versions/current.ts"
+        else
+          CURRENT_VAR=$(grep -oP "current:\s*\\K\\w+" startos/versions/index.ts)
+          if [ -z "$CURRENT_VAR" ]; then
+            echo "::error::Could not extract current version variable from startos/versions/index.ts"
+            exit 1
+          fi
+
+          IMPORT_PATH=$(grep -oP "import.*${CURRENT_VAR}.*from\s+['\"]\\./\\K[^'\"]*" startos/versions/index.ts)
+          if [ -z "$IMPORT_PATH" ]; then
+            echo "::error::Could not find import for ${CURRENT_VAR} in startos/versions/index.ts"
+            exit 1
+          fi
+          VERSION_FILE="startos/versions/${IMPORT_PATH}.ts"
+        fi
+
+        # Extract version string from the version file
+        VERSION=$(grep -oP "version:\s*['\"]\\K[^'\"]*" "$VERSION_FILE")
+        if [ -z "$VERSION" ]; then
+          echo "::error::Could not extract version from ${VERSION_FILE}"
+          exit 1
+        fi
+        echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+        # Create tag name: v<base>, or v<base>-<flavor> when VERSION has #flavor: prefix.
+        # Appending the flavor keeps tags unique when branches publish different flavors at the same base version.
+        if [[ "$VERSION" == \#* ]]; then
+          FLAVOR="${VERSION#\#}"
+          FLAVOR="${FLAVOR%%:*}"
+        else
+          FLAVOR=""
+        fi
+        UNFLAVORED="${VERSION#\#*:}"
+        TAG="v${UNFLAVORED//:/_}${FLAVOR:+-$FLAVOR}"
+        echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+        echo "Package: ${PACKAGE_ID}"
+        echo "Version: ${VERSION}"
+        echo "Tag: ${TAG}"
+      shell: bash

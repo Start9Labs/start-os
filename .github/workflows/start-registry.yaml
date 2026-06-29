@@ -26,18 +26,34 @@ on:
           - x86_64
           - aarch64
           - riscv64
+  # `paths:` below mirror projects/start-registry/build.mk's build inputs — keep
+  # both in sync (see root AGENTS.md "Coupled changes").
   push:
     branches:
       - master
       - next/*
-    paths-ignore:
-      - "**/*.md"
+    paths:
+      - "projects/start-registry/**"
+      - "shared-libs/crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build/**"
+      - "debian/**"
+      - ".github/workflows/start-registry.yaml"
+      - ".github/actions/setup-build/**"
   pull_request:
     branches:
       - master
       - next/*
-    paths-ignore:
-      - "**/*.md"
+    paths:
+      - "projects/start-registry/**"
+      - "shared-libs/crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build/**"
+      - "debian/**"
+      - ".github/workflows/start-registry.yaml"
+      - ".github/actions/setup-build/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
@@ -171,7 +187,7 @@ jobs:
 
           VOLUME /var/lib/startos
 
-          ENV RUST_LOG=warn,startos=debug
+          ENV RUST_LOG=warn,start_core=debug
 
           ENTRYPOINT ["start-registryd"]
 

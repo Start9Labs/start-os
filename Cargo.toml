@@ -1,0 +1,31 @@
+[workspace]
+resolver = "3"
+members = [
+  "shared-libs/crates/start-core",
+  "shared-libs/crates/exver",
+  "shared-libs/crates/imbl-value",
+  "shared-libs/crates/yasi",
+  "shared-libs/crates/rpc-toolkit",
+  "shared-libs/crates/jsonpath",
+  "shared-libs/crates/pi-beep",
+  "shared-libs/crates/patch-db/core",
+  "shared-libs/crates/patch-db/macro",
+  "shared-libs/crates/patch-db/macro-internals",
+  "shared-libs/crates/patch-db/util",
+  "shared-libs/crates/patch-db/json-patch",
+  "shared-libs/crates/patch-db/json-ptr",
+  "projects/start-os",
+  "projects/start-os/backup-fs",
+  "projects/start-cli",
+  "projects/start-registry",
+  "projects/start-tunnel",
+]
+
+[profile.test]
+opt-level = 3
+
+[profile.dev]
+opt-level = 3
+
+[profile.dev.package.backtrace]
+opt-level = 3

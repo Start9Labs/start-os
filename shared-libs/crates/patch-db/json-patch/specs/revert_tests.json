@@ -1,0 +1,286 @@
+[
+  {
+    "comment": "Can revert add (replace key)",
+    "doc": {
+      "foo": {
+        "bar": {
+          "baz": true
+        }
+      }
+    },
+    "patch": [
+      {
+        "op": "add",
+        "path": "/foo",
+        "value": false
+      },
+      {
+        "op": "remove",
+        "path": "/foo/bar"
+      }
+    ],
+    "error": "invalid pointer"
+  },
+  {
+    "comment": "Can revert add (insert into array)",
+    "doc": {
+      "foo": [1, 2, 3]
+    },
+    "patch": [
+      {
+        "op": "add",
+        "path": "/foo/1",
+        "value": false
+      },
+      {
+        "op": "remove",
+        "path": "/foo/bar"
+      }
+    ],
+    "error": "invalid pointer"
+  },
+  {
+    "comment": "Can revert add (insert last element into array)",
+    "doc": {
+      "foo": [1, 2, 3]
+    },
+    "patch": [
+      {
+        "op": "add",
+        "path": "/foo/-",
+        "value": false
+      },
+      {
+        "op": "remove",
+        "path": "/foo/bar"
+      }
+    ],
+    "error": "invalid pointer"
+  },
+  {
+    "comment": "Can revert remove (object)",
+    "doc": {
+      "foo": {
+        "bar": {
+          "baz": true
+        }
+      }
+    },
+    "patch": [
+      {
+        "op": "remove",
+        "path": "/foo"
+      },
+      {
+        "op": "remove",
+        "path": "/foo/bar"
+      }
+    ],
+    "error": "invalid pointer"
+  },
+  {
+    "comment": "Can revert remove (array)",
+    "doc": {
+      "foo": [1, 2, 3]
+    },
+    "patch": [
+      {
+        "op": "remove",
+        "path": "/foo/1"
+      },
+      {
+        "op": "remove",
+        "path": "/foo/bar"
+      }
+    ],
+    "error": "invalid pointer"
+  },
+  {
+    "comment": "Can revert replace (replace key)",
+    "doc": {
+      "foo": {
+        "bar": {
+          "baz": true
+        }
+      }
+    },
+    "patch": [
+      {
+        "op": "replace",
+        "path": "/foo",
+        "value": false
+      },
+      {
+        "op": "remove",
+        "path": "/foo/bar"
+      }
+    ],
+    "error": "invalid pointer"
+  },
+  {
+    "comment": "Can revert replace (replace array element)",
+    "doc": {
+      "foo": [1, 2, 3]
+    },
+    "patch": [
+      {
+        "op": "replace",
+        "path": "/foo/1",
+        "value": false
+      },
+      {
+        "op": "remove",
+        "path": "/foo/bar"
+      }
+    ],
+    "error": "invalid pointer"
+  },
+  {
+    "comment": "Can revert move (move into key)",
+    "doc": {
+      "foo": {
+        "bar": {
+          "baz": true
+        }
+      },
+      "abc": {
+        "def": {
+          "ghi": false
+        }
+      }
+    },
+    "patch": [
+      {
+        "op": "move",
+        "from": "/abc",
+        "path": "/foo",
+        "value": false
+      },
+      {
+        "op": "remove",
+        "path": "/foo/bar"
+      }
+    ],
+    "error": "invalid pointer"
+  },
+  {
+    "comment": "Can revert move (move into array)",
+    "doc": {
+      "foo": [1, 2, 3],
+      "abc": {
+        "def": {
+          "ghi": false
+        }
+      }
+    },
+    "patch": [
+      {
+        "op": "move",
+        "path": "/foo/1",
+        "from": "/abc"
+      },
+      {
+        "op": "remove",
+        "path": "/foo/bar"
+      }
+    ],
+    "error": "invalid pointer"
+  },
+  {
+    "comment": "Can revert move (move into last element of an array)",
+    "doc": {
+      "foo": [1, 2, 3],
+      "abc": {
+        "def": {
+          "ghi": false
+        }
+      }
+    },
+    "patch": [
+      {
+        "op": "move",
+        "path": "/foo/-",
+        "from": "/abc"
+      },
+      {
+        "op": "remove",
+        "path": "/foo/bar"
+      }
+    ],
+    "error": "invalid pointer"
+  },
+  {
+    "comment": "Can revert copy (copy into key)",
+    "doc": {
+      "foo": {
+        "bar": {
+          "baz": true
+        }
+      },
+      "abc": {
+        "def": {
+          "ghi": false
+        }
+      }
+    },
+    "patch": [
+      {
+        "op": "copy",
+        "from": "/abc",
+        "path": "/foo",
+        "value": false
+      },
+      {
+        "op": "remove",
+        "path": "/foo/bar"
+      }
+    ],
+    "error": "invalid pointer"
+  },
+  {
+    "comment": "Can revert copy (copy into array)",
+    "doc": {
+      "foo": [1, 2, 3],
+      "abc": {
+        "def": {
+          "ghi": false
+        }
+      }
+    },
+    "patch": [
+      {
+        "op": "copy",
+        "path": "/foo/1",
+        "from": "/abc"
+      },
+      {
+        "op": "remove",
+        "path": "/foo/bar"
+      }
+    ],
+    "error": "invalid pointer"
+  },
+  {
+    "comment": "Can revert copy (copy into last element of an array)",
+    "doc": {
+      "foo": [1, 2, 3],
+      "abc": {
+        "def": {
+          "ghi": false
+        }
+      }
+    },
+    "patch": [
+      {
+        "op": "copy",
+        "path": "/foo/-",
+        "from": "/abc"
+      },
+      {
+        "op": "remove",
+        "path": "/foo/bar"
+      }
+    ],
+    "error": "invalid pointer"
+  }
+]

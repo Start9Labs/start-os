@@ -1,0 +1,82 @@
+# Contributing to StartTunnel
+
+StartTunnel is one product in the `start-os` monorepo. Start with the root
+[`CONTRIBUTING.md`](../../CONTRIBUTING.md) for environment setup (Docker, Rust
+toolchain, Node), collaboration channels, and repo-wide conventions. This file
+covers what is specific to building, testing, and changing StartTunnel.
+
+## Documentation
+
+- [`README.md`](README.md) — what StartTunnel is and how to use it.
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — how the code is laid out and how a
+  request flows through the system.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — this file: building, testing, and
+  changing StartTunnel.
+- [`AGENTS.md`](AGENTS.md) — rules for AI agents working in this scope.
+  `CLAUDE.md` is a one-line `@AGENTS.md` import.
+
+## Prerequisites
+
+- Read [`AGENTS.md`](AGENTS.md) and [`ARCHITECTURE.md`](ARCHITECTURE.md).
+- Most backend work happens in `shared-libs/crates/start-core/src/tunnel/`, **not** in
+  this directory. The `projects/start-tunnel/` dir is a thin wrapper (entry point, UI,
+  systemd unit, docs).
+
+## Building (from the repo root)
+
+```bash
+make tunnel                                   # full daemon build (UI + tunnelbox)
+cargo build -p start-tunnel --bin tunnelbox   # cargo only (UI must be prebuilt)
+cargo check -p start-tunnel                    # fast type-check
+npm run build:tunnel                          # build just the Angular UI (no make target; make tunnel chains it)
+make tunnel-deb                                # Debian package
+```
+
+`make tunnel` builds the UI, compresses it into
+`web/dist/static/start-tunnel/`, then compiles `tunnelbox`, which embeds that UI
+via `include_dir!`. Output:
+`target/<arch>-unknown-linux-musl/<profile>/tunnelbox`.
+
+## Testing
+
+```bash
+make test-core    # backend tests — tunnel logic lives in start-core
+```
+
+Tunnel behavior is exercised by the `start-core` test suite (this crate is a
+wrapper with no independent tests). For runtime verification, build the `.deb`
+and install it on a Debian 13 VPS, or use a local VM. Backend changes should be
+checked against the full CI matrix concerns — see the cross-platform note below.
+
+## Formatting
+
+```bash
+make format-tunnel        # format the tunnel Rust crate
+make format-check-tunnel  # verify (what CI runs)
+```
+
+The tunnel crate is Rust (edition 2024). The tunnel web app formats with the
+rest of the Angular workspace via `make format-web`.
+
+## Cross-platform
+
+Local `cargo check`/`build` only covers Linux. CI also builds
+`x86_64`/`aarch64-apple-darwin` and `riscv64`/`aarch64`/`x86_64` linux-musl. Any
+change touching Rust dependencies or `libc`/platform APIs needs the darwin
+target considered. For a code path that is dead on the other platform, `cfg`-gate
+it rather than reimplementing cross-platform.
+
+## Versioning
+
+The crate version lives in `Cargo.toml` (marked with `# VERSION_BUMP`). Record
+notable changes in [`CHANGELOG.md`](CHANGELOG.md) following Keep a Changelog.
+
+## Making a change
+
+- If you change the db schema, add a numbered migration in
+  `shared-libs/crates/start-core/src/tunnel/migrations/` and register it in
+  `shared-libs/crates/start-core/src/tunnel/migrations/mod.rs`.
+- If you change the API, regenerate TS bindings: `make ts-bindings`.
+- For user-facing behavior (UI, CLI flags/output, install flow,
+  subnets/devices/forwarding), the docs live in `docs/src/` and publish to
+  `start9.com/start-tunnel/`. Add a `CHANGELOG.md` entry under `## [Unreleased]`.

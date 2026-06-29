@@ -1,0 +1,21 @@
+_fuser_mount()
+{
+	local data_dir=$1
+	local mnt=$2
+	local suid="$4"
+
+	local mount_rec=`findmnt -rncv -S fuser -T $mnt -o SOURCE,TARGET`
+	if [ -n "$mount_rec" ]; then
+	    return 0
+	fi
+
+    if [[ "${suid}" == "nosuid" ]]; then
+	    suid=""
+	else
+	    suid="--setuid-support"
+	fi
+
+    RUST_BACKTRACE=1 RUST_LOG=debug /code/backupfs/target/release/startos-backup-fs mount "${data_dir}" "${mnt}" ${suid} --password "$PASSWORD"
+
+	return 0
+}

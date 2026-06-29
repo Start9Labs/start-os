@@ -8,18 +8,18 @@ on:
   push:
     branches: ["master"]
     paths:
-      - "web/projects/brochure/**"
-      - "web/projects/shared/**"
-      - "web/projects/marketplace/**"
-      - "web/angular.json"
-      - "web/package.json"
-      - "web/package-lock.json"
-      - "web/tsconfig.json"
-      - "web/tsconfig.lib.json"
-      - "sdk/**"
-      - "patch-db"
+      - "projects/brochure-marketplace/**"
+      - "shared-libs/ts-modules/shared/**"
+      - "shared-libs/ts-modules/marketplace/**"
+      - "shared-libs/ts-modules/start-core/**"
+      - "angular.json"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "tsconfig.lib.json"
+      - "shared-libs/crates/patch-db"
       - ".github/workflows/deploy-brochure.yml"
-      # Doc-only edits under the allowlisted paths (e.g. sdk/**) shouldn't redeploy.
+      # Doc-only edits under the allowlisted paths (e.g. start-core/**) shouldn't redeploy.
       - "!**/*.md"
   workflow_dispatch:
 
@@ -48,27 +48,27 @@ jobs:
           cache: npm
           cache-dependency-path: "**/package-lock.json"
 
-      # web resolves the SDK via file:../sdk/baseDist, so baseDist must exist
+      # web resolves start-core via file:shared-libs/ts-modules/start-core/dist, so it must exist
       # before web's `npm ci` and the brochure build.
-      - name: Build SDK (baseDist)
+      - name: Build start-core
         run: |
-          npm --prefix sdk/base ci
-          cd sdk && make baseDist
+          npm --prefix shared-libs/ts-modules/start-core ci
+          cd shared-libs/ts-modules/start-core && make dist
 
-      # brochure transitively bundles patch-db-client (file:../patch-db/client),
+      # brochure transitively bundles patch-db-client (file:../shared-libs/crates/patch-db/client),
       # so its dist must be built too.
       - name: Build patch-db client
         run: |
-          npm --prefix patch-db/client ci
-          npm --prefix patch-db/client run build
+          npm --prefix shared-libs/crates/patch-db/client ci
+          npm --prefix shared-libs/crates/patch-db/client run build
 
       - name: Install web dependencies
-        run: npm --prefix web ci
+        run: npm ci
 
       - name: Build brochure
         run: |
-          npm --prefix web run build:brochure
-          test -f web/dist/raw/brochure/index.html
+          npm run build:brochure
+          test -f projects/brochure-marketplace/dist/raw/brochure-marketplace/index.html
 
       - name: Configure SSH
         run: |
@@ -85,4 +85,4 @@ jobs:
           EOF
 
       - name: Deploy to VPS
-        run: rsync -az --delete web/dist/raw/brochure/ marketplace-vps:/var/www/html/marketplace.start9.com/
+        run: rsync -az --delete projects/brochure-marketplace/dist/raw/brochure-marketplace/ marketplace-vps:/var/www/html/marketplace.start9.com/

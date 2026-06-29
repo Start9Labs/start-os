@@ -1,0 +1,48 @@
+[package]
+authors = [
+    "Keagan McClelland <keagan@start9.com>",
+    "Aiden McClelland <aiden@start9.com>",
+]
+description = "Semver extension with upstream and downstream versions. Designed for package distributors"
+documentation = "https://docs.rs/exver"
+edition = "2021"
+keywords = ["version", "semver", "embassy", "wasm"]
+license = "MIT"
+name = "exver"
+readme = "README.md"
+repository = "https://github.com/Start9Labs/exver-rs"
+version = "0.2.1"
+
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+[features]
+default = []
+wasm = ["js-sys", "wasm-bindgen", "getrandom/js"]
+serde = ["dep:serde", "emver/serde"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dependencies]
+emver = "0.1.5"
+smallvec = "1.13"
+either = "1.6"
+fp-core = "0.1"
+js-sys = { version = "0.3.69", optional = true }
+getrandom = "0.2.15"
+itertools = "0.13"
+memchr = "2.7"
+pest = "2.7"
+pest_derive = "2.7"
+serde = { version = "1", optional = true }
+wasm-bindgen = { version = "0.2", optional = true, features = [
+    "enable-interning",
+] }
+yasi = { path = "../yasi" }
+
+[dev-dependencies]
+proptest = "1.4.0"
+serde_yaml = "0.9.14"
