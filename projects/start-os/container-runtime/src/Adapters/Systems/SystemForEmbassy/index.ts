@@ -1136,6 +1136,7 @@ export class SystemForEmbassy implements System {
           volumeId: "embassy",
           subpath: null,
           readonly: true,
+          idmap: [],
         },
       })
     } catch (e) {
@@ -1306,6 +1307,7 @@ async function updateConfig(
             volumeId: "embassy",
             subpath: null,
             readonly: true,
+            idmap: [],
           },
         })
         const remoteConfig = configFile
