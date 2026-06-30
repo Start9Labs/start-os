@@ -81,6 +81,19 @@ This is a monorepo: one root Cargo workspace and one Angular workspace, both roo
 
 `make ts-bindings` regenerates the TypeScript bindings from the Rust types, and `make clean` removes all compiled artifacts. Cross-layer changes (Rust → bindings → SDK → web/runtime) are described in [ARCHITECTURE.md](ARCHITECTURE.md#build-pipeline).
 
+### Build configuration
+
+Builds are parameterized by environment variables shared across all products:
+
+| Variable             | Description                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------ |
+| `PLATFORM`           | Target platform (e.g. `x86_64`, `aarch64`, `riscv64`). For non-OS products it only derives `ARCH`. |
+| `ENVIRONMENT`        | Hyphen-separated feature flags; the available options depend on the product.                      |
+| `PROFILE`            | Build profile: `release` (default) or `dev`.                                                      |
+| `GIT_BRANCH_AS_HASH` | Set to `1` to use the git branch name as the version hash (avoids rebuilds).                      |
+
+Each product's `CONTRIBUTING.md` documents the `PLATFORM` values and `ENVIRONMENT` flags it actually supports.
+
 ## Testing
 
 ```bash
@@ -121,7 +134,7 @@ Run the formatters before committing. Configuration is handled by `rustfmt.toml`
 
 - Add doc comments (`///`) to public APIs, structs, and non-obvious functions
 - Use `//` comments sparingly for complex logic that isn't self-evident
-- Prefer self-documenting code (clear naming, small functions) over comments
+- Comments should be shorthand, not prose. Most comments can say what they need to in a single line.
 
 **TypeScript:**
 

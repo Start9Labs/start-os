@@ -24,13 +24,11 @@ If you're only working on the admin UI or setup-wizard, you don't need the OS-im
 Beyond the shared toolchain in the [root CONTRIBUTING](../../CONTRIBUTING.md#environment-setup), **building the OS image needs multi-arch emulation and image-packaging tools** (Debian/Ubuntu):
 
 ```sh
-sudo apt install -y qemu-user-static binfmt-support squashfs-tools debspawn b3sum
-sudo mkdir -p /etc/debspawn/
-echo "AllowUnsafePermissions=true" | sudo tee /etc/debspawn/global.toml
+sudo apt install -y qemu-user-static binfmt-support squashfs-tools b3sum
 
-# Register cross-arch binfmt handlers and a buildx builder (one-time)
+# Register cross-arch binfmt handlers and a buildx builder (one-time; safe to re-run)
 docker run --privileged --rm tonistiigi/binfmt --install all
-docker buildx create --use
+docker buildx create --name start9 --use 2>/dev/null || docker buildx use start9
 ```
 
 ### Development Mode
@@ -45,26 +43,19 @@ This sets `ENVIRONMENT=dev` and `GIT_BRANCH_AS_HASH=1` to prevent rebuilds on ev
 
 ## Build configuration
 
-OS builds are parameterized by environment variables:
+OS builds use the repo-wide build variables (`PLATFORM`, `ENVIRONMENT`, `PROFILE`, `GIT_BRANCH_AS_HASH` — see the [root CONTRIBUTING](../../CONTRIBUTING.md#build-configuration)). The OS-specific values:
 
-| Variable             | Description                                                                                          |
-| -------------------- | --------------------------------------------------------------------------------------------------- |
-| `PLATFORM`           | Target platform: `x86_64`, `x86_64-nonfree`, `aarch64`, `aarch64-nonfree`, `riscv64`, `raspberrypi` |
-| `ENVIRONMENT`        | Hyphen-separated feature flags (see below)                                                           |
-| `PROFILE`            | Build profile: `release` (default) or `dev`                                                          |
-| `GIT_BRANCH_AS_HASH` | Set to `1` to use the git branch name as the version hash (avoids rebuilds)                          |
-
-**ENVIRONMENT flags:**
-
-- `dev` — enables password SSH before setup, skips frontend compression
-- `unstable` — enables assertions and debugging with a performance penalty
-- `console` — enables tokio-console for async debugging
-
-**Platform notes:**
+**`PLATFORM`:** `x86_64`, `x86_64-nonfree`, `aarch64`, `aarch64-nonfree`, `riscv64`, `raspberrypi`.
 
 - `-nonfree` variants include proprietary firmware and drivers
 - `raspberrypi` includes non-free components by necessity
 - Platform is remembered between builds if not specified
+
+**`ENVIRONMENT` flags:**
+
+- `dev` — enables password SSH before setup, skips frontend compression
+- `unstable` — enables assertions and debugging with a performance penalty
+- `console` — enables tokio-console for async debugging
 
 ## Building
 

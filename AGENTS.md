@@ -18,7 +18,7 @@ Each product lives under `projects/` as a thin wrapper; the bulk of the code liv
 - `projects/start-cli/` — `start-cli` bin (`src/main.rs`); thin wrapper over `start-core`.
 - `projects/start-registry/` — `registrybox` bin; registry server, serves the shared marketplace UI lib.
 - `projects/start-tunnel/` — `tunnelbox` bin + `web/` (StartTunnel UI).
-- `projects/start-sdk/` — `@start9labs/start-sdk` (flattened, source in `lib/`; imports the shared `@start9labs/start-core` lib and bundles it into its published `dist/`) + `Makefile`/`s9pk.mk` + `docs/` (packaging mdbook).
+- `projects/start-sdk/` — `@start9labs/start-sdk` (source in `lib/`; imports the shared `@start9labs/start-core` lib and bundles it into its published `dist/`) + `Makefile`/`s9pk.mk` + `docs/` (packaging mdbook).
 - `projects/brochure-marketplace/` — public marketplace/landing Angular app (deploys to marketplace.start9.com).
 - `projects/start-docs/` — the documentation website (build infra + landing + Bitcoin guides; each product's own book lives in its `docs/`).
 - `shared-libs/crates/start-core/` — the **entire** Rust backend lib (package `start-core`, lib name `start_core`). All five bins depend on it. Internally unchanged from the old `core/` crate.
