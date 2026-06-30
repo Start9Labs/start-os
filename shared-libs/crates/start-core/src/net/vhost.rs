@@ -443,7 +443,7 @@ impl VHostController {
     pub fn sync_hostname_mappings(
         &self,
         owner: HostMapOwner,
-        desired: BTreeMap<(Ipv4Addr, u16), (u16, Vec<Ipv4Addr>, Vec<String>)>,
+        desired: BTreeMap<(Ipv4Addr, u16), (u16, Vec<IpAddr>, Vec<String>)>,
     ) {
         let want: BTreeSet<(Ipv4Addr, u16, String)> = desired
             .iter()
@@ -455,12 +455,18 @@ impl VHostController {
             .hostname_mappings
             .peek(|owners| owners.get(&owner).cloned().unwrap_or_default());
         for (ip, port, hostname) in had.difference(&want) {
-            self.port_map.remove_hostname(*ip, *port, hostname.clone());
+            self.port_map
+                .remove_hostname(IpAddr::V4(*ip), *port, hostname.clone());
         }
         for ((ip, port), (internal, gateways, hostnames)) in &desired {
             for hostname in hostnames {
-                self.port_map
-                    .ensure_hostname(*ip, *port, *internal, gateways.clone(), hostname.clone());
+                self.port_map.ensure_hostname(
+                    IpAddr::V4(*ip),
+                    *port,
+                    *internal,
+                    gateways.clone(),
+                    hostname.clone(),
+                );
             }
         }
         self.hostname_mappings.mutate(|owners| {

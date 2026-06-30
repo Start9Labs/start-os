@@ -642,7 +642,7 @@ impl NetServiceData {
                 for subnet in ip_info.subnets.iter() {
                     if let IpAddr::V4(ip) = subnet.addr() {
                         if redirect_ips.insert(ip) {
-                            ctrl.port_map.ensure(ip, 80, 443, gws.clone());
+                            ctrl.port_map.ensure(IpAddr::V4(ip), 80, 443, gws.clone());
                         }
                     }
                 }
@@ -656,7 +656,7 @@ impl NetServiceData {
             .copied()
             .collect();
         for ip in stale {
-            ctrl.port_map.remove(ip, 80);
+            ctrl.port_map.remove(IpAddr::V4(ip), 80);
         }
         binds.redirect_maps = redirect_ips;
 
@@ -709,7 +709,7 @@ impl NetServiceData {
         // PCP HOSTNAME mappings come only from PUBLIC domain vhosts: each binds
         // its FQDN on the shared external port so the gateway demultiplexes
         // inbound TLS by SNI. Computed before the drain loop consumes `vhosts`.
-        let mut hostname_maps: BTreeMap<(Ipv4Addr, u16), (u16, Vec<Ipv4Addr>, Vec<String>)> =
+        let mut hostname_maps: BTreeMap<(Ipv4Addr, u16), (u16, Vec<IpAddr>, Vec<String>)> =
             BTreeMap::new();
         for ((maybe_host, external), target) in vhosts.iter() {
             let Some(hostname) = maybe_host else { continue };

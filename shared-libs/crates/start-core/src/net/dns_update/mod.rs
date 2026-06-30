@@ -177,7 +177,14 @@ fn targets_for(info: &NetworkInterfaceInfo) -> Vec<(Ipv4Addr, Ipv4Addr)> {
     let Some(ip_info) = &info.ip_info else {
         return Vec::new();
     };
-    let resolvers = candidate_gateways(info);
+    // RFC 2136 DNS updates are IPv4-only here, so keep just the v4 candidates.
+    let resolvers: Vec<Ipv4Addr> = candidate_gateways(info)
+        .into_iter()
+        .filter_map(|ip| match ip {
+            IpAddr::V4(v4) => Some(v4),
+            IpAddr::V6(_) => None,
+        })
+        .collect();
     let mut out = Vec::new();
     for subnet in &ip_info.subnets {
         let IpAddr::V4(our_ip) = subnet.addr() else {
