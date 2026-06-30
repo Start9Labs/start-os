@@ -1,5 +1,5 @@
 use std::collections::BTreeSet;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV6};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6};
 
 use imbl_value::InternedString;
 use serde::{Deserialize, Serialize};
@@ -77,12 +77,7 @@ impl HostnameInfo {
     /// loopback / ULA / link-local), return it as a `SocketAddrV6`. GUAs are the
     /// only addresses that carry the Disabled / LAN / LAN+WAN tri-state.
     pub fn gua(&self) -> Option<SocketAddrV6> {
-        if !matches!(self.metadata, HostnameMetadata::Ipv6 { .. }) {
-            return None;
-        }
-        let IpAddr::V6(ip) = self.hostname.parse::<IpAddr>().ok()? else {
-            return None;
-        };
+        let ip = self.hostname.parse::<Ipv6Addr>().ok()?;
         if crate::net::utils::ipv6_is_local(ip) {
             return None;
         }
