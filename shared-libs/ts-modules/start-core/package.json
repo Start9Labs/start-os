@@ -5,6 +5,7 @@
   "sideEffects": true,
   "scripts": {
     "peggy": "peggy --allowed-start-rules \"*\" --plugin ./node_modules/ts-pegjs/dist/tspegjs -o lib/exver/exver.ts lib/exver/exver.pegjs",
+    "copy": "cpy \"**/*.js\" \"**/*.d.ts\" ../dist --cwd=lib --parents && cpy node_modules/** dist/node_modules --parents && cpy package.json README.md LICENSE dist",
     "test": "jest -c ./jest.config.js --coverage",
     "buildOutput": "npx prettier --write \"**/*.ts\"",
     "check": "tsc --noEmit",
@@ -41,6 +42,7 @@
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/lodash.merge": "^4.6.2",
+    "cpy-cli": "7.0.0",
     "jest": "^30.0.0",
     "peggy": "^3.0.2",
     "prettier": "3.8.3",

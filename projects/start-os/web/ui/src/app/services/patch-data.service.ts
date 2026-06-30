@@ -11,7 +11,7 @@ import { LocalStorageBootstrap } from './patch-db/local-storage-bootstrap'
   providedIn: 'root',
 })
 export class PatchDataService extends Observable<void> {
-  private readonly patch: PatchDB<DataModel> = inject(PatchDB)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly os = inject(OSService)
   private readonly bootstrapper = inject(LocalStorageBootstrap)
   private readonly stream$ = inject(ConnectionService).pipe(

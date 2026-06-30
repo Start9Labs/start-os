@@ -250,7 +250,7 @@ export class PatchDB<T extends { [key: string]: any }> {
 
   private updateWatchedNode(path: string, data: T): void {
     const value = getValueByPointer(data, path)
-    this.watchedNodes[path].subject.next(value)
+    this.watchedNodes[path]?.subject.next(value)
   }
 
   private isRevision(update: Update<T>): update is Revision {
