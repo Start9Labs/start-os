@@ -258,13 +258,20 @@ export class GatewayActionsComponent {
 
     try {
       if (this.packageId()) {
-        await this.api.pkgBindingSetAddressEnabled({
+        const params = {
           internalPort: iface.addressInfo.internalPort,
           address: addressJson,
           enabled,
           package: this.packageId(),
           host: iface.addressInfo.hostId,
-        })
+        }
+        // A range spans >1 port and lives in a separate subtree, so it has its
+        // own endpoint; a single-port binding is exactly 1.
+        if (addr.count > 1) {
+          await this.api.pkgBindingSetRangeAddressEnabled(params)
+        } else {
+          await this.api.pkgBindingSetAddressEnabled(params)
+        }
       } else {
         await this.api.serverBindingSetAddressEnabled({
           internalPort: 80,

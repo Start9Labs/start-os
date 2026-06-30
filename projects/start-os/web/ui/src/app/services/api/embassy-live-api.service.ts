@@ -673,6 +673,15 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  async pkgBindingSetRangeAddressEnabled(
+    params: PkgBindingSetAddressEnabledReq,
+  ): Promise<null> {
+    return this.rpcRequest({
+      method: 'package.host.binding.set-range-address-enabled',
+      params,
+    })
+  }
+
   async pkgAddPublicDomain(
     params: PkgAddPublicDomainReq,
   ): Promise<T.AddPublicDomainRes> {

@@ -356,6 +356,10 @@ export abstract class ApiService {
     params: PkgBindingSetAddressEnabledReq,
   ): Promise<null>
 
+  abstract pkgBindingSetRangeAddressEnabled(
+    params: PkgBindingSetAddressEnabledReq,
+  ): Promise<null>
+
   abstract pkgAddPublicDomain(
     params: PkgAddPublicDomainReq,
   ): Promise<T.AddPublicDomainRes>

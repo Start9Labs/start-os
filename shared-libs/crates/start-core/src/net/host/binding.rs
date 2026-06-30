@@ -431,6 +431,15 @@ pub fn binding<C: Context, Kind: HostApiKind>()
                 .with_about("about.set-address-enabled-for-binding")
                 .with_call_remote::<CliContext>(),
         )
+        .subcommand(
+            "set-range-address-enabled",
+            from_fn_async(set_range_address_enabled::<Kind>)
+                .with_metadata("sync_db", Value::Bool(true))
+                .with_inherited(Kind::inheritance)
+                .no_display()
+                .with_about("about.set-range-address-enabled-for-binding")
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 pub async fn list_bindings<Kind: HostApiKind>(
@@ -549,6 +558,9 @@ fn set_address_enabled_on(
     Ok(())
 }
 
+/// Toggle one address of a single-port binding (keyed by its internal port).
+/// Port ranges use [`set_range_address_enabled`] — they live in a separate DB
+/// subtree, so the API distinguishes the two rather than probing both.
 pub async fn set_address_enabled<Kind: HostApiKind>(
     ctx: RpcContext,
     BindingSetAddressEnabledParams {
@@ -563,25 +575,41 @@ pub async fn set_address_enabled<Kind: HostApiKind>(
         serde_json::from_str(&address).with_kind(ErrorKind::Deserialization)?;
     ctx.db
         .mutate(|db| {
-            let host = Kind::host_for(&inheritance, db)?;
-            // `internal_port` identifies either a single-port binding or a
-            // port-range binding (by its internal start port) — never both.
-            // Toggle the address in whichever owns it.
-            let toggled = host.as_bindings_mut().mutate(|b| {
-                Ok(if let Some(bind) = b.get_mut(&internal_port) {
-                    set_address_enabled_on(&mut bind.addresses, &address, enabled)?;
-                    true
-                } else {
-                    false
+            Kind::host_for(&inheritance, db)?
+                .as_bindings_mut()
+                .mutate(|b| {
+                    let bind = b.get_mut(&internal_port).or_not_found(internal_port)?;
+                    set_address_enabled_on(&mut bind.addresses, &address, enabled)
                 })
-            })?;
-            if !toggled {
-                host.as_binding_ranges_mut().mutate(|ranges| {
+        })
+        .await
+        .result?;
+    Ok(())
+}
+
+/// Toggle one address of a port-range binding (keyed by its internal start
+/// port). The range counterpart of [`set_address_enabled`]; both share the
+/// address-toggle logic in [`set_address_enabled_on`].
+pub async fn set_range_address_enabled<Kind: HostApiKind>(
+    ctx: RpcContext,
+    BindingSetAddressEnabledParams {
+        internal_port,
+        address,
+        enabled,
+    }: BindingSetAddressEnabledParams,
+    inheritance: Kind::Inheritance,
+) -> Result<(), Error> {
+    let enabled = enabled.unwrap_or(true);
+    let address: HostnameInfo =
+        serde_json::from_str(&address).with_kind(ErrorKind::Deserialization)?;
+    ctx.db
+        .mutate(|db| {
+            Kind::host_for(&inheritance, db)?
+                .as_binding_ranges_mut()
+                .mutate(|ranges| {
                     let range = ranges.get_mut(&internal_port).or_not_found(internal_port)?;
                     set_address_enabled_on(&mut range.addresses, &address, enabled)
-                })?;
-            }
-            Ok(())
+                })
         })
         .await
         .result?;

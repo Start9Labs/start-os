@@ -5962,6 +5962,13 @@ about.set-address-enabled-for-binding:
   fr_FR: "Définir une adresse de passerelle activée pour une liaison"
   pl_PL: "Ustaw adres bramy jako włączony dla powiązania"
 
+about.set-range-address-enabled-for-binding:
+  en_US: "Set a gateway address enabled for a port-range binding"
+  de_DE: "Gateway-Adresse für eine Portbereichs-Bindung aktivieren"
+  es_ES: "Establecer una dirección de gateway habilitada para un vínculo de rango de puertos"
+  fr_FR: "Définir une adresse de passerelle activée pour une liaison de plage de ports"
+  pl_PL: "Ustaw adres bramy jako włączony dla powiązania zakresu portów"
+
 about.set-country:
   en_US: "Set the country"
   de_DE: "Das Land festlegen"

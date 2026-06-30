@@ -1645,14 +1645,18 @@ export class MockApiService extends ApiService {
   ): Promise<null> {
     await pauseFor(2000)
 
-    // `internalPort` is either a single-port binding or a port range (keyed by
-    // its internal start port) — toggle the address on whichever owns it.
-    const hostPath = `/packageData/${params.package}/hosts/${params.host}`
-    const bindings = this.mockData(`${hostPath}/bindings`)
-    const basePath =
-      bindings && params.internalPort in bindings
-        ? `${hostPath}/bindings/${params.internalPort}/addresses`
-        : `${hostPath}/bindingRanges/${params.internalPort}/addresses`
+    const basePath = `/packageData/${params.package}/hosts/${params.host}/bindings/${params.internalPort}/addresses`
+    this.mockSetAddressEnabled(basePath, params.address, params.enabled)
+
+    return null
+  }
+
+  async pkgBindingSetRangeAddressEnabled(
+    params: PkgBindingSetAddressEnabledReq,
+  ): Promise<null> {
+    await pauseFor(2000)
+
+    const basePath = `/packageData/${params.package}/hosts/${params.host}/bindingRanges/${params.internalPort}/addresses`
     this.mockSetAddressEnabled(basePath, params.address, params.enabled)
 
     return null
