@@ -54,8 +54,8 @@ const PCP_TIMEOUTS: TimeoutConfig = TimeoutConfig {
 type MappingKey = (IpAddr, u16, Option<String>);
 
 /// Candidate PCP/NAT-PMP servers for a gateway interface: the NM default
-/// gateway (router) plus each subnet's `.1` (covers a StartTunnel, whose server
-/// is the subnet's `.1`, and is the usual router address otherwise).
+/// gateways (router) that fall on one of this interface's own subnets, plus the
+/// v6 link-local default gateway.
 pub fn candidate_gateways(info: &NetworkInterfaceInfo) -> Vec<IpAddr> {
     let mut out: Vec<IpAddr> = Vec::new();
     let mut push = |ip: IpAddr| {
@@ -83,12 +83,6 @@ pub fn candidate_gateways(info: &NetworkInterfaceInfo) -> Vec<IpAddr> {
                         push(*ip);
                     }
                 }
-            }
-        }
-        // v4 routers conventionally answer at the subnet's `.1`; no v6 analogue.
-        for subnet in &ip_info.subnets {
-            if let Some(host @ IpAddr::V4(_)) = subnet.hosts().next() {
-                push(host);
             }
         }
     }

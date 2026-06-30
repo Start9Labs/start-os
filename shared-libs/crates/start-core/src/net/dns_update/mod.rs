@@ -13,14 +13,14 @@ pub mod rfc2136;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, SocketAddr};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use hickory_server::proto::op::update_message::{append, delete_rrset};
 use hickory_server::proto::op::{Message, ResponseCode};
-use hickory_server::proto::rr::rdata::A;
+use hickory_server::proto::rr::rdata::{A, AAAA};
 use hickory_server::proto::rr::rdata::tsig::TsigAlgorithm;
 use hickory_server::proto::rr::{Name, RData, Record, RecordSet, RecordType, TSigner};
 use hkdf::Hkdf;
@@ -33,6 +33,7 @@ use tokio::time::{interval, timeout};
 
 use crate::db::model::public::NetworkInterfaceInfo;
 use crate::net::port_map::candidate_gateways;
+use crate::net::utils::ipv6_is_link_local;
 use crate::prelude::*;
 use crate::util::sync::Watch;
 use crate::GatewayId;
@@ -72,7 +73,7 @@ pub(crate) fn tsig_signer(key: [u8; 32]) -> TSigner {
 
 /// (gateway this target belongs to, DNS server to update, our address on that
 /// subnet / the A record value). The gateway id resolves the TSIG key.
-type Target = (GatewayId, Ipv4Addr, Ipv4Addr);
+type Target = (GatewayId, IpAddr, IpAddr);
 
 /// Resolves a gateway's WireGuard PSK (async D-Bus call into NetworkManager), so
 /// the controller can derive that gateway's TSIG signing key. `Ok(Some)` is a
@@ -171,34 +172,28 @@ impl DnsUpdateController {
 }
 
 /// The (resolver, our-ip) pairs for a private domain on one gateway: one per
-/// IPv4 subnet, pointing at our address there and sent to that subnet's
-/// resolver (its NM gateway / `.1`). The caller pairs each with its gateway id.
-fn targets_for(info: &NetworkInterfaceInfo) -> Vec<(Ipv4Addr, Ipv4Addr)> {
+/// subnet, pointing at our address there (published as an A record for IPv4, an
+/// AAAA for IPv6) and sent to a same-family resolver on that subnet. The caller
+/// pairs each with its gateway id.
+fn targets_for(info: &NetworkInterfaceInfo) -> Vec<(IpAddr, IpAddr)> {
     let Some(ip_info) = &info.ip_info else {
         return Vec::new();
     };
-    // RFC 2136 DNS updates are IPv4-only here, so keep just the v4 candidates.
-    let resolvers: Vec<Ipv4Addr> = candidate_gateways(info)
-        .into_iter()
-        .filter_map(|ip| match ip {
-            IpAddr::V4(v4) => Some(v4),
-            IpAddr::V6(_) => None,
-        })
-        .collect();
+    let resolvers = candidate_gateways(info);
     let mut out = Vec::new();
     for subnet in &ip_info.subnets {
-        let IpAddr::V4(our_ip) = subnet.addr() else {
-            continue;
-        };
-        // Prefer a resolver on the same subnet as our address.
+        let our_ip = subnet.addr();
+        // A link-local v6 address isn't usefully resolvable, so don't publish it.
+        if let IpAddr::V6(v6) = our_ip {
+            if ipv6_is_link_local(v6) {
+                continue;
+            }
+        }
+        // A same-family resolver on our subnet (the NM gateway).
         let server = resolvers
             .iter()
             .copied()
-            .find(|r| subnet.contains(&IpAddr::V4(*r)))
-            .or_else(|| match subnet.hosts().next() {
-                Some(IpAddr::V4(v4)) => Some(v4),
-                _ => None,
-            });
+            .find(|r| r.is_ipv4() == our_ip.is_ipv4() && subnet.contains(r));
         if let Some(server) = server {
             out.push((server, our_ip));
         }
@@ -281,19 +276,25 @@ fn zone_of(fqdn: &Name) -> Name {
     }
 }
 
-async fn apply(fqdn: &Name, server: Ipv4Addr, ip: Ipv4Addr, signer: Option<&TSigner>) {
+/// A record for an IPv4 address, AAAA for an IPv6 one.
+fn record_type_for(ip: IpAddr) -> RecordType {
+    match ip {
+        IpAddr::V4(_) => RecordType::A,
+        IpAddr::V6(_) => RecordType::AAAA,
+    }
+}
+
+async fn apply(fqdn: &Name, server: IpAddr, ip: IpAddr, signer: Option<&TSigner>) {
     let zone = zone_of(fqdn);
-    // Replace: drop any existing A rrset for the name, then add ours.
-    let delete = delete_rrset(
-        Record::update0(fqdn.clone(), 0, RecordType::A),
-        zone.clone(),
-        false,
-    );
-    let mut rrset = RecordSet::new(fqdn.clone(), RecordType::A, 0);
-    rrset.insert(
-        Record::from_rdata(fqdn.clone(), RECORD_TTL, RData::A(A::from(ip))),
-        0,
-    );
+    let rtype = record_type_for(ip);
+    let rdata = match ip {
+        IpAddr::V4(v4) => RData::A(A::from(v4)),
+        IpAddr::V6(v6) => RData::AAAA(AAAA::from(v6)),
+    };
+    // Replace: drop any existing rrset of this type for the name, then add ours.
+    let delete = delete_rrset(Record::update0(fqdn.clone(), 0, rtype), zone.clone(), false);
+    let mut rrset = RecordSet::new(fqdn.clone(), rtype, 0);
+    rrset.insert(Record::from_rdata(fqdn.clone(), RECORD_TTL, rdata), 0);
     let add = append(rrset, zone, false, false);
     for msg in [delete, add] {
         if let Err(e) = send(server, ip, &msg, signer).await {
@@ -304,9 +305,9 @@ async fn apply(fqdn: &Name, server: Ipv4Addr, ip: Ipv4Addr, signer: Option<&TSig
     tracing::debug!("published {fqdn} -> {ip} via RFC 2136 on {server}");
 }
 
-async fn withdraw(fqdn: &Name, server: Ipv4Addr, ip: Ipv4Addr, signer: Option<&TSigner>) {
+async fn withdraw(fqdn: &Name, server: IpAddr, ip: IpAddr, signer: Option<&TSigner>) {
     let msg = delete_rrset(
-        Record::update0(fqdn.clone(), 0, RecordType::A),
+        Record::update0(fqdn.clone(), 0, record_type_for(ip)),
         zone_of(fqdn),
         false,
     );
@@ -316,8 +317,8 @@ async fn withdraw(fqdn: &Name, server: Ipv4Addr, ip: Ipv4Addr, signer: Option<&T
 }
 
 async fn send(
-    server: Ipv4Addr,
-    local_ip: Ipv4Addr,
+    server: IpAddr,
+    local_ip: IpAddr,
     message: &Message,
     signer: Option<&TSigner>,
 ) -> Result<(), Error> {
@@ -338,11 +339,11 @@ async fn send(
     }
     .map_err(|e| Error::new(eyre!("encode DNS UPDATE: {e}"), ErrorKind::Network))?;
     // Bind to our address on the gateway so the server authorizes us by source IP.
-    let socket = UdpSocket::bind(SocketAddr::new(IpAddr::V4(local_ip), 0))
+    let socket = UdpSocket::bind(SocketAddr::new(local_ip, 0))
         .await
         .with_kind(ErrorKind::Network)?;
     socket
-        .connect(SocketAddr::new(IpAddr::V4(server), DNS_PORT))
+        .connect(SocketAddr::new(server, DNS_PORT))
         .await
         .with_kind(ErrorKind::Network)?;
     socket.send(&bytes).await.with_kind(ErrorKind::Network)?;
