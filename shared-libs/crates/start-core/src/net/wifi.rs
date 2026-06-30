@@ -232,12 +232,6 @@ pub async fn add(
     WifiAddParams { ssid, password }: WifiAddParams,
 ) -> Result<(), Error> {
     let mut wpa_supplicant = ctx.write_wifi_manager().await?;
-    if !ssid.is_ascii() {
-        return Err(Error::new(
-            color_eyre::eyre::eyre!("{}", t!("net.wifi.ssid-no-special-characters")),
-            ErrorKind::Wifi,
-        ));
-    }
     let ssid = Ssid(ssid);
     if !password.is_ascii() {
         return Err(Error::new(
@@ -295,12 +289,6 @@ pub async fn connect(
     WifiSsidParams { ssid }: WifiSsidParams,
 ) -> Result<(), Error> {
     let mut wpa_supplicant = ctx.write_wifi_manager().await?;
-    if !ssid.is_ascii() {
-        return Err(Error::new(
-            color_eyre::eyre::eyre!("{}", t!("net.wifi.ssid-no-special-characters")),
-            ErrorKind::Wifi,
-        ));
-    }
     if let Err(err) = async {
         let current = wpa_supplicant.get_current_network().await?;
         let connected = wpa_supplicant
@@ -360,12 +348,6 @@ pub async fn connect(
 #[instrument(skip_all)]
 pub async fn remove(ctx: RpcContext, WifiSsidParams { ssid }: WifiSsidParams) -> Result<(), Error> {
     let mut wpa_supplicant = ctx.write_wifi_manager().await?;
-    if !ssid.is_ascii() {
-        return Err(Error::new(
-            color_eyre::eyre::eyre!("{}", t!("net.wifi.ssid-no-special-characters")),
-            ErrorKind::Wifi,
-        ));
-    }
     let current = wpa_supplicant.get_current_network().await?;
     let ssid = Ssid(ssid);
     let is_current_being_removed = matches!(current, Some(current) if current == ssid);
