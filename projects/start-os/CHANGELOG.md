@@ -83,7 +83,8 @@ file tracks notable changes since the move to the monorepo.
 - **Allow non-ASCII characters in WiFi SSIDs (#3365).** Adding, connecting to, or
   removing a WiFi network whose SSID contains non-ASCII characters (e.g. an accented
   letter or a typographic apostrophe) no longer fails with "SSID may not have special
-  characters". SSIDs are passed to NetworkManager as-is; the WiFi passphrase still
+  characters". SSIDs are passed to NetworkManager as-is, and SSIDs containing a colon
+  are now parsed correctly when listing connections. The WiFi passphrase still
   requires ASCII, as mandated by WPA.
 
 ### Removed
