@@ -77,6 +77,9 @@ impl HostnameInfo {
     /// loopback / ULA / link-local), return it as a `SocketAddrV6`. GUAs are the
     /// only addresses that carry the Disabled / LAN / LAN+WAN tri-state.
     pub fn gua(&self) -> Option<SocketAddrV6> {
+        if !matches!(self.metadata, HostnameMetadata::Ipv6 { .. }) {
+            return None;
+        }
         let ip = self.hostname.parse::<Ipv6Addr>().ok()?;
         if crate::net::utils::ipv6_is_local(ip) {
             return None;
