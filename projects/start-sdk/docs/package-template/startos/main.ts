@@ -22,7 +22,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
    * 'example-volume' must match an entry in the manifest `volumes` array.
    */
   return sdk.Daemons.of(effects).addDaemon('example-daemon', {
-    subcontainer: await sdk.SubContainer.of(
+    subcontainer: sdk.SubContainer.of(
       effects,
       { imageId: 'example-image' },
       sdk.Mounts.of().mountVolume({

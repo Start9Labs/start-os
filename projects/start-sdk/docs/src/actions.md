@@ -26,6 +26,7 @@ export const setAdminPassword = sdk.Action.withoutInput(
     allowedStatuses: "any", // 'any', 'only-running', 'only-stopped'
     group: null,
     visibility: "enabled", // 'enabled', 'disabled', 'hidden'
+    access: "user", // 'public' | 'dependent' | 'user' — who may invoke directly via effects.action.run (default 'user')
   }),
 
   // Handler
@@ -69,6 +70,16 @@ export const setAdminPassword = sdk.Action.withoutInput(
 ```
 
 The action is paired with a `setupOnInit` watcher that surfaces a critical task when no password is stored — generation, storage, and display all live in this one handler, so first-set and rotation share a single code path. See [Prompt User to Create Admin Credentials](./recipe-admin-credentials.md).
+
+### Controlling Access
+
+The optional **`access`** field on the metadata controls who may invoke the action **directly** via `effects.action.run({ packageId, actionId, input })`:
+
+- `'user'` (default) — only the user; another service must request it through a task (`effects.action.createTask(...)`).
+- `'dependent'` — only services that declare this package as a current dependency.
+- `'public'` — any installed package.
+
+`access` is independent of `visibility` (whether the action is shown/enabled) and `allowedStatuses` (which run states permit it); a direct cross-package run is rejected if `access` denies the caller.
 
 ## Registering Actions
 

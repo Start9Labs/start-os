@@ -50,7 +50,7 @@ images: {
 Enumerate the paths the image writes to and persists — its documentation lists them, or you can run the image and watch where it creates files. Mount each path that must survive a restart. Missing a data mount does not produce an error; it silently discards that data on every restart, which is far worse.
 
 ```typescript
-subcontainer: await sdk.SubContainer.of(
+subcontainer: sdk.SubContainer.of(
   effects,
   { imageId: 'qbittorrent' },
   sdk.Mounts.of()
