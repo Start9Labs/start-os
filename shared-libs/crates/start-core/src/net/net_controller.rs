@@ -364,19 +364,21 @@ impl NetServiceData {
                     };
 
                 if let Some(assigned_ssl_port) = bind.net.assigned_ssl_port {
-                    // Collect private IPs from enabled private addresses' gateways
+                    // Collect private IPs from enabled LAN-only addresses' gateways
+                    // (a GUA set to LAN+WAN is WAN, so it lands in the public set).
                     let server_private_ips: BTreeSet<IpAddr> = enabled_addresses
                         .iter()
-                        .filter(|a| !a.public)
+                        .filter(|a| !bind.addresses.is_wan(a))
                         .flat_map(|a| a.metadata.gateways())
                         .filter_map(|gw| net_ifaces.get(gw).and_then(|info| info.ip_info.as_ref()))
                         .flat_map(|ip_info| ip_info.subnets.iter().map(|s| s.addr()))
                         .collect();
 
-                    // Collect public gateways from enabled public IP addresses
+                    // Collect public gateways from enabled WAN IP addresses
+                    // (public IPv4 WAN, or a GUA the operator set to LAN+WAN).
                     let server_public_gateways: BTreeSet<GatewayId> = enabled_addresses
                         .iter()
-                        .filter(|a| a.public && a.metadata.is_ip())
+                        .filter(|a| bind.addresses.is_wan(a) && a.metadata.is_ip())
                         .flat_map(|a| a.metadata.gateways())
                         .cloned()
                         .collect();
@@ -455,15 +457,15 @@ impl NetServiceData {
                 let external = bind.net.assigned_port.or_not_found("assigned lan port")?;
                 let fwd_public: BTreeSet<GatewayId> = enabled_addresses
                     .iter()
-                    .filter(|a| a.public)
+                    .filter(|a| bind.addresses.is_wan(a))
                     .flat_map(|a| a.metadata.gateways())
                     .cloned()
                     .collect();
                 // Declare which address makes each gateway public, so a stray
                 // auto-port-map can be traced back to the exposure driving it.
-                for a in enabled_addresses.iter().filter(|a| a.public) {
+                for a in enabled_addresses.iter().filter(|a| bind.addresses.is_wan(a)) {
                     tracing::debug!(
-                        "port {external}: public address {} (ip={}) on gateway(s) {:?}",
+                        "port {external}: WAN address {} (ip={}) on gateway(s) {:?}",
                         a.hostname,
                         a.metadata.is_ip(),
                         a.metadata.gateways().collect::<Vec<_>>(),
@@ -471,7 +473,7 @@ impl NetServiceData {
                 }
                 let fwd_private: BTreeSet<IpAddr> = enabled_addresses
                     .iter()
-                    .filter(|a| !a.public)
+                    .filter(|a| !bind.addresses.is_wan(a))
                     .flat_map(|a| a.metadata.gateways())
                     .filter_map(|gw| net_ifaces.get(gw).and_then(|i| i.ip_info.as_ref()))
                     .flat_map(|ip| ip.subnets.iter().map(|s| s.addr()))
