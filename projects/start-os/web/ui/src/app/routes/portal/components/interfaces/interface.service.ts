@@ -13,7 +13,41 @@ function isPublicIp(h: T.HostnameInfo): boolean {
   return h.public && (h.metadata.kind === 'ipv4' || h.metadata.kind === 'ipv6')
 }
 
+// An IPv6 global-unicast address (GUA) — not loopback / ULA (fc00::/7) /
+// link-local (fe80::/10). Mirrors the backend's `ipv6_is_local` complement, so
+// the UI shows the tri-state for exactly the addresses the backend treats as GUAs.
+function isGua(h: T.HostnameInfo): boolean {
+  if (h.metadata.kind !== 'ipv6') return false
+  const first = h.hostname.split(':')[0]
+  if (!first) return false // leading "::" (loopback/unspecified) is not a GUA
+  const hextet = parseInt(first, 16)
+  if (Number.isNaN(hextet)) return false
+  const isUla = (hextet & 0xfe00) === 0xfc00
+  const isLinkLocal = (hextet & 0xffc0) === 0xfe80
+  return !isUla && !isLinkLocal
+}
+
+// The `gua_access` map key — the GUA's SocketAddrV6, formatted as Rust's
+// `SocketAddrV6` Display (`[addr]:port`).
+function guaKey(h: T.HostnameInfo): string | null {
+  if (!isGua(h) || h.port === null) return null
+  return `[${h.hostname}]:${h.port}`
+}
+
+// A GUA's current exposure (Disabled / LAN / LAN+WAN), or null for any other
+// address. Untouched GUAs default to LAN.
+function getGuaAccess(
+  addr: T.DerivedAddressInfo,
+  h: T.HostnameInfo,
+): T.GuaAccess | null {
+  const key = guaKey(h)
+  if (key === null) return null
+  return addr.guaAccess?.[key] ?? 'lan'
+}
+
 function isEnabled(addr: T.DerivedAddressInfo, h: T.HostnameInfo): boolean {
+  const gua = getGuaAccess(addr, h)
+  if (gua !== null) return gua !== 'disabled'
   if (isPublicIp(h)) {
     if (h.port === null) return true
     const sa =
@@ -165,6 +199,7 @@ export class InterfaceService {
         if (!list) continue
         list.push({
           enabled: isEnabled(addr, h),
+          guaAccess: getGuaAccess(addr, h),
           type: getAddressType(h),
           access: h.public ? 'public' : 'private',
           // A port range exposes a span of ports, not one, so its URL is the
@@ -364,6 +399,9 @@ export class InterfaceService {
 
 export type GatewayAddress = {
   enabled: boolean
+  // For an IPv6 GUA, its tri-state exposure (Disabled / LAN / LAN+WAN); null for
+  // every other address (which use the on/off `enabled` toggle instead).
+  guaAccess: T.GuaAccess | null
   type: string
   access: 'public' | 'private'
   url: string

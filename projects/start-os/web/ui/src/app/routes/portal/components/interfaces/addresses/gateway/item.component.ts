@@ -1,6 +1,7 @@
 import { Component, computed, inject, input, signal } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { ErrorService, i18nPipe } from '@start9labs/shared'
+import { T } from '@start9labs/start-core'
 import { TuiButton, TuiIcon } from '@taiga-ui/core'
 import {
   TuiBadge,
@@ -21,17 +22,32 @@ import { DomainHealthService } from './domain-health.service'
   template: `
     @if (address(); as address) {
       <td>
-        <input
-          type="checkbox"
-          tuiSwitch
-          size="s"
-          [showIcons]="false"
-          [disabled]="
-            toggling() || address.hostnameInfo.metadata.kind === 'mdns'
-          "
-          [ngModel]="address.enabled"
-          (ngModelChange)="onToggleEnabled()"
-        />
+        @if (address.guaAccess !== null) {
+          <!-- An IPv6 GUA is reachable LAN-only or also from the WAN, so it gets
+               a Disabled / LAN / LAN+WAN tri-state instead of an on/off toggle. -->
+          <select
+            class="gua-access"
+            [disabled]="toggling()"
+            [ngModel]="address.guaAccess"
+            (ngModelChange)="onSetGuaAccess($event)"
+          >
+            <option value="disabled">{{ 'Disabled' | i18n }}</option>
+            <option value="lan">{{ 'LAN' | i18n }}</option>
+            <option value="lan-wan">{{ 'LAN+WAN' | i18n }}</option>
+          </select>
+        } @else {
+          <input
+            type="checkbox"
+            tuiSwitch
+            size="s"
+            [showIcons]="false"
+            [disabled]="
+              toggling() || address.hostnameInfo.metadata.kind === 'mdns'
+            "
+            [ngModel]="address.enabled"
+            (ngModelChange)="onToggleEnabled()"
+          />
+        }
       </td>
       <td class="access">
         <tui-icon
@@ -342,6 +358,38 @@ export class GatewayItemComponent {
             addr.hostnameInfo.port,
           )
         }
+      }
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+      this.toggling.set(false)
+    }
+  }
+
+  async onSetGuaAccess(access: T.GuaAccess) {
+    const addr = this.address()
+    const iface = this.value()
+    if (!iface) return
+
+    this.toggling.set(true)
+    const loader = this.loader.open('Saving').subscribe()
+
+    try {
+      if (this.packageId()) {
+        await this.api.pkgBindingSetGuaAccess({
+          internalPort: iface.addressInfo.internalPort,
+          address: addr.hostnameInfo,
+          access,
+          package: this.packageId(),
+          host: iface.addressInfo.hostId,
+        })
+      } else {
+        await this.api.serverBindingSetGuaAccess({
+          internalPort: 80,
+          address: addr.hostnameInfo,
+          access,
+        })
       }
     } catch (e: any) {
       this.errorService.handleError(e)
