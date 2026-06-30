@@ -11,12 +11,8 @@ lib/exver/exver.ts: node_modules lib/exver/exver.pegjs
 # and the SDK (which vendors it into its published bundle).
 dist: $(TS_FILES) lib/exver/exver.ts package.json node_modules README.md LICENSE
 	npm run tsc
-	rsync -ac --include='*.js' --include='*.d.ts' --include='*/' --exclude='*' lib/ dist/
-	rsync -ac node_modules dist/
-	cp package.json dist/package.json
-	cp README.md dist/README.md
-	cp LICENSE dist/LICENSE
-	touch dist
+	npm run copy
+	-@touch dist
 
 test: node_modules
 	npm test
