@@ -4,7 +4,7 @@ This guide covers building and contributing to the **StartOS OS product** in `pr
 
 Start from the root [CONTRIBUTING.md](../../CONTRIBUTING.md) for the shared toolchain (Rust, Node 24, Docker, Make, git), branch policy, and the repo-wide commit/PR conventions; this file adds the StartOS-specific setup on top.
 
-If you want to **package a service** for StartOS instead, see the [service packaging guide](https://github.com/Start9Labs/ai-service-packaging). For other ways to help, see [start9.com/contribute](https://start9.com/contribute).
+If you want to **package a service** for StartOS instead, see the [packaging guide](https://docs.start9.com/packaging). For other ways to help, see [start9.com/contribute](https://start9.com/contribute).
 
 ## Documentation
 
@@ -18,6 +18,8 @@ User-facing changes (UI, CLI, install/setup flow) must update the end-user docs 
 ## Prerequisites
 
 The OS product is a thin wrapper over the shared `start-core` crate (`shared-libs/crates/start-core`), the shared TypeScript modules (`shared-libs/ts-modules`), and the SDK (`projects/start-sdk`). Build commands run from the **repo root** unless noted; the product dir is `projects/start-os`.
+
+If you're only working on the admin UI or setup-wizard, you don't need the OS-image toolchain below — the web apps build and run standalone against mock data. See [`shared-libs/ts-modules/CONTRIBUTING.md`](../../shared-libs/ts-modules/CONTRIBUTING.md).
 
 Beyond the shared toolchain in the [root CONTRIBUTING](../../CONTRIBUTING.md#environment-setup), **building the OS image needs multi-arch emulation and image-packaging tools** (Debian/Ubuntu):
 

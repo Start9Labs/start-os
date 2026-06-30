@@ -1,6 +1,6 @@
 # Contributing
 
-This guide is for contributing to the Start9 monorepo (StartOS and the other products that live here). If you are interested in packaging a service for StartOS, visit the [service packaging guide](https://github.com/Start9Labs/ai-service-packaging). If you are interested in promoting, providing technical support, creating tutorials, or helping in other ways, please visit the [Start9 website](https://start9.com/contribute).
+This guide is for contributing to the Start9 monorepo (StartOS and the other products that live here). If you are interested in packaging a service for StartOS, visit the [packaging guide](https://docs.start9.com/packaging). If you are interested in promoting, providing technical support, creating tutorials, or helping in other ways, please visit the [Start9 website](https://start9.com/contribute).
 
 This file covers what is **common to the whole monorepo** — the shared toolchain, branch policy, the cross-cutting test/format entry points, and code/commit conventions. **Per-product system dependencies, build targets, and deploy steps live in each product's own `CONTRIBUTING.md`** (e.g. [`projects/start-os/CONTRIBUTING.md`](projects/start-os/CONTRIBUTING.md) for building the StartOS OS image).
 
@@ -26,6 +26,8 @@ The repo root's docs split across four files:
 > MacOS has limited build capabilities and Windows requires [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install).
 
 The shared toolchain below is enough to build the Rust bins and the web apps. **Individual products need more** — most notably the StartOS OS image, which adds multi-arch emulation and image-packaging tooling. See each product's `CONTRIBUTING.md` for its additional system dependencies.
+
+**Web-UI work skips most of this.** The Angular front ends build and run standalone against mock data — they need only Node 24 and Make, no Rust, Docker, or OS-image tooling. See [`shared-libs/ts-modules/CONTRIBUTING.md`](shared-libs/ts-modules/CONTRIBUTING.md).
 
 ```sh
 # Common build tooling
