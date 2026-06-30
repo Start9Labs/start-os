@@ -27,7 +27,9 @@ use crate::net::host::binding::{
 };
 use crate::net::host::{Host, Hosts, host_for};
 use crate::net::port_map::{PortMapController, candidate_gateways};
-use crate::net::service_interface::HostnameMetadata;
+use crate::net::service_interface::{
+    AddressInfo, HostnameMetadata, ServiceInterface, ServiceInterfaceType,
+};
 use crate::net::socks::SocksController;
 use crate::net::vhost::{AlpnInfo, DynVHostTarget, ProxyTarget, VHostController};
 use crate::prelude::*;
@@ -35,7 +37,7 @@ use crate::service::effects::callbacks::ServiceCallbacks;
 use crate::util::Invoke;
 use crate::util::serde::MaybeUtf8String;
 use crate::util::sync::{SyncMutex, Watch};
-use crate::{GatewayId, HOST_IP, HostId, OptionExt, PackageId};
+use crate::{GatewayId, HOST_IP, HostId, Id, OptionExt, PackageId, ServiceInterfaceId};
 
 pub struct NetController {
     pub(crate) db: TypedPatchDb<Database>,
@@ -231,6 +233,45 @@ impl NetController {
             )
             .await?;
 
+        // Sync the OS's own UI as a service interface (idempotent — the OS's
+        // equivalent of a service's setupInterfaces) so the server binding
+        // always has an exported interface. Bindings/ranges without one are
+        // treated as internal-only below.
+        self.db
+            .mutate(|db| {
+                let iface_id = ServiceInterfaceId::from(
+                    Id::try_from("startos-ui".to_owned()).expect("valid id"),
+                );
+                let iface = ServiceInterface {
+                    id: iface_id.clone(),
+                    name: "StartOS UI".to_owned(),
+                    description:
+                        "The web user interface for your StartOS server, accessible from any browser."
+                            .to_owned(),
+                    masked: false,
+                    address_info: AddressInfo {
+                        username: None,
+                        host_id: HostId::default(),
+                        internal_port: 80,
+                        scheme: Some(InternedString::intern("http")),
+                        ssl_scheme: Some(InternedString::intern("https")),
+                        suffix: String::new(),
+                    },
+                    interface_type: ServiceInterfaceType::Ui,
+                };
+                db.as_public_mut()
+                    .as_server_info_mut()
+                    .as_network_mut()
+                    .as_host_mut()
+                    .as_bindings_mut()
+                    .as_idx_mut(&80)
+                    .or_not_found(80)?
+                    .as_interfaces_mut()
+                    .ser(&[(iface_id, iface)].into_iter().collect::<BTreeMap<_, _>>())
+            })
+            .await
+            .result?;
+
         Ok(service)
     }
 }
@@ -282,6 +323,10 @@ impl NetServiceData {
                 continue;
             }
             if bind.net.assigned_port.is_none() && bind.net.assigned_ssl_port.is_none() {
+                continue;
+            }
+            // A binding with no exported interface is internal-only; don't forward it.
+            if bind.interfaces.is_empty() {
                 continue;
             }
 
@@ -510,6 +555,10 @@ impl NetServiceData {
         // (non-secure) WAN gateway, since no gateway is ever marked secure.
         for (&internal_start, range) in host.binding_ranges.iter() {
             if !range.enabled {
+                continue;
+            }
+            // A range with no exported interface is internal-only; don't forward it.
+            if range.interface.is_none() {
                 continue;
             }
             let enabled_addresses = range.addresses.enabled();

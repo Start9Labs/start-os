@@ -444,6 +444,10 @@ impl Model<Host> {
         let bindings: Bindings = this.bindings.de()?;
         let mut port_forwards = BTreeSet::new();
         for bind in bindings.values() {
+            // A binding with no exported interface is internal-only; don't forward it.
+            if bind.interfaces.is_empty() {
+                continue;
+            }
             for addr in bind.addresses.enabled() {
                 if !addr.public {
                     continue;
@@ -487,6 +491,10 @@ impl Model<Host> {
         let binding_ranges: BindingRanges = this.binding_ranges.de()?;
         for (&internal_start, range) in binding_ranges.iter() {
             if !range.enabled {
+                continue;
+            }
+            // A range with no exported interface is internal-only; don't forward it.
+            if range.interface.is_none() {
                 continue;
             }
             for addr in range.addresses.enabled() {
