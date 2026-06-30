@@ -63,13 +63,12 @@ Follow the [install guide](https://docs.start9.com/start-os/installing-startos.h
 
 ### Build from source
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, build instructions, and the development workflow. In short:
-
 ```sh
 git clone https://github.com/Start9Labs/start-technologies.git
-cd start-os
-PLATFORM=$(uname -m) ENVIRONMENT=dev make startos   # build a StartOS image
+cd start-technologies
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the shared toolchain and development workflow, and [projects/start-os/CONTRIBUTING.md](projects/start-os/CONTRIBUTING.md) to build a StartOS image.
 
 ## The rest of the monorepo
 
