@@ -30,6 +30,8 @@ use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
 use crate::util::sync::Watch;
 use crate::{MAIN_DATA, PACKAGE_DATA};
 
+pub mod nvme;
+
 pub fn experimental<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
@@ -79,7 +81,7 @@ pub async fn enable_zram() -> Result<(), Error> {
     Ok(())
 }
 
-/// The systemd slice that holds every service container's cgroup — lxc places
+/// The systemd slice that holds every service container's cgroup - lxc places
 /// containers under it (see `core/src/lxc/config.template`) and the unit
 /// (`core/services.slice`) opts it into `systemd-oomd` PSI monitoring. Capping
 /// it bounds the *aggregate* memory of all service containers.
@@ -89,7 +91,7 @@ const CONTAINER_SLICE: &str = "services.slice";
 /// fixed amount for the host management plane (startd, sshd, journald). The cap
 /// is applied with `systemctl set-property` so systemd owns it (survives a
 /// daemon-reload) and so it composes with the slice's `ManagedOOMMemoryPressure`
-/// — under sustained pressure `systemd-oomd` kills the heaviest **container**
+/// - under sustained pressure `systemd-oomd` kills the heaviest **container**
 /// cgroup in this slice, never the host plane (which `MemoryMin` protects).
 ///
 /// `HOST_RESERVE_MIB` is a constant, not a fraction of RAM: the host plane's
