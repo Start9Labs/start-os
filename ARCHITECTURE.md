@@ -14,7 +14,7 @@ This repo is the **monorepo for all Start9 products**. Each product is a thin to
 ## Repository layout
 
 ```
-start-os/                          # repo root (monorepo)
+start-technologies/                # repo root (monorepo)
 ├── projects/start-os/             # OS product
 │   ├── src/bin/{startbox,start-container}.rs
 │   ├── web/                       #   Angular UI + setup-wizard
@@ -27,7 +27,7 @@ start-os/                          # repo root (monorepo)
 │   └── start-registryd.service
 ├── projects/start-tunnel/         # tunnelbox bin + web/ (StartTunnel UI)
 │   └── start-tunneld.service
-├── projects/start-sdk/                     # @start9labs/start-sdk (base/ + package/) + Makefile/s9pk.mk + docs/
+├── projects/start-sdk/                     # @start9labs/start-sdk (flattened, source in lib/) + Makefile/s9pk.mk + docs/
 ├── projects/brochure-marketplace/ # marketing/landing Angular app
 ├── shared-libs/
 │   ├── crates/
