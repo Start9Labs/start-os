@@ -3,24 +3,6 @@ description: "Sets up the CI build environment for building .s9pk packages"
 runs:
   using: "composite"
   steps:
-    - name: Stage build storage on the large /mnt disk
-      # GitHub runners attach a near-empty ~75 GB disk at /mnt alongside the
-      # ~75 GB OS disk (/). Large (GPU) builds overflow / during `s9pk pack`, so
-      # land the two big consumers on /mnt instead:
-      #   - Docker's data-root (decompressed image layers) — relocated via the
-      #     Set up Docker step's runtime-basedir input below; pre-create the dir
-      #     here so that action (running as the runner user) can write to it.
-      #   - start-cli's pack scratch (the per-image squashfs export) — start-cli
-      #     hardcodes this to /var/tmp/startos and ignores TMPDIR, so a bind
-      #     mount is the only way to move it.
-      run: |
-        sudo mkdir -p /mnt/docker-runtime /mnt/startos-tmp /var/tmp/startos
-        sudo chown "$(id -u):$(id -g)" /mnt/docker-runtime /mnt/startos-tmp
-        sudo mount --bind /mnt/startos-tmp /var/tmp/startos
-        echo "Build storage staged on /mnt:"
-        df -h /mnt /var/tmp/startos
-      shell: bash
-
     - name: Setup Node.js environment
       uses: actions/setup-node@v6
       with:
@@ -48,12 +30,6 @@ runs:
 
     - name: Set up Docker
       uses: docker/setup-docker-action@v5
-      with:
-        # Store Docker's data-root (decompressed image layers) on /mnt rather
-        # than the small OS disk. runtime-basedir defaults to
-        # <home>/setup-docker-action (on /); the daemon's --data-root is
-        # <runtime-basedir>/run-<id>/data, so moving the base moves the images.
-        runtime-basedir: /mnt/docker-runtime
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v4
