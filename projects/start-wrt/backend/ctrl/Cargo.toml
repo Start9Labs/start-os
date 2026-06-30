@@ -13,7 +13,10 @@ path = "src/bin/startwrt.rs"
 
 [dependencies]
 num_enum = "0.7"
-start-os = { path = "../../start-os/core" }
+# `start-core` is the monorepo's shared backend lib (was the embedded start-os
+# submodule's `core/` crate). Aliased to `startos` so the existing `use startos::…`
+# imports resolve unchanged.
+startos = { package = "start-core", path = "../../../../shared-libs/crates/start-core" }
 async_cell = "0.2.2"
 color-eyre = "0.6.3"
 futures = "0.3.31"
@@ -22,26 +25,26 @@ tokio = { version = "1.41.1", features = ["tracing", "process", "socket2", "time
 tracing = "0.1"
 tracing-rfc-5424 = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-serde = { workspace = true }
+serde = { version = "1", features = ["derive"] }
 serde_yaml = "0.9.34"
 macaddr = "1.0.0"
-uciedit = { workspace = true, version = "0.1.0" }
-rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit", default-features = false }
+uciedit = { path = "../uciedit" }
+rpc-toolkit = { path = "../../../../shared-libs/crates/rpc-toolkit", default-features = false }
 clap = "4.5.37"
 arc-swap = "1.7"
 visit-rs = "0.1"
 axum = { version = "0.8.6", features = ["ws", "multipart", "http2"] }
 include_dir = "0.7"
 mime_guess = "2"
-thiserror = { workspace = true }
-imbl-value = "0.4.3"
+thiserror = "2.0.12"
+imbl-value = { path = "../../../../shared-libs/crates/imbl-value" }
 serde_json = "1.0.140"
 rand = "0.9.1"
 x25519-dalek = { version = "2", features = ["static_secrets"] }
 base64 = "0.22"
 semver = "1"
-chrono = { workspace = true }
-fd-lock-rs = { workspace = true }
+chrono = { version = "0.4.42", features = ["serde", "std"] }
+fd-lock-rs = "0.1.4"
 tempfile = "3.14.0"
 rpassword = "7.3.1"
 itertools = "0.14.0"

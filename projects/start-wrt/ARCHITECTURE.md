@@ -5,7 +5,7 @@ StartWRT is an OpenWrt-based router OS for home self-hosting. It pairs a Rust ba
 ## Tech Stack
 
 - **Backend:** Rust (async/Tokio, Axum web framework)
-- **Frontend:** Angular 21 + TypeScript 5.9 + Taiga UI v5
+- **Frontend:** Angular 22 + TypeScript 5.9 + Taiga UI v5
 - **Router OS:** OpenWrt (SpacemiT K1 / BananaPi F3 target)
 - **Config storage:** UCI files (`/etc/config/`) — no separate database
 - **API:** JSON-RPC 2.0 over HTTP POST at `/rpc/v1`
@@ -22,7 +22,7 @@ StartWRT is an OpenWrt-based router OS for home self-hosting. It pairs a Rust ba
 │   ├── firstboot_config/# Factory-default UCI configs (embedded in binary)
 │   └── config_experiments/ # Reference UCI configs for testing
 │
-├── web/                 # Angular 21 SPA
+├── web/                 # Angular 22 SPA
 │   └── src/app/
 │       ├── services/    # API, auth, form, RPC, system
 │       ├── components/  # Shared UI (footer, masked, copy, etc.)
@@ -39,7 +39,7 @@ StartWRT is an OpenWrt-based router OS for home self-hosting. It pairs a Rust ba
 
 - **`backend/`** — Rust daemon and CLI. Produces a single binary `startwrt` that is symlinked as `startwrt-ctrld` (daemon) and `startwrt-cli` (CLI). Handles all backend logic: RPC API, security profiles, WiFi, Ethernet, VPN, authentication, and UCI config management. See [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md).
 
-- **`web/`** — Angular 21 SPA using Taiga UI v5. Signal-based state, zoneless change detection, standalone components. Communicates with the backend exclusively via JSON-RPC 2.0. Embeds contextual help on every page. See [web/ARCHITECTURE.md](web/ARCHITECTURE.md).
+- **`web/`** — Angular 22 SPA using Taiga UI v5. Signal-based state, zoneless change detection, standalone components. Communicates with the backend exclusively via JSON-RPC 2.0. Embeds contextual help on every page. See [web/ARCHITECTURE.md](web/ARCHITECTURE.md).
 
 - **`openwrt/`** — Git submodule pointing to Start9's OpenWrt fork (SpacemiT K1 target). The build system compiles the Rust backend + Angular frontend, stages them into `openwrt/files/`, and produces a flashable image.
 
@@ -85,35 +85,38 @@ Profile orchestration spans four UCI configs: `startwrt`, `network`, `firewall`,
 
 ## Build Pipeline
 
-The Makefile orchestrates the full build with intelligent resource management (parallel job derivation from available memory, cgroup fencing, OOM score tuning).
+Targets live in `build.mk` (included by the root `Makefile`) and run from the **monorepo
+root**. The Rust crates are members of the root Cargo workspace, so the binary lands in the
+workspace-root `target/`. The riscv64 binary is cross-compiled in a dockerized cargo-zigbuild
+toolchain pinned to the SpaceMiT K1 ISA (`build/build-rust.sh` + `build/zigcc-k1.sh`).
 
 ### Build Steps
 
 ```
-1. npm install + npm run build     →  web/dist/ (Angular production build)
-2. build-rust.sh                   →  backend/target/riscv64gc-unknown-linux-musl/release/startwrt
-3. stage-files.sh                  →  openwrt/files/ (binary + configs + init scripts)
+1. npm --prefix web run build      →  web/dist/ (Angular production build, embedded next)
+2. build/build-rust.sh             →  target/riscv64gc-unknown-linux-musl/release/startwrt
+3. build/stage-files.sh            →  openwrt/files/ (binary + configs + init scripts)
 4. make -C openwrt                 →  openwrt/bin/targets/spacemit/*.img
-5. cp to out/                      →  Final flashable image
+5. cp to results/                  →  Final flashable image
 ```
 
 ### Key Make Targets
 
 | Target | Description |
 |--------|-------------|
-| `make` / `make image` | Full build: web → Rust → stage → OpenWrt image |
-| `make openwrt-setup` | One-time: configure feeds, download packages |
-| `make image-quick` | Reimage without recompiling packages |
-| `make update REMOTE=root@IP` | Deploy binary over SSH (atomic: temp → sync → rename → restart) |
-| `make clean` | Delete all build artifacts |
+| `make startwrt` | web → Rust binary (embeds the UI) |
+| `make startwrt-image` | Full build: stage → OpenWrt image → `results/` |
+| `make startwrt-openwrt-setup` | One-time: configure feeds, download packages |
+| `make startwrt-update REMOTE=root@IP` | Deploy binary over SSH (atomic: temp → sync → rename → restart) |
+| `make clean-startwrt` | Delete start-wrt build artifacts |
 
 ### Deployment
 
-The `update` target pipes the binary over SSH with atomic replacement:
+The `startwrt-update` target pipes the binary over SSH with atomic replacement:
 
 ```bash
-make update                        # Default: root@192.168.0.1
-make update REMOTE=root@10.0.0.1   # Custom target
+make startwrt-update                        # Default: root@192.168.0.1
+make startwrt-update REMOTE=root@10.0.0.1   # Custom target
 ```
 
 The binary is self-contained — the web UI is embedded via `include_dir`. Factory-default UCI configs from `firstboot_config/` are staged into the OpenWrt image at build time by `build/stage-files.sh`.

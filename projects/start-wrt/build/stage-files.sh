@@ -2,12 +2,15 @@
 set -eo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
+PROJECT_DIR=projects/start-wrt
 
 ARCH=${ARCH:-riscv64}
 RUST_ARCH=${RUST_ARCH:-riscv64gc}
 PROFILE=${PROFILE:-release}
-RUST_TARGET_DIR="backend/target/${RUST_ARCH}-unknown-linux-musl/${PROFILE}"
-FILES_DIR="openwrt/files"
+# The Rust crates are members of the monorepo workspace, so the binary lands in
+# the workspace-root target/ (not the old backend/target/).
+RUST_TARGET_DIR="target/${RUST_ARCH}-unknown-linux-musl/${PROFILE}"
+FILES_DIR="$PROJECT_DIR/openwrt/files"
 
 echo "==> Staging files into ${FILES_DIR}..."
 
@@ -22,7 +25,7 @@ ln -s startwrt "${FILES_DIR}/usr/bin/startwrt-cli"
 
 # UCI config defaults from firstboot_config/
 mkdir -p "${FILES_DIR}/etc/config"
-for f in backend/firstboot_config/*; do
+for f in "$PROJECT_DIR"/backend/firstboot_config/*; do
     cp "$f" "${FILES_DIR}/etc/config/$(basename "$f")"
 done
 
@@ -131,18 +134,18 @@ INITTABEOF
 
 # Hotplug script for remote access re-evaluation on WAN IP change
 mkdir -p "${FILES_DIR}/etc/hotplug.d/iface"
-cp backend/hotplug/99-startwrt-remote-access "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-remote-access"
+cp "$PROJECT_DIR"/backend/hotplug/99-startwrt-remote-access "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-remote-access"
 chmod +x "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-remote-access"
-cp backend/hotplug/99-startwrt-proxy-arp "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-proxy-arp"
+cp "$PROJECT_DIR"/backend/hotplug/99-startwrt-proxy-arp "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-proxy-arp"
 chmod +x "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-proxy-arp"
-cp backend/hotplug/99-startwrt-published-ports "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-published-ports"
+cp "$PROJECT_DIR"/backend/hotplug/99-startwrt-published-ports "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-published-ports"
 chmod +x "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-published-ports"
 
 # Custom nftables rules auto-included by fw4 (/etc/nftables.d/*.nft).
 # 10-startwrt-dnat-mark.nft marks DNAT-state reply traffic so port-forward
 # replies route via the main table instead of a VPN tunnel.
 mkdir -p "${FILES_DIR}/etc/nftables.d"
-for f in backend/nftables/*.nft; do
+for f in "$PROJECT_DIR"/backend/nftables/*.nft; do
     cp "$f" "${FILES_DIR}/etc/nftables.d/$(basename "$f")"
 done
 

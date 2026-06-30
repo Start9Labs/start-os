@@ -24,11 +24,15 @@ This sub-tree's docs split across four files:
 
 ## Getting Started
 
+These crates are members of the **root** monorepo Cargo workspace — run from the repo root and
+always scope with `-p` (a bare `cargo build`/`cargo test` targets the entire monorepo, which pulls
+in `startos-backup-fs`→`fuser` and fails on a bare host without FUSE dev libs):
+
 ```bash
-cargo build                          # Build all crates
-cargo build -p startwrt-ctrl         # Build ctrl only
-cargo test -p uciedit                # Run UCI parser tests
-cargo check                          # Type-check without building
+cargo build -p startwrt-core --bin startwrt                # Build the daemon+CLI binary
+cargo check -p startwrt-core --bin startwrt                # Type-check without building
+cargo test  -p startwrt-core -p uciedit -p uciedit_macros  # Run all start-wrt unit tests
+make test-startwrt                                         # same tests, containerized (mirrors test-core)
 ```
 
 Cross-compilation for the router target (riscv64gc-unknown-linux-musl) is handled by `build/build-rust.sh`.
@@ -39,7 +43,7 @@ For dev authentication, set `STARTWRT_DEV_PASSWORD` to bypass `/etc/shadow` vali
 
 | Crate | Package | Description |
 |-------|---------|-------------|
-| `ctrl` | `startwrt-ctrl` | RPC server (`startwrt-ctrld`) and CLI (`startwrt-cli`) |
+| `ctrl` | `startwrt-core` (lib `startwrt`) | RPC server (`startwrt-ctrld`) and CLI (`startwrt-cli`) |
 | `uciedit` | `uciedit` | UCI config parser/serializer with atomic writes and conflict detection |
 | `uciedit_macros` | `uciedit_macros` | `#[derive(TypedSection)]` proc macro for typed UCI sections |
 
@@ -136,9 +140,16 @@ cfg.try_each(|section_name, section: MySection| {
 
 ## Testing
 
+Run from the repo root, scoped with `-p` (a bare `cargo test` tests the whole monorepo and trips
+`fuser` on a bare host — see Getting Started):
+
 ```bash
-cargo test -p uciedit                # UCI parser tests (most coverage here)
-cargo test -p startwrt-ctrl          # Handler tests (if any)
+cargo test -p startwrt-core          # Handler tests — the bulk of coverage (~430 tests)
+cargo test -p uciedit                # UCI parser tests
+cargo test -p startwrt-core -p uciedit -p uciedit_macros   # everything
+make test-startwrt                   # all of the above, containerized (mirrors test-core)
 ```
 
-UCI parser tests use inline config strings. See `uciedit/src/tests.rs` for examples of testing parsing, writing, conflict detection, and typed section access.
+`startwrt-core`'s handler tests write fixtures into per-test tempdirs (see
+`ctrl/src/lan.rs::setup_fixtures`); UCI parser tests use inline config strings (see
+`uciedit/src/tests.rs`).

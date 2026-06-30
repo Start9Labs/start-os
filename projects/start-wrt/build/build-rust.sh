@@ -2,14 +2,18 @@
 set -ea
 shopt -s expand_aliases
 
+# Monorepo-aware build. Run from the monorepo root (the build.mk recipe does so);
+# the cargo workspace root is the monorepo root, so the docker builder mounts the
+# whole monorepo as /workdir and startwrt-core's path-deps into shared-libs/ resolve.
 cd "$(git rev-parse --show-toplevel)"
 
-source build/builder-alias.sh
+PROJECT_DIR=projects/start-wrt
+source "$PROJECT_DIR/build/builder-alias.sh"
 
-# Always restore host ownership of Docker-written artifacts, even if the
-# build fails or is interrupted — otherwise `make clean` on the host can't
-# remove root-owned files in backend/target.
-trap 'rust-zig-builder sh -c "chown -R $UID:$UID backend/target /usr/local/cargo 2>/dev/null || true"' EXIT
+# Restore host ownership of Docker-written artifacts on exit. The cargo target dir
+# is now the workspace-root target/ (not backend/target/), since the crates are
+# members of the monorepo workspace.
+trap 'rust-zig-builder sh -c "chown -R $UID:$UID target /usr/local/cargo 2>/dev/null || true"' EXIT
 
 ARCH=${ARCH:-riscv64}
 RUST_ARCH=${RUST_ARCH:-riscv64gc}
@@ -45,21 +49,21 @@ if [ "$RUST_ARCH" = "riscv64gc" ]; then
 	# K1-pinned zigcc wrapper, which bakes -mcpu into its zig cc invocation.
 	# Do NOT also set CFLAGS_<target>: aws-lc-sys's jitter-entropy sub-build
 	# appends `-Wp,-U_FORTIFY_SOURCE` only when a user CFLAGS is present, and
-	# `zig cc` rejects `-Wp,` passthrough flags.
-	export CC_riscv64gc_unknown_linux_musl=/workdir/build/zigcc-k1.sh
-	export CXX_riscv64gc_unknown_linux_musl=/workdir/build/zigcxx-k1.sh
-	export CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_MUSL_LINKER=/workdir/build/zigcc-k1.sh
+	# `zig cc` rejects `-Wp,` passthrough flags. Paths are container-relative
+	# (/workdir is the mounted monorepo root).
+	export CC_riscv64gc_unknown_linux_musl=/workdir/$PROJECT_DIR/build/zigcc-k1.sh
+	export CXX_riscv64gc_unknown_linux_musl=/workdir/$PROJECT_DIR/build/zigcxx-k1.sh
+	export CARGO_TARGET_RISCV64GC_UNKNOWN_LINUX_MUSL_LINKER=/workdir/$PROJECT_DIR/build/zigcc-k1.sh
 fi
 
-# start-os's build.rs reads build/env/GIT_HASH.txt; generate it first so the
-# start-os path dependency compiles from a clean submodule checkout.
-if [ -f start-os/build/env/check-git-hash.sh ]; then
-    (cd start-os && bash build/env/check-git-hash.sh >/dev/null)
-fi
+# start-core's build.rs reads build/env/{GIT_HASH,ENVIRONMENT}.txt from the
+# monorepo root; generate them first so the in-container build finds them.
+./build/env/check-git-hash.sh >/dev/null
+ENVIRONMENT="${ENVIRONMENT:-}" ./build/env/check-environment.sh >/dev/null
 
 echo "==> Building Rust binaries (arch=$RUST_ARCH, profile=$PROFILE)..."
 rust-zig-builder cargo zigbuild \
-    --manifest-path=./backend/ctrl/Cargo.toml \
+    --manifest-path=./$PROJECT_DIR/backend/ctrl/Cargo.toml \
     $BUILD_FLAGS \
     --locked \
     --target=${RUST_ARCH}-unknown-linux-musl
@@ -67,7 +71,7 @@ rust-zig-builder cargo zigbuild \
 # Verify the binary doesn't use any RVA23-only instructions that would
 # SIGILL on the SpaceMiT K1 (BPI-F3) target.
 if [ "$RUST_ARCH" = "riscv64gc" ]; then
-    bash build/verify-isa.sh "backend/target/${RUST_ARCH}-unknown-linux-musl/${PROFILE}/startwrt"
+    bash "$PROJECT_DIR/build/verify-isa.sh" "target/${RUST_ARCH}-unknown-linux-musl/${PROFILE}/startwrt"
 fi
 
 echo "==> Rust build complete."

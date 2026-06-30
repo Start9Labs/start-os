@@ -1,8 +1,0 @@
-[submodule "openwrt"]
-	path = openwrt
-	url = git@github.com:Start9Labs/openwrt.git
-	branch = bianbu
-[submodule "start-os"]
-	path = start-os
-	url = git@github.com:Start9Labs/start-os.git
-	branch = master

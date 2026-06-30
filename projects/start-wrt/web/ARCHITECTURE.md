@@ -1,6 +1,6 @@
 # Frontend Architecture
 
-Angular 21 single-page application for the StartWRT admin UI. TypeScript 5.9, Taiga UI v5, zoneless change detection, signal-based state, standalone components. No NgModules.
+Angular 22 single-page application for the StartWRT admin UI. TypeScript 5.9, Taiga UI v5, zoneless change detection, signal-based state, standalone components. No NgModules.
 
 ## Project Structure
 

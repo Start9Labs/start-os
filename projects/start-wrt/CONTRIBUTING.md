@@ -1,100 +1,80 @@
 # Contributing to StartWRT
 
-For project structure and system architecture, see [ARCHITECTURE.md](ARCHITECTURE.md).
+Build/test/format and commit/PR conventions that apply repo-wide live in the root
+[`CONTRIBUTING.md`](../../CONTRIBUTING.md); this file covers only what is specific to start-wrt.
+For structure and data flow see [ARCHITECTURE.md](ARCHITECTURE.md); for the RPC contract see
+[API_CONTRACT.md](API_CONTRACT.md).
 
-## Documentation
+All commands below run from the **repo root**.
 
-This repo's docs split across:
+## Backend (Rust)
 
-- `README.md` — what this is
-- `ARCHITECTURE.md` — how it's built
-- `CONTRIBUTING.md` — this file; how to contribute
-- `API_CONTRACT.md` — RPC endpoint contract (consult before frontend/backend changes)
-- `CLAUDE.md` — AI-developer operating rules
-
-**These docs must be kept up to date.** When you change project structure, conventions, build process, or product context, update the relevant file(s) in the same change — do not defer. Sub-trees (`backend/`, `web/`) have their own copies because they have distinct conventions, build steps, and test surfaces.
-
-## Workflow
-
-- Default branch is `master` (never `main`).
-- Commits use lowercase imperative one-liners; some Conventional-Commit prefixes (`feat:`, `fix:`, `refactor:`, `chore:`, `build:`) are common.
-- Changes land via pull requests; CI runs the OpenWrt image build via `.github/workflows/build-image.yaml`.
-
-## Project Structure
-
-StartWRT is an OpenWrt fork with two main codebases:
-
-- **`backend/`** — Rust workspace: RPC server, CLI, and UCI config library
-- **`web/`** — Angular 21 frontend with Taiga UI v5
-- **`openwrt/`** — OpenWrt fork (git submodule)
-
-See each directory's CONTRIBUTING.md for stack-specific setup.
-
-## Prerequisites
-
-- [Rust](https://rustup.rs/) (stable)
-- [Node.js](https://nodejs.org/) (v22+)
-- [Docker](https://docs.docker.com/get-docker/) (recommended for OpenWrt builds)
-
-## Getting Started
-
-### Frontend
+The three crates (`startwrt-core`/`ctrl`, `uciedit`, `uciedit_macros`) are members of the root
+Cargo workspace.
 
 ```bash
-cd web
-npm ci                               # Install dependencies
-npm start                            # Dev server with mock API
-npm run build                        # Production build
-npm run check                        # Type-check without emitting
+cargo build -p startwrt-core --bin startwrt                     # host build of the daemon+CLI binary
+cargo check -p startwrt-core --bin startwrt                     # fast type-check
+cargo test  -p startwrt-core -p uciedit -p uciedit_macros       # all start-wrt unit tests
+make test-startwrt                                              # same tests, containerized (mirrors test-core)
 ```
 
-The dev server uses mocks by default (`config.json` → `useMocks: true`), so no router or running backend is needed during frontend development.
+> **Always scope `cargo test` with `-p`.** A bare `cargo test` (or `cargo test` run from
+> `backend/`) now tests the *entire* monorepo workspace — including `startos-backup-fs`, whose
+> `fuser` dependency needs FUSE dev libs that exist only in the build container, so it fails on a
+> bare host. start-wrt's own crates are fuser-free, so the `-p`-scoped command above runs cleanly
+> on the host. `make test-startwrt` runs the same scoped set inside `start9/cargo-zigbuild`.
 
-### Backend
+`startwrt-core` depends on the shared `start-core` crate (aliased as `startos`), plus the
+vendored `rpc-toolkit` and `imbl-value`. For dev authentication set `STARTWRT_DEV_PASSWORD` to
+bypass `/etc/shadow`.
+
+> The host build embeds the web UI via `include_dir!`, so it needs `projects/start-wrt/web/dist/`
+> to exist — run the web build first (below), or build the full binary with `make startwrt`.
+
+## Frontend (Angular, standalone in this stage)
+
+The web app keeps its own `package.json`/`node_modules` and is **not** part of the root Angular
+workspace yet (that's a later migration stage). Use `--prefix`:
 
 ```bash
-cd backend
-cargo build                          # Build all crates
-cargo build -p startwrt-ctrl         # Build ctrl only
-cargo test -p uciedit                # Run UCI parser tests
+npm --prefix projects/start-wrt/web ci         # install
+npm --prefix projects/start-wrt/web start      # dev server (mock API, no backend needed)
+npm --prefix projects/start-wrt/web run build  # production build → web/dist/
+npm --prefix projects/start-wrt/web run check  # type-check
 ```
 
-For dev authentication, set `STARTWRT_DEV_PASSWORD` to bypass `/etc/shadow`.
+## Building / deploying (via the root Makefile)
 
-### Building the Full Image
-
-Use [docker-openwrt-build-env](https://github.com/mwarning/docker-openwrt-build-env) for consistent builds. Native builds on some distros produce silent errors.
-
-```bash
-make openwrt-setup                   # One-time: configure feeds, download packages
-make                                 # Full build → out/*.img
-```
-
-### Make Targets
+start-wrt's targets live in [`build.mk`](build.mk) (included by the root `Makefile`):
 
 | Target | Description |
 |--------|-------------|
-| `make` / `make image` | Full build: web → Rust → stage → OpenWrt image |
-| `make openwrt-setup` | One-time: configure feeds and download packages |
-| `make image-quick` | Reimage without recompiling packages |
-| `make update REMOTE=root@IP` | Deploy binary over SSH (default: root@192.168.0.1) |
-| `make clean` | Delete all build artifacts |
+| `make startwrt` | web → riscv64 binary (cross-compiled via dockerized cargo-zigbuild) |
+| `make startwrt-openwrt-setup` | one-time: openwrt feeds/config/download (needs the `openwrt` submodule) |
+| `make startwrt-image` | full flashable OpenWrt image → `results/` (**hours**) |
+| `make startwrt-update REMOTE=root@IP` | deploy binary over SSH (default `root@192.168.0.1`) |
+| `make clean-startwrt` | remove start-wrt build artifacts |
 
-The Makefile auto-derives parallel job count from available memory (3 GB per job budget), applies nice/ionice for low priority, and optionally uses systemd cgroup fencing.
+Deployment is atomic (temp file → sync → rename → daemon restart). The web UI is embedded in
+the binary, so deploying the binary updates everything.
 
-### Deploying to a Device
+> **⚠ UNVALIDATED since the monorepo migration.** The riscv dockerized cross-build (`make
+> startwrt`) and the OpenWrt image assembly (`make startwrt-image`) have not yet been run on a
+> build host. The backend host `cargo check` passes. Validate `make startwrt` first (it does not
+> need the multi-GB `openwrt` submodule), then `make startwrt-image`. The OpenWrt build needs a
+> consistent environment — Docker is recommended; native builds on some distros fail silently.
 
-```bash
-make update                          # Deploy to default (192.168.0.1)
-make update REMOTE=root@10.0.0.1     # Deploy to custom IP
-```
+## Coupled changes
 
-Deployment is atomic: binary is written to a temp file, synced, then renamed into place. The daemon is restarted via init script. The web UI is embedded in the binary, so deploying the binary updates everything.
+When you change a build input in `build.mk`, mirror it into the `paths:` filter of
+`.github/workflows/start-wrt.yaml` (see root AGENTS.md "Coupled changes"). Cross-frontend/backend
+changes must update `API_CONTRACT.md`, the Rust handler, and the web `api.service.ts` +
+`live-api.service.ts` + `mock-api.service.ts` together.
 
-## Key Documents
+## Key documents
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) — System architecture, data flow, build pipeline
-- [API_CONTRACT.md](API_CONTRACT.md) — Complete RPC endpoint contract with Rust types
-- [backend/ARCHITECTURE.md](backend/ARCHITECTURE.md) — Backend modules, UCI library, error types
-- [web/ARCHITECTURE.md](web/ARCHITECTURE.md) — Frontend patterns, styling, component conventions
-- [docs/init-reflash.md](docs/init-reflash.md) — Manufacturing, setup, and reflash specification
+- [ARCHITECTURE.md](ARCHITECTURE.md) — system architecture, data flow, build pipeline
+- [API_CONTRACT.md](API_CONTRACT.md) — complete RPC endpoint contract with Rust types
+- [backend/AGENTS.md](backend/AGENTS.md) / [web/AGENTS.md](web/AGENTS.md) — component rules
+- [docs/init-reflash.md](docs/init-reflash.md) — manufacturing, setup, and reflash specification

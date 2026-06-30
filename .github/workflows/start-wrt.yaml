@@ -1,0 +1,108 @@
+name: start-wrt
+
+# UNVALIDATED since the monorepo migration — neither job has been run yet. The
+# `compile` job (riscv binary + embedded web) should be validated first; the
+# heavy `image` job (OpenWrt) follows. See projects/start-wrt/CONTRIBUTING.md.
+
+on:
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      build-image:
+        type: boolean
+        description: Also build the full OpenWrt image (slow)
+        default: false
+  # `paths:` below mirror projects/start-wrt/build.mk's build inputs — keep
+  # both in sync (see root AGENTS.md "Coupled changes"). The web is standalone
+  # in Stage A, so it is covered by "projects/start-wrt/**" (not the root
+  # angular.json/package.json).
+  push:
+    branches:
+      - master
+      - next/*
+    paths:
+      - "projects/start-wrt/**"
+      - "shared-libs/crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build/**"
+      - ".github/workflows/start-wrt.yaml"
+      - ".github/actions/setup-build/**"
+  pull_request:
+    branches:
+      - master
+      - next/*
+    paths:
+      - "projects/start-wrt/**"
+      - "shared-libs/crates/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "build/**"
+      - ".github/workflows/start-wrt.yaml"
+      - ".github/actions/setup-build/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODEJS_VERSION: "24.17.0"
+
+jobs:
+  # Fast path: cross-compile the riscv64 binary (embeds the web UI). Does NOT
+  # need the multi-GB openwrt submodule.
+  compile:
+    name: Build riscv64 binary
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: false
+      - uses: ./.github/actions/setup-build
+        with:
+          nodejs-version: ${{ env.NODEJS_VERSION }}
+
+      - name: Make startwrt
+        run: make startwrt
+        env:
+          SCCACHE_GHA_ENABLED: on
+          SCCACHE_GHA_VERSION: 0
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: startwrt-riscv64
+          path: target/riscv64gc-unknown-linux-musl/release/startwrt
+          retention-days: 14
+
+  # Heavy path: full flashable OpenWrt image. Gated to manual dispatch / release
+  # because it pulls the openwrt submodule and runs a multi-hour build.
+  image:
+    name: Build OpenWrt image
+    if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build-image == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-build
+        with:
+          nodejs-version: ${{ env.NODEJS_VERSION }}
+
+      - name: Cache OpenWrt download directory
+        uses: actions/cache@v4
+        with:
+          path: projects/start-wrt/openwrt/dl
+          key: openwrt-dl-${{ hashFiles('projects/start-wrt/build/openwrt.diffconfig') }}
+
+      - name: Setup OpenWrt (feeds, config, download)
+        run: make startwrt-openwrt-setup
+
+      - name: Build image
+        run: make startwrt-image
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: startwrt-openwrt-image
+          path: results/openwrt-spacemit-k1-*
+          retention-days: 14
