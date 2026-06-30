@@ -63,7 +63,6 @@
     "@taiga-ui/layout": "5.11.0",
     "@taiga-ui/polymorpheus": "5.0.1",
     "ansi-to-html": "^0.7.2",
-    "base64-js": "^1.5.1",
     "buffer": "^6.0.3",
     "cbor": "npm:@jprochazk/cbor@^0.4.9",
     "cbor-web": "^8.1.0",
