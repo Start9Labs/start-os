@@ -31,4 +31,13 @@ fn main() {
 
     println!("cargo:rustc-env=STARTWRT_GIT_HASH={hash}");
     println!("cargo:rerun-if-env-changed=STARTWRT_GIT_HASH");
+
+    // Re-embed the UI when the built web bundle changes. embedded_web.rs bakes in
+    // web/dist via include_dir!, but include_dir does not register the embedded
+    // files as cargo deps, so without this cargo skips recompiling this crate on a
+    // web-only change and the binary ships a stale UI. Path is relative to this
+    // build script's cwd (CARGO_MANIFEST_DIR = backend/ctrl), mirroring the
+    // include_dir! path. Angular emits content-hashed filenames, so any content
+    // change alters the directory listing and is reliably picked up.
+    println!("cargo:rerun-if-changed=../../web/dist/startwrt/browser");
 }

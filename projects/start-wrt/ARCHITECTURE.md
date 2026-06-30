@@ -107,7 +107,7 @@ toolchain pinned to the SpaceMiT K1 ISA (`build/build-rust.sh` + `build/zigcc-k1
 | `make startwrt` | web → Rust binary (embeds the UI) |
 | `make startwrt-image` | Full build: stage → OpenWrt image → `results/` |
 | `make startwrt-openwrt-setup` | One-time: configure feeds, download packages |
-| `make startwrt-update REMOTE=root@IP` | Deploy binary over SSH (atomic: temp → sync → rename → restart) |
+| `make startwrt-update STARTWRT_REMOTE=root@IP` | Deploy binary over SSH (atomic: temp → sync → rename → restart) |
 | `make clean-startwrt` | Delete start-wrt build artifacts |
 
 ### Deployment
@@ -116,7 +116,7 @@ The `startwrt-update` target pipes the binary over SSH with atomic replacement:
 
 ```bash
 make startwrt-update                        # Default: root@192.168.0.1
-make startwrt-update REMOTE=root@10.0.0.1   # Custom target
+make startwrt-update STARTWRT_REMOTE=root@10.0.0.1   # Custom target
 ```
 
 The binary is self-contained — the web UI is embedded via `include_dir`. Factory-default UCI configs from `firstboot_config/` are staged into the OpenWrt image at build time by `build/stage-files.sh`.

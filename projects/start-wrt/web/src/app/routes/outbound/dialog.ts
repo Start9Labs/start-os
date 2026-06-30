@@ -1,6 +1,5 @@
 import { Component, inject, signal } from '@angular/core'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
-import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
 import {
   TuiButton,
   TuiDialogContext,
@@ -131,11 +130,23 @@ class AddClient {
   }
 
   protected save(): void {
-    tuiMarkControlAsTouchedAndValidate(this.form)
-
+    // Once a valid .conf is dropped the async WireGuard validator settles to
+    // VALID, so the form is already valid here — submit directly. Do NOT call
+    // tuiMarkControlAsTouchedAndValidate in that case: it runs
+    // updateValueAndValidity, which re-triggers the async validator, and that
+    // re-run gets stuck PENDING and never re-settles (the in-flight validation is
+    // cancelled when the file input remounts during the PENDING phase), silently
+    // blocking submit forever.
     if (this.form.valid) {
       this.context.completeWith(this.form.value)
+      return
     }
+
+    // Otherwise the form is incomplete/invalid — surface the errors. markAllAsTouched
+    // only flips touched state; unlike tuiMarkControlAsTouchedAndValidate it does
+    // not re-run validators, so it can't get stuck on the async one. Validators have
+    // already run on input, so the errors are present and just need to be shown.
+    this.form.markAllAsTouched()
   }
 }
 

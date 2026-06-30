@@ -53,7 +53,7 @@ start-wrt's targets live in [`build.mk`](build.mk) (included by the root `Makefi
 | `make startwrt` | web → riscv64 binary (cross-compiled via dockerized cargo-zigbuild) |
 | `make startwrt-openwrt-setup` | one-time: openwrt feeds/config/download (needs the `openwrt` submodule) |
 | `make startwrt-image` | full flashable OpenWrt image → `results/` (**hours**) |
-| `make startwrt-update REMOTE=root@IP` | deploy binary over SSH (default `root@192.168.0.1`) |
+| `make startwrt-update STARTWRT_REMOTE=root@IP` | deploy binary over SSH (default `root@192.168.0.1`) |
 | `make clean-startwrt` | remove start-wrt build artifacts |
 
 Deployment is atomic (temp file → sync → rename → daemon restart). The web UI is embedded in

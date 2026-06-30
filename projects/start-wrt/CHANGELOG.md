@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Adding an Outbound VPN no longer silently does nothing. On submit the dialog
+  called `tuiMarkControlAsTouchedAndValidate`, which re-ran the WireGuard `.conf`
+  async validator and left the form stuck `PENDING` (the in-flight validation is
+  cancelled when the file input remounts during the pending phase), so the create
+  request was never sent. Submit now completes directly when the form is already
+  valid, and only marks fields touched — without re-validating — when it isn't.
+- Web-only changes are now re-embedded into the `startwrt` binary on rebuild. The
+  UI is baked in at compile time via `include_dir!`, which does not register the
+  embedded files as cargo dependencies, so `ctrl`'s `build.rs` now emits a
+  `cargo:rerun-if-changed` for the web `dist` directory. Previously a changed web
+  bundle was silently ignored unless a `.rs` file also changed, shipping a stale
+  UI.
+
 ### Changed
 
 - Relocated into the `start-technologies` monorepo as the `start-wrt` product. The
