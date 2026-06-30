@@ -253,14 +253,13 @@ export class GatewayActionsComponent {
     if (!iface) return
 
     const enabled = !addr.enabled
-    const addressJson = JSON.stringify(addr.hostnameInfo)
     const loader = this.loader.open('Saving').subscribe()
 
     try {
       if (this.packageId()) {
         const params = {
           internalPort: iface.addressInfo.internalPort,
-          address: addressJson,
+          address: addr.hostnameInfo,
           enabled,
           package: this.packageId(),
           host: iface.addressInfo.hostId,
@@ -275,7 +274,7 @@ export class GatewayActionsComponent {
       } else {
         await this.api.serverBindingSetAddressEnabled({
           internalPort: 80,
-          address: addressJson,
+          address: addr.hostnameInfo,
           enabled,
         })
       }

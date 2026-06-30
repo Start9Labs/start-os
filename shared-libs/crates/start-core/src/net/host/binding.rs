@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::SocketAddr;
+use std::net::{SocketAddr, SocketAddrV6};
 use std::str::FromStr;
 
 use clap::Parser;
@@ -20,7 +20,7 @@ use crate::net::service_interface::{
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
 use crate::util::FromStrParser;
-use crate::util::serde::{HandlerExtSerde, display_serializable};
+use crate::util::serde::{CliFromJsonString, HandlerExtSerde, display_serializable};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -96,9 +96,9 @@ pub struct DerivedAddressInfo {
     /// User override: disable these addresses (only for domains and private IP & port)
     pub disabled: BTreeSet<(InternedString, u16)>,
     /// User override: per-GUA exposure (only for IPv6 global-unicast addresses),
-    /// keyed by the GUA's `SocketAddr`. Absent ⇒ [`GuaAccess::Lan`].
+    /// keyed by the GUA's `SocketAddrV6`. Absent ⇒ [`GuaAccess::Lan`].
     #[serde(default)]
-    pub gua_access: BTreeMap<SocketAddr, GuaAccess>,
+    pub gua_access: BTreeMap<SocketAddrV6, GuaAccess>,
     /// COMPUTED: NetServiceData::update — all possible addresses for this binding
     pub available: BTreeSet<HostnameInfo>,
 }
@@ -106,7 +106,7 @@ pub struct DerivedAddressInfo {
 impl DerivedAddressInfo {
     /// Operator's exposure choice for an IPv6 GUA; untouched GUAs default to
     /// [`GuaAccess::Lan`].
-    pub fn access_for(&self, gua: SocketAddr) -> GuaAccess {
+    pub fn access_for(&self, gua: SocketAddrV6) -> GuaAccess {
         self.gua_access.get(&gua).copied().unwrap_or_default()
     }
 
@@ -559,7 +559,8 @@ pub struct BindingSetAddressEnabledParams {
     #[arg(help = "help.arg.internal-port")]
     internal_port: u16,
     #[arg(long, help = "help.arg.address")]
-    address: String,
+    #[ts(as = "HostnameInfo")]
+    address: CliFromJsonString<HostnameInfo>,
     #[arg(long, help = "help.arg.binding-enabled")]
     enabled: Option<bool>,
 }
@@ -670,8 +671,7 @@ pub async fn set_address_enabled<Kind: HostApiKind>(
     inheritance: Kind::Inheritance,
 ) -> Result<(), Error> {
     let enabled = enabled.unwrap_or(true);
-    let address: HostnameInfo =
-        serde_json::from_str(&address).with_kind(ErrorKind::Deserialization)?;
+    let address = address.0;
     if !enabled && address.is_internal() {
         return Err(Error::new(
             eyre!("loopback / bridge (internal) addresses cannot be disabled"),
@@ -705,8 +705,7 @@ pub async fn set_range_address_enabled<Kind: HostApiKind>(
     inheritance: Kind::Inheritance,
 ) -> Result<(), Error> {
     let enabled = enabled.unwrap_or(true);
-    let address: HostnameInfo =
-        serde_json::from_str(&address).with_kind(ErrorKind::Deserialization)?;
+    let address = address.0;
     if !enabled && address.is_internal() {
         return Err(Error::new(
             eyre!("loopback / bridge (internal) addresses cannot be disabled"),
@@ -735,7 +734,8 @@ pub struct BindingSetGuaAccessParams {
     #[arg(help = "help.arg.internal-port")]
     internal_port: u16,
     #[arg(long, help = "help.arg.address")]
-    address: String,
+    #[ts(as = "HostnameInfo")]
+    address: CliFromJsonString<HostnameInfo>,
     #[arg(long, help = "help.arg.gua-access")]
     access: GuaAccess,
 }
@@ -753,8 +753,7 @@ pub async fn set_gua_access<Kind: HostApiKind>(
     }: BindingSetGuaAccessParams,
     inheritance: Kind::Inheritance,
 ) -> Result<(), Error> {
-    let address: HostnameInfo =
-        serde_json::from_str(&address).with_kind(ErrorKind::Deserialization)?;
+    let address = address.0;
     let gua = address.gua().ok_or_else(|| {
         Error::new(
             eyre!("address is not an IPv6 global-unicast address"),

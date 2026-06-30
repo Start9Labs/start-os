@@ -27,7 +27,7 @@ export type FollowServerLogsReq = Omit<T.LogsParams, 'before'>
 export type ServerBindingSetAddressEnabledReq = {
   // server.host.binding.set-address-enabled
   internalPort: 80
-  address: string // JSON-serialized HostnameInfo
+  address: T.HostnameInfo
   enabled: boolean | null // null = reset to default
 }
 

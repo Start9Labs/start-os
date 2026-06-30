@@ -13,7 +13,7 @@ export type DerivedAddressInfo = {
   disabled: Array<[string, number]>
   /**
    * User override: per-GUA exposure (only for IPv6 global-unicast addresses),
-   * keyed by the GUA's `SocketAddr`. Absent ⇒ [`GuaAccess::Lan`].
+   * keyed by the GUA's `SocketAddrV6`. Absent ⇒ [`GuaAccess::Lan`].
    */
   guaAccess: { [key: string]: GuaAccess }
   /**

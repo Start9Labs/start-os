@@ -2109,10 +2109,9 @@ export class MockApiService extends ApiService {
 
   private mockSetAddressEnabled(
     basePath: string,
-    addressJson: string,
+    h: T.HostnameInfo,
     enabled: boolean | null,
   ): void {
-    const h: T.HostnameInfo = JSON.parse(addressJson)
     const isPublicIp =
       h.public && (h.metadata.kind === 'ipv4' || h.metadata.kind === 'ipv6')
 
