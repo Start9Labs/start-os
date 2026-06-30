@@ -4,7 +4,7 @@ Services that send email (notifications, password resets, invites) need SMTP con
 
 ## Solution
 
-Add the SDK's built-in `smtpShape` to your store.json file model. Create a `manageSmtp` action using `sdk.Action.withInput()` with `Value.smtpComposite()` — this provides the standard three-mode UI (disabled/system/custom). In `setupOnInit`, default SMTP to disabled. In `setupMain`, read the SMTP config and pass credentials as environment variables or write them to the app's config file.
+Add the SDK's built-in `smtpShape` to your store.json file model. Create a `manageSmtp` action using `sdk.Action.withInput()` with `sdk.inputSpecConstants.smtpInputSpec` — this provides the standard three-mode UI (disabled/system/custom). In `setupOnInit`, default SMTP to disabled. In `setupMain`, read the SMTP config and pass credentials as environment variables or write them to the app's config file.
 
 **Reference:** [Actions](actions.md) · [File Models](file-models.md) · [Main](main.md)
 

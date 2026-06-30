@@ -106,28 +106,6 @@ my-workspace/
 
 The context lives once, at the workspace root — it is never copied into your package repos. Open the workspace in your AI tool and it picks up `AGENTS.md` / `CLAUDE.md` automatically.
 
-### Create a package
-
-From the workspace root, scaffold a new package:
-
-```sh
-start-cli s9pk init-package "My Service"
-```
-
-This creates `my-service-startos/` (the name is normalized to the package ID) as a barebones, buildable hello-world clone with a `TODO.md` checklist. Point your agent at that `TODO.md` and work it top to bottom to take the package from clone to release-ready. Your workspace now looks like:
-
-```
-my-workspace/
-├── .startos/
-├── AGENTS.md
-├── AGENTS.local.md
-├── CLAUDE.md
-├── start-technologies/
-└── my-service-startos/    ← your new package
-```
-
-To work on an existing package instead, clone it into the workspace alongside `start-technologies/`.
-
 ### Hosts and registries
 
 The `.startos/config.yaml` created with the workspace defines named **host** targets (your StartOS boxes) and **registry** targets:
@@ -167,4 +145,6 @@ git -C start-technologies pull --ff-only
 ```
 
 There's no separate update command — re-running `init-workspace` on an existing workspace just fills in anything missing, and your `AGENTS.local.md` is never touched.
+
+Your environment is ready. Continue to [Quick Start](./quick-start.md) to scaffold and build your first package inside the workspace.
 

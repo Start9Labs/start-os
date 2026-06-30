@@ -24,7 +24,7 @@ jobs:
   tag:
     needs: guard
     if: needs.guard.outputs.id != 'hello-world'
-    uses: Start9Labs/start-os/.github/workflows/tagAndRelease.yml@master
+    uses: Start9Labs/start-technologies/.github/workflows/tagAndRelease.yml@master
     with:
       REFERENCE_REGISTRY: ${{ vars.REFERENCE_REGISTRY }}
       # FREE_DISK_SPACE: true

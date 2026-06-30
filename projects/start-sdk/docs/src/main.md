@@ -25,7 +25,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
    * Each daemon defines its own health check, which can optionally be exposed to the user.
    */
   return sdk.Daemons.of(effects).addDaemon("primary", {
-    subcontainer: await sdk.SubContainer.of(
+    subcontainer: sdk.SubContainer.of(
       effects,
       { imageId: "hello-world" },
       sdk.Mounts.of().mountVolume({
@@ -50,6 +50,9 @@ export const main = sdk.setupMain(async ({ effects }) => {
 });
 ```
 
+> [!NOTE]
+> For a daemon set that changes at runtime — one per tunnel, site, or account — use `sdk.Daemons.dynamic(async ({ effects }) => …)` as your `main` export instead of `setupMain`. It reconciles the running daemons against a freshly-built list on each config change rather than restarting all of them. See [Create Dynamic Daemons](./recipe-dynamic-daemons.md).
+
 ## SubContainers
 
 SubContainers are isolated filesystem environments created from Docker images. They provide the rootfs for running daemons, oneshots, and one-off commands.
@@ -59,7 +62,7 @@ SubContainers are isolated filesystem environments created from Docker images. T
 **`SubContainer.of()`** -- creates a long-lived subcontainer (for daemons and oneshots):
 
 ```typescript
-const appSub = await sdk.SubContainer.of(
+const appSub = sdk.SubContainer.of(
   effects,
   { imageId: "my-app" },
   sdk.Mounts.of().mountVolume({
@@ -71,6 +74,9 @@ const appSub = await sdk.SubContainer.of(
   "my-app-sub",
 );
 ```
+
+> [!NOTE]
+> `SubContainer.of()` is **lazy** — it returns immediately and only materializes the filesystem on first use, so you pass it straight to `addDaemon()` with no `await`. If you need a synchronous `.rootfs`, `.guid`, or `.subpath()` before running anything, `await` the accessor or create it eagerly with `sdk.SubContainer.eager(...)`.
 
 **`SubContainer.withTemp()`** -- creates a temporary subcontainer that is automatically destroyed after the callback completes. Use this for one-off commands in actions, init functions, or migrations:
 
@@ -416,6 +422,20 @@ sdk.Mounts.of()
 >
 > Chained calls (`.mountVolume(...).mountDependency(...)`) are fine — the returned instance flows into the next call. The trap is conditional mutation with the return thrown away. Symptom: the file you expected at the mountpoint isn't there, so a `FileHelper.string(...).read()` returns `null` or a subcontainer read fails.
 
+### Remapping Ownership (`idmap`)
+
+Every mount (`mountVolume` / `mountAssets` / `mountDependency` / `mountBackups`) takes an optional **`idmap`** — a list of `{ fromId, toId, range? }` entries that remap ownership at the mount boundary, so files stored under one uid/gid on the volume appear under the uid/gid the service expects. `fromId` is the id seen on the filesystem, `toId` is the id processes in the container see, and `range` (default `1`) covers that many consecutive ids. The container's own LXC id-mapping is applied automatically — don't include it here.
+
+```typescript
+sdk.Mounts.of().mountVolume({
+  volumeId: "main",
+  subpath: null,
+  mountpoint: "/data",
+  readonly: false,
+  idmap: [{ fromId: 0, toId: 1000 }], // files owned by uid 0 on the volume appear as uid 1000 in the container
+});
+```
+
 ## Writing to Subcontainer Rootfs
 
 For config files that are *generated from code* on every startup (e.g., a Python settings file built from hostnames and secrets), write directly to the subcontainer's rootfs:
@@ -425,7 +445,7 @@ import { writeFile } from 'node:fs/promises'
 
 // Write a generated config to subcontainer rootfs
 await writeFile(
-  `${appSub.rootfs}/app/config.py`,
+  `${await appSub.rootfs}/app/config.py`,
   generateConfig({ secretKey, allowedHosts }),
 )
 ```
@@ -543,7 +563,7 @@ const pgMounts = sdk.Mounts.of().mountVolume({
 });
 
 // Create subcontainer
-const postgresSub = await sdk.SubContainer.of(
+const postgresSub = sdk.SubContainer.of(
   effects,
   { imageId: "postgres" },
   pgMounts,

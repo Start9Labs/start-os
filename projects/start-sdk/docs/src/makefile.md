@@ -1,18 +1,17 @@
 # Makefile Build System
 
-StartOS packages use a two-file Makefile system that separates reusable build logic from project-specific configuration.
+A StartOS package's `Makefile` carries only project-specific configuration and includes the shared build logic (`s9pk.mk`) that ships inside the SDK.
 
 ## File Structure
 
 ```
 my-service-startos/
-├── Makefile     # Project-specific configuration (minimal)
-└── s9pk.mk      # Shared build logic (copy from template)
+└── Makefile     # Project-specific config; includes the SDK's s9pk.mk
 ```
 
 ## s9pk.mk
 
-The `s9pk.mk` file contains all the common build logic shared across StartOS packages. Copy this file from `hello-world-startos/s9pk.mk` without modification.
+The `s9pk.mk` file contains all the common build logic shared across StartOS packages. It ships **inside the published SDK** (`@start9labs/start-sdk`), so your `Makefile` includes it straight from `node_modules` — there's nothing to vendor or copy into the package, and bumping the SDK delivers build-system fixes automatically.
 
 ### Targets
 
@@ -39,7 +38,7 @@ The `s9pk.mk` file contains all the common build logic shared across StartOS pac
 The project `Makefile` is minimal and just includes `s9pk.mk`:
 
 ```makefile
-include s9pk.mk
+include node_modules/@start9labs/start-sdk/s9pk.mk
 ```
 
 ### Adding Custom Targets
@@ -50,7 +49,7 @@ For services with variants (e.g., GPU support), extend the Makefile:
 TARGETS := generic rocm
 ARCHES := x86 arm
 
-include s9pk.mk
+include node_modules/@start9labs/start-sdk/s9pk.mk
 
 .PHONY: generic rocm
 
@@ -68,13 +67,13 @@ This produces packages named `myservice_generic_x86_64.s9pk` and `myservice_rocm
 
 ### Overriding Defaults
 
-Override variables _before_ `include s9pk.mk`:
+Override variables _before_ `include node_modules/@start9labs/start-sdk/s9pk.mk`:
 
 ```makefile
 # Build only for x86 and arm
 ARCHES := x86 arm
 
-include s9pk.mk
+include node_modules/@start9labs/start-sdk/s9pk.mk
 ```
 
 ## Build Commands
