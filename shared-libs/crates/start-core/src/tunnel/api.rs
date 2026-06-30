@@ -975,6 +975,13 @@ pub struct AddPortForwardParams {
     #[arg(long = "sni")]
     #[serde(default)]
     sni: Vec<String>,
+    /// Number of contiguous ports to forward (a PCP PORT_SET range), counting up
+    /// from both `external_port` and the target port. Defaults to 1. Not valid
+    /// together with SNI demux.
+    #[arg(long)]
+    #[serde(default)]
+    #[ts(optional)]
+    count: Option<u16>,
 }
 
 pub async fn add_forward(
@@ -984,8 +991,17 @@ pub async fn add_forward(
         target,
         label,
         sni,
+        count,
     }: AddPortForwardParams,
 ) -> Result<(), Error> {
+    let count = count.unwrap_or(1);
+    if count == 0 {
+        return Err(Error::new(
+            eyre!("count must be at least 1"),
+            ErrorKind::InvalidRequest,
+        ));
+    }
+
     let external_ip = ctx.external_ipv4(*target.ip()).await.ok_or_else(|| {
         Error::new(
             eyre!("no WAN IP available for device {}", target.ip()),
@@ -994,6 +1010,12 @@ pub async fn add_forward(
     })?;
     let source = SocketAddrV4::new(external_ip, external_port);
     if !sni.is_empty() {
+        if count > 1 {
+            return Err(Error::new(
+                eyre!("SNI demux does not support port ranges"),
+                ErrorKind::InvalidRequest,
+            ));
+        }
         ctx.add_sni_forward(source, target, &sni, None)
             .await
             .map_err(|code| {
@@ -1005,10 +1027,42 @@ pub async fn add_forward(
         return Ok(());
     }
 
+    // The span must fit the u16 port range on both the external and target side.
+    if external_port.checked_add(count - 1).is_none()
+        || target.port().checked_add(count - 1).is_none()
+    {
+        return Err(Error::new(
+            eyre!(
+                "port range of {count} starting at {external_port} (-> {}) exceeds 65535",
+                target.port(),
+            ),
+            ErrorKind::InvalidRequest,
+        ));
+    }
+
+    // Reject a range whose external ports overlap a different existing forward on
+    // this WAN IP (an exact same-port clash is caught by the insert below).
+    if let Some(conflict) = ctx
+        .db
+        .peek()
+        .await
+        .as_port_forwards()
+        .de()?
+        .overlapping(source, count)
+    {
+        return Err(Error::new(
+            eyre!(
+                "external ports {external_port}-{} overlap an existing forward at {conflict}",
+                external_port + count - 1,
+            ),
+            ErrorKind::InvalidRequest,
+        ));
+    }
+
     let prefix = crate::tunnel::forward::igd::prefix_for(&ctx, target.ip()).await;
     let rc = ctx
         .forward
-        .add_forward(source, target, prefix, None)
+        .add_forward_range(source, target, count, prefix, None)
         .await?;
     ctx.active_forwards.mutate(|m| {
         m.insert(source, rc);
@@ -1018,7 +1072,7 @@ pub async fn add_forward(
         target,
         label,
         enabled: true,
-        count: 1,
+        count,
         auto: false,
     };
 

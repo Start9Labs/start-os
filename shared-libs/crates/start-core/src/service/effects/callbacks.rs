@@ -15,7 +15,6 @@ use ts_rs::TS;
 use crate::db::model::package::PackageState;
 use crate::db::model::public::NetworkInterfaceInfo;
 use crate::net::host::Host;
-use crate::net::service_interface::ServiceInterface;
 use crate::net::ssl::FullchainCertData;
 use crate::prelude::*;
 use crate::service::effects::context::EffectContext;
@@ -153,11 +152,11 @@ impl ServiceCallbacks {
         self.get_service_manifest.gc();
     }
 
-    pub(super) fn add_get_service_interface(
+    pub(super) fn add_get_service_interface<T: Send + 'static>(
         &self,
         package_id: PackageId,
         service_interface_id: ServiceInterfaceId,
-        watch: TypedDbWatch<ServiceInterface>,
+        watch: TypedDbWatch<T>,
         handler: CallbackHandler,
     ) {
         self.get_service_interface

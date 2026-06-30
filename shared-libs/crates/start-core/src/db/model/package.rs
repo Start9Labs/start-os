@@ -11,14 +11,13 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::net::host::Hosts;
-use crate::net::service_interface::ServiceInterface;
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::s9pk::manifest::{LocaleString, Manifest};
 use crate::status::StatusInfo;
 use crate::util::DataUrl;
 use crate::util::serde::{Pem, is_partial_of};
-use crate::{ActionId, GatewayId, HealthCheckId, HostId, PackageId, ReplayId, ServiceInterfaceId};
+use crate::{ActionId, GatewayId, HealthCheckId, HostId, PackageId, ReplayId};
 
 #[derive(Debug, Default, Deserialize, Serialize, TS)]
 #[ts(export)]
@@ -398,7 +397,6 @@ pub struct PackageDataEntry {
     pub current_dependencies: CurrentDependencies,
     pub actions: BTreeMap<ActionId, ActionMetadata>,
     pub tasks: BTreeMap<ReplayId, TaskEntry>,
-    pub service_interfaces: BTreeMap<ServiceInterfaceId, ServiceInterface>,
     pub hosts: Hosts,
     #[ts(type = "string[]")]
     pub store_exposed_dependents: Vec<JsonPointer>,

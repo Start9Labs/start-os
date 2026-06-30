@@ -10,7 +10,7 @@ keywords = ["version", "semver", "embassy", "wasm"]
 license = "MIT"
 name = "exver"
 readme = "README.md"
-repository = "https://github.com/Start9Labs/exver-rs"
+repository = "https://github.com/Start9Labs/start-technologies"
 version = "0.2.1"
 
 

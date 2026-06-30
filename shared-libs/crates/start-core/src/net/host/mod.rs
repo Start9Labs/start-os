@@ -18,7 +18,7 @@ use crate::hostname::ServerHostname;
 use crate::net::forward::AvailablePorts;
 use crate::net::host::address::{HostAddress, PublicDomainConfig, address_api};
 use crate::net::host::binding::{
-    BindInfo, BindOptions, BindingRanges, Bindings, RangeBindInfo, RangeGatewayAccess, binding,
+    BindInfo, BindOptions, BindingRanges, Bindings, RangeBindInfo, binding,
 };
 use crate::net::service_interface::{HostnameInfo, HostnameMetadata};
 use crate::prelude::*;
@@ -341,6 +341,105 @@ impl Model<Host> {
             bind.as_addresses_mut().as_available_mut().ser(&available)?;
         }
 
+        // Port-range bindings get the same reachable-address set as single-port
+        // bindings, but IPv4-only and non-SSL: LAN IPv4 / WAN IPv4 / server mDNS
+        // / public+private domains. Every entry uses the range's
+        // `external_start_port` as its port so the single-port
+        // enabled/disabled + forward machinery applies unchanged.
+        let mdns_host = mdns.local_domain_name();
+        let mdns_gateways: BTreeSet<GatewayId> = gateways
+            .iter()
+            .filter(|(_, g)| {
+                matches!(
+                    g.ip_info.as_ref().and_then(|i| i.device_type),
+                    Some(NetworkInterfaceType::Ethernet | NetworkInterfaceType::Wireless)
+                )
+            })
+            .map(|(id, _)| id.clone())
+            .collect();
+        for (_, range) in this.binding_ranges.as_entries_mut()? {
+            let port = range.as_external_start_port().de()?;
+
+            // Preserve any plugin-provided addresses across recomputation.
+            let mut available = range.as_addresses().as_available().de()?;
+            available.retain(|h| matches!(h.metadata, HostnameMetadata::Plugin { .. }));
+
+            for (gid, g) in gateways {
+                // Never expose a range on an outbound-only gateway (e.g. a VPN
+                // egress) — they don't receive inbound forwards.
+                if matches!(g.gateway_type, Some(GatewayType::OutboundOnly)) {
+                    continue;
+                }
+                let Some(ip_info) = &g.ip_info else {
+                    continue;
+                };
+                for subnet in &ip_info.subnets {
+                    // IPv4 only — ranges forward purely as IPv4 nft DNAT.
+                    if !subnet.addr().is_ipv4() {
+                        continue;
+                    }
+                    available.insert(HostnameInfo {
+                        ssl: false,
+                        public: false,
+                        hostname: InternedString::from_display(&subnet.addr()),
+                        port: Some(port),
+                        metadata: HostnameMetadata::Ipv4 {
+                            gateway: gid.clone(),
+                        },
+                    });
+                }
+                if let Some(wan_ip) = &ip_info.wan_ip {
+                    available.insert(HostnameInfo {
+                        ssl: false,
+                        public: true,
+                        hostname: InternedString::from_display(&wan_ip),
+                        port: Some(port),
+                        metadata: HostnameMetadata::Ipv4 {
+                            gateway: gid.clone(),
+                        },
+                    });
+                }
+            }
+
+            if !mdns_gateways.is_empty() {
+                available.insert(HostnameInfo {
+                    ssl: false,
+                    public: false,
+                    hostname: mdns_host.clone(),
+                    port: Some(port),
+                    metadata: HostnameMetadata::Mdns {
+                        gateways: mdns_gateways.clone(),
+                    },
+                });
+            }
+
+            for (domain, info) in this.public_domains.de()? {
+                available.insert(HostnameInfo {
+                    ssl: false,
+                    public: true,
+                    hostname: domain,
+                    port: Some(port),
+                    metadata: HostnameMetadata::PublicDomain {
+                        gateway: info.gateway.clone(),
+                    },
+                });
+            }
+
+            for (domain, domain_gateways) in this.private_domains.de()? {
+                available.insert(HostnameInfo {
+                    ssl: false,
+                    public: false,
+                    hostname: domain,
+                    port: Some(port),
+                    metadata: HostnameMetadata::PrivateDomain {
+                        gateways: domain_gateways,
+                    },
+                });
+            }
+
+            range.as_addresses_mut().as_available_mut().ser(&available)?;
+        }
+
         // compute port forwards from available public addresses
         let bindings: Bindings = this.bindings.de()?;
         let mut port_forwards = BTreeSet::new();
@@ -380,24 +479,28 @@ impl Model<Host> {
             }
         }
 
-        // Port-range bindings: `port_forwards` records only the rules an
-        // operator must add on their router (WAN exposure), mirroring the
-        // single-port loop above which emits public addresses only. So a range
-        // contributes a PortForward only for gateways set to `Public` that have
-        // a WAN IP; `Private` (LAN-only) and `Disabled` need no router config,
-        // and outbound-only gateways never receive inbound forwards.
+        // Port-range bindings: emit a router PortForward (the WAN exposure the
+        // operator must add) for each enabled PUBLIC address — same as the
+        // single-port loop above, but with `count = number_of_ports`. A fresh
+        // range's public (WAN) addresses are disabled by default, so it
+        // contributes nothing until the operator enables the WAN address.
         let binding_ranges: BindingRanges = this.binding_ranges.de()?;
         for (&internal_start, range) in binding_ranges.iter() {
             if !range.enabled {
                 continue;
             }
-            for (gw_id, gw_info) in gateways {
-                if matches!(gw_info.gateway_type, Some(GatewayType::OutboundOnly)) {
+            for addr in range.addresses.enabled() {
+                if !addr.public {
                     continue;
                 }
-                if range.access_for(gw_id) != RangeGatewayAccess::LanWan {
+                let gw_id = match &addr.metadata {
+                    HostnameMetadata::Ipv4 { gateway }
+                    | HostnameMetadata::PublicDomain { gateway } => gateway,
+                    _ => continue,
+                };
+                let Some(gw_info) = gateways.get(gw_id) else {
                     continue;
-                }
+                };
                 let Some(ip_info) = &gw_info.ip_info else {
                     continue;
                 };
@@ -529,12 +632,15 @@ impl Model<Host> {
                     if e.external_start_port == external_start_port
                         && e.number_of_ports == number_of_ports
             );
-            // Preserve the operator's per-gateway access choices across rebinds
-            // — bindPortRange is service-driven, so it must not clobber a UI
-            // choice made between restarts.
-            let gateway_access = existing
-                .map(|e| e.gateway_access.clone())
-                .unwrap_or_default();
+            // Preserve the operator's per-address enable/disable choices across
+            // rebinds — bindPortRange is service-driven, so it must not clobber
+            // a UI choice made between restarts. The `available` set is
+            // recomputed by update_addresses.
+            let addresses = existing.map(|e| e.addresses.clone()).unwrap_or_default();
+            // Preserve the exported interface across rebinds; the trailing
+            // `RangeOrigin.export` re-affirms it and `clearServiceInterfaces`
+            // prunes it if the service no longer exports it.
+            let interface = existing.and_then(|e| e.interface.clone());
             if !unchanged {
                 // New, resized, or moved range: free any prior allocation, then
                 // claim the new one. `number_of_ports >= 2`, so subtract before
@@ -553,7 +659,8 @@ impl Model<Host> {
                     enabled: true,
                     external_start_port,
                     number_of_ports,
-                    gateway_access,
+                    addresses,
+                    interface,
                 },
             );
             Ok(())

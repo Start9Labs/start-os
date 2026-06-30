@@ -149,12 +149,15 @@ export class ServiceControlsComponent {
   )
 
   readonly interfaces = computed(() =>
-    Object.values(this.pkg().serviceInterfaces).filter(
-      i =>
-        i.type === 'ui' &&
-        (i.addressInfo.scheme === 'http' ||
-          i.addressInfo.sslScheme === 'https'),
-    ),
+    Object.values(this.pkg().hosts)
+      .flatMap(host => Object.values(host.bindings))
+      .flatMap(binding => Object.values(binding.interfaces))
+      .filter(
+        i =>
+          i.type === 'ui' &&
+          (i.addressInfo.scheme === 'http' ||
+            i.addressInfo.sslScheme === 'https'),
+      ),
   )
 
   readonly hasAnyHref = computed(() =>

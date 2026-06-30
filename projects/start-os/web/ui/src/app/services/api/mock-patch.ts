@@ -130,6 +130,7 @@ export const mockPatchData: DataModel = {
               },
               secure: null,
             },
+            interfaces: {},
           },
         },
         bindingRanges: {},
@@ -295,56 +296,6 @@ export const mockPatchData: DataModel = {
           group: 'Connecting',
         },
       },
-      serviceInterfaces: {
-        grpc: {
-          id: 'grpc',
-          masked: false,
-          name: 'GRPC',
-          description:
-            'Used by dependent services and client wallets for connecting to your node',
-          type: 'api',
-          addressInfo: {
-            username: null,
-            hostId: 'qrstuv',
-            internalPort: 10009,
-            scheme: null,
-            sslScheme: 'grpc',
-            suffix: '',
-          },
-        },
-        lndconnect: {
-          id: 'lndconnect',
-          masked: true,
-          name: 'LND Connect',
-          description:
-            'Used by client wallets adhering to LND Connect protocol to connect to your node',
-          type: 'api',
-          addressInfo: {
-            username: null,
-            hostId: 'qrstuv',
-            internalPort: 10009,
-            scheme: null,
-            sslScheme: 'lndconnect',
-            suffix: 'cert=askjdfbjadnaskjnd&macaroon=ksjbdfnhjasbndjksand',
-          },
-        },
-        p2p: {
-          id: 'p2p',
-          masked: false,
-          name: 'P2P',
-          description:
-            'Used for connecting to other nodes on the Bitcoin network',
-          type: 'p2p',
-          addressInfo: {
-            username: null,
-            hostId: 'rstuvw',
-            internalPort: 8333,
-            scheme: 'bitcoin',
-            sslScheme: null,
-            suffix: '',
-          },
-        },
-      },
       currentDependencies: {
         bitcoind: {
           title: Mock.BitcoinDep.title,
@@ -496,71 +447,6 @@ export const mockPatchData: DataModel = {
           group: null,
         },
       },
-      serviceInterfaces: {
-        ui: {
-          id: 'ui',
-          masked: false,
-          name: 'Web UI',
-          description:
-            'A launchable web app for you to interact with your Bitcoin node',
-          type: 'ui',
-          addressInfo: {
-            username: null,
-            hostId: 'abcdefg',
-            internalPort: 80,
-            scheme: 'http',
-            sslScheme: 'https',
-            suffix: '',
-          },
-        },
-        'admin-ui': {
-          id: 'admin-ui',
-          masked: false,
-          name: 'Admin UI',
-          description: 'An admin panel for managing your Bitcoin node',
-          type: 'ui',
-          addressInfo: {
-            username: null,
-            hostId: 'abcdefg',
-            internalPort: 80,
-            scheme: 'http',
-            sslScheme: 'https',
-            suffix: '/admin',
-          },
-        },
-        rpc: {
-          id: 'rpc',
-          masked: true,
-          name: 'RPC',
-          description:
-            'Used by dependent services and client wallets for connecting to your node',
-          type: 'api',
-          addressInfo: {
-            username: 'rpcuser',
-            hostId: 'bcdefgh',
-            internalPort: 8332,
-            scheme: 'http',
-            sslScheme: 'https',
-            suffix: '',
-          },
-        },
-        p2p: {
-          id: 'p2p',
-          masked: false,
-          name: 'P2P',
-          description:
-            'Used for connecting to other nodes on the Bitcoin network',
-          type: 'p2p',
-          addressInfo: {
-            username: null,
-            hostId: 'cdefghi',
-            internalPort: 8333,
-            scheme: 'bitcoin',
-            sslScheme: null,
-            suffix: '',
-          },
-        },
-      },
       currentDependencies: {},
       hosts: {
         abcdefg: {
@@ -677,6 +563,39 @@ export const mockPatchData: DataModel = {
                 },
                 secure: null,
               },
+              interfaces: {
+                ui: {
+                  id: 'ui',
+                  masked: false,
+                  name: 'Web UI',
+                  description:
+                    'A launchable web app for you to interact with your Bitcoin node',
+                  type: 'ui',
+                  addressInfo: {
+                    username: null,
+                    hostId: 'abcdefg',
+                    internalPort: 80,
+                    scheme: 'http',
+                    sslScheme: 'https',
+                    suffix: '',
+                  },
+                },
+                'admin-ui': {
+                  id: 'admin-ui',
+                  masked: false,
+                  name: 'Admin UI',
+                  description: 'An admin panel for managing your Bitcoin node',
+                  type: 'ui',
+                  addressInfo: {
+                    username: null,
+                    hostId: 'abcdefg',
+                    internalPort: 80,
+                    scheme: 'http',
+                    sslScheme: 'https',
+                    suffix: '/admin',
+                  },
+                },
+              },
             },
           },
           bindingRanges: {
@@ -684,11 +603,64 @@ export const mockPatchData: DataModel = {
               enabled: true,
               externalStartPort: 49152,
               numberOfPorts: 100,
-              // Absent gateways default to 'lan' (LAN only). Seed eth0 as
-              // 'lan-wan' and wlan0 as 'disabled' so all three states are
-              // visible on load (wireguard1 stays at the 'lan' default;
-              // wireguard2/Mullvad is outbound-only and excluded from the UI).
-              gatewayAccess: { eth0: 'lan-wan', wlan0: 'disabled' },
+              // Same per-address model as a single-port binding, IPv4-only and
+              // non-SSL, every entry on the external start port (49152). The
+              // public WAN IP is seeded into `enabled` (WAN is opt-in); LAN /
+              // mDNS / domains are enabled by default.
+              addresses: {
+                enabled: ['203.0.113.45:49152'],
+                disabled: [],
+                available: [
+                  {
+                    ssl: false,
+                    public: false,
+                    hostname: 'adjective-noun.local',
+                    port: 49152,
+                    metadata: { kind: 'mdns', gateways: ['eth0', 'wlan0'] },
+                  },
+                  {
+                    ssl: false,
+                    public: false,
+                    hostname: '10.0.0.1',
+                    port: 49152,
+                    metadata: { kind: 'ipv4', gateway: 'eth0' },
+                  },
+                  {
+                    ssl: false,
+                    public: true,
+                    hostname: '203.0.113.45',
+                    port: 49152,
+                    metadata: { kind: 'ipv4', gateway: 'eth0' },
+                  },
+                  {
+                    ssl: false,
+                    public: true,
+                    hostname: 'bitcoin.example.com',
+                    port: 49152,
+                    metadata: { kind: 'public-domain', gateway: 'eth0' },
+                  },
+                  {
+                    ssl: false,
+                    public: false,
+                    hostname: '192.168.10.11',
+                    port: 49152,
+                    metadata: { kind: 'ipv4', gateway: 'wlan0' },
+                  },
+                  {
+                    ssl: false,
+                    public: false,
+                    hostname: 'my-bitcoin.home',
+                    port: 49152,
+                    metadata: { kind: 'private-domain', gateways: ['wlan0'] },
+                  },
+                ],
+              },
+              interface: {
+                id: 'zmq',
+                name: 'ZMQ',
+                description: 'Bitcoin ZMQ notification endpoints',
+                scheme: 'tcp',
+              },
             },
           },
           publicDomains: {
@@ -771,6 +743,24 @@ export const mockPatchData: DataModel = {
                 preferredExternalPort: 48332,
                 secure: { ssl: false },
               },
+              interfaces: {
+                rpc: {
+                  id: 'rpc',
+                  masked: true,
+                  name: 'RPC',
+                  description:
+                    'Used by dependent services and client wallets for connecting to your node',
+                  type: 'api',
+                  addressInfo: {
+                    username: 'rpcuser',
+                    hostId: 'bcdefgh',
+                    internalPort: 8332,
+                    scheme: 'http',
+                    sslScheme: 'https',
+                    suffix: '',
+                  },
+                },
+              },
             },
           },
           bindingRanges: {},
@@ -795,6 +785,24 @@ export const mockPatchData: DataModel = {
                 addSsl: null,
                 preferredExternalPort: 48333,
                 secure: { ssl: false },
+              },
+              interfaces: {
+                p2p: {
+                  id: 'p2p',
+                  masked: false,
+                  name: 'P2P',
+                  description:
+                    'Used for connecting to other nodes on the Bitcoin network',
+                  type: 'p2p',
+                  addressInfo: {
+                    username: null,
+                    hostId: 'cdefghi',
+                    internalPort: 8333,
+                    scheme: 'bitcoin',
+                    sslScheme: null,
+                    suffix: '',
+                  },
+                },
               },
             },
           },
@@ -878,7 +886,6 @@ export const mockPatchData: DataModel = {
           group: null,
         },
       },
-      serviceInterfaces: {},
       currentDependencies: {},
       hosts: {},
       storeExposedDependents: [],

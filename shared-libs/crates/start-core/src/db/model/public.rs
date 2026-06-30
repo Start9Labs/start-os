@@ -88,6 +88,7 @@ impl Public {
                                         assigned_ssl_port: Some(443),
                                     },
                                     addresses: DerivedAddressInfo::default(),
+                                    interfaces: BTreeMap::new(),
                                 },
                             )]
                             .into_iter()

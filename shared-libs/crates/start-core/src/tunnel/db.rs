@@ -205,6 +205,52 @@ fn sni_and_dnat_persistence_round_trip() {
 }
 
 #[test]
+fn port_forward_overlap_detection() {
+    let dnat = |target: &str, count: u16| PortForward::Dnat {
+        target: target.parse().unwrap(),
+        label: None,
+        enabled: true,
+        count,
+        auto: false,
+    };
+    let src = |s: &str| s.parse::<SocketAddrV4>().unwrap();
+
+    let mut map = BTreeMap::new();
+    // An existing 10-port range 8000..=8009 on WAN IP 1.2.3.4.
+    map.insert(src("1.2.3.4:8000"), dnat("10.0.0.2:8000", 10));
+    // An SNI forward occupying the single port 443.
+    map.insert(
+        src("1.2.3.4:443"),
+        PortForward::Sni {
+            routes: BTreeMap::new(),
+        },
+    );
+    let forwards = PortForwards(map);
+
+    // A single port inside the existing range overlaps it.
+    assert_eq!(
+        forwards.overlapping(src("1.2.3.4:8005"), 1),
+        Some(src("1.2.3.4:8000")),
+    );
+    // A new range straddling the end of the existing range overlaps.
+    assert_eq!(
+        forwards.overlapping(src("1.2.3.4:8009"), 5),
+        Some(src("1.2.3.4:8000")),
+    );
+    // A range that swallows the single SNI port overlaps it.
+    assert_eq!(
+        forwards.overlapping(src("1.2.3.4:440"), 8),
+        Some(src("1.2.3.4:443")),
+    );
+    // An adjacent, disjoint range (8010..=8019) does not overlap.
+    assert_eq!(forwards.overlapping(src("1.2.3.4:8010"), 10), None);
+    // The same span on a different WAN IP does not overlap.
+    assert_eq!(forwards.overlapping(src("5.6.7.8:8005"), 1), None);
+    // The exact same source key is excluded (collision / re-assert, not overlap).
+    assert_eq!(forwards.overlapping(src("1.2.3.4:8000"), 10), None);
+}
+
+#[test]
 fn export_bindings_tunnel_db() {
     use crate::tunnel::api::*;
     use crate::tunnel::auth::{AddKeyParams, RemoveKeyParams, SetPasswordParams};
@@ -296,6 +342,17 @@ pub struct DnsRecordEntry {
 #[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
 pub struct DnsRecords(pub Vec<DnsRecordEntry>);
 
+impl PortForward {
+    /// Number of contiguous external ports this forward occupies: a DNAT spans
+    /// its `count`; an SNI-demuxed forward holds the single shared port.
+    pub fn port_span(&self) -> u16 {
+        match self {
+            PortForward::Dnat { count, .. } => (*count).max(1),
+            PortForward::Sni { .. } => 1,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
 pub struct PortForwards(pub BTreeMap<SocketAddrV4, PortForward>);
 impl Map for PortForwards {
@@ -306,6 +363,25 @@ impl Map for PortForwards {
     }
     fn key_string(key: &Self::Key) -> Result<InternedString, Error> {
         Ok(InternedString::from_display(key))
+    }
+}
+impl PortForwards {
+    /// The source of an existing forward on the same external IP whose port span
+    /// overlaps `[source.port(), source.port() + count - 1]`, if any. An exact
+    /// `source` match is excluded — callers treat that as an idempotent
+    /// re-assert (auto) or a same-port collision (manual); this catches the case
+    /// ranges introduce, where two *different* start ports cover shared ports.
+    pub fn overlapping(&self, source: SocketAddrV4, count: u16) -> Option<SocketAddrV4> {
+        let new_lo = source.port();
+        let new_hi = new_lo.saturating_add(count.saturating_sub(1));
+        self.0.iter().find_map(|(src, pf)| {
+            if src.ip() != source.ip() || *src == source {
+                return None;
+            }
+            let lo = src.port();
+            let hi = lo.saturating_add(pf.port_span().saturating_sub(1));
+            (new_lo <= hi && lo <= new_hi).then_some(*src)
+        })
     }
 }
 

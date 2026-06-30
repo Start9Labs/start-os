@@ -169,6 +169,7 @@ import { DomainHealthService } from './domain-health.service'
           }
           @if (
             address().hostnameInfo.metadata.kind === 'ipv4' &&
+            address().access === 'public' &&
             address().hostnameInfo.port !== null
           ) {
             <button
@@ -285,6 +286,7 @@ export class GatewayActionsComponent {
       this.address().hostnameInfo.hostname,
       this.gatewayId(),
       port,
+      this.address().count,
     )
   }
 
@@ -298,7 +300,11 @@ export class GatewayActionsComponent {
   showPortForwardValidation() {
     const port = this.address().hostnameInfo.port
     if (port === null) return
-    this.domainHealth.showPortForwardSetup(this.gatewayId(), port)
+    this.domainHealth.showPortForwardSetup(
+      this.gatewayId(),
+      port,
+      this.address().count,
+    )
   }
 
   async deleteDomain() {

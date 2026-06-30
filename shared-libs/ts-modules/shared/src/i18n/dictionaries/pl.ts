@@ -788,4 +788,8 @@ export default {
   879: 'Zaktualizuj konfigurację',
   880: 'Lub włącz DNS Injection dla tego urządzenia w bramie.',
   881: 'Lub włącz automatyczne przekierowanie portów (UPnP / NAT-PMP / PCP) w bramie.',
+  882: 'Zakres portów',
+  883: 'Zakres zewnętrzny',
+  884: 'Zakres wewnętrzny',
+  885: 'Lub włącz automatyczne przekierowanie portów (PCP) w bramie. UPnP i NAT-PMP nie obsługują zakresów portów.',
 } satisfies i18n

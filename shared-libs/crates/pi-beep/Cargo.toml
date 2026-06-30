@@ -5,7 +5,7 @@ edition = "2021"
 description = "A reimplementation of `beep` but using the pwm chip of the raspberry pi"
 license = "MIT"
 readme = "README.txt"
-repository = "https://github.com/Start9Labs/pi-beep"
+repository = "https://github.com/Start9Labs/start-technologies"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -1,5 +1,10 @@
-import { Component, inject, input } from '@angular/core'
-import { DialogService, ErrorService, i18nPipe } from '@start9labs/shared'
+import { Component, computed, inject, input } from '@angular/core'
+import {
+  DialogService,
+  ErrorService,
+  i18nKey,
+  i18nPipe,
+} from '@start9labs/shared'
 import { ISB, utils } from '@start9labs/start-core'
 import { TuiButton, TuiIcon } from '@taiga-ui/core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
@@ -49,16 +54,7 @@ import { GatewayItemComponent } from './item.component'
         {{ 'Add Domain' | i18n }}
       </button>
     </header>
-    <table
-      [appTable]="[
-        null,
-        'Access',
-        'Type',
-        'Certificate Authority',
-        'URL',
-        null,
-      ]"
-    >
+    <table [appTable]="header()">
       @for (address of gatewayGroup().addresses; track $index) {
         <tr
           [address]="address"
@@ -69,7 +65,7 @@ import { GatewayItemComponent } from './item.component'
         ></tr>
       } @empty {
         <tr>
-          <td colspan="6">
+          <td [attr.colspan]="header().length">
             <app-placeholder icon="@tui.list-x">
               {{ 'No addresses' | i18n }}
             </app-placeholder>
@@ -116,6 +112,24 @@ export class GatewayComponent {
   readonly packageId = input('')
   readonly value = input<MappedServiceInterface | undefined>()
   readonly isRunning = input.required<boolean>()
+
+  // The Certificate Authority column only makes sense when some address is
+  // actually SSL-terminated. Non-SSL bindings and port ranges have none.
+  readonly showCert = computed(
+    () =>
+      this.value()?.gatewayGroups.some(g =>
+        g.addresses.some(a => a.certificate !== '-'),
+      ) ?? false,
+  )
+
+  readonly header = computed<Array<i18nKey | null>>(() =>
+    this.showCert()
+      ? [null, 'Access', 'Type', 'Certificate Authority', 'URL', null]
+      : [null, 'Access', 'Type', 'URL', null],
+  )
+
+  // Forwarded-port span, uniform across a range's addresses (1 for single-port).
+  readonly count = computed(() => this.gatewayGroup().addresses[0]?.count ?? 1)
 
   openDomainTypePicker() {
     this.dialog
@@ -287,7 +301,12 @@ export class GatewayComponent {
         res = await this.api.osUiAddPublicDomain(params)
       }
 
-      await this.domainHealth.checkPublicDomain(fqdn, gatewayId, res)
+      await this.domainHealth.checkPublicDomain(
+        fqdn,
+        gatewayId,
+        res,
+        this.count(),
+      )
 
       return true
     } catch (e: any) {

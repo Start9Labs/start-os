@@ -100,19 +100,19 @@ function configure(
           [stringify]="stringifyDevice"
           [tuiTextfieldCleaner]="false"
         >
-          <label tuiLabel>Value</label>
+          <label tuiLabel>Server</label>
           @if (mobile) {
             <select
               tuiSelect
               formControlName="device"
-              placeholder="Select device"
+              placeholder="Select server"
               [items]="deviceItems()"
             ></select>
           } @else {
             <input
               tuiSelect
               formControlName="device"
-              placeholder="Select device"
+              placeholder="Select server"
             />
           }
           @if (!mobile) {

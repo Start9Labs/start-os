@@ -23,7 +23,7 @@ use crate::net::forward::{
 };
 use crate::net::gateway::NetworkInterfaceController;
 use crate::net::host::binding::{
-    AddSslOptions, BindId, BindOptions, RangeGatewayAccess, UpstreamCertValidation,
+    AddSslOptions, BindId, BindOptions, UpstreamCertValidation,
 };
 use crate::net::host::{Host, Hosts, host_for};
 use crate::net::port_map::{PortMapController, candidate_gateways};
@@ -497,56 +497,71 @@ impl NetServiceData {
             }
         }
 
-        // Port-range bindings: forward each enabled range to its container per
-        // the operator's per-gateway choice. `Public` → `public_gateways` (no
-        // source filter, reachable from LAN + WAN); `Private` → the gateway's
-        // subnets in `private_ips` (source-filtered to the LAN); `Disabled` →
-        // neither. Outbound-only gateways never receive inbound forwards.
+        // Port-range bindings: forward each enabled range the same way as a
+        // single-port non-SSL binding — `private_ips` from enabled private
+        // (LAN) addresses, `public_gateways` from enabled public (WAN)
+        // addresses — but with `count = number_of_ports`. Outbound-only
+        // gateways never get range addresses synthesized, so they never appear
+        // here. Private domains register their resolver entries like single-port.
         //
         // `secure: true` is intentional: ranges carry no Security option (no
-        // SSL/vhost), and the operator's explicit Public/Private choice IS the
-        // access decision — without it the forward.rs security gate
+        // SSL/vhost), so without it the forward.rs security gate
         // (`!reqs.secure && !info.secure()`) would drop every range on a normal
         // (non-secure) WAN gateway, since no gateway is ever marked secure.
-        if !host.binding_ranges.is_empty() {
-            for (&internal_start, range) in host.binding_ranges.iter() {
-                if !range.enabled {
-                    continue;
-                }
-                let mut public_gateways = BTreeSet::new();
-                let mut private_ips = BTreeSet::new();
-                for (gw_id, info) in net_ifaces.iter() {
-                    if matches!(info.gateway_type, Some(GatewayType::OutboundOnly)) {
-                        continue;
-                    }
-                    match range.access_for(gw_id) {
-                        RangeGatewayAccess::Disabled => {}
-                        RangeGatewayAccess::LanWan => {
-                            public_gateways.insert(gw_id.clone());
-                        }
-                        RangeGatewayAccess::Lan => {
-                            if let Some(ip_info) = &info.ip_info {
-                                private_ips.extend(ip_info.subnets.iter().map(|s| s.addr()));
-                            }
-                        }
-                    }
-                }
-                if public_gateways.is_empty() && private_ips.is_empty() {
-                    continue;
-                }
-                forwards.insert(
-                    range.external_start_port,
-                    (
-                        SocketAddrV4::new(self.ip, internal_start),
-                        range.number_of_ports,
-                        ForwardRequirements {
-                            public_gateways,
-                            private_ips,
-                            secure: true,
-                        },
-                    ),
-                );
+        for (&internal_start, range) in host.binding_ranges.iter() {
+            if !range.enabled {
+                continue;
             }
+            let enabled_addresses = range.addresses.enabled();
+
+            for addr_info in &enabled_addresses {
+                if let HostnameMetadata::PrivateDomain { gateways } = &addr_info.metadata {
+                    let live: BTreeSet<GatewayId> = gateways
+                        .iter()
+                        .filter(|gw| {
+                            net_ifaces
+                                .get(*gw)
+                                .map_or(false, |info| info.ip_info.is_some())
+                        })
+                        .cloned()
+                        .collect();
+                    if !live.is_empty() {
+                        private_dns
+                            .entry(addr_info.hostname.clone())
+                            .or_default()
+                            .extend(live);
+                    }
+                }
+            }
+
+            let public_gateways: BTreeSet<GatewayId> = enabled_addresses
+                .iter()
+                .filter(|a| a.public)
+                .flat_map(|a| a.metadata.gateways())
+                .cloned()
+                .collect();
+            let private_ips: BTreeSet<IpAddr> = enabled_addresses
+                .iter()
+                .filter(|a| !a.public)
+                .flat_map(|a| a.metadata.gateways())
+                .filter_map(|gw| net_ifaces.get(gw).and_then(|i| i.ip_info.as_ref()))
+                .flat_map(|ip| ip.subnets.iter().map(|s| s.addr()))
+                .collect();
+            if public_gateways.is_empty() && private_ips.is_empty() {
+                continue;
+            }
+            forwards.insert(
+                range.external_start_port,
+                (
+                    SocketAddrV4::new(self.ip, internal_start),
+                    range.number_of_ports,
+                    ForwardRequirements {
+                        public_gateways,
+                        private_ips,
+                        secure: true,
+                    },
+                ),
+            );
         }
 
         // Best-effort HTTP→HTTPS redirect: when something is publicly exposed on

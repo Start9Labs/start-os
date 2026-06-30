@@ -12,6 +12,7 @@ import { PortCheckIconComponent } from 'src/app/routes/portal/components/port-ch
 import { PortCheckWarningsComponent } from 'src/app/routes/portal/components/port-check-warnings.component'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { formatPortRange } from 'src/app/utils/format-port-range'
 import { T } from '@start9labs/start-core'
 import { parse } from 'tldts'
 
@@ -24,6 +25,7 @@ export type DomainValidationData = {
   fqdn: string
   gateway: DnsGateway
   port: number
+  count: number
   initialResults?: { dnsPass: boolean; portResult: T.CheckPortRes | null }
 }
 
@@ -124,57 +126,78 @@ export type DomainValidationData = {
     </p>
     <p>
       {{
-        'Or enable automatic port forwarding (UPnP / NAT-PMP / PCP) on the gateway.'
-          | i18n
+        (isRange
+          ? 'Or enable automatic port forwarding (PCP) on the gateway. UPnP and NAT-PMP do not support port ranges.'
+          : 'Or enable automatic port forwarding (UPnP / NAT-PMP / PCP) on the gateway.'
+        ) | i18n
       }}
     </p>
 
     @let portRes = portResult();
 
     <div class="desktop">
-      <table [appTable]="[null, 'External Port', 'Internal Port', null]">
+      <table
+        [class.range-table]="isRange"
+        [appTable]="
+          isRange
+            ? ['External Range', 'Internal Range']
+            : [null, 'External Port', 'Internal Port', null]
+        "
+      >
         <tr>
-          <td class="status">
-            <port-check-icon [result]="portRes" [loading]="portLoading()" />
-          </td>
-          <td>{{ context.data.port }}</td>
-          <td>{{ context.data.port }}</td>
-          <td>
-            <button
-              tuiButton
-              size="s"
-              [loading]="portLoading()"
-              (click)="testPort()"
-            >
-              {{ 'Test' | i18n }}
-            </button>
-          </td>
+          @if (!isRange) {
+            <td class="status">
+              <port-check-icon [result]="portRes" [loading]="portLoading()" />
+            </td>
+          }
+          <td>{{ portDisplay }}</td>
+          <td>{{ portDisplay }}</td>
+          @if (!isRange) {
+            <td>
+              <button
+                tuiButton
+                size="s"
+                [loading]="portLoading()"
+                (click)="testPort()"
+              >
+                {{ 'Test' | i18n }}
+              </button>
+            </td>
+          }
         </tr>
       </table>
     </div>
     <div class="mobile">
       <div class="card">
-        <div class="card-status">
-          <port-check-icon [result]="portRes" [loading]="portLoading()" />
-        </div>
+        @if (!isRange) {
+          <div class="card-status">
+            <port-check-icon [result]="portRes" [loading]="portLoading()" />
+          </div>
+        }
         <div class="card-fields">
           <div class="field">
-            <span class="field-label">{{ 'External Port' | i18n }}</span>
-            <span>{{ context.data.port }}</span>
+            <span class="field-label">
+              {{ (isRange ? 'External Range' : 'External Port') | i18n }}
+            </span>
+            <span>{{ portDisplay }}</span>
           </div>
           <div class="field">
-            <span class="field-label">{{ 'Internal Port' | i18n }}</span>
-            <span>{{ context.data.port }}</span>
+            <span class="field-label">
+              {{ (isRange ? 'Internal Range' : 'Internal Port') | i18n }}
+            </span>
+            <span>{{ portDisplay }}</span>
           </div>
         </div>
-        <button
-          tuiButton
-          size="s"
-          [loading]="portLoading()"
-          (click)="testPort()"
-        >
-          {{ 'Test' | i18n }}
-        </button>
+        @if (!isRange) {
+          <button
+            tuiButton
+            size="s"
+            [loading]="portLoading()"
+            (click)="testPort()"
+          >
+            {{ 'Test' | i18n }}
+          </button>
+        }
       </div>
     </div>
 
@@ -231,6 +254,12 @@ export type DomainValidationData = {
 
     td:last-child {
       text-align: end;
+    }
+
+    // The port-forwarding range table has no status/Test columns, so its last
+    // cell is the internal-range value — keep it left-aligned with its header.
+    .range-table td:last-child {
+      text-align: start;
     }
 
     footer {
@@ -317,6 +346,14 @@ export class DomainValidationComponent {
   readonly domain =
     parse(this.context.data.fqdn).domain || this.context.data.fqdn
 
+  // A port range forwards a span of ports and can't be tested a port at a time;
+  // only its DNS is verifiable here.
+  readonly isRange = this.context.data.count > 1
+  readonly portDisplay = formatPortRange(
+    this.context.data.port,
+    this.context.data.count,
+  )
+
   readonly dnsLoading = signal(false)
   readonly portLoading = signal(false)
   readonly dnsPass = signal<boolean | undefined>(undefined)
@@ -326,8 +363,10 @@ export class DomainValidationComponent {
     const result = this.portResult()
     return (
       this.dnsPass() === true &&
-      !!result?.openInternally &&
-      !!result?.openExternally
+      (this.isRange ||
+        (!!result?.openInternally &&
+          !!result?.openExternally &&
+          !!result?.hairpinning))
     )
   })
 

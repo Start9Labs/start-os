@@ -66,4 +66,4 @@ Already enforced or checked elsewhere (listed here for completeness; documented 
 - [`projects/brochure-marketplace/AGENTS.md`](projects/brochure-marketplace/AGENTS.md) — public marketplace site
 - [`projects/start-docs/AGENTS.md`](projects/start-docs/AGENTS.md) — documentation website
 - [`shared-libs/AGENTS.md`](shared-libs/AGENTS.md) — shared libs container: [`crates/start-core`](shared-libs/crates/start-core/AGENTS.md) (Rust backend), [`web`](shared-libs/ts-modules/AGENTS.md) (Angular workspace + UI/setup-wizard/shared libs)
-- `shared-libs/crates/patch-db/` — first-party crate (upstream: github.com/Start9Labs/patch-db)
+- `shared-libs/crates/patch-db/` — first-party crate (maintained in-tree; the standalone `Start9Labs/patch-db` repo is being retired)

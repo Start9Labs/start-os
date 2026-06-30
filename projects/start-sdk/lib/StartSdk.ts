@@ -34,15 +34,15 @@ import {
   setupUninit,
 } from '@start9labs/start-core/inits'
 import { MultiHost, Scheme } from '@start9labs/start-core/interfaces/Host'
+import { RangeInterfaceBuilder } from '@start9labs/start-core/interfaces/RangeInterfaceBuilder'
 import { ServiceInterfaceBuilder } from '@start9labs/start-core/interfaces/ServiceInterfaceBuilder'
 import { setupExportedUrls } from '@start9labs/start-core/interfaces/setupExportedUrls'
 import { setupServiceInterfaces } from '@start9labs/start-core/interfaces/setupInterfaces'
 import * as T from '@start9labs/start-core/types'
 import { Effects, ServiceInterfaceType } from '@start9labs/start-core/types'
 import { GetContainerIp } from '@start9labs/start-core/util/GetContainerIp'
+import { GetHostInfo } from '@start9labs/start-core/util/GetHostInfo'
 import { GetStatus } from '@start9labs/start-core/util/GetStatus'
-import { getOwnServiceInterface } from '@start9labs/start-core/util/getServiceInterface'
-import { getOwnServiceInterfaces } from '@start9labs/start-core/util/getServiceInterfaces'
 import * as patterns from '@start9labs/start-core/util/patterns'
 import { Backups } from './backup/Backups'
 import { SetupBackupsParams, setupBackups } from './backup/setupBackups'
@@ -57,8 +57,6 @@ import {
   GetOutboundGateway,
   GetSslCertificate,
   GetSystemSmtp,
-  getServiceInterface,
-  getServiceInterfaces,
   getServiceManifest,
   nullIfEmpty,
   splitCommand,
@@ -137,6 +135,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       | 'getServiceInterface'
       | 'listServiceInterfaces'
       | 'exportServiceInterface'
+      | 'exportRangeServiceInterface'
       | 'clearServiceInterfaces'
       | 'bind'
       | 'bindRange'
@@ -290,15 +289,30 @@ export class StartSdk<Manifest extends T.SDKManifest> {
         effects: Effects,
         packageIds?: DependencyId[],
       ) => Promise<CheckDependencies<DependencyId>>,
-      serviceInterface: {
-        /** Retrieve a single service interface belonging to this package by its ID */
-        getOwn: getOwnServiceInterface,
-        /** Retrieve a single service interface from any package */
-        get: getServiceInterface,
-        /** Retrieve all service interfaces belonging to this package */
-        getAllOwn: getOwnServiceInterfaces,
-        /** Retrieve all service interfaces, optionally filtering by package */
-        getAll: getServiceInterfaces,
+      host: {
+        /**
+         * Retrieve one of this package's own hosts by id, with reactive read
+         * strategies (`const`/`once`/`watch`/`onChange`/`waitFor`). Reach an
+         * exported service interface by walking the host:
+         * `host.bindings[internalPort].interfaces[id]` (single-port) or
+         * `host.bindingRanges[internalStartPort].interface` (port range).
+         *
+         * @param effects - The effects context
+         * @param hostId - The host id passed to `sdk.MultiHost.of`
+         */
+        getOwn: (effects: Effects, hostId: T.HostId) =>
+          new GetHostInfo(effects, { hostId }),
+        /**
+         * Retrieve a host from any package by id (defaults to this package when
+         * `packageId` is omitted), with the same reactive read strategies.
+         *
+         * @param effects - The effects context
+         * @param opts - `{ hostId, packageId? }`
+         */
+        get: (
+          effects: Effects,
+          opts: { hostId: T.HostId; packageId?: T.PackageId },
+        ) => new GetHostInfo(effects, opts),
       },
       /**
        * Get the container IP address with reactive subscription support.
@@ -517,6 +531,44 @@ export class StartSdk<Manifest extends T.SDKManifest> {
           masked: boolean
         },
       ) => new ServiceInterfaceBuilder({ ...options, effects }),
+      /**
+       * A function for creating the single, restricted service interface a port
+       * range exports. Pass the result to `RangeOrigin.export` (the handle
+       * returned by `MultiHost.bindPortRange`). A range interface is always
+       * `api`-typed and has no masked/username/path/query/SSL — its address is
+       * the host plus the range's external port span.
+       *
+       * @example
+       * ```
+        const range = await sdk.MultiHost.of(effects, 'zmq').bindPortRange({
+          internalStartPort: 28332,
+          externalStartPort: 28332,
+          numberOfPorts: 2,
+        })
+        await range.export(
+          sdk.createRangeInterface(effects, {
+            id: 'zmq',
+            name: 'ZMQ',
+            description: 'Bitcoin ZMQ notification endpoints',
+            scheme: 'tcp',
+          }),
+        )
+       * ```
+       */
+      createRangeInterface: (
+        effects: Effects,
+        options: {
+          /** A unique ID for this range service interface. */
+          id: string
+          /** The human readable name of this range service interface. */
+          name: string
+          /** The human readable description. */
+          description: string
+          /** (optional) transport scheme prefix, e.g. `'tcp'` for bitcoin ZMQ
+           * endpoints. Omit for raw UDP/TCP ranges (coturn, RTP, FTP). */
+          scheme?: string | null
+        },
+      ) => new RangeInterfaceBuilder({ ...options, effects }),
       /**
        * Get the system SMTP configuration with reactive subscription support.
        * @param effects - The effects context

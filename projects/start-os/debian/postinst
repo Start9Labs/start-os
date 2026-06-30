@@ -102,7 +102,7 @@ VERSION_ID="${VERSION}"
 PRETTY_NAME="StartOS v${VERSION_ENV}"
 HOME_URL="https://start9.com/"
 SUPPORT_URL="https://docs.start9.com/0.3.5.x/support"
-BUG_REPORT_URL="https://github.com/Start9Labs/start-os/issues"
+BUG_REPORT_URL="https://github.com/Start9Labs/start-technologies/issues"
 VARIANT="${ENVIRONMENT}"
 VARIANT_ID="${ENVIRONMENT}"
 EOF

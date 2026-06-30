@@ -12,7 +12,7 @@ DNS injection is **off by default** for every device. Only enable it for devices
 > [!WARNING]
 > A device allowed to inject DNS records can create, overwrite, or delete any record StartTunnel serves. Enable this only for trusted devices, such as your own StartOS server.
 
-1. In StartTunnel, navigate to `Devices`. DNS injection is a **Server** capability — if the device is a Client, promote it to a Server first (see [Devices](/start-tunnel/devices.html)).
+1. In StartTunnel, navigate to `Devices`. DNS injection is a **Server** capability — if the device is a Client, change it to a Server first (see [Devices](/start-tunnel/devices.html)).
 
 1. In the Servers table, toggle **DNS injection** on for the device.
 

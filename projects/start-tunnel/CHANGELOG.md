@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0]
+
+### Added
+
+- **Port-range forwarding.** A manual port forward can now span a contiguous range of ports. Set "Number of Ports" in the Add Port Forward dialog — or `--count` on `start-tunnel port-forward add` — to forward that many consecutive ports counting up from both the external and internal port. Ranges are plain port forwards and cannot be combined with SNI demux. (Automatic PCP PORT_SET range forwarding requested by connected devices was already supported; this exposes it to manually-added forwards.)
+
 ## [1.0.0]
 
 - **Independent versioning.** `start-tunnel` now carries its own version (starting at `1.0.0`) in its `Cargo.toml`, decoupled from the StartOS release line; its `.deb` is versioned from the manifest.

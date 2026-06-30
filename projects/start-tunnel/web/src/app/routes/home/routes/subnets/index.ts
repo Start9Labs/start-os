@@ -2,7 +2,13 @@ import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { T, utils } from '@start9labs/start-core'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import { TuiButton, TuiDataList, TuiDropdown, TuiTitle } from '@taiga-ui/core'
+import {
+  TuiButton,
+  TuiDataList,
+  TuiDropdown,
+  TuiIcon,
+  TuiTitle,
+} from '@taiga-ui/core'
 import {
   TUI_CONFIRM,
   TuiNotificationMiddleService,
@@ -26,6 +32,7 @@ import { SUBNETS_ADD } from './add'
   template: `
     <div tuiCardLarge="compact" appearance="floating">
       <header tuiHeader="body-l">
+        <tui-icon icon="@tui.network" />
         <h3 tuiTitle>Subnets</h3>
         <aside tuiAccessories>
           <button tuiButton iconStart="@tui.plus" (click)="onAdd()">Add</button>
@@ -109,6 +116,7 @@ import { SUBNETS_ADD } from './add'
     PlaceholderComponent,
     TuiSkeleton,
     TuiHeader,
+    TuiIcon,
     TuiTitle,
   ],
 })

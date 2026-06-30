@@ -187,6 +187,10 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
             from_fn_async(net::interface::export_service_interface).no_cli(),
         )
         .subcommand(
+            "export-range-service-interface",
+            from_fn_async(net::interface::export_range_service_interface).no_cli(),
+        )
+        .subcommand(
             "get-service-interface",
             from_fn_async(net::interface::get_service_interface).no_cli(),
         )

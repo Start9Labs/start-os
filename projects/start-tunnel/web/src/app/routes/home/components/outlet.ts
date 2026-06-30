@@ -53,9 +53,6 @@ import { UpdateService } from 'src/app/services/update.service'
         </footer>
       </aside>
       <main tuiNavigationMain>
-        <nav compact tuiSubheader>
-          <b>{{ title() }}</b>
-        </nav>
         <tui-scrollbar>
           <router-outlet />
         </tui-scrollbar>
@@ -72,10 +69,6 @@ import { UpdateService } from 'src/app/services/update.service'
       tui-scrollbar {
         border-start-start-radius: 1rem;
         padding: 0;
-      }
-
-      nav {
-        display: none;
       }
     }
 
@@ -109,6 +102,7 @@ import { UpdateService } from 'src/app/services/update.service'
 
       tui-scrollbar {
         min-inline-size: 100%;
+        padding-block-start: 1.5rem;
         padding-inline-end: 1.5rem;
         border-radius: var(--tui-radius-s);
 
@@ -124,11 +118,6 @@ import { UpdateService } from 'src/app/services/update.service'
 
       [tuiAsideItem]::after {
         color: var(--tui-status-positive);
-      }
-
-      nav {
-        border-image: none;
-        clip-path: inset(0);
       }
     }
   `,

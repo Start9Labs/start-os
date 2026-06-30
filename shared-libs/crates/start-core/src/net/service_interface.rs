@@ -181,3 +181,22 @@ pub struct AddressInfo {
     pub ssl_scheme: Option<InternedString>,
     pub suffix: String,
 }
+
+/// The single restricted service interface a port-range binding may export.
+///
+/// Unlike [`ServiceInterface`], a range interface is always `api`-typed and
+/// carries no `masked` / `username` / `path` / `query` and no per-address
+/// [`AddressInfo`] — its address is the host plus the range's external port
+/// span, taken from the [`RangeBindInfo`](crate::net::host::binding::RangeBindInfo)
+/// it lives under. `scheme` is an optional transport prefix (e.g. `tcp` for
+/// bitcoin ZMQ endpoints); most ranges (coturn RTP, FTP data) omit it.
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct RangeServiceInterface {
+    pub id: ServiceInterfaceId,
+    pub name: String,
+    pub description: String,
+    #[ts(type = "string | null")]
+    pub scheme: Option<InternedString>,
+}
