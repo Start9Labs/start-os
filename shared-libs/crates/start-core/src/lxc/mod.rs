@@ -435,9 +435,12 @@ impl LxcContainer {
     /// Deliberately the ULA only — StartOS is v4-parity for v6 (one server GUA
     /// port-forwarded to container ULAs), so a container never holds a GUA and
     /// any non-ULA address is ignored. Polls with the same retry loop as [`ip`]
-    /// since SLAAC, like DHCP, lands a moment after boot; but unlike v4 (which is
-    /// mandatory) v6 is optional, so a container that never gets a ULA (e.g. one
-    /// that disables IPv6) yields `None` rather than failing startup.
+    /// since SLAAC, like DHCP, lands a moment after boot. lxcbr0 always advertises
+    /// the prefix, so kernel SLAAC gives every container a ULA — a timeout here
+    /// should never happen short of a source-code bug, and is logged at error
+    /// level. It's still non-fatal (unlike the mandatory v4 lease): a container
+    /// runs fine on v4 without v6, so v6 forwarding is skipped rather than failing
+    /// startup.
     ///
     /// [`ip`]: Self::ip
     pub async fn ipv6(&self) -> Result<Option<Ipv6Addr>, Error> {
@@ -461,6 +464,9 @@ impl LxcContainer {
                 return Ok(Some(ula));
             }
             if start.elapsed() > CONTAINER_DHCP_TIMEOUT {
+                tracing::error!(
+                    "container {guid} has no IPv6 ULA after SLAAC timeout — lxcbr0 always advertises the prefix, so this indicates a bug; v6 forwarding disabled for it"
+                );
                 return Ok(None);
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
