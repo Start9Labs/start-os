@@ -69,7 +69,10 @@ impl DerivedAddressInfo {
         self.available
             .iter()
             .filter(|h| {
-                if h.public && h.metadata.is_ip() {
+                if h.is_internal() {
+                    // lo / lxcbr0 are always reachable and never operator-disablable.
+                    true
+                } else if h.public && h.metadata.is_ip() {
                     // Public IPs: disabled by default, explicitly enabled via SocketAddr
                     h.to_socket_addr().map_or(
                         true, // should never happen, but would rather see them if it does
@@ -573,6 +576,12 @@ pub async fn set_address_enabled<Kind: HostApiKind>(
     let enabled = enabled.unwrap_or(true);
     let address: HostnameInfo =
         serde_json::from_str(&address).with_kind(ErrorKind::Deserialization)?;
+    if !enabled && address.is_internal() {
+        return Err(Error::new(
+            eyre!("loopback / bridge (internal) addresses cannot be disabled"),
+            ErrorKind::InvalidRequest,
+        ));
+    }
     ctx.db
         .mutate(|db| {
             Kind::host_for(&inheritance, db)?
@@ -602,6 +611,12 @@ pub async fn set_range_address_enabled<Kind: HostApiKind>(
     let enabled = enabled.unwrap_or(true);
     let address: HostnameInfo =
         serde_json::from_str(&address).with_kind(ErrorKind::Deserialization)?;
+    if !enabled && address.is_internal() {
+        return Err(Error::new(
+            eyre!("loopback / bridge (internal) addresses cannot be disabled"),
+            ErrorKind::InvalidRequest,
+        ));
+    }
     ctx.db
         .mutate(|db| {
             Kind::host_for(&inheritance, db)?

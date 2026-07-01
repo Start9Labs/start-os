@@ -28,7 +28,7 @@ use crate::net::host::binding::{
 use crate::net::host::{Host, Hosts, host_for};
 use crate::net::port_map::{PortMapController, candidate_gateways};
 use crate::net::service_interface::{
-    AddressInfo, HostnameMetadata, ServiceInterface, ServiceInterfaceType,
+    AddressInfo, HostnameInfo, HostnameMetadata, ServiceInterface, ServiceInterfaceType,
 };
 use crate::net::socks::SocksController;
 use crate::net::vhost::{AlpnInfo, DynVHostTarget, ProxyTarget, VHostController};
@@ -325,12 +325,18 @@ impl NetServiceData {
             if bind.net.assigned_port.is_none() && bind.net.assigned_ssl_port.is_none() {
                 continue;
             }
-            // A binding with no exported interface is internal-only; don't forward it.
-            if bind.interfaces.is_empty() {
-                continue;
-            }
-
+            // A binding with no exported interface is internal-only: forward it
+            // to lo / lxcbr0 but never to a gateway.
             let enabled_addresses = bind.addresses.enabled();
+            let enabled_addresses: std::collections::BTreeSet<&HostnameInfo> =
+                if bind.interfaces.is_empty() {
+                    enabled_addresses
+                        .into_iter()
+                        .filter(|a| a.is_internal())
+                        .collect()
+                } else {
+                    enabled_addresses
+                };
             let addr: SocketAddr = (self.ip, *port).into();
 
             // Key private DNS by its live gateways so the resolver only answers
@@ -557,11 +563,18 @@ impl NetServiceData {
             if !range.enabled {
                 continue;
             }
-            // A range with no exported interface is internal-only; don't forward it.
-            if range.interface.is_none() {
-                continue;
-            }
+            // A range with no exported interface is internal-only: forward it
+            // to lo / lxcbr0 but never to a gateway.
             let enabled_addresses = range.addresses.enabled();
+            let enabled_addresses: std::collections::BTreeSet<&HostnameInfo> =
+                if range.interface.is_none() {
+                    enabled_addresses
+                        .into_iter()
+                        .filter(|a| a.is_internal())
+                        .collect()
+                } else {
+                    enabled_addresses
+                };
 
             for addr_info in &enabled_addresses {
                 if let HostnameMetadata::PrivateDomain { gateways } = &addr_info.metadata {

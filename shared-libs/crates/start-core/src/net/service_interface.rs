@@ -60,6 +60,20 @@ impl HostnameInfo {
     pub fn to_san_hostname(&self) -> InternedString {
         self.hostname.clone()
     }
+
+    /// True for the always-on internal interfaces — loopback (`lo`) and the
+    /// `lxcbr0` bridge (`HOST_IP`). These are how the host and other containers
+    /// reach the service; they are never operator-disablable, and a binding with
+    /// no exported interface is restricted to them.
+    pub fn is_internal(&self) -> bool {
+        match self.hostname.parse::<std::net::IpAddr>() {
+            Ok(std::net::IpAddr::V4(v4)) => {
+                v4.is_loopback() || v4 == std::net::Ipv4Addr::from(crate::HOST_IP)
+            }
+            Ok(std::net::IpAddr::V6(v6)) => v6.is_loopback(),
+            Err(_) => false,
+        }
+    }
 }
 
 impl HostnameMetadata {
