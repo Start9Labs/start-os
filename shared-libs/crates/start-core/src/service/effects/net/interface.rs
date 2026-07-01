@@ -145,6 +145,21 @@ fn find_service_interface(hosts: &Hosts, id: &ServiceInterfaceId) -> Option<Serv
         .find_map(|bind| bind.interfaces.get(id).cloned())
 }
 
+/// Like [`find_service_interface`] but also returns the `(host, internal port)`
+/// the interface lives under, so the watch can be scoped to that one node.
+fn find_service_interface_location(
+    hosts: &Hosts,
+    id: &ServiceInterfaceId,
+) -> Option<(HostId, u16, ServiceInterface)> {
+    hosts.0.iter().find_map(|(host_id, host)| {
+        host.bindings.iter().find_map(|(port, bind)| {
+            bind.interfaces
+                .get(id)
+                .map(|iface| (host_id.clone(), *port, iface.clone()))
+        })
+    })
+}
+
 fn list_all_service_interfaces(hosts: &Hosts) -> BTreeMap<ServiceInterfaceId, ServiceInterface> {
     hosts
         .0
@@ -176,25 +191,53 @@ pub async fn get_service_interface(
     let context = context.deref()?;
     let package_id = package_id.unwrap_or_else(|| context.seed.id.clone());
 
-    let ptr = format!("/public/packageData/{}/hosts", package_id)
+    let hosts_ptr = format!("/public/packageData/{}/hosts", package_id)
         .parse()
         .expect("valid json pointer");
-    let mut watch = context.seed.ctx.db.watch(ptr).await.typed::<Hosts>();
+    let mut hosts_watch = context.seed.ctx.db.watch(hosts_ptr).await.typed::<Hosts>();
 
-    let res = watch
+    let located = hosts_watch
         .peek_and_mark_seen()?
         .de()
         .ok()
-        .and_then(|hosts: Hosts| find_service_interface(&hosts, &service_interface_id));
+        .and_then(|hosts: Hosts| find_service_interface_location(&hosts, &service_interface_id));
+    let res = located.as_ref().map(|(_, _, iface)| iface.clone());
 
     if let Some(callback) = callback {
         let callback = callback.register(&context.seed.persistent_container);
-        context.seed.ctx.callbacks.add_get_service_interface(
-            package_id.clone(),
-            service_interface_id.clone(),
-            watch,
-            CallbackHandler::new(&context, callback),
-        );
+        let handler = CallbackHandler::new(&context, callback);
+        // Watch only the interface's own node, not the whole hosts map (which
+        // churns on every gateway/mDNS/domain change). Fall back to the broad
+        // watch until it's exported, so we fire when it first appears.
+        if let Some((host_id, port, _)) = &located {
+            let ptr = format!(
+                "/public/packageData/{}/hosts/{}/bindings/{}/interfaces/{}",
+                package_id, host_id, port, service_interface_id
+            )
+            .parse()
+            .expect("valid json pointer");
+            let mut watch = context
+                .seed
+                .ctx
+                .db
+                .watch(ptr)
+                .await
+                .typed::<ServiceInterface>();
+            watch.peek_and_mark_seen()?;
+            context.seed.ctx.callbacks.add_get_service_interface(
+                package_id.clone(),
+                service_interface_id.clone(),
+                watch,
+                handler,
+            );
+        } else {
+            context.seed.ctx.callbacks.add_get_service_interface(
+                package_id.clone(),
+                service_interface_id.clone(),
+                hosts_watch,
+                handler,
+            );
+        }
     }
 
     Ok(res)

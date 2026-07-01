@@ -788,7 +788,6 @@ export default {
   879: 'Mettre à jour la configuration',
   880: 'Ou activez DNS Injection pour cet appareil sur la passerelle.',
   881: 'Ou activez la redirection de port automatique (UPnP / NAT-PMP / PCP) sur la passerelle.',
-  882: 'Plage de ports',
   883: 'Plage externe',
   884: 'Plage interne',
   885: 'Ou activez la redirection de port automatique (PCP) sur la passerelle. UPnP et NAT-PMP ne prennent pas en charge les plages de ports.',

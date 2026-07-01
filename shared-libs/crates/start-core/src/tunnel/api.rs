@@ -1040,59 +1040,72 @@ pub async fn add_forward(
         ));
     }
 
-    // Reject a range whose external ports overlap a different existing forward on
-    // this WAN IP (an exact same-port clash is caught by the insert below).
-    if let Some(conflict) = ctx
-        .db
-        .peek()
-        .await
-        .as_port_forwards()
-        .de()?
-        .overlapping(source, count)
-    {
-        return Err(Error::new(
-            eyre!(
-                "external ports {external_port}-{} overlap an existing forward at {conflict}",
-                external_port + count - 1,
-            ),
-            ErrorKind::InvalidRequest,
-        ));
-    }
-
-    let prefix = crate::tunnel::forward::igd::prefix_for(&ctx, target.ip()).await;
-    let rc = ctx
-        .forward
-        .add_forward_range(source, target, count, prefix, None)
-        .await?;
-    ctx.active_forwards.mutate(|m| {
-        m.insert(source, rc);
-    });
-
-    let entry = PortForward::Dnat {
-        target,
-        label,
-        enabled: true,
-        count,
-        auto: false,
-    };
-
+    // DB is the source of truth: atomically reject an overlapping or duplicate
+    // forward and reserve the slot in one mutate before touching the dataplane
+    // (mirrors add_sni_forward). A detached peek-then-insert let two concurrent
+    // adds both pass the overlap check.
     ctx.db
         .mutate(|db| {
-            db.as_port_forwards_mut()
-                .insert(&source, &entry)
-                .and_then(|replaced| {
-                    if replaced.is_some() {
-                        Err(Error::new(
-                            eyre!("Port forward from {source} already exists"),
-                            ErrorKind::InvalidRequest,
-                        ))
-                    } else {
-                        Ok(())
-                    }
-                })
+            db.as_port_forwards_mut().mutate(|pf| {
+                if let Some(conflict) = pf.overlapping(source, count) {
+                    return Err(Error::new(
+                        eyre!(
+                            "external ports {external_port}-{} overlap an existing forward at {conflict}",
+                            external_port + count - 1,
+                        ),
+                        ErrorKind::InvalidRequest,
+                    ));
+                }
+                if pf
+                    .0
+                    .insert(
+                        source,
+                        PortForward::Dnat {
+                            target,
+                            label: label.clone(),
+                            enabled: true,
+                            count,
+                            auto: false,
+                        },
+                    )
+                    .is_some()
+                {
+                    return Err(Error::new(
+                        eyre!("Port forward from {source} already exists"),
+                        ErrorKind::InvalidRequest,
+                    ));
+                }
+                Ok(())
+            })
         })
         .await
         .result?;
+
+    // Install the dataplane forward; roll back the reservation on failure.
+    let prefix = crate::tunnel::forward::igd::prefix_for(&ctx, target.ip()).await;
+    let rc = match ctx
+        .forward
+        .add_forward_range(source, target, count, prefix, None)
+        .await
+    {
+        Ok(rc) => rc,
+        Err(e) => {
+            ctx.db
+                .mutate(|db| {
+                    db.as_port_forwards_mut().mutate(|pf| {
+                        pf.0.remove(&source);
+                        Ok(())
+                    })
+                })
+                .await
+                .result
+                .ok();
+            return Err(e);
+        }
+    };
+    ctx.active_forwards.mutate(|m| {
+        m.insert(source, rc);
+    });
 
     Ok(())
 }

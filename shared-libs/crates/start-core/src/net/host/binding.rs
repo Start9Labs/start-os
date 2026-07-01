@@ -12,6 +12,7 @@ use crate::HostId;
 use crate::ServiceInterfaceId;
 use crate::context::{CliContext, RpcContext};
 use crate::db::prelude::Map;
+use crate::hostname::ServerHostname;
 use crate::net::forward::AvailablePorts;
 use crate::net::host::HostApiKind;
 use crate::net::service_interface::{
@@ -147,6 +148,29 @@ impl DerivedAddressInfo {
                 }
             })
             .collect()
+    }
+
+    /// Move the port of every `enabled`/`disabled` override from `old` to `new`.
+    /// A range keys all its overrides on `external_start_port`, so a service-
+    /// driven resize that moves the span must carry the overrides with it — else
+    /// a disabled WAN address silently re-enables under the recomputed defaults.
+    pub fn rekey_port(&mut self, old: u16, new: u16) {
+        if old == new {
+            return;
+        }
+        self.enabled = std::mem::take(&mut self.enabled)
+            .into_iter()
+            .map(|mut sa| {
+                if sa.port() == old {
+                    sa.set_port(new);
+                }
+                sa
+            })
+            .collect();
+        self.disabled = std::mem::take(&mut self.disabled)
+            .into_iter()
+            .map(|(h, p)| (h, if p == old { new } else { p }))
+            .collect();
     }
 }
 
@@ -685,7 +709,16 @@ pub async fn set_address_enabled<Kind: HostApiKind>(
                 .mutate(|b| {
                     let bind = b.get_mut(&internal_port).or_not_found(internal_port)?;
                     set_address_enabled_on(&mut bind.addresses, &address, enabled)
-                })
+                })?;
+            let hostname = ServerHostname::load(db.as_public().as_server_info())?;
+            let gateways = db
+                .as_public()
+                .as_server_info()
+                .as_network()
+                .as_gateways()
+                .de()?;
+            let ports = db.as_private().as_available_ports().de()?;
+            Kind::host_for(&inheritance, db)?.update_addresses(&hostname, &gateways, &ports)
         })
         .await
         .result?;
@@ -719,7 +752,16 @@ pub async fn set_range_address_enabled<Kind: HostApiKind>(
                 .mutate(|ranges| {
                     let range = ranges.get_mut(&internal_port).or_not_found(internal_port)?;
                     set_address_enabled_on(&mut range.addresses, &address, enabled)
-                })
+                })?;
+            let hostname = ServerHostname::load(db.as_public().as_server_info())?;
+            let gateways = db
+                .as_public()
+                .as_server_info()
+                .as_network()
+                .as_gateways()
+                .de()?;
+            let ports = db.as_private().as_available_ports().de()?;
+            Kind::host_for(&inheritance, db)?.update_addresses(&hostname, &gateways, &ports)
         })
         .await
         .result?;
@@ -837,5 +879,30 @@ mod test {
         info.gua_access.insert(key, GuaAccess::Disabled);
         assert!(!info.enabled().contains(&gua));
         assert!(!info.is_wan(&gua));
+    }
+
+    #[test]
+    fn rekey_port_carries_range_overrides() {
+        use std::net::SocketAddr;
+        let mut info = DerivedAddressInfo::default();
+        let wan: SocketAddr = "1.2.3.4:49152".parse().unwrap();
+        let unrelated: SocketAddr = "1.2.3.4:8443".parse().unwrap();
+        info.enabled.insert(wan);
+        info.enabled.insert(unrelated);
+        info.disabled
+            .insert((InternedString::intern("example.com"), 49152));
+
+        // A range moving from external_start_port 49152 to 5000.
+        info.rekey_port(49152, 5000);
+
+        assert!(info.enabled.contains(&"1.2.3.4:5000".parse().unwrap()));
+        assert!(!info.enabled.contains(&wan));
+        assert!(info.enabled.contains(&unrelated)); // unrelated port untouched
+        assert!(info
+            .disabled
+            .contains(&(InternedString::intern("example.com"), 5000)));
+        assert!(!info
+            .disabled
+            .contains(&(InternedString::intern("example.com"), 49152)));
     }
 }

@@ -9,6 +9,8 @@ import { RangeInterfaceBuilder } from './RangeInterfaceBuilder'
  * separate {@link MultiHost.bindPortRange} calls.
  */
 export class RangeOrigin {
+  private exported = false
+
   constructor(
     readonly host: MultiHost,
     readonly internalStartPort: number,
@@ -22,6 +24,12 @@ export class RangeOrigin {
    * @param serviceInterface - a builder from `sdk.createRangeInterface`
    */
   async export(serviceInterface: RangeInterfaceBuilder): Promise<void> {
+    if (this.exported) {
+      throw new Error(
+        `range at internal port ${this.internalStartPort} already exported an interface; a range exposes exactly one interface`,
+      )
+    }
+    this.exported = true
     const { effects, id, name, description, scheme } = serviceInterface.options
     await effects.exportRangeServiceInterface({
       hostId: this.host.options.id,

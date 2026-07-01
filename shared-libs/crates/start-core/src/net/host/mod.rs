@@ -638,7 +638,13 @@ impl Model<Host> {
             // rebinds — bindPortRange is service-driven, so it must not clobber
             // a UI choice made between restarts. The `available` set is
             // recomputed by update_addresses.
-            let addresses = existing.map(|e| e.addresses.clone()).unwrap_or_default();
+            let mut addresses = existing.map(|e| e.addresses.clone()).unwrap_or_default();
+            // A resized/moved range changes external_start_port; carry the
+            // preserved overrides to the new representative port so a disabled
+            // WAN address stays disabled.
+            if let Some(old) = existing.map(|e| e.external_start_port) {
+                addresses.rekey_port(old, external_start_port);
+            }
             // Preserve the exported interface across rebinds; the trailing
             // `RangeOrigin.export` re-affirms it and `clearServiceInterfaces`
             // prunes it if the service no longer exports it.

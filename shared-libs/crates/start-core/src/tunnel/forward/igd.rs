@@ -260,40 +260,59 @@ pub(super) async fn apply_peer_forward_range(
 
     // A new range must not overlap a different existing forward's ports on this
     // external IP (the exact-source cases are handled by the match above).
-    if ctx
+    // Reserve the slot atomically before touching the dataplane so concurrent
+    // auto-forwards can't both pass the overlap check.
+    let reserved = ctx
         .db
-        .peek()
+        .mutate(|db| {
+            db.as_port_forwards_mut().mutate(|pf| {
+                if pf.overlapping(source, count).is_some() {
+                    return Ok(false);
+                }
+                pf.0.insert(
+                    source,
+                    PortForward::Dnat {
+                        target,
+                        label: Some(protocol_label.to_string()),
+                        enabled: true,
+                        count,
+                        auto: true,
+                    },
+                );
+                Ok(true)
+            })
+        })
         .await
-        .as_port_forwards()
-        .de()
-        .map_err(|_| 501u16)?
-        .overlapping(source, count)
-        .is_some()
-    {
+        .result
+        .map_err(|_| 501u16)?;
+    if !reserved {
         return Err(718); // ConflictInMappingEntry
     }
 
     let prefix = prefix_for(ctx, target.ip()).await;
-    let rc = ctx
+    let rc = match ctx
         .forward
         .add_forward_range(source, target, count, prefix, None)
         .await
-        .map_err(|_| 501u16)?;
+    {
+        Ok(rc) => rc,
+        Err(_) => {
+            ctx.db
+                .mutate(|db| {
+                    db.as_port_forwards_mut().mutate(|pf| {
+                        pf.0.remove(&source);
+                        Ok(())
+                    })
+                })
+                .await
+                .result
+                .ok();
+            return Err(501);
+        }
+    };
     ctx.active_forwards.mutate(|m| {
         m.insert(source, rc);
     });
-    let entry = PortForward::Dnat {
-        target,
-        label: Some(protocol_label.to_string()),
-        enabled: true,
-        count,
-        auto: true,
-    };
-    ctx.db
-        .mutate(|db| db.as_port_forwards_mut().insert(&source, &entry).map(|_| ()))
-        .await
-        .result
-        .map_err(|_| 501u16)?;
     Ok(())
 }
 

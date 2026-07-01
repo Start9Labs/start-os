@@ -194,13 +194,16 @@ export default class Dns {
     { initialValue: [] },
   )
 
-  // The Server column shows the targeted server's friendly name and its IP: the
-  // injecting server for an automatic record, the selected server (the record
-  // value) for a manual one. Falls back to the raw value when unmatched.
+  // Only A/AAAA values are server IPs; for those, show the server's friendly
+  // name and IP (the injecting server for automatic records, the selected one
+  // for manual). CNAME/TXT/other rdata renders verbatim.
   protected serverDisplay(record: {
+    type: string
     source: string | null
     value: string
   }): string {
+    if (record.type !== 'A' && record.type !== 'AAAA') return record.value
+
     const ip = record.source ?? record.value
     const name = this.devices().find(d => d.ip === ip)?.name
     return name ? `${name} (${ip})` : record.value
