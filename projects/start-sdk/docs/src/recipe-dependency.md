@@ -8,7 +8,7 @@ In `setupDependencies()`, return an object mapping dependency package IDs to the
 
 These declarations drive the **warning UI** StartOS shows the user when a dependency isn't installed, isn't running, or has a listed health check failing. They do **not** gate your service's startup — your service starts whenever the user starts it, regardless of dependency state. If your service genuinely cannot operate before a dependency reaches a particular state, handle that at runtime in `setupMain` (poll, retry, or surface your own error); don't expect the dependency declaration to block startup for you.
 
-Read the dependency's connection info in `setupMain` either via `sdk.serviceInterface.get()` or directly as `http://<package-id>.startos:<port>`.
+Read the dependency's connection info in `setupMain` either via `sdk.host.get()` (walk the host's bindings to the interface) or directly as `http://<package-id>.startos:<port>`.
 
 **Reference:** [Dependencies](dependencies.md)
 

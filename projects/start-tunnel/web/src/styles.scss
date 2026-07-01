@@ -106,33 +106,21 @@ tui-notification-middle {
 
 .g-table {
   width: 100%;
-  border-collapse: collapse;
-  border-radius: var(--tui-radius-s);
   background: var(--tui-background-elevation-1);
+  border: 1px solid var(--tui-background-neutral-1);
+  border-radius: var(--tui-radius-s);
+  // Separate borders (not collapse) so border-radius works; overflow clips the
+  // cell backgrounds to the rounded corners. No clip-path/box-shadow needed.
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
 
-  thead {
-    tr {
-      position: sticky;
-      top: 0;
-      background: var(--tui-background-elevation-2);
-      backdrop-filter: blur(5rem);
-      z-index: 1;
-      border-radius: var(--tui-radius-s) var(--tui-radius-s) 0 0;
-    }
-
-    th {
-      &:first-child {
-        border-top-left-radius: inherit;
-      }
-
-      &:last-child {
-        border-top-right-radius: inherit;
-      }
-    }
+  thead tr {
+    background: var(--tui-background-elevation-2);
   }
 
   tr:nth-child(even) {
-    backdrop-filter: brightness(0.9);
+    background: rgba(0, 0, 0, 0.1);
   }
 
   th,
@@ -140,12 +128,29 @@ tui-notification-middle {
     height: var(--tui-height-m);
     padding: 0 1rem;
     text-align: start;
-    background: transparent;
-    border: none;
+    border-bottom: 1px solid var(--tui-background-neutral-1);
 
     &:last-child {
       text-align: end;
     }
+  }
+
+  tbody tr:last-child td {
+    border-bottom: 0;
+  }
+
+  // Keep the loader hugging its switch so the overlay spinner sits on the
+  // toggle, not centered across the whole cell.
+  tui-loader {
+    inline-size: fit-content;
+  }
+}
+
+// Tables without an actions column shouldn't right-align their last (data) cell.
+.g-table.no-actions {
+  th:last-child,
+  td:last-child {
+    text-align: start;
   }
 }
 

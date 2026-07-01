@@ -6,7 +6,7 @@ edition = "2024"
 description = "Yet Another String Interner"
 license = "MIT"
 documentation = "https://docs.rs/yasi"
-repository = "https://github.com/Start9Labs/yasi.git"
+repository = "https://github.com/Start9Labs/start-technologies"
 keywords = ["arc", "intern", "string", "display"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

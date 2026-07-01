@@ -85,10 +85,10 @@ jobs:
     steps:
       - name: Free up disk space
         if: ${{ inputs.FREE_DISK_SPACE }}
-        uses: Start9Labs/start-os/.github/actions/free-disk-space@master
+        uses: Start9Labs/start-technologies/.github/actions/free-disk-space@master
 
       - name: Setup build environment
-        uses: Start9Labs/start-os/.github/actions/setup-build-env@master
+        uses: Start9Labs/start-technologies/.github/actions/setup-build-env@master
 
       - name: Checkout services repository
         uses: actions/checkout@v6
@@ -128,7 +128,7 @@ jobs:
       contents: write
     steps:
       - name: Setup publish environment
-        uses: Start9Labs/start-os/.github/actions/setup-publish-env@master
+        uses: Start9Labs/start-technologies/.github/actions/setup-publish-env@master
 
       - name: Checkout services repository
         uses: actions/checkout@v6
@@ -169,7 +169,7 @@ jobs:
 
       - name: Extract version
         id: version
-        uses: Start9Labs/start-os/.github/actions/extract-version@master
+        uses: Start9Labs/start-technologies/.github/actions/extract-version@master
 
       - name: Filter s9pk files for GitHub release
         id: filter_s9pk
@@ -327,7 +327,7 @@ jobs:
         shell: bash
 
       - name: Upload each s9pk as its own artifact
-        uses: Start9Labs/start-os/.github/actions/upload-each@master
+        uses: Start9Labs/start-technologies/.github/actions/upload-each@master
         with:
           pattern: "*.s9pk"
           retention-days: 14

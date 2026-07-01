@@ -2,10 +2,18 @@
 import type { BindOptions } from './BindOptions'
 import type { DerivedAddressInfo } from './DerivedAddressInfo'
 import type { NetInfo } from './NetInfo'
+import type { ServiceInterface } from './ServiceInterface'
+import type { ServiceInterfaceId } from './ServiceInterfaceId'
 
 export type BindInfo = {
   enabled: boolean
   options: BindOptions
   net: NetInfo
   addresses: DerivedAddressInfo
+  /**
+   * Service interfaces exported from this binding (`Origin.export`). A single
+   * binding (host + internal port) may back several interfaces (e.g. a `ui`
+   * and an `api` on the same port), so this is keyed by interface id.
+   */
+  interfaces: { [key: ServiceInterfaceId]: ServiceInterface }
 }

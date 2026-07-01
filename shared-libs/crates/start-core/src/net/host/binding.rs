@@ -8,14 +8,15 @@ use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_f
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::GatewayId;
 use crate::HostId;
+use crate::ServiceInterfaceId;
 use crate::context::{CliContext, RpcContext};
 use crate::db::prelude::Map;
-use crate::hostname::ServerHostname;
 use crate::net::forward::AvailablePorts;
 use crate::net::host::HostApiKind;
-use crate::net::service_interface::{HostnameInfo, HostnameMetadata};
+use crate::net::service_interface::{
+    HostnameInfo, HostnameMetadata, RangeServiceInterface, ServiceInterface,
+};
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
 use crate::util::FromStrParser;
@@ -68,7 +69,10 @@ impl DerivedAddressInfo {
         self.available
             .iter()
             .filter(|h| {
-                if h.public && h.metadata.is_ip() {
+                if h.is_internal() {
+                    // lo / lxcbr0 are always reachable and never operator-disablable.
+                    true
+                } else if h.public && h.metadata.is_ip() {
                     // Public IPs: disabled by default, explicitly enabled via SocketAddr
                     h.to_socket_addr().map_or(
                         true, // should never happen, but would rather see them if it does
@@ -113,38 +117,6 @@ impl std::ops::DerefMut for Bindings {
     }
 }
 
-/// Per-gateway exposure of a port range, chosen by the operator.
-///
-/// Mirrors how single-port bindings treat WAN vs LAN addresses in
-/// [`crate::net::forward::ForwardRequirements`]: `LanWan` puts the gateway in
-/// `public_gateways` (no source filter → reachable from LAN and WAN), `Lan`
-/// puts the gateway's subnet(s) in `private_ips` (source filtered to the LAN →
-/// reachable from LAN only), and `Disabled` forwards on neither.
-#[derive(
-    Clone,
-    Copy,
-    Debug,
-    Default,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Deserialize,
-    Serialize,
-    TS,
-    clap::ValueEnum,
-)]
-#[ts(export)]
-#[serde(rename_all = "kebab-case")]
-pub enum RangeGatewayAccess {
-    Disabled,
-    /// Default: a freshly-bound range is reachable on the LAN only. Exposing it
-    /// to the WAN is an explicit, per-gateway operator opt-in (`LanWan`).
-    #[default]
-    Lan,
-    LanWan,
-}
-
 /// Contiguous port-range binding (e.g. WebRTC/STUN/TURN RTP ranges).
 ///
 /// Keyed by `internal_start_port` in [`BindingRanges`]. The range covers
@@ -159,13 +131,18 @@ pub struct RangeBindInfo {
     pub enabled: bool,
     pub external_start_port: u16,
     pub number_of_ports: u16,
-    /// Per-gateway exposure chosen by the operator. Absent gateways default to
-    /// [`RangeGatewayAccess::Lan`] (LAN-only), so a freshly-bound range is
-    /// not exposed to the WAN until the operator opts in. Persisted
-    /// independently of `enabled` (the service-lifecycle flag) so operator
-    /// choices survive restarts / rebinds.
+    /// Reachable addresses for this range (LAN IPv4 / WAN IPv4 / mDNS /
+    /// domains) with per-address enabled/disabled overrides — the same model as
+    /// a single-port binding, but IPv4-only and non-SSL. COMPUTED by
+    /// `update_addresses`; every entry uses `external_start_port` as its
+    /// representative port. Public IPs are disabled by default (WAN is opt-in);
+    /// LAN/mDNS/domains are enabled by default.
     #[serde(default)]
-    pub gateway_access: BTreeMap<GatewayId, RangeGatewayAccess>,
+    pub addresses: DerivedAddressInfo,
+    /// The single restricted `api` interface exported from this range, if any
+    /// (`RangeOrigin.export`). Preserved across idempotent re-binds.
+    #[serde(default)]
+    pub interface: Option<RangeServiceInterface>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
@@ -202,13 +179,16 @@ impl RangeBindInfo {
         self.enabled = false;
     }
 
-    /// Effective exposure for `gateway` — gateways the operator hasn't touched
-    /// default to [`RangeGatewayAccess::Lan`] (LAN-only).
-    pub fn access_for(&self, gateway: &GatewayId) -> RangeGatewayAccess {
-        self.gateway_access
-            .get(gateway)
-            .copied()
-            .unwrap_or_default()
+    /// Addresses actually served by this range. Analogous to
+    /// [`BindInfo::enabled_addresses`]: a range with no exported interface is
+    /// internal-only (lo / lxcbr0), its per-address overrides dormant.
+    pub fn enabled_addresses(&self) -> BTreeSet<&HostnameInfo> {
+        let enabled = self.addresses.enabled();
+        if self.interface.is_none() {
+            enabled.into_iter().filter(|a| a.is_internal()).collect()
+        } else {
+            enabled
+        }
     }
 }
 
@@ -221,6 +201,11 @@ pub struct BindInfo {
     pub options: BindOptions,
     pub net: NetInfo,
     pub addresses: DerivedAddressInfo,
+    /// Service interfaces exported from this binding (`Origin.export`). A single
+    /// binding (host + internal port) may back several interfaces (e.g. a `ui`
+    /// and an `api` on the same port), so this is keyed by interface id.
+    #[serde(default)]
+    pub interfaces: BTreeMap<ServiceInterfaceId, ServiceInterface>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS, PartialEq, Eq, PartialOrd, Ord)]
@@ -231,6 +216,19 @@ pub struct NetInfo {
     pub assigned_ssl_port: Option<u16>,
 }
 impl BindInfo {
+    /// Addresses actually served by this binding. A binding with no exported
+    /// service interface listens internally only (lo / lxcbr0) — the operator's
+    /// per-address `enabled`/`disabled` overrides stay stored but dormant until
+    /// an interface is exported, at which point they take effect again.
+    pub fn enabled_addresses(&self) -> BTreeSet<&HostnameInfo> {
+        let enabled = self.addresses.enabled();
+        if self.interfaces.is_empty() {
+            enabled.into_iter().filter(|a| a.is_internal()).collect()
+        } else {
+            enabled
+        }
+    }
+
     pub fn new(available_ports: &mut AvailablePorts, options: BindOptions) -> Result<Self, Error> {
         let mut assigned_port = None;
         let mut assigned_ssl_port = None;
@@ -256,6 +254,7 @@ impl BindInfo {
                 assigned_ssl_port,
             },
             addresses: DerivedAddressInfo::default(),
+            interfaces: BTreeMap::new(),
         })
     }
     pub fn update(
@@ -266,6 +265,7 @@ impl BindInfo {
         let Self {
             net: mut lan,
             addresses,
+            interfaces,
             ..
         } = self;
         if options
@@ -306,6 +306,7 @@ impl BindInfo {
             options,
             net: lan,
             addresses,
+            interfaces,
         })
     }
     pub fn disable(&mut self) {
@@ -459,12 +460,12 @@ pub fn binding<C: Context, Kind: HostApiKind>()
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
-            "set-range-gateway-access",
-            from_fn_async(set_range_gateway_access::<Kind>)
+            "set-range-address-enabled",
+            from_fn_async(set_range_address_enabled::<Kind>)
                 .with_metadata("sync_db", Value::Bool(true))
                 .with_inherited(Kind::inheritance)
                 .no_display()
-                .with_about("about.set-range-gateway-access-for-binding")
+                .with_about("about.set-range-address-enabled-for-binding")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -492,6 +493,102 @@ pub struct BindingSetAddressEnabledParams {
     enabled: Option<bool>,
 }
 
+/// Toggle one address on/off for a binding's `DerivedAddressInfo`. Public IPs
+/// live in the `enabled` set (keyed by `SocketAddr`); domains and private IPs
+/// live in the `disabled` set (keyed by `(hostname, port)`). Non-SSL Ipv4 ↔
+/// PublicDomain on the same gateway+port are cascaded so they toggle together.
+/// Shared by single-port bindings and port ranges (whose addresses all use
+/// `external_start_port` as their port, so the same keying applies).
+fn set_address_enabled_on(
+    addresses: &mut DerivedAddressInfo,
+    address: &HostnameInfo,
+    enabled: bool,
+) -> Result<(), Error> {
+    if address.public && address.metadata.is_ip() {
+        // Public IPs: toggle via SocketAddr in `enabled` set
+        let sa = address.to_socket_addr().ok_or_else(|| {
+            Error::new(
+                eyre!("cannot convert address to socket addr"),
+                ErrorKind::InvalidRequest,
+            )
+        })?;
+        if enabled {
+            addresses.enabled.insert(sa);
+        } else {
+            addresses.enabled.remove(&sa);
+        }
+        // Non-SSL Ipv4: cascade to PublicDomains on same gateway
+        if !address.ssl {
+            if let HostnameMetadata::Ipv4 { gateway } = &address.metadata {
+                let port = sa.port();
+                for a in &addresses.available {
+                    if a.ssl {
+                        continue;
+                    }
+                    if let HostnameMetadata::PublicDomain { gateway: gw } = &a.metadata {
+                        if gw == gateway && a.port.unwrap_or(80) == port {
+                            let k = (a.hostname.clone(), a.port.unwrap_or(80));
+                            if enabled {
+                                addresses.disabled.remove(&k);
+                            } else {
+                                addresses.disabled.insert(k);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        // Domains and private IPs: toggle via (host, port) in `disabled` set
+        let port = address.port.unwrap_or(if address.ssl { 443 } else { 80 });
+        let key = (address.hostname.clone(), port);
+        if enabled {
+            addresses.disabled.remove(&key);
+        } else {
+            addresses.disabled.insert(key);
+        }
+        // Non-SSL PublicDomain: cascade to Ipv4 + other PublicDomains on same gateway
+        if !address.ssl {
+            if let HostnameMetadata::PublicDomain { gateway } = &address.metadata {
+                for a in &addresses.available {
+                    if a.ssl {
+                        continue;
+                    }
+                    match &a.metadata {
+                        HostnameMetadata::Ipv4 { gateway: gw } if a.public && gw == gateway => {
+                            if let Some(sa) = a.to_socket_addr() {
+                                if sa.port() == port {
+                                    if enabled {
+                                        addresses.enabled.insert(sa);
+                                    } else {
+                                        addresses.enabled.remove(&sa);
+                                    }
+                                }
+                            }
+                        }
+                        HostnameMetadata::PublicDomain { gateway: gw } if gw == gateway => {
+                            let dp = a.port.unwrap_or(80);
+                            if dp == port {
+                                let k = (a.hostname.clone(), dp);
+                                if enabled {
+                                    addresses.disabled.remove(&k);
+                                } else {
+                                    addresses.disabled.insert(k);
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Toggle one address of a single-port binding (keyed by its internal port).
+/// Port ranges use [`set_range_address_enabled`] — they live in a separate DB
+/// subtree, so the API distinguishes the two rather than probing both.
 pub async fn set_address_enabled<Kind: HostApiKind>(
     ctx: RpcContext,
     BindingSetAddressEnabledParams {
@@ -504,98 +601,19 @@ pub async fn set_address_enabled<Kind: HostApiKind>(
     let enabled = enabled.unwrap_or(true);
     let address: HostnameInfo =
         serde_json::from_str(&address).with_kind(ErrorKind::Deserialization)?;
+    if !enabled && address.is_internal() {
+        return Err(Error::new(
+            eyre!("loopback / bridge (internal) addresses cannot be disabled"),
+            ErrorKind::InvalidRequest,
+        ));
+    }
     ctx.db
         .mutate(|db| {
             Kind::host_for(&inheritance, db)?
                 .as_bindings_mut()
                 .mutate(|b| {
                     let bind = b.get_mut(&internal_port).or_not_found(internal_port)?;
-                    if address.public && address.metadata.is_ip() {
-                        // Public IPs: toggle via SocketAddr in `enabled` set
-                        let sa = address.to_socket_addr().ok_or_else(|| {
-                            Error::new(
-                                eyre!("cannot convert address to socket addr"),
-                                ErrorKind::InvalidRequest,
-                            )
-                        })?;
-                        if enabled {
-                            bind.addresses.enabled.insert(sa);
-                        } else {
-                            bind.addresses.enabled.remove(&sa);
-                        }
-                        // Non-SSL Ipv4: cascade to PublicDomains on same gateway
-                        if !address.ssl {
-                            if let HostnameMetadata::Ipv4 { gateway } = &address.metadata {
-                                let port = sa.port();
-                                for a in &bind.addresses.available {
-                                    if a.ssl {
-                                        continue;
-                                    }
-                                    if let HostnameMetadata::PublicDomain { gateway: gw } =
-                                        &a.metadata
-                                    {
-                                        if gw == gateway && a.port.unwrap_or(80) == port {
-                                            let k = (a.hostname.clone(), a.port.unwrap_or(80));
-                                            if enabled {
-                                                bind.addresses.disabled.remove(&k);
-                                            } else {
-                                                bind.addresses.disabled.insert(k);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        // Domains and private IPs: toggle via (host, port) in `disabled` set
-                        let port = address.port.unwrap_or(if address.ssl { 443 } else { 80 });
-                        let key = (address.hostname.clone(), port);
-                        if enabled {
-                            bind.addresses.disabled.remove(&key);
-                        } else {
-                            bind.addresses.disabled.insert(key);
-                        }
-                        // Non-SSL PublicDomain: cascade to Ipv4 + other PublicDomains on same gateway
-                        if !address.ssl {
-                            if let HostnameMetadata::PublicDomain { gateway } = &address.metadata {
-                                for a in &bind.addresses.available {
-                                    if a.ssl {
-                                        continue;
-                                    }
-                                    match &a.metadata {
-                                        HostnameMetadata::Ipv4 { gateway: gw }
-                                            if a.public && gw == gateway =>
-                                        {
-                                            if let Some(sa) = a.to_socket_addr() {
-                                                if sa.port() == port {
-                                                    if enabled {
-                                                        bind.addresses.enabled.insert(sa);
-                                                    } else {
-                                                        bind.addresses.enabled.remove(&sa);
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        HostnameMetadata::PublicDomain { gateway: gw }
-                                            if gw == gateway =>
-                                        {
-                                            let dp = a.port.unwrap_or(80);
-                                            if dp == port {
-                                                let k = (a.hostname.clone(), dp);
-                                                if enabled {
-                                                    bind.addresses.disabled.remove(&k);
-                                                } else {
-                                                    bind.addresses.disabled.insert(k);
-                                                }
-                                            }
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Ok(())
+                    set_address_enabled_on(&mut bind.addresses, &address, enabled)
                 })
         })
         .await
@@ -603,61 +621,38 @@ pub async fn set_address_enabled<Kind: HostApiKind>(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
-#[group(skip)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct BindingSetRangeGatewayAccessParams {
-    #[arg(help = "help.arg.internal-start-port")]
-    internal_start_port: u16,
-    #[arg(long, help = "help.arg.gateway-id")]
-    gateway: GatewayId,
-    #[arg(long, help = "help.arg.range-access")]
-    access: RangeGatewayAccess,
-}
-
-/// Set how a port-range binding is exposed on a single gateway
-/// (disabled / lan / lan-wan). The range's `enabled` flag is
-/// service-controlled; this only records the operator's per-gateway choice.
-/// `Lan` is the default, so setting a gateway to `Lan` clears its entry.
-pub async fn set_range_gateway_access<Kind: HostApiKind>(
+/// Toggle one address of a port-range binding (keyed by its internal start
+/// port). The range counterpart of [`set_address_enabled`]; both share the
+/// address-toggle logic in [`set_address_enabled_on`].
+pub async fn set_range_address_enabled<Kind: HostApiKind>(
     ctx: RpcContext,
-    BindingSetRangeGatewayAccessParams {
-        internal_start_port,
-        gateway,
-        access,
-    }: BindingSetRangeGatewayAccessParams,
+    BindingSetAddressEnabledParams {
+        internal_port,
+        address,
+        enabled,
+    }: BindingSetAddressEnabledParams,
     inheritance: Kind::Inheritance,
 ) -> Result<(), Error> {
+    let enabled = enabled.unwrap_or(true);
+    let address: HostnameInfo =
+        serde_json::from_str(&address).with_kind(ErrorKind::Deserialization)?;
+    if !enabled && address.is_internal() {
+        return Err(Error::new(
+            eyre!("loopback / bridge (internal) addresses cannot be disabled"),
+            ErrorKind::InvalidRequest,
+        ));
+    }
     ctx.db
         .mutate(|db| {
             Kind::host_for(&inheritance, db)?
                 .as_binding_ranges_mut()
                 .mutate(|ranges| {
-                    let range = ranges
-                        .get_mut(&internal_start_port)
-                        .or_not_found(internal_start_port)?;
-                    if access == RangeGatewayAccess::default() {
-                        range.gateway_access.remove(&gateway);
-                    } else {
-                        range.gateway_access.insert(gateway, access);
-                    }
-                    Ok(())
-                })?;
-            // Recompute derived port_forwards so the gateways port-forwards UI
-            // reflects the change immediately; the Hosts DB watcher then
-            // reconciles the iptables rules.
-            let hostname = ServerHostname::load(db.as_public().as_server_info())?;
-            let gateways = db
-                .as_public()
-                .as_server_info()
-                .as_network()
-                .as_gateways()
-                .de()?;
-            let ports = db.as_private().as_available_ports().de()?;
-            Kind::host_for(&inheritance, db)?.update_addresses(&hostname, &gateways, &ports)
+                    let range = ranges.get_mut(&internal_port).or_not_found(internal_port)?;
+                    set_address_enabled_on(&mut range.addresses, &address, enabled)
+                })
         })
         .await
         .result?;
     Ok(())
 }
+

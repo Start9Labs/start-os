@@ -789,4 +789,8 @@ export const ENGLISH: Record<string, number> = {
   'You will need to repeat this on every device you use to connect to your server.': 878,
   'Or enable DNS Injection for this device on the gateway.': 880,
   'Or enable automatic port forwarding (UPnP / NAT-PMP / PCP) on the gateway.': 881,
+  'Port Range': 882,
+  'External Range': 883,
+  'Internal Range': 884,
+  'Or enable automatic port forwarding (PCP) on the gateway. UPnP and NAT-PMP do not support port ranges.': 885,
 }

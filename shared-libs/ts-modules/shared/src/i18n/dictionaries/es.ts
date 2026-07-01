@@ -788,4 +788,8 @@ export default {
   879: 'Actualizar configuración',
   880: 'O habilite DNS Injection para este dispositivo en la puerta de enlace.',
   881: 'O habilite el reenvío de puertos automático (UPnP / NAT-PMP / PCP) en la puerta de enlace.',
+  882: 'Rango de puertos',
+  883: 'Rango externo',
+  884: 'Rango interno',
+  885: 'O habilite el reenvío de puertos automático (PCP) en la puerta de enlace. UPnP y NAT-PMP no admiten rangos de puertos.',
 } satisfies i18n

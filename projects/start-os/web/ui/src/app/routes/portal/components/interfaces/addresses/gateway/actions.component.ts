@@ -169,6 +169,7 @@ import { DomainHealthService } from './domain-health.service'
           }
           @if (
             address().hostnameInfo.metadata.kind === 'ipv4' &&
+            address().access === 'public' &&
             address().hostnameInfo.port !== null
           ) {
             <button
@@ -257,13 +258,20 @@ export class GatewayActionsComponent {
 
     try {
       if (this.packageId()) {
-        await this.api.pkgBindingSetAddressEnabled({
+        const params = {
           internalPort: iface.addressInfo.internalPort,
           address: addressJson,
           enabled,
           package: this.packageId(),
           host: iface.addressInfo.hostId,
-        })
+        }
+        // A range spans >1 port and lives in a separate subtree, so it has its
+        // own endpoint; a single-port binding is exactly 1.
+        if (addr.count > 1) {
+          await this.api.pkgBindingSetRangeAddressEnabled(params)
+        } else {
+          await this.api.pkgBindingSetAddressEnabled(params)
+        }
       } else {
         await this.api.serverBindingSetAddressEnabled({
           internalPort: 80,
@@ -285,6 +293,7 @@ export class GatewayActionsComponent {
       this.address().hostnameInfo.hostname,
       this.gatewayId(),
       port,
+      this.address().count,
     )
   }
 
@@ -298,7 +307,11 @@ export class GatewayActionsComponent {
   showPortForwardValidation() {
     const port = this.address().hostnameInfo.port
     if (port === null) return
-    this.domainHealth.showPortForwardSetup(this.gatewayId(), port)
+    this.domainHealth.showPortForwardSetup(
+      this.gatewayId(),
+      port,
+      this.address().count,
+    )
   }
 
   async deleteDomain() {

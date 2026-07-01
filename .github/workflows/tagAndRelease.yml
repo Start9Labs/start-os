@@ -47,10 +47,10 @@ jobs:
           ASSET_NAME="start-cli_${ARCH}-${OS}"
           DOWNLOAD_URL=$(curl -fsS \
             -H "Authorization: token ${{ github.token }}" \
-            https://api.github.com/repos/Start9Labs/start-os/releases \
+            https://api.github.com/repos/Start9Labs/start-technologies/releases \
             | jq -r '[.[].assets[] | select(.name=="'"$ASSET_NAME"'")] | first | .browser_download_url')
           if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then
-            echo "Error: Could not find asset '$ASSET_NAME' in Start9Labs/start-os releases"
+            echo "Error: Could not find asset '$ASSET_NAME' in Start9Labs/start-technologies releases"
             exit 1
           fi
           curl -fsSL \
@@ -64,7 +64,7 @@ jobs:
 
       - name: Extract package ID and version
         id: extract
-        uses: Start9Labs/start-os/.github/actions/extract-version@master
+        uses: Start9Labs/start-technologies/.github/actions/extract-version@master
 
       - name: Check production registry
         id: check
@@ -119,7 +119,7 @@ jobs:
   Release:
     needs: Tag
     if: needs.Tag.outputs.skip == 'false'
-    uses: Start9Labs/start-os/.github/workflows/release.yml@master
+    uses: Start9Labs/start-technologies/.github/workflows/release.yml@master
     with:
       TAG: ${{ needs.Tag.outputs.tag }}
       FREE_DISK_SPACE: ${{ inputs.FREE_DISK_SPACE }}

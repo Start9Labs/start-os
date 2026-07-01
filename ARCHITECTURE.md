@@ -58,7 +58,7 @@ start-technologies/                # repo root (monorepo)
 
 - **`projects/start-sdk/`** — TypeScript SDK for packaging services (`@start9labs/start-sdk`), with source in `lib/`. It imports the shared `@start9labs/start-core` lib (`shared-libs/ts-modules/start-core/` — core types, ABI, effects interface, also consumed directly by web) and bundles it into its published `dist/`, so container-runtime and external service developers install a single package. Its `Makefile`/`s9pk.mk` is the source of truth for the published tarball.
 
-- **`shared-libs/crates/patch-db/`** — first-party crate providing diff-based state sync (CBOR encoded). Backend mutations produce diffs pushed to the frontend over WebSocket for reactive UI. See the [patch-db repo](https://github.com/Start9Labs/patch-db).
+- **`shared-libs/crates/patch-db/`** — first-party crate providing diff-based state sync (CBOR encoded). Backend mutations produce diffs pushed to the frontend over WebSocket for reactive UI. See the [patch-db crate](https://github.com/Start9Labs/start-technologies/tree/master/shared-libs/crates/patch-db).
 
 ## Build pipeline
 

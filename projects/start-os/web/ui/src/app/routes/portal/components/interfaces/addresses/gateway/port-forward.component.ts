@@ -8,11 +8,13 @@ import { PortCheckIconComponent } from 'src/app/routes/portal/components/port-ch
 import { PortCheckWarningsComponent } from 'src/app/routes/portal/components/port-check-warnings.component'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { formatPortRange } from 'src/app/utils/format-port-range'
 import { DnsGateway } from './dns.component'
 
 export type PortForwardValidationData = {
   gateway: DnsGateway
   port: number
+  count: number
   initialResults?: { portResult: T.CheckPortRes | null }
 }
 
@@ -31,44 +33,63 @@ export type PortForwardValidationData = {
     @let portRes = portResult();
 
     <div class="desktop">
-      <table [appTable]="[null, 'External Port', 'Internal Port', null]">
+      <table
+        [class.range-table]="isRange"
+        [appTable]="
+          isRange
+            ? ['External Range', 'Internal Range']
+            : [null, 'External Port', 'Internal Port', null]
+        "
+      >
         <tr>
-          <td class="status">
-            <port-check-icon [result]="portRes" [loading]="loading()" />
-          </td>
-          <td>{{ context.data.port }}</td>
-          <td>{{ context.data.port }}</td>
-          <td>
-            <button
-              tuiButton
-              size="s"
-              [loading]="loading()"
-              (click)="testPort()"
-            >
-              {{ 'Test' | i18n }}
-            </button>
-          </td>
+          @if (!isRange) {
+            <td class="status">
+              <port-check-icon [result]="portRes" [loading]="loading()" />
+            </td>
+          }
+          <td>{{ portDisplay }}</td>
+          <td>{{ portDisplay }}</td>
+          @if (!isRange) {
+            <td>
+              <button
+                tuiButton
+                size="s"
+                [loading]="loading()"
+                (click)="testPort()"
+              >
+                {{ 'Test' | i18n }}
+              </button>
+            </td>
+          }
         </tr>
       </table>
     </div>
     <div class="mobile">
       <div class="card">
-        <div class="card-status">
-          <port-check-icon [result]="portRes" [loading]="loading()" />
-        </div>
+        @if (!isRange) {
+          <div class="card-status">
+            <port-check-icon [result]="portRes" [loading]="loading()" />
+          </div>
+        }
         <div class="card-fields">
           <div class="field">
-            <span class="field-label">{{ 'External Port' | i18n }}</span>
-            <span>{{ context.data.port }}</span>
+            <span class="field-label">
+              {{ (isRange ? 'External Range' : 'External Port') | i18n }}
+            </span>
+            <span>{{ portDisplay }}</span>
           </div>
           <div class="field">
-            <span class="field-label">{{ 'Internal Port' | i18n }}</span>
-            <span>{{ context.data.port }}</span>
+            <span class="field-label">
+              {{ (isRange ? 'Internal Range' : 'Internal Port') | i18n }}
+            </span>
+            <span>{{ portDisplay }}</span>
           </div>
         </div>
-        <button tuiButton size="s" [loading]="loading()" (click)="testPort()">
-          {{ 'Test' | i18n }}
-        </button>
+        @if (!isRange) {
+          <button tuiButton size="s" [loading]="loading()" (click)="testPort()">
+            {{ 'Test' | i18n }}
+          </button>
+        }
       </div>
     </div>
 
@@ -118,6 +139,12 @@ export type PortForwardValidationData = {
 
     td:last-child {
       text-align: end;
+    }
+
+    // A range table has no status/Test columns, so its last cell is the
+    // internal-range value — keep it left-aligned with its header.
+    .range-table td:last-child {
+      text-align: start;
     }
 
     footer {
@@ -189,12 +216,23 @@ export class PortForwardValidationComponent {
   readonly context =
     injectContext<TuiDialogContext<void, PortForwardValidationData>>()
 
+  // A port range forwards a span of ports and can't be tested a port at a time.
+  readonly isRange = this.context.data.count > 1
+  readonly portDisplay = formatPortRange(
+    this.context.data.port,
+    this.context.data.count,
+  )
+
   readonly loading = signal(false)
   readonly portResult = signal<T.CheckPortRes | undefined>(undefined)
 
   readonly portOk = computed(() => {
     const result = this.portResult()
-    return !!result?.openInternally && !!result?.openExternally
+    return (
+      !!result?.openInternally &&
+      !!result?.openExternally &&
+      !!result?.hairpinning
+    )
   })
 
   readonly isManualMode = !this.context.data.initialResults

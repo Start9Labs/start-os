@@ -13,6 +13,7 @@ import { PortCheckWarningsComponent } from 'src/app/routes/portal/components/por
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { formatPortRange } from 'src/app/utils/format-port-range'
 
 export type PortForwardsModalData = {
   gatewayId: string
@@ -33,10 +34,6 @@ function parseSocketAddr(s: string): { ip: string; port: number } {
     ip: s.substring(0, lastColon),
     port: Number(s.substring(lastColon + 1)),
   }
-}
-
-function formatPortRange(start: number, count: number): string {
-  return count > 1 ? `${start}-${start + count - 1}` : `${start}`
 }
 
 @Component({
@@ -181,11 +178,16 @@ export class PortForwardsModalComponent {
             pkgId
 
           for (const [hostId, host] of Object.entries(pkg.hosts)) {
-            // Find interface names pointing to this host
+            // Interface names exported from this host's bindings + ranges
             const ifaceNames: string[] = []
-            for (const iface of Object.values(pkg.serviceInterfaces)) {
-              if (iface.addressInfo.hostId === hostId) {
+            for (const binding of Object.values(host.bindings)) {
+              for (const iface of Object.values(binding.interfaces)) {
                 ifaceNames.push(`${title} - ${iface.name}`)
+              }
+            }
+            for (const range of Object.values(host.bindingRanges)) {
+              if (range.interface) {
+                ifaceNames.push(`${title} - ${range.interface.name}`)
               }
             }
 

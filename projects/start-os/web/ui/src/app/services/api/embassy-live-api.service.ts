@@ -31,7 +31,6 @@ import {
   PkgAddPrivateDomainReq,
   PkgAddPublicDomainReq,
   PkgBindingSetAddressEnabledReq,
-  PkgBindingSetRangeAccessReq,
   PkgRemovePrivateDomainReq,
   PkgRemovePublicDomainReq,
   ServerBindingSetAddressEnabledReq,
@@ -674,11 +673,11 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async pkgBindingSetRangeAccess(
-    params: PkgBindingSetRangeAccessReq,
+  async pkgBindingSetRangeAddressEnabled(
+    params: PkgBindingSetAddressEnabledReq,
   ): Promise<null> {
     return this.rpcRequest({
-      method: 'package.host.binding.set-range-gateway-access',
+      method: 'package.host.binding.set-range-address-enabled',
       params,
     })
   }

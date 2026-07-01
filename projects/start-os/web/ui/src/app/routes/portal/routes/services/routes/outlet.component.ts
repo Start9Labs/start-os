@@ -191,26 +191,11 @@ export class ServiceOutletComponent {
   private readonly router = inject(Router)
   private readonly params = inject(ActivatedRoute).paramMap
 
-  // Port Ranges only appears when the service has a contiguous port-range
-  // binding on one of its hosts.
   protected readonly nav = computed<NavItem[]>(() => {
-    const pkg = this.service()
-    const hasRanges = Object.values(pkg?.hosts ?? {}).some(
-      host => Object.keys(host.bindingRanges ?? {}).length > 0,
-    )
-
     const items: NavItem[] = [
       { title: 'dashboard', icon: '@tui.layout-dashboard', link: './' },
       { title: 'interfaces', icon: '@tui.monitor', link: 'interfaces' },
     ]
-
-    if (hasRanges) {
-      items.push({
-        title: 'port ranges',
-        icon: '@tui.chevrons-left-right-ellipsis',
-        link: 'port-ranges',
-      })
-    }
 
     items.push(
       { title: 'actions & config', icon: '@tui.cog', link: 'actions' },

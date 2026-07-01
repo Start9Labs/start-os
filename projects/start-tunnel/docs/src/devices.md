@@ -33,9 +33,9 @@ A Server has two independently-toggleable capabilities, shown as switches in the
 
 Only enable these for servers you trust. Clients have neither capability.
 
-## Promoting and demoting
+## Changing a device's role
 
-Use a device's actions menu to **Promote to Server** or **Demote to Client**. Promoting turns both Server capabilities on; demoting turns them off and moves the device to the Clients table.
+Use a device's actions menu to **Change to Server** or **Change to Client**. Changing to Server turns both Server capabilities on; changing to Client turns them off and moves the device to the Clients table.
 
 ## Removing a Device
 

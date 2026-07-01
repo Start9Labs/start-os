@@ -99,11 +99,52 @@ export class InterfaceService {
     const binding = host.bindings[serviceInterface.addressInfo.internalPort]
     if (!binding) return []
 
-    const addr = binding.addresses
-    const masked = serviceInterface.masked
-    const ui = serviceInterface.type === 'ui'
-    const { addSsl, secure } = binding.options
+    return this.buildGatewayGroups(
+      binding.addresses,
+      serviceInterface.addressInfo,
+      serviceInterface.masked,
+      serviceInterface.type === 'ui',
+      binding.options.addSsl,
+      binding.options.secure,
+      host,
+      gateways,
+    )
+  }
 
+  // Port ranges reuse the same per-gateway address grouping, but their
+  // addresses live on the range binding and are always non-SSL (no cert/CA).
+  // `numberOfPorts` drives the port-span shown in URLs and forwarding rules.
+  getRangeGatewayGroups(
+    addressInfo: T.AddressInfo,
+    addresses: T.DerivedAddressInfo,
+    host: T.Host,
+    gateways: GatewayPlus[],
+    numberOfPorts: number,
+  ): GatewayAddressGroup[] {
+    return this.buildGatewayGroups(
+      addresses,
+      addressInfo,
+      false,
+      false,
+      null,
+      null,
+      host,
+      gateways,
+      numberOfPorts,
+    )
+  }
+
+  private buildGatewayGroups(
+    addr: T.DerivedAddressInfo,
+    addressInfo: T.AddressInfo,
+    masked: boolean,
+    ui: boolean,
+    addSsl: T.AddSslOptions | null,
+    secure: T.Security | null,
+    host: T.Host,
+    gateways: GatewayPlus[],
+    count = 1,
+  ): GatewayAddressGroup[] {
     const groupMap = new Map<string, GatewayAddress[]>()
     const gatewayMap = new Map<string, GatewayPlus>()
 
@@ -126,7 +167,13 @@ export class InterfaceService {
           enabled: isEnabled(addr, h),
           type: getAddressType(h),
           access: h.public ? 'public' : 'private',
-          url: utils.addressHostToUrl(serviceInterface.addressInfo, h),
+          // A port range exposes a span of ports, not one, so its URL is the
+          // bare host (no port) — the span is shown once in the interface
+          // header, never faked onto a per-row URL that no one would copy.
+          url:
+            count > 1
+              ? utils.addressHostToUrl(addressInfo, { ...h, port: null })
+              : utils.addressHostToUrl(addressInfo, h),
           hostnameInfo: h,
           masked,
           ui,
@@ -134,6 +181,7 @@ export class InterfaceService {
             h.metadata.kind === 'private-domain' ||
             h.metadata.kind === 'public-domain',
           certificate: getCertificate(h, host, addSsl, secure),
+          count,
         })
       }
     }
@@ -324,6 +372,9 @@ export type GatewayAddress = {
   ui: boolean
   deletable: boolean
   certificate: string
+  // Number of forwarded ports: 1 for a single-port binding, the range span for
+  // a port range. Drives the port-span shown in forwarding rules.
+  count: number
 }
 
 export type GatewayAddressGroup = {

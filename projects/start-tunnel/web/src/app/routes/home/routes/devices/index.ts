@@ -8,6 +8,7 @@ import {
   TuiButton,
   TuiDataList,
   TuiDropdown,
+  TuiIcon,
   TuiLoader,
   TuiTitle,
 } from '@taiga-ui/core'
@@ -36,6 +37,7 @@ import { MappedDevice } from './utils'
   template: `
     <div tuiCardLarge="compact" appearance="floating">
       <header tuiHeader="body-l">
+        <tui-icon icon="@tui.server" />
         <h3 tuiTitle>Servers</h3>
         <aside tuiAccessories>
           <button tuiButton iconStart="@tui.plus" (click)="onAdd('server')">
@@ -127,10 +129,10 @@ import { MappedDevice } from './utils'
                     </button>
                     <button
                       tuiOption
-                      iconStart="@tui.arrow-down"
+                      iconStart="@tui.laptop"
                       (click)="onSetKind(device, 'client')"
                     >
-                      Demote to Client
+                      Change to Client
                     </button>
                     <button
                       tuiOption
@@ -156,6 +158,7 @@ import { MappedDevice } from './utils'
 
     <div tuiCardLarge="compact" appearance="floating">
       <header tuiHeader="body-l">
+        <tui-icon icon="@tui.laptop" />
         <h3 tuiTitle>Clients</h3>
         <aside tuiAccessories>
           <button tuiButton iconStart="@tui.plus" (click)="onAdd('client')">
@@ -211,10 +214,10 @@ import { MappedDevice } from './utils'
                     </button>
                     <button
                       tuiOption
-                      iconStart="@tui.arrow-up"
+                      iconStart="@tui.server"
                       (click)="onSetKind(device, 'server')"
                     >
-                      Promote to Server
+                      Change to Server
                     </button>
                     <button
                       tuiOption
@@ -256,6 +259,7 @@ import { MappedDevice } from './utils'
     PlaceholderComponent,
     TuiSkeleton,
     TuiHeader,
+    TuiIcon,
     TuiTitle,
   ],
 })

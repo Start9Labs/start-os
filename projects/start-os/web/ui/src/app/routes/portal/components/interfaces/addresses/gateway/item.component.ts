@@ -16,6 +16,7 @@ import { DomainHealthService } from './domain-health.service'
   selector: 'tr[address]',
   host: {
     '[class._disabled]': '!address().enabled',
+    '[class._no-cert]': '!showCert()',
   },
   template: `
     @if (address(); as address) {
@@ -49,21 +50,28 @@ import { DomainHealthService } from './domain-health.service'
           {{ address.type }}
         </span>
       </td>
-      <td>
-        <div class="cert">
-          @if (address.certificate === 'Root CA') {
-            <img src="assets/icons/favicon.svg" alt="" class="cert-icon" />
-          } @else if (address.certificate.startsWith("Let's Encrypt")) {
-            <img src="assets/icons/letsencrypt.svg" alt="" class="cert-icon" />
-          } @else if (
-            address.certificate !== '-' && address.certificate !== 'Self signed'
-          ) {
-            <tui-icon icon="@tui.shield" class="cert-icon" />
-          }
-          {{ address.certificate }}
-        </div>
-      </td>
-      <td>
+      @if (showCert()) {
+        <td class="cert-cell">
+          <div class="cert">
+            @if (address.certificate === 'Root CA') {
+              <img src="assets/icons/favicon.svg" alt="" class="cert-icon" />
+            } @else if (address.certificate.startsWith("Let's Encrypt")) {
+              <img
+                src="assets/icons/letsencrypt.svg"
+                alt=""
+                class="cert-icon"
+              />
+            } @else if (
+              address.certificate !== '-' &&
+              address.certificate !== 'Self signed'
+            ) {
+              <tui-icon icon="@tui.shield" class="cert-icon" />
+            }
+            {{ address.certificate }}
+          </div>
+        </td>
+      }
+      <td class="url-cell">
         <div class="url">
           @if (address.masked && currentlyMasked()) {
             <span>••••••••••••••••••••••••••••••••••••••••••••••••••••</span>
@@ -192,7 +200,7 @@ import { DomainHealthService } from './domain-health.service'
         padding-inline-end: 0.5rem;
       }
 
-      td:nth-child(4) {
+      .cert-cell {
         grid-area: 2 / 1 / 2 / 3;
 
         .cert-icon {
@@ -200,8 +208,13 @@ import { DomainHealthService } from './domain-health.service'
         }
       }
 
-      td:nth-child(5) {
+      .url-cell {
         grid-area: 3 / 1 / 3 / 3;
+      }
+
+      // With no cert row, the URL takes its place directly under the header.
+      &._no-cert .url-cell {
+        grid-area: 2 / 1 / 2 / 3;
       }
 
       td:last-child {
@@ -235,6 +248,14 @@ export class GatewayItemComponent {
 
   readonly toggling = signal(false)
   readonly currentlyMasked = signal(true)
+  // The Certificate Authority column only shows when some address is SSL; kept
+  // in sync with GatewayComponent's header (both derive from the same data).
+  readonly showCert = computed(
+    () =>
+      this.value()?.gatewayGroups.some(g =>
+        g.addresses.some(a => a.certificate !== '-'),
+      ) ?? false,
+  )
   readonly urlHtml = computed(() => {
     const { url, hostnameInfo } = this.address()
     const idx = url.indexOf(hostnameInfo.hostname)
@@ -273,13 +294,20 @@ export class GatewayItemComponent {
 
     try {
       if (this.packageId()) {
-        await this.api.pkgBindingSetAddressEnabled({
+        const params = {
           internalPort: iface.addressInfo.internalPort,
           address: addressJson,
           enabled,
           package: this.packageId(),
           host: iface.addressInfo.hostId,
-        })
+        }
+        // A range spans >1 port and lives in a separate subtree, so it has its
+        // own endpoint; a single-port binding is exactly 1.
+        if (addr.count > 1) {
+          await this.api.pkgBindingSetRangeAddressEnabled(params)
+        } else {
+          await this.api.pkgBindingSetAddressEnabled(params)
+        }
       } else {
         await this.api.serverBindingSetAddressEnabled({
           internalPort: 80,
@@ -295,6 +323,7 @@ export class GatewayItemComponent {
             addr.hostnameInfo.hostname,
             this.gatewayId(),
             addr.hostnameInfo.port,
+            addr.count,
           )
         } else if (kind === 'private-domain') {
           await this.domainHealth.checkPrivateDomain(
@@ -304,7 +333,10 @@ export class GatewayItemComponent {
         } else if (
           kind === 'ipv4' &&
           addr.access === 'public' &&
-          addr.hostnameInfo.port !== null
+          addr.hostnameInfo.port !== null &&
+          // A port range spans many ports; a single-port reachability check
+          // would be misleading, so don't auto-test it on enable.
+          addr.count === 1
         ) {
           await this.domainHealth.checkPortForward(
             this.gatewayId(),
