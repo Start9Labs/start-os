@@ -113,6 +113,7 @@ There is no default build target — bare `make` prints a `help` summary; pass a
 | `startos-$(IMAGE_TYPE)` | Create the full image (`startos-iso`, or `startos-img` for raspberrypi) |
 | `startos-deb` | Build the StartOS Debian package               |
 | `cli` / `registry` / `tunnel` | Build the `start-cli` / `registrybox` / `tunnelbox` binary |
+| `startwrt`    | Build the `startwrt` binary (embeds its web UI; `startwrt-image` for the full OpenWrt image — hours, needs the submodule) |
 | `startos-uis` | Build all StartOS web UIs (`startos-ui` for the main UI only) |
 | `ts-bindings` | Generate the TypeScript bindings from the Rust types |
 
@@ -171,6 +172,7 @@ PLATFORM=$(uname -m) ENVIRONMENT=dev make startos-iso
 | `test-core`              | Run Rust tests                              |
 | `test-sdk`               | Run SDK tests                               |
 | `test-container-runtime` | Run container runtime tests                 |
+| `test-startwrt`          | Run the StartWRT Rust crate tests           |
 | `clean`                  | Delete all compiled artifacts               |
 
 ## Testing
@@ -180,6 +182,7 @@ make test                    # All tests
 make test-core               # Rust tests (via ./shared-libs/crates/start-core/run-tests.sh)
 make test-sdk                # SDK tests
 make test-container-runtime  # Container runtime tests
+make test-startwrt           # StartWRT Rust crate tests
 
 # Run a specific Rust test
 cd shared-libs/crates/start-core && cargo test <test_name> --features=test
@@ -194,7 +197,7 @@ make format          # format every project
 
 # Or scope it to one project:
 make format-core         # shared Rust crates
-make format-cli          # start-cli  (also format-registry / format-tunnel / format-startos)
+make format-cli          # start-cli  (also format-registry / format-tunnel / format-startos / format-startwrt)
 make format-web          # the Angular workspace (shared libs + all app UIs, incl. brochure)
 make format-sdk          # the SDK
 ```

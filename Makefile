@@ -20,8 +20,8 @@ include projects/start-docs/build.mk
 help:
 	@echo "No default target — specify one. Common targets:"
 	@echo "  startos startos-deb startos-squashfs startos-ui startos-uis install-startos   (StartOS)"
-	@echo "  cli cli-deb registry tunnel                                                   (other products)"
-	@echo "  test test-core test-sdk test-container-runtime                                (tests)"
+	@echo "  cli cli-deb registry tunnel startwrt startwrt-image                           (other products)"
+	@echo "  test test-core test-sdk test-container-runtime test-startwrt                  (tests)"
 	@echo "  format format-check ts-bindings clean                                         (tooling)"
 	@echo "See CONTRIBUTING.md for the full list."
 
