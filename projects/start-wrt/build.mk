@@ -22,7 +22,14 @@ STARTWRT_GIT_HASH_FILE := $(STARTWRT_DIR)/build/env/GIT_HASH.txt
 _ := $(shell ./$(STARTWRT_DIR)/build/env/check-git-hash.sh)
 
 STARTWRT_RUST_SRC := $(call ls-files, $(STARTWRT_DIR)/backend)
-STARTWRT_WEB_SRC := $(call ls-files, $(STARTWRT_DIR)/web/src)
+# Shared crates the backend path-depends on (see backend/ctrl/Cargo.toml):
+# start-core (aliased `startos`, covered with patch-db by CORE_SRC from
+# build/common.mk), plus rpc-toolkit and imbl-value. Without these prereqs a
+# shared-crate edit leaves `make startwrt`/`startwrt-update` with a stale binary.
+STARTWRT_SHARED_RUST_SRC := $(CORE_SRC) \
+	$(call ls-files, shared-libs/crates/rpc-toolkit) \
+	$(call ls-files, shared-libs/crates/imbl-value)
+STARTWRT_WEB_SRC := $(call ls-files, $(STARTWRT_DIR)/web)
 
 STARTWRT_OPENWRT := $(STARTWRT_DIR)/openwrt
 STARTWRT_IMAGE_DIR := $(STARTWRT_OPENWRT)/bin/targets/spacemit
@@ -38,7 +45,7 @@ STARTWRT_REMOTE ?= root@192.168.0.1
 # the dockerized cargo-zigbuild toolchain in build/build-rust.sh.
 startwrt: $(STARTWRT_BIN)
 
-$(STARTWRT_BIN): $(STARTWRT_RUST_SRC) $(STARTWRT_WEB_DIST) $(STARTWRT_DIR)/build/build-rust.sh
+$(STARTWRT_BIN): $(STARTWRT_RUST_SRC) $(STARTWRT_SHARED_RUST_SRC) Cargo.toml Cargo.lock $(STARTWRT_WEB_DIST) $(STARTWRT_DIR)/build/build-rust.sh
 	ARCH=$(STARTWRT_ARCH) RUST_ARCH=$(STARTWRT_RUST_ARCH) PROFILE=$(PROFILE) ./$(STARTWRT_DIR)/build/build-rust.sh
 	@touch $(STARTWRT_BIN)
 
