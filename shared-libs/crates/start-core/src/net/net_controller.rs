@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4};
 use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
@@ -289,6 +289,11 @@ struct HostBinds {
     /// no LAN forward, since StartOS serves 80/443 itself). Tracked so the
     /// mapping is withdrawn when 443 stops being publicly exposed.
     redirect_maps: BTreeSet<Ipv4Addr>,
+    /// `(GUA, listener port)` upstream firewall pinholes requested for LAN+WAN
+    /// GUAs. The host's own GUA is the listener (no DNAT), so this is a pure
+    /// PortMapController pinhole. Tracked so it is withdrawn when a GUA leaves
+    /// LAN+WAN or its binding goes away.
+    gua_pinholes: BTreeSet<(Ipv6Addr, u16)>,
 }
 
 pub struct NetServiceData {
@@ -312,6 +317,7 @@ impl NetServiceData {
         let mut forwards: BTreeMap<u16, (SocketAddrV4, u16, ForwardRequirements)> = BTreeMap::new();
         let mut vhosts: BTreeMap<(Option<InternedString>, u16), ProxyTarget> = BTreeMap::new();
         let mut private_dns: BTreeMap<InternedString, BTreeSet<GatewayId>> = BTreeMap::new();
+        let mut gua_pinholes: BTreeSet<(Ipv6Addr, u16)> = BTreeSet::new();
         let binds = self.binds.entry(id.clone()).or_default();
 
         let net_ifaces = ctrl.net_iface.watcher.ip_info();
@@ -329,6 +335,33 @@ impl NetServiceData {
             // to lo / lxcbr0 but never to a gateway (see `enabled_addresses`).
             let enabled_addresses = bind.enabled_addresses();
             let addr: SocketAddr = (self.ip, *port).into();
+
+            // LAN+WAN GUAs: the host's own GUA is the listener (no DNAT), so
+            // rather than a LAN forward we ask the upstream gateway(s) for a
+            // firewall pinhole to the GUA:port (best-effort PCP/NAT-PMP).
+            for a in enabled_addresses.iter().filter(|a| bind.addresses.is_wan(a)) {
+                let Some(gua) = a.gua() else {
+                    continue;
+                };
+                let v6_gateways: Vec<IpAddr> = a
+                    .metadata
+                    .gateways()
+                    .filter_map(|gw| net_ifaces.get(gw))
+                    .flat_map(|info| candidate_gateways(info))
+                    .filter(|g| g.is_ipv6())
+                    .collect();
+                if v6_gateways.is_empty() {
+                    continue;
+                }
+                if gua_pinholes.insert((*gua.ip(), gua.port())) {
+                    ctrl.port_map.ensure(
+                        IpAddr::V6(*gua.ip()),
+                        gua.port(),
+                        gua.port(),
+                        v6_gateways,
+                    );
+                }
+            }
 
             // Key private DNS by its live gateways so the resolver only answers
             // locally over those gateways — works even when also public (split DNS).
@@ -659,6 +692,18 @@ impl NetServiceData {
             ctrl.port_map.remove(IpAddr::V4(ip), 80);
         }
         binds.redirect_maps = redirect_ips;
+
+        // Withdraw GUA pinholes that no longer apply (GUA left LAN+WAN, or the
+        // binding went away).
+        let stale_gua: Vec<(Ipv6Addr, u16)> = binds
+            .gua_pinholes
+            .difference(&gua_pinholes)
+            .copied()
+            .collect();
+        for (ip, port) in stale_gua {
+            ctrl.port_map.remove(IpAddr::V6(ip), port);
+        }
+        binds.gua_pinholes = gua_pinholes;
 
         // ── Phase 3: Reconcile ──
         let all = binds
