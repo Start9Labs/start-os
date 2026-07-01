@@ -59,6 +59,7 @@ pub enum ErrorKind {
     InvalidValue = 1021,
     UciEdit = 1022,
     DhcpStaticHostsInSubnet = 1023,
+    SubnetCollision = 1024,
 }
 
 impl From<ErrorKind> for startos::ErrorKind {
@@ -118,6 +119,7 @@ impl ErrorKind {
             InvalidValue => "Invalid Value",
             UciEdit => "UCI Edit Error",
             DhcpStaticHostsInSubnet => "DHCP Static Hosts in Subnet",
+            SubnetCollision => "Subnet Collision",
         }
     }
 }

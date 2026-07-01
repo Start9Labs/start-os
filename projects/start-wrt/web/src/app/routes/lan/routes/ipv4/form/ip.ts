@@ -58,29 +58,6 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
       </div>
     </fieldset>
     <tui-error [error]="secondOctetError()" />
-    <fieldset>
-      <legend>{{ 'Router IP' | i18n }}</legend>
-      <div tuiGroup>
-        <tui-textfield>
-          <input tuiInput [value]="firstOctet()" disabled />
-        </tui-textfield>
-        <tui-textfield>
-          <input tuiInput [value]="secondOctet()" disabled />
-        </tui-textfield>
-        <tui-textfield>
-          <input
-            tuiInputNumber
-            formControlName="routerOctet"
-            [min]="0"
-            [max]="254"
-          />
-        </tui-textfield>
-        <tui-textfield>
-          <input tuiInput value="1" disabled />
-        </tui-textfield>
-      </div>
-    </fieldset>
-    <tui-error formControlName="routerOctet" />
   `,
   styles: `
     tui-textfield {

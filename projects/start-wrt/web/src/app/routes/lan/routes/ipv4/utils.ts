@@ -105,19 +105,12 @@ export function getLanIpv4Form(builder: NonNullableFormBuilder) {
       // form/ip.ts, since the allowed range depends on the selected first
       // octet); only `required` is static here.
       secondOctet: builder.control(getSecondOctet(192), Validators.required),
-      // TODO @matt - remove routerOctet? The 4th octet in ip.ts was changed
-      // from configurable to a static "1" — it's always 1 by convention, and
-      // making it configurable would complicate DHCP ranges and break user
-      // expectations. That leaves routerOctet (3rd octet) as the only
-      // editable part of the gateway IP here, but it duplicates the Admin
-      // Security Profile's subnet field which sets the same value. It likely
-      // makes sense to remove this form entirely and let the Admin Profile
-      // be the single source of truth for the 3rd octet.
-      routerOctet: builder.control(1, [
-        Validators.required,
-        Validators.min(0),
-        Validators.max(254),
-      ]),
+      // The 3rd octet is no longer editable here — the Admin Security Profile's
+      // subnet field is the single source of truth for it (and enforces the
+      // per-/24 collision guard that this form lacked). It's kept in the model
+      // (populated from the loaded IP, no UI input) so a network-block change
+      // preserves the current subnet and the summary can show the router IP.
+      routerOctet: builder.control(1),
     }),
   })
 }

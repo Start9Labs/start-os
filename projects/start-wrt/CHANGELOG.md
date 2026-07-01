@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Changing the Router IP can no longer strand the network on a colliding subnet.
+  The LAN IPv4 page exposed a "Router IP" (3rd-octet) field that duplicated the
+  Admin Security Profile's subnet field but, unlike it, had no collision guard —
+  so setting the router onto a subnet already used by another profile put two
+  interfaces on the same /24, producing overlapping routes that silently broke
+  all access to the router (unrecoverable even by a keep-settings reflash). The
+  duplicate field is removed (the LAN page now only selects the /16 network
+  block; the Admin profile is the single source of truth for the 3rd octet), and
+  the backend now rejects `profiles.create`/`profiles.edit` requests whose /24
+  collides with an existing profile (including the admin LAN).
+
 - The Settings → General **Build** field no longer goes stale after new commits.
   `build.mk` had lost the wiring that refreshes `build/env/GIT_HASH.txt` on every
   build and treats it as a prerequisite of `web/config.json`, so the UI's `gitHash`
