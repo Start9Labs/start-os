@@ -1311,7 +1311,17 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
       path: '/Desktop/startos-backups-2',
       username: 'TestUser',
       mountable: true,
-      startOs: {},
+      startOs: {
+        '1234-5678-9876-5432': {
+          hostname: 'adjective-noun',
+          timestamp: new Date().toISOString(),
+          version: '0.4.0',
+          passwordHash:
+            // password is asdfasdf
+            '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+          wrappedKey: '',
+        },
+      },
       legacyBackup: { size: 5000000000, available: 50000000000 },
     },
     powjefhjbnwhdva: {

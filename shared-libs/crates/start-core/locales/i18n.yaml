@@ -1363,6 +1363,20 @@ backup.bulk.complete-with-failures:
   fr_FR: "Votre sauvegarde est terminée, mais certains paquets n'ont pas pu être sauvegardés"
   pl_PL: "Twoja kopia zapasowa została zakończona, ale niektóre pakiety nie zostały zapisane"
 
+backup.bulk.legacy-present-title:
+  en_US: "Old Backup Still Present"
+  de_DE: "Alte Sicherung noch vorhanden"
+  es_ES: "Copia de seguridad antigua aún presente"
+  fr_FR: "Ancienne sauvegarde toujours présente"
+  pl_PL: "Stara kopia zapasowa nadal obecna"
+
+backup.bulk.legacy-present-message:
+  en_US: "This backup target still contains an old-format (V1) backup that is no longer needed. To free up space on the drive, go to the backup creation page and delete it."
+  de_DE: "Dieses Sicherungsziel enthält noch eine Sicherung im alten Format (V1), die nicht mehr benötigt wird. Um Speicherplatz auf dem Laufwerk freizugeben, öffnen Sie die Seite zur Sicherungserstellung und löschen Sie sie."
+  es_ES: "Este destino de copia de seguridad todavía contiene una copia en formato antiguo (V1) que ya no es necesaria. Para liberar espacio en la unidad, vaya a la página de creación de copias de seguridad y elimínela."
+  fr_FR: "Cette cible de sauvegarde contient encore une sauvegarde à l'ancien format (V1) qui n'est plus nécessaire. Pour libérer de l'espace sur le disque, accédez à la page de création de sauvegarde et supprimez-la."
+  pl_PL: "Ten cel kopii zapasowej nadal zawiera kopię w starym formacie (V1), która nie jest już potrzebna. Aby zwolnić miejsce na dysku, przejdź do strony tworzenia kopii zapasowej i usuń ją."
+
 backup.bulk.failed-error:
   en_US: "Backup Failed: %{error}"
   de_DE: "Sicherung fehlgeschlagen: %{error}"
@@ -4954,6 +4968,13 @@ about.create-developer-key:
   es_ES: "Crear una nueva clave de desarrollador"
   fr_FR: "Créer une nouvelle clé de développeur"
   pl_PL: "Utwórz nowy klucz deweloperski"
+
+about.delete-legacy-backup:
+  en_US: "Delete the legacy (V1) backup from a backup target"
+  de_DE: "Die alte (V1) Sicherung von einem Sicherungsziel löschen"
+  es_ES: "Eliminar la copia de seguridad heredada (V1) de un destino de copia de seguridad"
+  fr_FR: "Supprimer la sauvegarde héritée (V1) d'une cible de sauvegarde"
+  pl_PL: "Usuń starą kopię zapasową (V1) z celu kopii zapasowej"
 
 about.disable-kiosk-mode:
   en_US: "Disable kiosk mode"

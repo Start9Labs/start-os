@@ -55,6 +55,7 @@ impl BackupStatusGuard {
     }
     async fn handle_result(
         mut self,
+        legacy_backup: bool,
         result: Result<BTreeMap<PackageId, PackageBackupReport>, Error>,
     ) -> Result<(), Error> {
         if let Some(db) = self.0.as_ref() {
@@ -85,7 +86,11 @@ impl BackupStatusGuard {
                                 },
                                 packages: report,
                             },
-                        )
+                        )?;
+                        if legacy_backup {
+                            notify_legacy_present(db)?;
+                        }
+                        Ok(())
                     })
                     .await
                 }
@@ -104,7 +109,11 @@ impl BackupStatusGuard {
                                 },
                                 packages: report,
                             },
-                        )
+                        )?;
+                        if legacy_backup {
+                            notify_legacy_present(db)?;
+                        }
+                        Ok(())
                     })
                     .await
                 }
@@ -153,6 +162,19 @@ impl Drop for BackupStatusGuard {
             });
         }
     }
+}
+
+/// Warn that the just-backed-up target still holds a pre-V2 `StartOSBackups`
+/// folder, which is now redundant and can be removed from the backup create page.
+fn notify_legacy_present(db: &mut DatabaseModel) -> Result<(), Error> {
+    notify(
+        db,
+        None,
+        NotificationLevel::Warning,
+        t!("backup.bulk.legacy-present-title").to_string(),
+        t!("backup.bulk.legacy-present-message").to_string(),
+        (),
+    )
 }
 
 #[instrument(skip(ctx, old_password, password))]
@@ -209,9 +231,14 @@ pub async fn backup_all(
     if old_password.is_some() {
         backup_guard.change_password(&password)?;
     }
+    let legacy_present =
+        crate::disk::util::has_legacy_backup(backup_guard.backup_disk_path()).await;
     tokio::task::spawn(async move {
         status_guard
-            .handle_result(perform_backup(&ctx, backup_guard, &package_ids).await)
+            .handle_result(
+                legacy_present,
+                perform_backup(&ctx, backup_guard, &package_ids).await,
+            )
             .await
             .unwrap();
     });

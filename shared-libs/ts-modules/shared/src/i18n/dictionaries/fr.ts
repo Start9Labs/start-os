@@ -792,4 +792,8 @@ export default {
   883: 'Plage externe',
   884: 'Plage interne',
   885: 'Ou activez la redirection de port automatique (PCP) sur la passerelle. UPnP et NAT-PMP ne prennent pas en charge les plages de ports.',
+  887: "Supprimer l'ancienne sauvegarde",
+  888: 'Ancienne sauvegarde supprimée',
+  889: "Supprimer l'ancienne sauvegarde ?",
+  890: "Supprimer définitivement l'ancienne sauvegarde (V1) de cette cible ? Cette action est irréversible. Votre sauvegarde actuelle (V2) ne sera pas affectée.",
 } satisfies i18n

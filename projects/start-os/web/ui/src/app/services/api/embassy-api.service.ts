@@ -240,6 +240,8 @@ export abstract class ApiService {
 
   abstract removeBackupTarget(params: T.CifsRemoveParams): Promise<null>
 
+  abstract deleteLegacyBackup(params: T.DeleteLegacyParams): Promise<null>
+
   abstract getBackupInfo(params: T.InfoParams): Promise<T.BackupInfo>
 
   abstract createBackup(params: T.BackupParams): Promise<null>

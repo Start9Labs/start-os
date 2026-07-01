@@ -175,6 +175,13 @@ pub fn target<C: Context>() -> ParentHandler<C> {
                 .with_about("about.unmount-backup-target")
                 .with_call_remote::<CliContext>(),
         )
+        .subcommand(
+            "delete-legacy",
+            from_fn_async(delete_legacy)
+                .no_display()
+                .with_about("about.delete-legacy-backup")
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 // #[command(display(display_serializable))]
@@ -424,5 +431,28 @@ pub async fn umount(_: RpcContext, UmountParams { target_id }: UmountParams) -> 
         }
     }
 
+    Ok(())
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct DeleteLegacyParams {
+    #[arg(help = "help.arg.backup-target-id")]
+    target_id: BackupTargetId,
+}
+
+/// Delete the pre-V2 `StartOSBackups` folder from a target, freeing the space it
+/// occupied. The current `StartOSBackupsV2` data is untouched. No-op if absent.
+#[instrument(skip_all)]
+pub async fn delete_legacy(
+    ctx: RpcContext,
+    DeleteLegacyParams { target_id }: DeleteLegacyParams,
+) -> Result<(), Error> {
+    let guard = TmpMountGuard::mount(&target_id.load(&ctx.db.peek().await)?, ReadWrite).await?;
+    crate::util::io::delete_dir(guard.path().join(crate::disk::LEGACY_BACKUP_DIR_NAME)).await?;
+    guard.unmount().await?;
     Ok(())
 }
