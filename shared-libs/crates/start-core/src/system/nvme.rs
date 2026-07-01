@@ -1,5 +1,4 @@
 use std::path::Path;
-use tracing::warn;
 
 #[derive(Debug, PartialEq)]
 pub struct NvmeQuirkStatus {
@@ -17,25 +16,11 @@ pub async fn check_nvme_quirks() -> Result<(), std::io::Error> {
     if status.nvme_detected {
         tracing::info!("NVMe controllers detected. Verifying power transition and Host Memory Buffer quirks...");
         
-        if let Some(false) = status.hmb_disabled {
-            warn!(
-                "NVMe Quirk Warning: Host Memory Buffer (HMB) might be enabled on this system! \
-                Under sustained write load (like Bitcoin sync), HMB can interact badly with power management \
-                and wedge DRAM-less NVMe controllers (such as Samsung 990 EVO Plus). \
-                Please consider adding 'nvme.max_host_mem_size_mb=0' to your kernel command line via GRUB if you experience resets."
-            );
-        } else if let Some(true) = status.hmb_disabled {
+        if let Some(true) = status.hmb_disabled {
             tracing::info!("NVMe Quirk Check: Host Memory Buffer (HMB) is successfully disabled via kernel cmdline.");
         }
 
-        if let Some(false) = status.apst_disabled {
-            warn!(
-                "NVMe Quirk Warning: Autonomous Power State Transitions (APST) might be enabled on this system! \
-                Power state transitions can wedge NVMe controllers. It is highly recommended to disable them \
-                if you experience filesystem read-only errors. \
-                Please consider adding 'nvme_core.default_ps_max_latency_us=0' to your kernel command line via GRUB."
-            );
-        } else if let Some(true) = status.apst_disabled {
+        if let Some(true) = status.apst_disabled {
             tracing::info!("NVMe Quirk Check: Autonomous Power State Transitions (APST) are successfully disabled (latency set to 0 via cmdline).");
         }
     } else {
