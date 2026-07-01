@@ -93,7 +93,7 @@ toolchain pinned to the SpaceMiT K1 ISA (`build/build-rust.sh` + `build/zigcc-k1
 ### Build Steps
 
 ```
-1. npm --prefix web run build      →  web/dist/ (Angular production build, embedded next)
+1. npm run build:wrt               →  web/dist/startwrt/browser/ (Angular production build, embedded next)
 2. build/build-rust.sh             →  target/riscv64gc-unknown-linux-musl/release/startwrt
 3. build/stage-files.sh            →  openwrt/files/ (binary + configs + init scripts)
 4. make -C openwrt                 →  openwrt/bin/targets/spacemit/*.img

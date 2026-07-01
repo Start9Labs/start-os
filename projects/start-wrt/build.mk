@@ -35,10 +35,14 @@ $(STARTWRT_BIN): $(STARTWRT_RUST_SRC) $(STARTWRT_WEB_DIST) $(STARTWRT_DIR)/build
 	ARCH=$(STARTWRT_ARCH) RUST_ARCH=$(STARTWRT_RUST_ARCH) PROFILE=$(PROFILE) ./$(STARTWRT_DIR)/build/build-rust.sh
 	@touch $(STARTWRT_BIN)
 
-# --- web (standalone Angular workspace in Stage A; own package.json) ---
-$(STARTWRT_WEB_DIST): $(STARTWRT_WEB_SRC) $(STARTWRT_DIR)/web/package-lock.json $(STARTWRT_WEB_CONFIG)
-	npm --prefix $(STARTWRT_DIR)/web ci
-	npm --prefix $(STARTWRT_DIR)/web run build
+# --- web (Angular project in the root workspace; built via `npm run build:wrt`) ---
+# Shares the workspace deps/build:deps machinery with the other apps: WEB_SHARED_SRC
+# and .angular/.updated carry the shared libs + the @start9labs/start-core / patch-db
+# client file: deps (defined in shared-libs/ts-modules/build.mk). $(STARTWRT_WEB_CONFIG)
+# is start-wrt's own runtime config.json (separate from the root workspace config.json).
+$(STARTWRT_WEB_DIST): $(STARTWRT_WEB_SRC) $(WEB_SHARED_SRC) .angular/.updated $(STARTWRT_WEB_CONFIG)
+	npm --prefix . run build:wrt
+	touch $(STARTWRT_WEB_DIST)
 
 # Prod config: useMocks=false + gitHash stamped from the product's own
 # build/env/GIT_HASH.txt (independent of the monorepo-root stamp).
@@ -94,18 +98,16 @@ startwrt-update: $(STARTWRT_BIN)
 .PHONY: clean-startwrt
 clean-startwrt:
 	rm -f results/$(STARTWRT_SDCARD_NAME) results/$(STARTWRT_SYSUPGRADE_NAME)
-	rm -rf $(STARTWRT_DIR)/web/dist $(STARTWRT_DIR)/web/.angular
+	rm -rf $(STARTWRT_DIR)/web/dist
 	rm -rf $(STARTWRT_OPENWRT)/files
 	rm -rf $(STARTWRT_OPENWRT)/build_dir $(STARTWRT_OPENWRT)/staging_dir $(STARTWRT_OPENWRT)/tmp $(STARTWRT_OPENWRT)/bin
 	rm -f $(STARTWRT_OPENWRT)/.config
 
-# The web app is standalone in Stage A (its own prettier config); this is the
-# Rust crate. (When the web joins the root Angular workspace in Stage B, fold
-# its formatting into `format-web`.)
+# The web app is part of the root Angular workspace; its prettier formatting runs
+# through `format-web`/`format-check-web`. This target is just the Rust crate.
 .PHONY: format-startwrt format-check-startwrt
 format-startwrt:
 	cargo +nightly fmt -p startwrt-core -p uciedit -p uciedit_macros
-	npm --prefix $(STARTWRT_DIR)/web run format 2>/dev/null || true
 
 format-check-startwrt:
 	cargo +nightly fmt --check -p startwrt-core -p uciedit -p uciedit_macros

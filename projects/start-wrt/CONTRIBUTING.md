@@ -32,16 +32,18 @@ bypass `/etc/shadow`.
 > The host build embeds the web UI via `include_dir!`, so it needs `projects/start-wrt/web/dist/`
 > to exist — run the web build first (below), or build the full binary with `make startwrt`.
 
-## Frontend (Angular, standalone in this stage)
+## Frontend (Angular, in the root workspace)
 
-The web app keeps its own `package.json`/`node_modules` and is **not** part of the root Angular
-workspace yet (that's a later migration stage). Use `--prefix`:
+The web app is the `start-wrt` project in the root Angular workspace — it shares the root
+`package.json`/`node_modules`/`tsconfig.json`. Run everything from the repo root:
 
 ```bash
-npm --prefix projects/start-wrt/web ci         # install
-npm --prefix projects/start-wrt/web start      # dev server (mock API, no backend needed)
-npm --prefix projects/start-wrt/web run build  # production build → web/dist/
-npm --prefix projects/start-wrt/web run check  # type-check
+npm ci                  # install the whole workspace
+npm run build:deps      # build the file: deps (@start9labs/start-core, patch-db client) — once after install
+npm run start:wrt       # dev server (mock API, no backend needed) — stamps config.json first
+npm run build:wrt       # production build → projects/start-wrt/web/dist/startwrt/browser/
+npm run check:wrt       # type-check
+npm run check:i18n:wrt  # i18n dictionary check
 ```
 
 ## Building / deploying (via the root Makefile)

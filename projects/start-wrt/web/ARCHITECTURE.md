@@ -120,12 +120,7 @@ export default [
 @Component({
   template: `
     <header tuiHeader="h6"><h2 tuiTitle>Settings</h2></header>
-    <form
-      [formGroup]="form"
-      [formLoading]="!service.data()"
-      (reset.prevent)="form.reset(service.data())"
-      (ngSubmit)="onSave()"
-    >
+    <form [formGroup]="form" [formLoading]="!service.data()" (reset.prevent)="form.reset(service.data())" (ngSubmit)="onSave()">
       <!-- form fields -->
       @if (service.data()) {
         <footer appFooter></footer>

@@ -35,12 +35,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build orchestration moved from the standalone product `Makefile` to
   `projects/start-wrt/build.mk` (included by the root `Makefile`): `make startwrt`,
   `make startwrt-image`, `make startwrt-update`.
-
-### Notes
-
-- The Angular web app remains a standalone workspace (its own `package.json`) in this
-  stage; folding it into the root Angular workspace and adopting `@start9labs/shared`
-  is planned for a follow-up.
+- The Angular web UI is now a project (`start-wrt`) in the **root Angular workspace**
+  instead of a standalone app. It shares the root `package.json`/`node_modules`/
+  `tsconfig.json` and builds via `npm run build:wrt` (serve `npm run start:wrt`,
+  type-check `npm run check:wrt`) — and so upgrades in lockstep with the other Start9
+  Angular apps. Its hand-mirrored utilities (`HttpService`, `ErrorService`,
+  `RELATIVE_URL`, `pauseFor`, the markdown pipe) were replaced with real
+  `@start9labs/shared` imports; `WorkspaceConfig`, the WebSocket progress types, and the
+  i18n-routed `validation-errors` provider stay local where the shared shapes don't fit.
 
 ## [0.1.0-beta.3]
 

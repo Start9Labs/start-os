@@ -15,33 +15,35 @@ This sub-tree's docs split across four files:
 
 ## Testing
 
-There is no test framework wired up in this project — `package.json` has no `test` script and no Jest/Karma/Vitest dependencies. Type-check via `npm run check`. Don't add a test framework without discussing first.
+There is no test framework wired up for this app — the workspace has no `test` runner (Jest/Karma/Vitest) for it. Type-check via `npm run check:wrt`. Don't add a test framework without discussing first.
 
 ## Tech Stack
 
-- **Angular 21** with zoneless change detection and standalone components
-- **TypeScript 5.9** in strict mode
+- **Angular 22** with zoneless change detection and standalone components
+- **TypeScript 6** in strict mode
 - **[Taiga UI v5](https://taiga-ui.dev/next)** component library
 - **Signal-based state management** (no external store library)
 - **SCSS** for styling, using Taiga CSS variables for theming
 
 ## Getting Started
 
+The web is the `start-wrt` project in the root Angular workspace — run everything from the repo root:
+
 ```bash
-cd web
-cp config-sample.json config.json    # One-time: create your local config
-npm ci                                # Install dependencies
-npm start                             # Dev server with mock API
-npm run build                         # Production build
-npm run check                         # Type-check without emitting
+cp projects/start-wrt/web/config-sample.json projects/start-wrt/web/config.json  # One-time: local config
+npm ci                                # Install the whole workspace
+npm run build:deps                    # Build the file: deps — once after install
+npm run start:wrt                     # Dev server with mock API
+npm run build:wrt                     # Production build
+npm run check:wrt                     # Type-check without emitting
 ```
 
 ### Configuring config.json
 
 `config.json` is **gitignored** — it's generated from `config-sample.json`:
 
-- **Local dev:** `cp config-sample.json config.json`, then edit freely. `npm start` / `npm run build` run `build-config.js` first, which stamps the current git hash into `gitHash`.
-- **Production / CI:** `make image` triggers `web/update-config.sh`, which flips `useMocks` to `false` and stamps `gitHash` from `build/env/GIT_HASH.txt`.
+- **Local dev:** `cp config-sample.json config.json`, then edit freely. `npm run start:wrt` runs `build-config.js` first, which stamps the current git hash into `gitHash`.
+- **Production / CI:** `make startwrt` triggers `web/update-config.sh`, which flips `useMocks` to `false` and stamps `gitHash` from `build/env/GIT_HASH.txt`.
 
 Schema:
 
@@ -162,11 +164,7 @@ When you're unsure how to use a Taiga component:
      "mcpServers": {
        "taiga-ui": {
          "command": "npx",
-         "args": [
-           "-y",
-           "@anthropic-ai/mcp-remote@latest",
-           "https://taiga-ui.dev/next/api/mcp/sse"
-         ]
+         "args": ["-y", "@anthropic-ai/mcp-remote@latest", "https://taiga-ui.dev/next/api/mcp/sse"]
        }
      }
    }

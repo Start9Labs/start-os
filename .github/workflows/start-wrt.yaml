@@ -13,9 +13,9 @@ on:
         description: Also build the full OpenWrt image (slow)
         default: false
   # `paths:` below mirror projects/start-wrt/build.mk's build inputs — keep
-  # both in sync (see root AGENTS.md "Coupled changes"). The web is standalone
-  # in Stage A, so it is covered by "projects/start-wrt/**" (not the root
-  # angular.json/package.json).
+  # both in sync (see root AGENTS.md "Coupled changes"). The web is part of the
+  # root Angular workspace, so the workspace inputs (shared-libs/ts-modules/**,
+  # angular.json, package.json, package-lock.json, tsconfig.json) are listed too.
   push:
     branches:
       - master
@@ -23,8 +23,13 @@ on:
     paths:
       - "projects/start-wrt/**"
       - "shared-libs/crates/**"
+      - "shared-libs/ts-modules/**"
       - "Cargo.toml"
       - "Cargo.lock"
+      - "angular.json"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
       - "build/**"
       - ".github/workflows/start-wrt.yaml"
       - ".github/actions/setup-build/**"
@@ -35,8 +40,13 @@ on:
     paths:
       - "projects/start-wrt/**"
       - "shared-libs/crates/**"
+      - "shared-libs/ts-modules/**"
       - "Cargo.toml"
       - "Cargo.lock"
+      - "angular.json"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
       - "build/**"
       - ".github/workflows/start-wrt.yaml"
       - ".github/actions/setup-build/**"

@@ -72,13 +72,15 @@ export class WifiService extends FormService<WifiConfig> {
     // NOT discard it, throw so the dialog can close and surface it instead of
     // spinning forever.
     this.connection.suppress()
-    return this.api.wifiSet({ ...data, confirmPublishedPortDeletion: true }).then(
-      () => true,
-      e => {
-        if (isNetworkError(e)) return false
-        throw e
-      },
-    )
+    return this.api
+      .wifiSet({ ...data, confirmPublishedPortDeletion: true })
+      .then(
+        () => true,
+        e => {
+          if (isNetworkError(e)) return false
+          throw e
+        },
+      )
   }
 
   async deletePassword(index: number) {

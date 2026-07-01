@@ -1,16 +1,19 @@
 # Web — StartWRT Admin UI
 
-Single-page application for managing the StartWRT router. Angular 21, TypeScript 5.9, Taiga UI v5. Signal-based state, zoneless change detection, standalone components.
+Single-page application for managing the StartWRT router. Angular 22, TypeScript 6, Taiga UI v5. Signal-based state, zoneless change detection, standalone components.
 
 Communicates with the backend over JSON-RPC 2.0 at `/rpc/v1`. Every page includes contextual help via a collapsible aside panel.
+
+It is the `start-wrt` project in the **root Angular workspace** — run all commands from the repo root.
 
 ## Quick Start
 
 ```bash
-npm ci          # Install dependencies
-npm start       # Dev server (mock API by default)
-npm run build   # Production build
-npm run check   # Type-check without emitting
+npm ci               # Install the whole workspace
+npm run build:deps   # Build the file: deps (@start9labs/start-core, patch-db client) — once after install
+npm run start:wrt    # Dev server (mock API by default)
+npm run build:wrt    # Production build → web/dist/startwrt/browser/
+npm run check:wrt    # Type-check without emitting
 ```
 
 The dev server uses mock data by default (`config.json` → `useMocks: true`), so no router or running backend is needed.

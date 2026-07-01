@@ -1,16 +1,20 @@
 # AGENTS.md
 
 Angular + Taiga UI frontend for StartWRT. Assumes you've read the parent
-[`../AGENTS.md`](../AGENTS.md) — note especially that this web app is **standalone** in the
-current migration stage (its own `package.json`/`node_modules`/`angular.json`, *not* the root
-Angular workspace); build/serve it with `npm --prefix projects/start-wrt/web …`.
+[`../AGENTS.md`](../AGENTS.md) — this web app is the `start-wrt` project in the **root Angular
+workspace** (it shares the root `package.json`/`node_modules`/`tsconfig.json` and upgrades in
+lockstep with the other apps). Build/serve/check it from the repo root: `npm run build:wrt`,
+`npm run start:wrt`, `npm run check:wrt`. It uses `@start9labs/shared` for common utilities
+(`HttpService`, `ErrorService`, `RELATIVE_URL`, `pauseFor`, the markdown pipe); a few things stay
+local where the shared shapes don't fit — `WorkspaceConfig` (start-wrt's flat `config.json`), the
+WebSocket progress types, and the i18n-routed `validation-errors` provider.
 
 ## Operating rules
 
 - **Taiga-first.** Use Taiga components, directives, and APIs whenever possible. Don't hand-roll HTML/CSS unless nothing in Taiga fits.
 - **When unsure about a Taiga API, look it up.** Don't guess component names, inputs, or directives — see CONTRIBUTING.md § Taiga UI Lookup for the WebFetch URL and MCP server config.
 - **Pattern-match.** Search the codebase for an analogous existing route/component before writing new code. Copy the conventions used in neighbours (e.g. `routes/published-ports/` for the table + dialog pattern).
-- **No test framework is wired up here** (no Jest/Karma/Vitest in `package.json`). Don't add one without asking.
+- **No test framework is wired up here** (no Jest/Karma/Vitest in the workspace). Don't add one without asking.
 
 ## Taiga 5 idioms to default to
 

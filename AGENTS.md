@@ -18,7 +18,7 @@ Each product lives under `projects/` as a thin wrapper; the bulk of the code liv
 - `projects/start-cli/` — `start-cli` bin (`src/main.rs`); thin wrapper over `start-core`.
 - `projects/start-registry/` — `registrybox` bin; registry server, serves the shared marketplace UI lib.
 - `projects/start-tunnel/` — `tunnelbox` bin + `web/` (StartTunnel UI).
-- `projects/start-wrt/` — StartWRT, an OpenWrt-based router OS. Rust backend (`startwrt` bin: RPC daemon + CLI, crates `ctrl`/`uciedit`/`uciedit_macros`) building on shared `start-core`; a **standalone** Angular `web/` UI (own `package.json`, not the root workspace — for now) embedded into the binary; `openwrt/` git submodule; flashable image for the SpaceMiT K1.
+- `projects/start-wrt/` — StartWRT, an OpenWrt-based router OS. Rust backend (`startwrt` bin: RPC daemon + CLI, crates `ctrl`/`uciedit`/`uciedit_macros`) building on shared `start-core`; an Angular `web/` UI (a project in the root Angular workspace) embedded into the binary; `openwrt/` git submodule; flashable image for the SpaceMiT K1.
 - `projects/start-sdk/` — `@start9labs/start-sdk` (flattened, source in `lib/`; imports the shared `@start9labs/start-core` lib and bundles it into its published `dist/`) + `Makefile`/`s9pk.mk` + `docs/` (packaging mdbook).
 - `projects/brochure-marketplace/` — public marketplace/landing Angular app (deploys to marketplace.start9.com).
 - `projects/start-docs/` — the documentation website (build infra + landing + Bitcoin guides; each product's own book lives in its `docs/`).
@@ -64,7 +64,7 @@ Already enforced or checked elsewhere (listed here for completeness; documented 
 - [`projects/start-cli/AGENTS.md`](projects/start-cli/AGENTS.md) — CLI wrapper over `start-core`
 - [`projects/start-registry/AGENTS.md`](projects/start-registry/AGENTS.md) — registry server wrapper
 - [`projects/start-tunnel/AGENTS.md`](projects/start-tunnel/AGENTS.md) — tunnel server + UI
-- [`projects/start-wrt/AGENTS.md`](projects/start-wrt/AGENTS.md) — OpenWrt-based router OS (Rust backend + standalone Angular UI + openwrt submodule)
+- [`projects/start-wrt/AGENTS.md`](projects/start-wrt/AGENTS.md) — OpenWrt-based router OS (Rust backend + Angular UI in the root workspace + openwrt submodule)
 - [`projects/start-sdk/AGENTS.md`](projects/start-sdk/AGENTS.md) — TypeScript service-packaging SDK (packaging mdbook: [`docs/AGENTS.md`](projects/start-sdk/docs/AGENTS.md))
 - [`projects/brochure-marketplace/AGENTS.md`](projects/brochure-marketplace/AGENTS.md) — public marketplace site
 - [`projects/start-docs/AGENTS.md`](projects/start-docs/AGENTS.md) — documentation website
