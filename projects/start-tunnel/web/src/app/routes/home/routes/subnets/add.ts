@@ -219,7 +219,7 @@ export class SubnetsAdd {
   protected readonly modeLabel = (m: T.Tunnel.DnsMode) => MODE_LABEL[m]
   protected readonly matchWan = matchWan
   protected readonly stringifyWan = ({ ip }: WanItem) =>
-    wanLabel(ip, 'Use System Default')
+    wanLabel(ip, 'System default', this.context.data.defaultWan)
   protected readonly stringifyDevice = ({ ip, name }: MappedDevice) =>
     ip ? `${name} (${ip})` : ''
 
