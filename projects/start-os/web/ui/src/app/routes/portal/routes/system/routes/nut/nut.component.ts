@@ -1,35 +1,34 @@
+import { KeyValuePipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
-  DestroyRef,
-  computed,
   inject,
   signal,
 } from '@angular/core'
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop'
 import { ReactiveFormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
-import {
-  ErrorService,
-  getErrorMessage,
-  i18nKey,
-  i18nPipe,
-} from '@start9labs/shared'
-import { ISB, T } from '@start9labs/start-sdk'
+import { ErrorService, getErrorMessage, i18nPipe } from '@start9labs/shared'
+import { ISB, T } from '@start9labs/start-core'
 import {
   TuiButton,
+  TuiCell,
+  TuiIcon,
   TuiLoader,
   TuiNotificationService,
   TuiTitle,
 } from '@taiga-ui/core'
-import { TuiButtonLoading, TuiNotificationMiddleService } from '@taiga-ui/kit'
-import { TuiHeader } from '@taiga-ui/layout'
+import {
+  TuiButtonLoading,
+  TuiNotificationMiddleService,
+  TuiTooltip,
+} from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
-import { switchMap } from 'rxjs'
-import { FormGroupComponent } from 'src/app/routes/portal/components/form/containers/group.component'
+import { map } from 'rxjs'
+import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { FormService } from 'src/app/services/form.service'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
@@ -77,94 +76,72 @@ const DEFAULT_SERVER: ServerValue = {
 @Component({
   template: `
     <ng-container *title>
-      <div>
-        <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
-          {{ 'Back' | i18n }}
-        </a>
-        {{ 'Network UPS Tools' | i18n }}
-      </div>
+      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
+        {{ 'Back' | i18n }}
+      </a>
+      {{ 'Network UPS Tools' | i18n }}
     </ng-container>
 
-    @if (data(); as data) {
-      <form [formGroup]="data.form">
-        <header tuiHeader="body-l">
-          <h3 tuiTitle>
-            <b>{{ 'Network UPS Tools' | i18n }}</b>
-          </h3>
+    @if (data()) {
+      <section class="g-card">
+        <header>
+          {{ 'Network UPS Tools' | i18n }}
+          <tui-icon
+            [tuiTooltip]="
+              'NUT shuts down StartOS when the UPS battery is low' | i18n
+            "
+          />
+          <button
+            tuiIconButton
+            size="xs"
+            type="button"
+            iconStart="@tui.settings"
+            [style.margin-inline-start]="'auto'"
+            (click)="configure()"
+          >
+            {{ 'Configure' | i18n }}
+          </button>
+          <button
+            tuiIconButton
+            size="xs"
+            type="button"
+            iconStart="@tui.refresh-cw"
+            [loading]="refreshing()"
+            (click)="refreshStatus()"
+          >
+            {{ 'Refresh' | i18n }}
+          </button>
         </header>
 
-        <form-group [spec]="data.spec" />
-
-        <footer>
-          @if (!data.form.pristine) {
-            <button
-              tuiButton
-              type="button"
-              size="l"
-              appearance="secondary"
-              (click)="cancel(data)"
-            >
-              {{ 'Cancel' | i18n }}
-            </button>
-          }
-          <button
-            tuiButton
-            type="button"
-            size="l"
-            [disabled]="data.form.invalid || data.form.pristine"
-            (click)="save(data.form.value)"
-          >
-            {{ 'Save' | i18n }}
-          </button>
-        </footer>
-      </form>
-
-      @if (data.config.enabled && data.config.settings) {
-        <section class="status-section">
-          <header tuiHeader="body-l">
-            <h3 tuiTitle>
-              <b>{{ 'UPS Status' | i18n }}</b>
-              <span tuiSubtitle>
-                {{ status()?.target || target(data.config) }}
-              </span>
-            </h3>
-            <button
-              tuiButton
-              type="button"
-              iconStart="@tui.refresh-cw"
-              [loading]="refreshing()"
-              (click)="refreshStatus(true, data.config)"
-            >
-              {{ 'Refresh' | i18n }}
-            </button>
-          </header>
-
-          @if (status(); as current) {
-            <div class="status-table" role="table">
-              <div class="status-row status-heading" role="row">
-                <span role="columnheader">{{ 'Name' | i18n }}</span>
-                <span role="columnheader">{{ 'Value' | i18n }}</span>
+        @if (status()?.target || target(); as url) {
+          <div tuiCell>
+            <div tuiTitle>
+              <div tuiSubtitle>
+                <code>Target</code>
               </div>
-              @for (row of statusRows(); track row.name) {
-                <div class="status-row" role="row">
-                  <code role="cell">{{ row.name }}</code>
-                  <span role="cell">{{ row.value }}</span>
-                </div>
-              }
+              <b>{{ url }}</b>
             </div>
-          } @else if (refreshing()) {
-            <tui-loader [style.height.rem]="5" />
-          } @else {
-            <app-placeholder icon="@tui.zap">
-              {{ 'No UPS data available' | i18n }}
-            </app-placeholder>
+          </div>
+        }
+        @if (status(); as current) {
+          @for (row of current.variables | keyvalue; track $index) {
+            <div tuiCell>
+              <div tuiTitle>
+                <div tuiSubtitle>
+                  <code>{{ row.key }}</code>
+                </div>
+                <b>{{ row.value }}</b>
+              </div>
+            </div>
           }
-
-          @if (statusError(); as error) {
-            <p class="status-error">{{ error }}</p>
-          }
-        </section>
-      }
+        } @else if (refreshing()) {
+          <tui-loader [style.height.rem]="5" />
+        } @else {
+          <app-placeholder icon="@tui.zap">
+            {{ 'No UPS data available' | i18n }}
+          </app-placeholder>
+        }
+      </section>
     }
   `,
   styles: `
@@ -172,98 +149,37 @@ const DEFAULT_SERVER: ServerValue = {
       max-width: 36rem;
     }
 
-    :host-context(tui-root._mobile) form:first-of-type > [tuiHeader] {
-      display: none;
-    }
-
-    form header,
-    form footer,
-    .status-section header {
-      margin: 1rem 0;
-      display: flex;
-      gap: 1rem;
-    }
-
-    .status-section header {
-      align-items: flex-start;
-      justify-content: space-between;
+    form {
+      padding: 0.75rem 0;
     }
 
     footer {
-      justify-content: flex-end;
-    }
-
-    .status-section {
-      margin-block-start: 1rem;
-    }
-
-    .status-table {
-      border: 1px solid var(--tui-border-normal);
-      border-radius: 0.5rem;
-      overflow: hidden;
-    }
-
-    .status-row {
-      display: grid;
-      grid-template-columns: minmax(10rem, 1fr) minmax(0, 2fr);
+      display: flex;
       gap: 1rem;
-      padding: 0.75rem 1rem;
-      border-block-start: 1px solid var(--tui-border-normal);
-      align-items: start;
-    }
-
-    .status-row:first-child {
-      border-block-start: none;
-    }
-
-    .status-heading {
-      background: var(--tui-background-neutral-1);
-      color: var(--tui-text-secondary);
-      font: var(--tui-typography-body-s);
-      font-weight: bold;
-    }
-
-    code,
-    .status-row span {
-      overflow-wrap: anywhere;
-    }
-
-    .status-error {
-      color: var(--tui-status-negative);
-      margin: 1rem 0 0;
-    }
-
-    :host-context(tui-root._mobile) {
-      .status-section header {
-        align-items: stretch;
-        flex-direction: column;
-      }
-
-      .status-row {
-        grid-template-columns: 1fr;
-        gap: 0.25rem;
-      }
+      justify-content: flex-end;
+      margin-block-start: 1rem;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
-    FormGroupComponent,
     RouterLink,
     TitleDirective,
     i18nPipe,
     TuiButton,
     TuiButtonLoading,
-    TuiHeader,
     TuiLoader,
     TuiTitle,
     PlaceholderComponent,
+    KeyValuePipe,
+    TuiCell,
+    TuiIcon,
+    TuiTooltip,
   ],
 })
 export default class SystemNutComponent {
-  private readonly destroyRef = inject(DestroyRef)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
-  private readonly formService = inject(FormService)
+  private readonly formDialog = inject(FormDialogService)
   private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly alerts = inject(TuiNotificationService)
@@ -271,59 +187,45 @@ export default class SystemNutComponent {
   private readonly i18n = inject(i18nPipe)
 
   readonly status = signal<T.NutStatus | null>(null)
-  readonly statusError = signal<string | null>(null)
   readonly refreshing = signal(false)
-  readonly statusRows = computed(() =>
-    Object.entries(this.status()?.variables ?? {}).map(([name, value]) => ({
-      name,
-      value,
-    })),
-  )
 
   readonly data = toSignal(
-    this.patch.watch$('serverInfo', 'nut').pipe(
-      switchMap(async config => {
-        const savedConfig =
-          config ?? ({ enabled: false, settings: null } as T.NutConfig)
-        const spec = await configBuilderToSpec(this.nutSpec())
-        const formData = this.toNutForm(savedConfig)
-        const form = this.formService.createForm(spec, formData)
-
-        return { config: savedConfig, form, formData, spec }
-      }),
-    ),
+    this.patch
+      .watch$('serverInfo', 'nut')
+      .pipe(map(c => c ?? ({ enabled: false, settings: null } as T.NutConfig))),
   )
 
   constructor() {
     this.patch
       .watch$('serverInfo', 'nut')
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(takeUntilDestroyed())
       .subscribe(config => {
         this.status.set(null)
-        this.statusError.set(null)
 
         if (config?.enabled && config.settings) {
-          void this.refreshStatus(false, config)
+          void this.refreshStatus(config)
         }
       })
   }
 
-  target(config: T.NutConfig): string {
-    if (!config.enabled || !config.settings) {
+  target(config = this.data()): string {
+    if (!config?.enabled || !config?.settings) {
       return ''
     }
+
     switch (config.settings.mode) {
       case 'server':
         return `${config.settings.upsName}@localhost:3493`
       case 'client':
         return `${config.settings.upsName}@${config.settings.host}:${config.settings.port}`
+      default:
+        return ''
     }
   }
 
-  async refreshStatus(notifyOnError: boolean, config = this.data()?.config) {
-    if (!config || !config.enabled || !config.settings) {
+  async refreshStatus(config = this.data()) {
+    if (!config?.enabled || !config?.settings) {
       this.status.set(null)
-      this.statusError.set(null)
       return
     }
 
@@ -332,28 +234,15 @@ export default class SystemNutComponent {
     try {
       const status = await this.api.getNutStatus({})
       this.status.set(status)
-      this.statusError.set(null)
     } catch (e: any) {
-      const error = getErrorMessage(e)
       this.status.set(null)
-      this.statusError.set(error)
-
-      if (notifyOnError) {
-        this.showStatusAlert(error)
-      }
+      this.showStatusAlert(getErrorMessage(e))
     } finally {
       this.refreshing.set(false)
     }
   }
 
-  cancel(data: {
-    form: ReturnType<FormService['createForm']>
-    formData: NutForm
-  }) {
-    data.form.reset(data.formData)
-  }
-
-  async save(value: NutForm): Promise<void> {
+  async save(value: NutForm): Promise<boolean> {
     const config = this.toNutConfig(value)
     const loader = this.loader.open('Saving').subscribe()
 
@@ -362,15 +251,36 @@ export default class SystemNutComponent {
 
       if (!config.enabled) {
         this.status.set(null)
-        this.statusError.set(null)
       } else {
-        await this.refreshStatus(true, config)
+        await this.refreshStatus(config)
       }
+
+      return true
     } catch (e: any) {
       this.errorService.handleError(e)
+
+      return false
     } finally {
       loader.unsubscribe()
     }
+  }
+
+  async configure() {
+    this.formDialog.open(FormComponent, {
+      label: this.i18n.transform('Network UPS Tools'),
+      data: {
+        spec: await configBuilderToSpec(this.nutSpec()),
+        value: this.toNutForm(
+          this.data() ?? { enabled: false, settings: null },
+        ),
+        buttons: [
+          {
+            text: this.i18n.transform('Save'),
+            handler: async (value: NutForm) => this.save(value),
+          },
+        ],
+      },
+    })
   }
 
   private showStatusAlert(error: string) {
@@ -398,9 +308,6 @@ export default class SystemNutComponent {
       enabled: ISB.Value.toggle({
         name: this.i18n.transform('Enabled'),
         default: false,
-        description: this.i18n.transform(
-          'NUT shuts down StartOS when the UPS battery is low. Disabling keeps your configuration but stops monitoring.',
-        ),
       }),
       settings: ISB.Value.union({
         name: this.i18n.transform('Mode'),
