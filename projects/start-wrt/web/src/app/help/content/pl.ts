@@ -153,7 +153,7 @@ Prywatny blok IP /16 dla Twojej sieci. Każdy profil bezpieczeństwa otrzyma wł
 
 ### IP routera
 
-Adres przypisany routerowi w domyślnej podsieci (.0.x). Jest to adres, którego urządzenia używają, aby dotrzeć do routera i uzyskać dostęp do internetu.`,
+Adres LAN routera to brama (.1) podsieci profilu bezpieczeństwa Admin. Pierwsze dwa oktety pochodzą z bloku sieci powyżej; trzeci oktet ustawia pole Podsieć profilu Admin, a nie ta strona.`,
   '/lan/ipv6': `## LAN – IPv6
 
 ### IPv6

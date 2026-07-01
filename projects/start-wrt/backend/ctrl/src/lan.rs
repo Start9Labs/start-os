@@ -25,6 +25,23 @@ pub const LAN_NETMASK: Ipv4Addr = Ipv4Addr::new(255, 255, 255, 0);
 ///
 /// The third/fourth octets (subnet + host within the block) are intentionally
 /// unconstrained — they're the user's `routerOctet` and the fixed `.1` host.
+/// The gateway to collision-test when the LAN moves from `current` to `new`.
+///
+/// On a network-block change every profile keeps its 3rd octet (see
+/// [`update_profile_ips_for_block_change`]), so testing the new 3rd octet inside
+/// the *current* block is equivalent to testing the post-move state — and it
+/// lets the guard run before any config is mutated. With no current address
+/// there is nothing to translate; test the requested address as-is.
+fn subnet_guard_ip(current: Option<Ipv4Addr>, new: Ipv4Addr) -> Ipv4Addr {
+    match current {
+        Some(old) => {
+            let (o, n) = (old.octets(), new.octets());
+            Ipv4Addr::new(o[0], o[1], n[2], n[3])
+        }
+        None => new,
+    }
+}
+
 pub(crate) fn validate_lan_block(addr: Ipv4Addr) -> Result<(), Error> {
     if addr.is_private() {
         Ok(())
@@ -125,6 +142,23 @@ pub async fn ipv4_set<C: CtrlContext>(
     loop {
         let arena = Arena::new();
         let mut cfgs = parse_all(ctx.uci_root(), &arena, &["network", "startwrt", "dhcp", "firewall"]).await?;
+
+        // Reject a /24 owned by another profile before touching any config — a
+        // colliding LAN subnet strands the router (same guard as
+        // profiles.create/profiles.edit; the UI can no longer produce this, but
+        // a direct RPC/CLI call can). Must run before the mutation below: the
+        // guard reads the LAN's current address to allow no-op edits.
+        let current_lan_ip = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some(LAN_INTERFACE))
+            .and_then(|s| s.get_typed::<NetworkInterface>().ok().flatten())
+            .and_then(|i| i.ipaddr);
+        profiles::guard_subnet_collision(
+            &cfgs,
+            subnet_guard_ip(current_lan_ip, address),
+            Some(LAN_INTERFACE),
+        )?;
 
         // Update LAN interface, capturing old IP to detect network block changes
         let mut old_address: Option<Ipv4Addr> = None;
@@ -1128,6 +1162,99 @@ config profile guest
                 );
             }
         }
+    }
+
+    #[tokio::test]
+    async fn ipv4_set_rejects_colliding_profile_subnet() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("network"),
+            "\
+config interface 'lan'
+\toption device 'br-lan'
+\toption proto 'static'
+\toption ipaddr '192.168.1.1'
+\toption netmask '255.255.0.0'
+
+config interface 'guest'
+\toption device 'br-lan.3'
+\toption proto 'static'
+\toption ipaddr '192.168.2.1'
+\toption netmask '255.255.255.0'
+",
+        )
+        .unwrap();
+
+        std::fs::write(
+            dir.path().join("startwrt"),
+            "\
+config profile lan
+\toption fullname 'Admin'
+\toption interface 'lan'
+\toption vlan_tag '99'
+
+config profile guest
+\toption fullname 'Guest'
+\toption interface 'guest'
+\toption vlan_tag '3'
+",
+        )
+        .unwrap();
+
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        let set = |address: &str| {
+            ipv4_set(
+                ctx.clone(),
+                DeserializeStdin(LanIpv4SetRequest {
+                    address: address.to_string(),
+                    force: false,
+                }),
+            )
+        };
+
+        // Same-block move onto the guest's /24 — rejected, config untouched.
+        let err = set("192.168.2.1").await.unwrap_err();
+        assert_eq!(err.kind, ErrorKind::SubnetCollision);
+        assert_eq!(ipv4_get(ctx.clone()).await.unwrap().address, "192.168.1.1");
+
+        // Block change whose 3rd octet lands on the guest's — profiles keep
+        // their 3rd octet across the move, so this collides post-move.
+        let err = set("10.0.2.1").await.unwrap_err();
+        assert_eq!(err.kind, ErrorKind::SubnetCollision);
+        assert_eq!(ipv4_get(ctx.clone()).await.unwrap().address, "192.168.1.1");
+
+        // No-op re-set of the current address — allowed.
+        set("192.168.1.1").await.unwrap();
+
+        // Block change keeping the LAN's own 3rd octet — allowed.
+        set("10.0.1.1").await.unwrap();
+        assert_eq!(ipv4_get(ctx.clone()).await.unwrap().address, "10.0.1.1");
+    }
+
+    #[test]
+    fn subnet_guard_ip_translates_into_current_block() {
+        // Block change: test the new 3rd octet inside the current block.
+        assert_eq!(
+            subnet_guard_ip(
+                Some(Ipv4Addr::new(192, 168, 1, 1)),
+                Ipv4Addr::new(10, 0, 2, 1)
+            ),
+            Ipv4Addr::new(192, 168, 2, 1)
+        );
+        // Same block: passes through unchanged.
+        assert_eq!(
+            subnet_guard_ip(
+                Some(Ipv4Addr::new(192, 168, 1, 1)),
+                Ipv4Addr::new(192, 168, 5, 1)
+            ),
+            Ipv4Addr::new(192, 168, 5, 1)
+        );
+        // No current address: nothing to translate.
+        assert_eq!(
+            subnet_guard_ip(None, Ipv4Addr::new(10, 0, 2, 1)),
+            Ipv4Addr::new(10, 0, 2, 1)
+        );
     }
 
     // ── IPv6 tests ──────────────────────────────────────────────

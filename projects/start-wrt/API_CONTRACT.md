@@ -515,6 +515,10 @@ struct LanIpv4SetRequest {
 //   (3rd/4th octets unconstrained.) The same rule is enforced on the admin
 //   profile via profiles.set/create; non-admin profiles must additionally
 //   share the admin LAN's first two octets (stay inside its /16).
+//   The target /24 must not collide with another profile's subnet, else
+//   ErrorKind::SubnetCollision (same guard as profiles.create/profiles.edit;
+//   on a block change the check applies post-move, since every profile keeps
+//   its 3rd octet). A re-set of the current subnet always passes.
 ```
 
 ### `lan.ipv6-get`

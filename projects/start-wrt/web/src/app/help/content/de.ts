@@ -153,7 +153,7 @@ Der private /16-IP-Block für Ihr Netzwerk. Jedes Sicherheitsprofil erhält sein
 
 ### Router-IP
 
-Die Adresse, die Ihrem Router innerhalb des Standard-Subnetzes (.0.x) zugewiesen ist. Dies ist die Adresse, über die Geräte den Router erreichen und auf das Internet zugreifen.`,
+Die LAN-IP des Routers ist das Gateway (.1) des Subnetzes des Admin-Sicherheitsprofils. Die ersten beiden Oktette stammen aus dem Netzwerkblock oben; das dritte Oktett wird über das Subnetz-Feld des Admin-Profils festgelegt, nicht auf dieser Seite.`,
   '/lan/ipv6': `## LAN – IPv6
 
 ### IPv6

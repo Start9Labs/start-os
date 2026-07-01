@@ -153,7 +153,7 @@ Le bloc d’IP privées /16 de votre réseau. Chaque profil de sécurité recevr
 
 ### IP du routeur
 
-L’adresse attribuée à votre routeur au sein du sous-réseau par défaut (.0.x). C’est l’adresse que les appareils utilisent pour joindre le routeur et accéder à Internet.`,
+L’IP LAN du routeur est la passerelle (.1) du sous-réseau du profil de sécurité Admin. Les deux premiers octets proviennent du bloc réseau ci-dessus ; le troisième octet est défini par le champ Sous-réseau du profil Admin, pas sur cette page.`,
   '/lan/ipv6': `## LAN – IPv6
 
 ### IPv6

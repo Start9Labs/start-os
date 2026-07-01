@@ -25,7 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   duplicate field is removed (the LAN page now only selects the /16 network
   block; the Admin profile is the single source of truth for the 3rd octet), and
   the backend now rejects `profiles.create`/`profiles.edit` requests whose /24
-  collides with an existing profile (including the admin LAN).
+  collides with an existing profile (including the admin LAN). The `lan.ipv4-set`
+  endpoint (reached via the CLI) is covered by the same guard, so a direct
+  RPC/CLI call can't strand the router either.
 
 - The Settings → General **Build** field no longer goes stale after new commits.
   `build.mk` had lost the wiring that refreshes `build/env/GIT_HASH.txt` on every

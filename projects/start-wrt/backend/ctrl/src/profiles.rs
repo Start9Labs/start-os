@@ -1171,7 +1171,7 @@ fn validate_profile_block(
 /// (`duplicateSubnet`), but a direct RPC/CLI call bypasses that, so enforce it
 /// on the backend too. `self_interface` is the interface being changed; its own
 /// subnet is skipped so a no-op edit passes.
-fn guard_subnet_collision(
+pub(crate) fn guard_subnet_collision(
     cfgs: &Configs,
     gateway_ip: Ipv4Addr,
     self_interface: Option<&str>,

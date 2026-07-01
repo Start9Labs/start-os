@@ -153,7 +153,7 @@ El bloque de IP privadas /16 para tu red. Cada perfil de seguridad recibirá su 
 
 ### IP del router
 
-La dirección asignada a tu router dentro de la subred predeterminada (.0.x). Es la dirección que los dispositivos usan para alcanzar el router y acceder a internet.`,
+La IP LAN del router es la puerta de enlace (.1) de la subred del perfil de seguridad Admin. Los dos primeros octetos provienen del bloque de red anterior; el tercer octeto se establece en el campo Subred del perfil Admin, no en esta página.`,
   '/lan/ipv6': `## LAN – IPv6
 
 ### IPv6
