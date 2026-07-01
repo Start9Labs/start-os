@@ -25,7 +25,6 @@ export type DomainValidationData = {
   fqdn: string
   gateway: DnsGateway
   port: number
-  internalPort: number
   count: number
   initialResults?: { dnsPass: boolean; portResult: T.CheckPortRes | null }
 }
@@ -152,7 +151,7 @@ export type DomainValidationData = {
             </td>
           }
           <td>{{ portDisplay }}</td>
-          <td>{{ internalPortDisplay }}</td>
+          <td>{{ portDisplay }}</td>
           @if (!isRange) {
             <td>
               <button
@@ -186,7 +185,7 @@ export type DomainValidationData = {
             <span class="field-label">
               {{ (isRange ? 'Internal Range' : 'Internal Port') | i18n }}
             </span>
-            <span>{{ internalPortDisplay }}</span>
+            <span>{{ portDisplay }}</span>
           </div>
         </div>
         @if (!isRange) {
@@ -352,10 +351,6 @@ export class DomainValidationComponent {
   readonly isRange = this.context.data.count > 1
   readonly portDisplay = formatPortRange(
     this.context.data.port,
-    this.context.data.count,
-  )
-  readonly internalPortDisplay = formatPortRange(
-    this.context.data.internalPort,
     this.context.data.count,
   )
 

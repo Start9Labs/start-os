@@ -338,7 +338,6 @@ export class GatewayItemComponent {
             addr.hostnameInfo.hostname,
             this.gatewayId(),
             addr.hostnameInfo.port,
-            iface.addressInfo.internalPort,
             addr.count,
           )
         } else if (kind === 'private-domain') {
@@ -357,7 +356,6 @@ export class GatewayItemComponent {
           await this.domainHealth.checkPortForward(
             this.gatewayId(),
             addr.hostnameInfo.port,
-            iface.addressInfo.internalPort,
           )
         }
       }

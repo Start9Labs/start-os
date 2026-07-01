@@ -292,7 +292,6 @@ export class GatewayActionsComponent {
       this.address().hostnameInfo.hostname,
       this.gatewayId(),
       port,
-      this.value()?.addressInfo.internalPort ?? port,
       this.address().count,
     )
   }
@@ -310,7 +309,6 @@ export class GatewayActionsComponent {
     this.domainHealth.showPortForwardSetup(
       this.gatewayId(),
       port,
-      this.value()?.addressInfo.internalPort ?? port,
       this.address().count,
     )
   }
