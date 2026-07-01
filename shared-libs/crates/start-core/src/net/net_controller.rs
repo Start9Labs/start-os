@@ -20,7 +20,7 @@ use crate::hostname::ServerHostname;
 use crate::net::dns::DnsController;
 use crate::net::dns_update::DnsUpdateController;
 use crate::net::forward::{
-    ForwardRequirements, InterfacePortForwardController, START9_BRIDGE_IFACE, nft_rule,
+    ForwardRequirements, InterfacePortForwardController, START9_BRIDGE_IFACE, nft_rule, nft_rule_v6,
 };
 use crate::net::gateway::NetworkInterfaceController;
 use crate::net::host::binding::{
@@ -86,6 +86,14 @@ impl NetController {
             crypto_provider.clone(),
         )?);
         nft_rule(
+            "forward",
+            "lxcbr0-egress",
+            false,
+            false,
+            &format!("iifname \"{START9_BRIDGE_IFACE}\" ct state new accept"),
+        )
+        .await?;
+        nft_rule_v6(
             "forward",
             "lxcbr0-egress",
             false,

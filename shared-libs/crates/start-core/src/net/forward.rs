@@ -323,13 +323,14 @@ pub async fn nft_ensure_base() -> Result<(), Error> {
     Ok(())
 }
 
-/// `nft -a list chain ip startos <chain>` output, empty on error.
-async fn nft_list_chain(chain: &str) -> String {
+/// `nft -a list chain <family> startos <chain>` output, empty on error.
+/// `family` is `ip` (IPv4) or `ip6`.
+async fn nft_list_chain(family: &str, chain: &str) -> String {
     let out = Command::new("nft")
         .arg("-a")
         .arg("list")
         .arg("chain")
-        .arg("ip")
+        .arg(family)
         .arg("startos")
         .arg(chain)
         .invoke(ErrorKind::Network)
@@ -340,9 +341,9 @@ async fn nft_list_chain(chain: &str) -> String {
 
 /// Rules in `chain` tagged with `comment`, as `(handle, body)` where `body` is
 /// the rule text preceding the `comment "..."` token.
-async fn nft_rules_with_comment(chain: &str, comment: &str) -> Vec<(u32, String)> {
+async fn nft_rules_with_comment(family: &str, chain: &str, comment: &str) -> Vec<(u32, String)> {
     let needle = format!("comment \"{comment}\"");
-    nft_list_chain(chain)
+    nft_list_chain(family, chain)
         .await
         .lines()
         .filter_map(|line| {
@@ -356,7 +357,7 @@ async fn nft_rules_with_comment(chain: &str, comment: &str) -> Vec<(u32, String)
 /// Comment tags in `chain` of `table ip startos` beginning with `prefix`. Used
 /// to prune orphaned per-device/per-subnet rules whose owner no longer exists.
 pub(crate) async fn nft_comments_with_prefix(chain: &str, prefix: &str) -> Vec<String> {
-    nft_list_chain(chain)
+    nft_list_chain("ip", chain)
         .await
         .lines()
         .filter_map(|line| {
@@ -384,12 +385,35 @@ pub async fn nft_rule(
     prepend: bool,
     rule: &str,
 ) -> Result<(), Error> {
+    nft_rule_family("ip", chain, comment, undo, prepend, rule).await
+}
+
+/// Like [`nft_rule`] but against `table ip6 startos` (the IPv6 base). Used for
+/// the v6 forward-chain filter rules (established-accept, bridge egress).
+pub async fn nft_rule_v6(
+    chain: &str,
+    comment: &str,
+    undo: bool,
+    prepend: bool,
+    rule: &str,
+) -> Result<(), Error> {
+    nft_rule_family("ip6", chain, comment, undo, prepend, rule).await
+}
+
+async fn nft_rule_family(
+    family: &str,
+    chain: &str,
+    comment: &str,
+    undo: bool,
+    prepend: bool,
+    rule: &str,
+) -> Result<(), Error> {
     nft_ensure_base().await?;
 
     const MAX_ATTEMPTS: usize = 5;
     let mut last_err = None;
     for attempt in 1..=MAX_ATTEMPTS {
-        let existing = nft_rules_with_comment(chain, comment).await;
+        let existing = nft_rules_with_comment(family, chain, comment).await;
 
         // Already converged: nothing to undo, or exactly the desired rule present.
         if undo {
@@ -406,13 +430,13 @@ pub async fn nft_rule(
         // no window where the rule is missing or duplicated.
         let mut script = String::new();
         for (handle, _) in &existing {
-            writeln!(script, "delete rule ip startos {chain} handle {handle}").unwrap();
+            writeln!(script, "delete rule {family} startos {chain} handle {handle}").unwrap();
         }
         if !undo {
             let verb = if prepend { "insert" } else { "add" };
             writeln!(
                 script,
-                "{verb} rule ip startos {chain} {rule} comment \"{comment}\""
+                "{verb} rule {family} startos {chain} {rule} comment \"{comment}\""
             )
             .unwrap();
         }
@@ -447,6 +471,16 @@ impl PortForwardController {
             while let Err(e) = async {
                 nft_ensure_base().await?;
                 nft_rule(
+                    "forward",
+                    "base-established",
+                    false,
+                    false,
+                    "ct state established,related accept",
+                )
+                .await?;
+                // Same for the v6 forward chain (drop policy) so reply packets of
+                // a non-SSL GUA forward aren't dropped.
+                nft_rule_v6(
                     "forward",
                     "base-established",
                     false,
