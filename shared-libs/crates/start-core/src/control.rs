@@ -4,6 +4,7 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::RpcContext;
+use crate::db::model::package::TaskSeverity;
 use crate::prelude::*;
 use crate::{Error, PackageId};
 
@@ -17,14 +18,40 @@ pub struct ControlParams {
     pub id: PackageId,
 }
 
+#[derive(Deserialize, Serialize, Parser)]
+#[group(skip)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct StartParams {
+    #[arg(help = "help.arg.package-id")]
+    pub id: PackageId,
+    #[arg(long, help = "help.arg.force-start")]
+    #[serde(default)]
+    pub force: bool,
+}
+
 #[instrument(skip_all)]
-pub async fn start(ctx: RpcContext, ControlParams { id }: ControlParams) -> Result<(), Error> {
+pub async fn start(ctx: RpcContext, StartParams { id, force }: StartParams) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
-            db.as_public_mut()
+            let entry = db
+                .as_public_mut()
                 .as_package_data_mut()
                 .as_idx_mut(&id)
-                .or_not_found(&id)?
+                .or_not_found(&id)?;
+            if !force
+                && entry
+                    .as_tasks()
+                    .de()?
+                    .into_iter()
+                    .any(|(_, t)| t.active && t.task.severity == TaskSeverity::Critical)
+            {
+                return Err(Error::new(
+                    eyre!("{}", t!("control.start-critical-task", id = id)),
+                    ErrorKind::InvalidRequest,
+                ));
+            }
+            entry
                 .as_status_info_mut()
                 .as_desired_mut()
                 .map_mutate(|s| Ok(s.start()))

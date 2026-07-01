@@ -219,7 +219,9 @@ Install a package from the registry or sideload a local `.s9pk` file.
 
 ### `start-cli package start <ID>`
 
-Start a service.
+Start a service. Blocked if the service has an unresolved critical task, unless `--force` is passed.
+
+- `--force` — Start even if the service has an unresolved critical task
 
 ### `start-cli package stop <ID>`
 

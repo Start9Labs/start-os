@@ -10,6 +10,8 @@ file tracks notable changes since the move to the monorepo.
 
 ## [Unreleased]
 
+## [0.4.0-beta.10]
+
 ### Added
 
 - **IPv6 GUA exposure tri-state.** On a service interface, an IPv6 global-unicast
@@ -18,11 +20,9 @@ file tracks notable changes since the move to the monorepo.
   only — traffic from outside the subnet is rejected; **LAN+WAN** also exposes it
   to the Internet and attempts an automatic gateway pinhole (PCP). IPv6 ULAs and
   IPv4 are unchanged.
-
-## [0.4.0-beta.10]
-
-### Added
-
+- **`--force` on service start.** `start-cli package start <id> --force` (and the
+  `package.start` RPC `force` flag) starts a service even when it has an unresolved
+  critical task.
 - **Automatic gateway configuration (#3306).** A StartOS server now opens its own public ports and publishes its private-domain DNS by talking to its gateway — a home router or a StartTunnel — instead of leaving it as a manual step.
   - **Automatic port forwarding.** When a public address needs a port open, StartOS opens it by speaking a port-control protocol to the gateway: PCP (RFC 6887) → NAT-PMP → UPnP IGD, in that order. Mappings are reference-counted, renewed with the forward, and withdrawn when the address is disabled or deleted. A single shared `PortMapController` also answers reachability, so `check_port` skips the remote echo probe when an automatic mapping is already active and reports the gateway-assigned external IP directly. Port mapping is scoped to the gateway each exposure actually routes through (the interface's own subnet gateway), so the box never probes an unrelated LAN router.
   - **Private-domain DNS injection (RFC 2136).** When a private domain is enabled on a gateway, StartOS pushes an `A` record (domain → this host's IP on that subnet) to the gateway's DNS server via DNS UPDATE so LAN devices that don't use StartOS's resolver can still resolve it, and withdraws it on disable/delete. `check_dns` now verifies a private domain by resolving the specific FQDN against the LAN's DNS server(s) and confirming it returns one of this server's LAN addresses.
@@ -38,7 +38,7 @@ file tracks notable changes since the move to the monorepo.
 - **Direct cross-package action runs via `access` (#3267).** Action metadata gains an `access` field (`'public' | 'dependent' | 'user'`, default `'user'`) controlling who may invoke an action directly through `effects.action.run`. Public/dependent actions give dependents a direct path instead of only creating a task; direct runs still honor the action's `visibility` and `allowedStatuses`.
 - **`input-not-matches` tasks accept multiple values (#3310).** `TaskInput` splits into `accept` (a list of acceptable partial inputs) and `set` (the value to prefill when none match); the cross-package critical-conflict guard fires only when the input conflicts with every `accept` entry. The host still accepts the legacy `{ value }` shape over the effects socket for s9pks built on the pre-2.0 SDK.
 - **Service interfaces tab.** Service interfaces are promoted to a dedicated sidebar tab; the dashboard interfaces card and per-interface detail route are removed, sidebar nav labels are decoupled from route paths, and the tasks table is redesigned (action-first, service rendered as an icon).
-- **Unified marketplace + brochure.** The in-OS marketplace and the public brochure now share `@start9labs/marketplace` components behind an `AbstractMarketplaceService` (the OS persists to patch-db, the brochure to localStorage), so both ship the identical detail/preview UI. The brochure app is ported into the workspace and auto-deployed to `marketplace.start9.com` on master. The registry-selection modal is replaced by an inline registry-select dropdown (switch/add/delete inline), and custom registries can now be added by bare domain (https default; http for `.onion`) (#3349). Empty categories are hidden (snapping back to "all" on a registry switch that empties the selection), category icons are refreshed for the current set, and a "Package a service" link sits beneath the sidebar categories. See [`../brochure/CHANGELOG.md`](../brochure-marketplace/CHANGELOG.md) for the public site.
+- **Unified marketplace + brochure.** The in-OS marketplace and the public brochure now share `@start9labs/marketplace` components behind an `AbstractMarketplaceService` (the OS persists to patch-db, the brochure to localStorage), so both ship the identical detail/preview UI. The brochure app is ported into the workspace and auto-deployed to `marketplace.start9.com` on master. The registry-selection modal is replaced by an inline registry-select dropdown (switch/add/delete inline), and custom registries can now be added by bare domain (https default; http for `.onion`) (#3349). Empty categories are hidden (snapping back to "all" on a registry switch that empties the selection), category icons are refreshed for the current set, and a "Package a service" link sits beneath the sidebar categories.
 - **Nested idmapped mounts (#3248).** StartOS gains syscall-based mount primitives (`open_tree`/`move_mount`/`fsopen`/`mount_setattr`) and a `start-container mount` path, wiring up the SDK's `idmap` field on volume/asset/dependency/backup mounts end-to-end. See [`../start-sdk/CHANGELOG.md`](../start-sdk/CHANGELOG.md) for the SDK-facing surface.
 - **Raspberry Pi image hardening (#3249).** Vendor kernel bumped to 6.18.33+rpt with apt pins so `/boot` stays vendor-only, `earlycon` for first-boot diagnostics, a loop-safe self-diagnosing `init_resize`, and data-drive-only setup for pre-installed devices.
 - **Graceful shutdown on external power events (#3319).** Two systemd pre-shutdown barrier units (`startos-shutdown.service` / `startos-restart.service`) call `start-cli server shutdown/restart` and wait for graceful container teardown, so externally-initiated shutdowns (UPS / `qm` / ACPI) tear services down cleanly. The shutdown/restart RPC gains an opt-in `wait` param.
@@ -70,6 +70,9 @@ file tracks notable changes since the move to the monorepo.
 
 ### Fixed
 
+- **Critical-task start gate is now enforced backend-side.** Starting a service with
+  an unresolved critical task was previously blocked only in the web UI; the CLI and
+  RPC bypassed it. `package.start` now rejects such a start unless `--force` is passed.
 - **Split DNS for dual public/private domains (#3263).** A domain configured as both private (e.g. on Ethernet) and public (on a StartTunnel) is now served as private DNS to LAN clients, gated per-gateway in the resolver, instead of falling through to the upstream forwarder and hairpin-routing to the public VPS IP.
 - **DNS `[::]:53` wildcard listener (#3346).** DNS listeners bind with `SO_REUSEPORT` so the dual-stack catch-all coexists with the per-address sockets; previously the catch-all's TCP bind failed with `EADDRINUSE` and was silently dropped.
 - **Host address list renders instead of panicking (#3345)** — `start-cli` no longer hits `todo!()` displaying the server host address table.

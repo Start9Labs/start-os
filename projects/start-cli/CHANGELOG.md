@@ -13,6 +13,8 @@ or the CLI's externally observable behavior.
 
 ## [1.0.0]
 
+- **`package start --force`.** `start-cli package start <id> --force` starts a service
+  even if it has an unresolved critical task (the backend gate lives in `start-core`).
 - **Independent versioning.** `start-cli` now carries its own version (starting at
   `1.0.0`) in its `Cargo.toml`, decoupled from the StartOS release line.
 - **Debian package.** `start-cli` is now packaged as a `.deb` (`make cli-deb`), so it
