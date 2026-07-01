@@ -237,7 +237,7 @@ jobs:
         shell: bash
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.TAG || github.ref_name }}
           name: ${{ steps.version.outputs.version }}

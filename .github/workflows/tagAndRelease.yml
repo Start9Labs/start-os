@@ -107,7 +107,7 @@ jobs:
         # delete the existing GitHub release here: if the downstream build
         # fails (e.g. transient infra issue), the previous release stays
         # intact and the registry's download URLs keep resolving. On a
-        # successful build, softprops/action-gh-release@v2 updates the
+        # successful build, softprops/action-gh-release@v3 updates the
         # release in place and replaces same-named assets.
         run: |
           TAG="${{ steps.extract.outputs.tag }}"
