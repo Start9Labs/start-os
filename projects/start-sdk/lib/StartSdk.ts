@@ -41,7 +41,7 @@ import { setupServiceInterfaces } from '@start9labs/start-core/interfaces/setupI
 import * as T from '@start9labs/start-core/types'
 import { Effects, ServiceInterfaceType } from '@start9labs/start-core/types'
 import { GetContainerIp } from '@start9labs/start-core/util/GetContainerIp'
-import { GetHostInfo } from '@start9labs/start-core/util/GetHostInfo'
+import { getHost, getOwnHost } from '@start9labs/start-core/util/GetHostInfo'
 import { GetStatus } from '@start9labs/start-core/util/GetStatus'
 import * as patterns from '@start9labs/start-core/util/patterns'
 import { Backups } from './backup/Backups'
@@ -297,22 +297,27 @@ export class StartSdk<Manifest extends T.SDKManifest> {
          * `host.bindings[internalPort].interfaces[id]` (single-port) or
          * `host.bindingRanges[internalStartPort].interface` (port range).
          *
+         * Pass an optional `map` (and `eq`) to react to only a slice of the
+         * host — with `const()`, the calling context re-runs when the mapped
+         * value changes rather than on any change to the whole host.
+         *
          * @param effects - The effects context
          * @param hostId - The host id passed to `sdk.MultiHost.of`
+         * @param map - optional selector narrowing reactivity to a child attr
+         * @param eq - optional equality for the mapped value (default deep-equal)
          */
-        getOwn: (effects: Effects, hostId: T.HostId) =>
-          new GetHostInfo(effects, { hostId }),
+        getOwn: getOwnHost,
         /**
          * Retrieve a host from any package by id (defaults to this package when
-         * `packageId` is omitted), with the same reactive read strategies.
+         * `packageId` is omitted), with the same reactive read strategies and
+         * the same optional `map`/`eq` selective reactivity as `getOwn`.
          *
          * @param effects - The effects context
          * @param opts - `{ hostId, packageId? }`
+         * @param map - optional selector narrowing reactivity to a child attr
+         * @param eq - optional equality for the mapped value (default deep-equal)
          */
-        get: (
-          effects: Effects,
-          opts: { hostId: T.HostId; packageId?: T.PackageId },
-        ) => new GetHostInfo(effects, opts),
+        get: getHost,
       },
       /**
        * Get the container IP address with reactive subscription support.

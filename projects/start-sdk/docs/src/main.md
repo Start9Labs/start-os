@@ -163,6 +163,15 @@ const allowedHosts =
 
 `.const()` sets up a reactive watcher — `setupMain` re-runs whenever the host's bindings, addresses, or exported interfaces change.
 
+To react to only a slice of the host, pass a `map` selector (and optional `eq`, default deep-equal) to `getOwn`/`get`. `.const()` then re-runs only when the mapped value changes rather than on any change to the whole host:
+
+```typescript
+// re-run only when THIS interface's address info changes
+const ui = await sdk.host
+  .getOwn(effects, "ui", (host) => host?.bindings[80]?.interfaces["ui"])
+  .const();
+```
+
 ## Oneshots (Runtime)
 
 Oneshots are tasks that run on every startup before daemons. Use them for idempotent operations like migrations:
