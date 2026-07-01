@@ -11,7 +11,7 @@
 //! gateway never blocks the forward path.
 
 use std::collections::BTreeMap;
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::num::NonZeroU16;
 use std::time::Duration;
 
@@ -28,6 +28,7 @@ use crate::net::port_map::pcp::hostname::OPTION_HOSTNAME;
 use crate::net::port_map::pcp::portset::{OPTION_PORT_SET, PortSet};
 use crate::net::port_map::server::PCP_PORT;
 use crate::net::port_map::upnp;
+use crate::net::utils::ipv6_is_link_local;
 use crate::prelude::*;
 
 /// Re-assert/renew every desired mapping on this cadence (well under the PCP
@@ -50,32 +51,38 @@ const PCP_TIMEOUTS: TimeoutConfig = TimeoutConfig {
 /// (local IP, external port, optional SNI hostname). Hostname is part of the
 /// identity: many hostnames share one external port via gateway SNI demux, each
 /// an independent mapping, so adding/removing one never tears down the others.
-type MappingKey = (Ipv4Addr, u16, Option<String>);
+type MappingKey = (IpAddr, u16, Option<String>);
 
 /// Candidate PCP/NAT-PMP servers for a gateway interface: the NM default
-/// gateway (router) plus each subnet's `.1` (covers a StartTunnel, whose server
-/// is the subnet's `.1`, and is the usual router address otherwise).
-pub fn candidate_gateways(info: &NetworkInterfaceInfo) -> Vec<Ipv4Addr> {
-    let mut out = Vec::new();
-    let mut push = |ip: Ipv4Addr| {
-        if !ip.is_unspecified() && !ip.is_loopback() && !ip.is_broadcast() && !out.contains(&ip) {
-            out.push(ip);
+/// gateways (router) that fall on one of this interface's own subnets, plus the
+/// v6 link-local default gateway.
+pub fn candidate_gateways(info: &NetworkInterfaceInfo) -> Vec<(IpAddr, Option<u32>)> {
+    let mut out: Vec<(IpAddr, Option<u32>)> = Vec::new();
+    let mut push = |ip: IpAddr, scope_id: Option<u32>| {
+        let bad = match ip {
+            IpAddr::V4(v4) => v4.is_unspecified() || v4.is_loopback() || v4.is_broadcast(),
+            IpAddr::V6(v6) => v6.is_unspecified() || v6.is_loopback(),
+        };
+        if !bad && !out.iter().any(|(g, _)| *g == ip) {
+            out.push((ip, scope_id));
         }
     };
     if let Some(ip_info) = &info.ip_info {
         for ip in &ip_info.lan_ip {
-            // Only a gateway on one of this interface's own subnets can forward
-            // for it; NM may report a default-route gateway belonging to another
-            // interface (e.g. the LAN router inherited by a WireGuard link).
-            if let IpAddr::V4(v4) = ip {
-                if ip_info.subnets.iter().any(|s| s.contains(ip)) {
-                    push(*v4);
+            // v4: the gateway must sit within one of our own subnets. v6: accept
+            // the link-local default gateway (fe80::, the common case) or one in
+            // our subnets.
+            match ip {
+                IpAddr::V4(_) => {
+                    if ip_info.subnets.iter().any(|s| s.contains(ip)) {
+                        push(*ip, None);
+                    }
                 }
-            }
-        }
-        for subnet in &ip_info.subnets {
-            if let Some(IpAddr::V4(v4)) = subnet.hosts().next() {
-                push(v4);
+                IpAddr::V6(v6) => {
+                    if ipv6_is_link_local(*v6) || ip_info.subnets.iter().any(|s| s.contains(ip)) {
+                        push(*ip, Some(ip_info.scope_id));
+                    }
+                }
             }
         }
     }
@@ -85,7 +92,7 @@ pub fn candidate_gateways(info: &NetworkInterfaceInfo) -> Vec<Ipv4Addr> {
 #[derive(Clone)]
 struct Spec {
     internal_port: u16,
-    gateways: Vec<Ipv4Addr>,
+    gateways: Vec<(IpAddr, Option<u32>)>,
     /// Contiguous ports to map via PCP PORT_SET (RFC 7753); `1` is single-port.
     /// `> 1` is PCP-only and skipped where the gateway won't grant the full
     /// range (UPnP/NAT-PMP can't map ranges). Always `1` for HOSTNAME mappings.
@@ -109,7 +116,7 @@ enum Command {
     /// `(local_ip, external_port)`, to confirm reachability without a remote
     /// echo. `None` if not mapped or the external IP is unknown.
     ExternalIp {
-        local_ip: Ipv4Addr,
+        local_ip: IpAddr,
         external_port: u16,
         resp: oneshot::Sender<Option<IpAddr>>,
     },
@@ -156,10 +163,10 @@ impl PortMapController {
 
     pub fn ensure(
         &self,
-        local_ip: Ipv4Addr,
+        local_ip: IpAddr,
         external_port: u16,
         internal_port: u16,
-        gateways: Vec<Ipv4Addr>,
+        gateways: Vec<(IpAddr, Option<u32>)>,
     ) {
         self.send_ensure(local_ip, external_port, internal_port, gateways, None, 1);
     }
@@ -169,10 +176,10 @@ impl PortMapController {
     /// independent mapping sharing the port.
     pub fn ensure_hostname(
         &self,
-        local_ip: Ipv4Addr,
+        local_ip: IpAddr,
         external_port: u16,
         internal_port: u16,
-        gateways: Vec<Ipv4Addr>,
+        gateways: Vec<(IpAddr, Option<u32>)>,
         hostname: String,
     ) {
         self.send_ensure(local_ip, external_port, internal_port, gateways, Some(hostname), 1);
@@ -183,21 +190,21 @@ impl PortMapController {
     /// grant the full range.
     pub fn ensure_range(
         &self,
-        local_ip: Ipv4Addr,
+        local_ip: IpAddr,
         external_port: u16,
         internal_port: u16,
         count: u16,
-        gateways: Vec<Ipv4Addr>,
+        gateways: Vec<(IpAddr, Option<u32>)>,
     ) {
         self.send_ensure(local_ip, external_port, internal_port, gateways, None, count);
     }
 
     fn send_ensure(
         &self,
-        local_ip: Ipv4Addr,
+        local_ip: IpAddr,
         external_port: u16,
         internal_port: u16,
-        gateways: Vec<Ipv4Addr>,
+        gateways: Vec<(IpAddr, Option<u32>)>,
         hostname: Option<String>,
         count: u16,
     ) {
@@ -213,7 +220,7 @@ impl PortMapController {
             .ok();
     }
 
-    pub fn remove(&self, local_ip: Ipv4Addr, external_port: u16) {
+    pub fn remove(&self, local_ip: IpAddr, external_port: u16) {
         self.req
             .send(Command::Remove {
                 key: (local_ip, external_port, None),
@@ -223,7 +230,7 @@ impl PortMapController {
 
     /// Remove the SNI HOSTNAME mapping for `hostname` on
     /// `(local_ip, external_port)`, leaving any other hostnames on that port.
-    pub fn remove_hostname(&self, local_ip: Ipv4Addr, external_port: u16, hostname: String) {
+    pub fn remove_hostname(&self, local_ip: IpAddr, external_port: u16, hostname: String) {
         self.req
             .send(Command::Remove {
                 key: (local_ip, external_port, Some(hostname)),
@@ -236,7 +243,7 @@ impl PortMapController {
     /// forwarded automatically, so a remote reachability check can be skipped.
     pub async fn mapped_external_ip(
         &self,
-        local_ip: Ipv4Addr,
+        local_ip: IpAddr,
         external_port: u16,
     ) -> Option<IpAddr> {
         let (resp, rx) = oneshot::channel();
@@ -267,7 +274,7 @@ struct State {
     last_attempt: BTreeMap<MappingKey, Instant>,
     /// Per-gateway PCP ANNOUNCE result ("speaks the Start9 HOSTNAME
     /// extension"); a positive verdict is trusted longer than a negative one.
-    hostname_caps: BTreeMap<Ipv4Addr, (bool, Instant)>,
+    hostname_caps: BTreeMap<IpAddr, (bool, Instant)>,
 }
 
 impl State {
@@ -333,8 +340,10 @@ impl State {
             }
             Some(Active::Upnp { .. }) => {
                 let (local_ip, external_port, _) = key;
-                if let Some(gw) = self.gateway_for(local_ip).await {
-                    upnp::remove_port(gw, external_port).await.log_err();
+                if let IpAddr::V4(local_v4) = local_ip {
+                    if let Some(gw) = self.gateway_for(local_v4).await {
+                        upnp::remove_port(gw, external_port).await.log_err();
+                    }
                 }
             }
             None => {}
@@ -363,21 +372,25 @@ impl State {
                 code: OPTION_HOSTNAME,
                 data: hostname.as_bytes().to_vec(),
             }];
-            for gw in &spec.gateways {
+            for (gw, scope_id) in &spec.gateways {
+                if gw.is_ipv4() != local_ip.is_ipv4() {
+                    continue;
+                }
                 // Never hand a Private-Use OPTION_HOSTNAME to a gateway that
                 // hasn't confirmed it speaks the extension via ANNOUNCE.
-                if !self.gateway_supports_hostname(local_ip, *gw).await {
+                if !self.gateway_supports_hostname(local_ip, *gw, *scope_id).await {
                     tracing::debug!("PCP HOSTNAME skip {gw}: no ANNOUNCE confirmation of support");
                     continue;
                 }
                 match pcp::port_mapping(
-                    pcp::BaseMapRequest::new(IpAddr::V4(*gw), IpAddr::V4(local_ip), InternetProtocol::Tcp, intl),
+                    pcp::BaseMapRequest::new(*gw, local_ip, InternetProtocol::Tcp, intl),
                     None,
                     None,
                     PortMappingOptions {
                         external_port: Some(ext),
                         lifetime_seconds: Some(PCP_LIFETIME_SECONDS),
                         timeout_config: Some(PCP_TIMEOUTS),
+                        gateway_scope_id: *scope_id,
                     },
                     &options,
                 )
@@ -421,15 +434,19 @@ impl State {
                 }
                 .to_payload(),
             };
-            for gw in &spec.gateways {
+            for (gw, scope_id) in &spec.gateways {
+                if gw.is_ipv4() != local_ip.is_ipv4() {
+                    continue;
+                }
                 match pcp::port_mapping(
-                    pcp::BaseMapRequest::new(IpAddr::V4(*gw), IpAddr::V4(local_ip), InternetProtocol::Tcp, intl),
+                    pcp::BaseMapRequest::new(*gw, local_ip, InternetProtocol::Tcp, intl),
                     None,
                     None,
                     PortMappingOptions {
                         external_port: Some(ext),
                         lifetime_seconds: Some(PCP_LIFETIME_SECONDS),
                         timeout_config: Some(PCP_TIMEOUTS),
+                        gateway_scope_id: *scope_id,
                     },
                     std::slice::from_ref(&option),
                 )
@@ -467,16 +484,20 @@ impl State {
         }
 
         // PCP first, NAT-PMP fallback (crab_nat), against each candidate gateway.
-        for gw in &spec.gateways {
+        for (gw, scope_id) in &spec.gateways {
+            if gw.is_ipv4() != local_ip.is_ipv4() {
+                continue;
+            }
             match PortMapping::new(
-                IpAddr::V4(*gw),
-                IpAddr::V4(local_ip),
+                *gw,
+                local_ip,
                 InternetProtocol::Tcp,
                 intl,
                 PortMappingOptions {
                     external_port: Some(ext),
                     lifetime_seconds: Some(PCP_LIFETIME_SECONDS),
                     timeout_config: Some(PCP_TIMEOUTS),
+                    gateway_scope_id: *scope_id,
                 },
             )
             .await
@@ -500,28 +521,30 @@ impl State {
             }
         }
 
-        // Fall back to UPnP.
-        let added = match self.gateway_for(local_ip).await {
-            Some(gw) => match upnp::add_port(gw, external_port, local_ip, spec.internal_port).await {
-                Ok(()) => {
-                    tracing::debug!("UPnP mapped {external_port}->{local_ip}:{}", spec.internal_port);
-                    true
-                }
-                Err(e) => {
-                    tracing::debug!("UPnP map {local_ip}:{external_port} failed: {e}");
-                    false
-                }
-            },
-            None => false,
-        };
-        if added {
-            // Best-effort external IP (local IGD query) so a reachability check
-            // can short-circuit; `get_external_ipv4` discards private/CGNAT.
-            let external_ip = upnp::get_external_ipv4(local_ip).await.ok().flatten();
-            self.active.insert(key, Active::Upnp { external_ip });
-        } else {
-            // Re-discover next time in case the gateway went away.
-            self.upnp_cache.remove(&local_ip);
+        // Fall back to UPnP (IPv4 only).
+        if let IpAddr::V4(local_v4) = local_ip {
+            let added = match self.gateway_for(local_v4).await {
+                Some(gw) => match upnp::add_port(gw, external_port, local_v4, spec.internal_port).await {
+                    Ok(()) => {
+                        tracing::debug!("UPnP mapped {external_port}->{local_v4}:{}", spec.internal_port);
+                        true
+                    }
+                    Err(e) => {
+                        tracing::debug!("UPnP map {local_v4}:{external_port} failed: {e}");
+                        false
+                    }
+                },
+                None => false,
+            };
+            if added {
+                // Best-effort external IP (local IGD query) so a reachability check
+                // can short-circuit; `get_external_ipv4` discards private/CGNAT.
+                let external_ip = upnp::get_external_ipv4(local_v4).await.ok().flatten();
+                self.active.insert(key, Active::Upnp { external_ip });
+            } else {
+                // Re-discover next time in case the gateway went away.
+                self.upnp_cache.remove(&local_v4);
+            }
         }
     }
 
@@ -549,14 +572,19 @@ impl State {
     /// cached per gateway (a yes trusted for GATEWAY_CACHE_TTL, a no re-probed
     /// after RETRY_INTERVAL). Gates OPTION_HOSTNAME while we ride a Private-Use
     /// option code.
-    async fn gateway_supports_hostname(&mut self, local_ip: Ipv4Addr, gw: Ipv4Addr) -> bool {
+    async fn gateway_supports_hostname(
+        &mut self,
+        local_ip: IpAddr,
+        gw: IpAddr,
+        scope_id: Option<u32>,
+    ) -> bool {
         if let Some((ok, at)) = self.hostname_caps.get(&gw) {
             let ttl = if *ok { GATEWAY_CACHE_TTL } else { RETRY_INTERVAL };
             if at.elapsed() < ttl {
                 return *ok;
             }
         }
-        let ok = probe_announce(local_ip, gw).await;
+        let ok = probe_announce(local_ip, gw, scope_id).await;
         self.hostname_caps.insert(gw, (ok, Instant::now()));
         ok
     }
@@ -575,20 +603,29 @@ fn announce_marker_ok(resp: &[u8]) -> bool {
 /// Send a PCP ANNOUNCE to `gw:5351` and report whether it answers with the
 /// Start9 capability marker. Raw UDP since crab_nat exposes no ANNOUNCE;
 /// best-effort — any error/timeout/non-marker reply is "not supported".
-async fn probe_announce(local_ip: Ipv4Addr, gw: Ipv4Addr) -> bool {
+async fn probe_announce(local_ip: IpAddr, gw: IpAddr, scope_id: Option<u32>) -> bool {
     // Bind the gateway-facing source IP (as the crab_nat MAP path does) so the
     // ANNOUNCE egresses the right interface — e.g. the WireGuard tunnel to a
     // StartTunnel gateway — and the reply routes back to us.
     let Ok(sock) = UdpSocket::bind((local_ip, 0)).await else {
         return false;
     };
-    if sock.connect((gw, PCP_PORT)).await.is_err() {
+    // A link-local (fe80::) gateway needs the interface zone/scope id to connect.
+    let dst = match gw {
+        IpAddr::V4(v4) => SocketAddr::V4(SocketAddrV4::new(v4, PCP_PORT)),
+        IpAddr::V6(v6) => SocketAddr::V6(SocketAddrV6::new(v6, PCP_PORT, 0, scope_id.unwrap_or(0))),
+    };
+    if sock.connect(dst).await.is_err() {
         return false;
     }
     // Bare 24-byte PCP header: version 2, opcode 0 (ANNOUNCE), client IP.
     let mut req = [0u8; 24];
     req[0] = 2;
-    req[8..24].copy_from_slice(&local_ip.to_ipv6_mapped().octets());
+    let client_octets = match local_ip {
+        IpAddr::V4(v4) => v4.to_ipv6_mapped().octets(),
+        IpAddr::V6(v6) => v6.octets(),
+    };
+    req[8..24].copy_from_slice(&client_octets);
     let mut buf = [0u8; 1100];
     let attempts = PCP_TIMEOUTS.max_retries as u32 + 1;
     for attempt in 0..attempts {
@@ -631,7 +668,7 @@ mod tests {
     // removing one (or adding a plain mapping) never clobbers the others.
     #[tokio::test]
     async fn distinct_hostnames_share_a_port_without_clobbering() {
-        let ip = Ipv4Addr::new(10, 59, 0, 2);
+        let ip: IpAddr = Ipv4Addr::new(10, 59, 0, 2).into();
         let a: MappingKey = (ip, 443, Some("a.example.com".into()));
         let b: MappingKey = (ip, 443, Some("b.example.com".into()));
         let plain: MappingKey = (ip, 443, None);

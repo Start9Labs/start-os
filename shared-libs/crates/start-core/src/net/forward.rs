@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
-use std::net::{IpAddr, Ipv4Addr, SocketAddrV4};
+use std::net::{IpAddr, Ipv4Addr, SocketAddrV4, SocketAddrV6};
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
@@ -316,16 +316,21 @@ pub async fn nft_ensure_base() -> Result<(), Error> {
         .arg(include_str!("startos-base.nft"))
         .invoke(ErrorKind::Network)
         .await?;
+    Command::new("nft")
+        .arg(include_str!("startos-base-v6.nft"))
+        .invoke(ErrorKind::Network)
+        .await?;
     Ok(())
 }
 
-/// `nft -a list chain ip startos <chain>` output, empty on error.
-async fn nft_list_chain(chain: &str) -> String {
+/// `nft -a list chain <family> startos <chain>` output, empty on error.
+/// `family` is `ip` (IPv4) or `ip6`.
+async fn nft_list_chain(family: &str, chain: &str) -> String {
     let out = Command::new("nft")
         .arg("-a")
         .arg("list")
         .arg("chain")
-        .arg("ip")
+        .arg(family)
         .arg("startos")
         .arg(chain)
         .invoke(ErrorKind::Network)
@@ -336,9 +341,9 @@ async fn nft_list_chain(chain: &str) -> String {
 
 /// Rules in `chain` tagged with `comment`, as `(handle, body)` where `body` is
 /// the rule text preceding the `comment "..."` token.
-async fn nft_rules_with_comment(chain: &str, comment: &str) -> Vec<(u32, String)> {
+async fn nft_rules_with_comment(family: &str, chain: &str, comment: &str) -> Vec<(u32, String)> {
     let needle = format!("comment \"{comment}\"");
-    nft_list_chain(chain)
+    nft_list_chain(family, chain)
         .await
         .lines()
         .filter_map(|line| {
@@ -352,7 +357,7 @@ async fn nft_rules_with_comment(chain: &str, comment: &str) -> Vec<(u32, String)
 /// Comment tags in `chain` of `table ip startos` beginning with `prefix`. Used
 /// to prune orphaned per-device/per-subnet rules whose owner no longer exists.
 pub(crate) async fn nft_comments_with_prefix(chain: &str, prefix: &str) -> Vec<String> {
-    nft_list_chain(chain)
+    nft_list_chain("ip", chain)
         .await
         .lines()
         .filter_map(|line| {
@@ -380,12 +385,35 @@ pub async fn nft_rule(
     prepend: bool,
     rule: &str,
 ) -> Result<(), Error> {
+    nft_rule_family("ip", chain, comment, undo, prepend, rule).await
+}
+
+/// Like [`nft_rule`] but against `table ip6 startos` (the IPv6 base). Used for
+/// the v6 forward-chain filter rules (established-accept, bridge egress).
+pub async fn nft_rule_v6(
+    chain: &str,
+    comment: &str,
+    undo: bool,
+    prepend: bool,
+    rule: &str,
+) -> Result<(), Error> {
+    nft_rule_family("ip6", chain, comment, undo, prepend, rule).await
+}
+
+async fn nft_rule_family(
+    family: &str,
+    chain: &str,
+    comment: &str,
+    undo: bool,
+    prepend: bool,
+    rule: &str,
+) -> Result<(), Error> {
     nft_ensure_base().await?;
 
     const MAX_ATTEMPTS: usize = 5;
     let mut last_err = None;
     for attempt in 1..=MAX_ATTEMPTS {
-        let existing = nft_rules_with_comment(chain, comment).await;
+        let existing = nft_rules_with_comment(family, chain, comment).await;
 
         // Already converged: nothing to undo, or exactly the desired rule present.
         if undo {
@@ -402,13 +430,13 @@ pub async fn nft_rule(
         // no window where the rule is missing or duplicated.
         let mut script = String::new();
         for (handle, _) in &existing {
-            writeln!(script, "delete rule ip startos {chain} handle {handle}").unwrap();
+            writeln!(script, "delete rule {family} startos {chain} handle {handle}").unwrap();
         }
         if !undo {
             let verb = if prepend { "insert" } else { "add" };
             writeln!(
                 script,
-                "{verb} rule ip startos {chain} {rule} comment \"{comment}\""
+                "{verb} rule {family} startos {chain} {rule} comment \"{comment}\""
             )
             .unwrap();
         }
@@ -450,9 +478,24 @@ impl PortForwardController {
                     "ct state established,related accept",
                 )
                 .await?;
+                // Same for the v6 forward chain (drop policy) so reply packets of
+                // a non-SSL GUA forward aren't dropped.
+                nft_rule_v6(
+                    "forward",
+                    "base-established",
+                    false,
+                    false,
+                    "ct state established,related accept",
+                )
+                .await?;
                 Command::new("sysctl")
                     .arg("-w")
                     .arg("net.ipv4.ip_forward=1")
+                    .invoke(ErrorKind::Network)
+                    .await?;
+                Command::new("sysctl")
+                    .arg("-w")
+                    .arg("net.ipv6.conf.all.forwarding=1")
                     .invoke(ErrorKind::Network)
                     .await?;
                 Ok::<_, Error>(())
@@ -617,7 +660,8 @@ impl InterfaceForwardEntry {
         // Only public (WAN-facing) forwards need this; private subnets are already
         // reachable. A `count > 1` range is one PCP PORT_SET request (RFC 7753),
         // skipped on gateways without it (UPnP/NAT-PMP can't map ranges).
-        let mut want = BTreeMap::<(Ipv4Addr, u16), (u16, u16, Vec<Ipv4Addr>)>::new();
+        let mut want =
+            BTreeMap::<(Ipv4Addr, u16), (u16, u16, Vec<(IpAddr, Option<u32>)>)>::new();
 
         for (gw_id, info) in ip_info.iter() {
             if let Some(ip_info) = &info.ip_info {
@@ -681,13 +725,13 @@ impl InterfaceForwardEntry {
         self.forwards.retain(|addr, _| keep.contains(addr));
 
         for (ip, port) in self.mapped.iter().filter(|key| !want.contains_key(key)) {
-            pmap.remove(*ip, *port);
+            pmap.remove(IpAddr::V4(*ip), *port);
         }
         for ((ip, external), (count, internal, gateways)) in &want {
             if *count > 1 {
-                pmap.ensure_range(*ip, *external, *internal, *count, gateways.clone());
+                pmap.ensure_range(IpAddr::V4(*ip), *external, *internal, *count, gateways.clone());
             } else {
-                pmap.ensure(*ip, *external, *internal, gateways.clone());
+                pmap.ensure(IpAddr::V4(*ip), *external, *internal, gateways.clone());
             }
         }
         self.mapped = want.into_keys().collect();
@@ -1003,6 +1047,55 @@ async fn unforward(
         .env("sport", source.port().to_string())
         .env("dport", target.port().to_string())
         .env("count", count.to_string());
+    if let Some(subnet) = src_filter {
+        cmd.env("src_subnet", subnet.to_string());
+    }
+    cmd.invoke(ErrorKind::Network).await?;
+    Ok(())
+}
+
+/// The lxcbr0 IPv6 bridge subnet (a ULA), assigned by lxc-net (see
+/// `debian/postinst`). Containers get a SLAAC address in it.
+pub(crate) const START9_BRIDGE_V6_SUBNET: &str = "fd00:3::/64";
+
+/// IPv6 counterpart of [`forward`]: DNAT `source` (a host GUA:port) to `target`
+/// (the container's ULA:port) via the `forward-port6` script. `src_filter`
+/// restricts inbound to a LAN v6 subnet (a LAN-only GUA); `None` is WAN.
+pub(crate) async fn forward6(
+    source: SocketAddrV6,
+    target: SocketAddrV6,
+    target_prefix: u8,
+    src_filter: Option<&IpNet>,
+) -> Result<(), Error> {
+    let mut cmd = Command::new("/usr/lib/startos/scripts/forward-port6");
+    cmd.env("sip", source.ip().to_string())
+        .env("dip", target.ip().to_string())
+        .env("dprefix", target_prefix.to_string())
+        .env("sport", source.port().to_string())
+        .env("dport", target.port().to_string())
+        .env("bridge_subnet", START9_BRIDGE_V6_SUBNET);
+    if let Some(subnet) = src_filter {
+        cmd.env("src_subnet", subnet.to_string());
+    }
+    cmd.invoke(ErrorKind::Network).await?;
+    Ok(())
+}
+
+/// Tear down a forward created by [`forward6`]. Passes the same identifying env
+/// so the script recomputes the matching comment tag.
+pub(crate) async fn unforward6(
+    source: SocketAddrV6,
+    target: SocketAddrV6,
+    target_prefix: u8,
+    src_filter: Option<&IpNet>,
+) -> Result<(), Error> {
+    let mut cmd = Command::new("/usr/lib/startos/scripts/forward-port6");
+    cmd.env("UNDO", "1")
+        .env("sip", source.ip().to_string())
+        .env("dip", target.ip().to_string())
+        .env("dprefix", target_prefix.to_string())
+        .env("sport", source.port().to_string())
+        .env("dport", target.port().to_string());
     if let Some(subnet) = src_filter {
         cmd.env("src_subnet", subnet.to_string());
     }

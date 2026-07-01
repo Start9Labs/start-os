@@ -120,8 +120,13 @@ pub fn ipv6_is_link_local(addr: Ipv6Addr) -> bool {
     (addr.segments()[0] & 0xffc0) == 0xfe80
 }
 
+/// Unique-local address (`fc00::/7`) — the lxcbr0 bridge subnet lives here.
+pub fn ipv6_is_ula(addr: Ipv6Addr) -> bool {
+    (addr.segments()[0] & 0xfe00) == 0xfc00
+}
+
 pub fn ipv6_is_local(addr: Ipv6Addr) -> bool {
-    addr.is_loopback() || (addr.segments()[0] & 0xfe00) == 0xfc00 || ipv6_is_link_local(addr)
+    addr.is_loopback() || ipv6_is_ula(addr) || ipv6_is_link_local(addr)
 }
 
 pub fn is_private_ip(addr: IpAddr) -> bool {
