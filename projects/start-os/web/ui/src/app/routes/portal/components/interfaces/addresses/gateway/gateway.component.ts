@@ -305,6 +305,7 @@ export class GatewayComponent {
         fqdn,
         gatewayId,
         res,
+        iface?.addressInfo.internalPort || 80,
         this.count(),
       )
 

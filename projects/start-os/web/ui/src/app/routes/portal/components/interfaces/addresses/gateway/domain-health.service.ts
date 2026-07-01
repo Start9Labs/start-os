@@ -20,6 +20,7 @@ export class DomainHealthService {
     fqdn: string,
     gatewayId: string,
     portOrRes: number | T.AddPublicDomainRes,
+    internalPort: number,
     count = 1,
   ): Promise<void> {
     try {
@@ -64,10 +65,17 @@ export class DomainHealthService {
       if (!dnsPass || !portOk) {
         setTimeout(
           () =>
-            this.openPublicDomainModal(fqdn, gateway, port, count, {
-              dnsPass,
-              portResult,
-            }),
+            this.openPublicDomainModal(
+              fqdn,
+              gateway,
+              port,
+              internalPort,
+              count,
+              {
+                dnsPass,
+                portResult,
+              },
+            ),
           250,
         )
       }
@@ -106,19 +114,24 @@ export class DomainHealthService {
     fqdn: string,
     gatewayId: string,
     port: number,
+    internalPort: number,
     count = 1,
   ): Promise<void> {
     try {
       const gateway = await this.getGatewayData(gatewayId)
       if (!gateway) return
 
-      this.openPublicDomainModal(fqdn, gateway, port, count)
+      this.openPublicDomainModal(fqdn, gateway, port, internalPort, count)
     } catch (e: any) {
       this.errorService.handleError(e)
     }
   }
 
-  async checkPortForward(gatewayId: string, port: number): Promise<void> {
+  async checkPortForward(
+    gatewayId: string,
+    port: number,
+    internalPort: number,
+  ): Promise<void> {
     try {
       const gateway = await this.getGatewayData(gatewayId)
       if (!gateway) return
@@ -134,7 +147,10 @@ export class DomainHealthService {
 
       if (!portOk) {
         setTimeout(
-          () => this.openPortForwardModal(gateway, port, 1, { portResult }),
+          () =>
+            this.openPortForwardModal(gateway, port, internalPort, 1, {
+              portResult,
+            }),
           250,
         )
       }
@@ -146,13 +162,14 @@ export class DomainHealthService {
   async showPortForwardSetup(
     gatewayId: string,
     port: number,
+    internalPort: number,
     count = 1,
   ): Promise<void> {
     try {
       const gateway = await this.getGatewayData(gatewayId)
       if (!gateway) return
 
-      this.openPortForwardModal(gateway, port, count)
+      this.openPortForwardModal(gateway, port, internalPort, count)
     } catch (e: any) {
       this.errorService.handleError(e)
     }
@@ -182,6 +199,7 @@ export class DomainHealthService {
     fqdn: string,
     gateway: DnsGateway,
     port: number,
+    internalPort: number,
     count: number,
     initialResults?: {
       dnsPass: boolean
@@ -192,7 +210,7 @@ export class DomainHealthService {
       .openComponent(DOMAIN_VALIDATION, {
         label: 'Address Requirements',
         size: 'm',
-        data: { fqdn, gateway, port, count, initialResults },
+        data: { fqdn, gateway, port, internalPort, count, initialResults },
       })
       .subscribe()
   }
@@ -200,6 +218,7 @@ export class DomainHealthService {
   private openPortForwardModal(
     gateway: DnsGateway,
     port: number,
+    internalPort: number,
     count: number,
     initialResults?: { portResult: T.CheckPortRes | null },
   ) {
@@ -207,7 +226,7 @@ export class DomainHealthService {
       .openComponent(PORT_FORWARD_VALIDATION, {
         label: 'Address Requirements',
         size: 'm',
-        data: { gateway, port, count, initialResults },
+        data: { gateway, port, internalPort, count, initialResults },
       })
       .subscribe()
   }

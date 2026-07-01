@@ -223,9 +223,23 @@ export default class PortForwards {
     { initialValue: [] },
   )
 
+  // All devices (any kind), so rows targeting a client still resolve a name.
+  private readonly allDevices: Signal<MappedDevice[]> = toSignal(
+    this.patch
+      .watch$('wg', 'subnets')
+      .pipe(
+        map(subnets =>
+          Object.values(subnets).flatMap(({ clients }) =>
+            Object.entries(clients).map(([ip, { name }]) => ({ ip, name })),
+          ),
+        ),
+      ),
+    { initialValue: [] },
+  )
+
   protected readonly portForwards = toSignal(this.patch.watch$('portForwards'))
   protected readonly forwards = computed(() =>
-    mapForwards(this.portForwards() || {}, this.devices()),
+    mapForwards(this.portForwards() || {}, this.allDevices()),
   )
   protected readonly manual = computed(() =>
     this.forwards().filter(f => !f.auto),

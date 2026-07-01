@@ -14,6 +14,7 @@ import { DnsGateway } from './dns.component'
 export type PortForwardValidationData = {
   gateway: DnsGateway
   port: number
+  internalPort: number
   count: number
   initialResults?: { portResult: T.CheckPortRes | null }
 }
@@ -48,7 +49,7 @@ export type PortForwardValidationData = {
             </td>
           }
           <td>{{ portDisplay }}</td>
-          <td>{{ portDisplay }}</td>
+          <td>{{ internalPortDisplay }}</td>
           @if (!isRange) {
             <td>
               <button
@@ -82,7 +83,7 @@ export type PortForwardValidationData = {
             <span class="field-label">
               {{ (isRange ? 'Internal Range' : 'Internal Port') | i18n }}
             </span>
-            <span>{{ portDisplay }}</span>
+            <span>{{ internalPortDisplay }}</span>
           </div>
         </div>
         @if (!isRange) {
@@ -220,6 +221,10 @@ export class PortForwardValidationComponent {
   readonly isRange = this.context.data.count > 1
   readonly portDisplay = formatPortRange(
     this.context.data.port,
+    this.context.data.count,
+  )
+  readonly internalPortDisplay = formatPortRange(
+    this.context.data.internalPort,
     this.context.data.count,
   )
 
