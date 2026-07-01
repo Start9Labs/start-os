@@ -6,6 +6,7 @@ import { PlaceholderComponent } from 'src/app/routes/portal/components/placehold
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { DiskBackupTarget } from 'src/app/services/api/api.types'
 import { BackupService, MappedBackupTarget } from './backup.service'
+import { BackupLegacyWarningComponent } from './legacy-warning.component'
 import { BackupStatusComponent } from './status.component'
 
 @Component({
@@ -15,7 +16,7 @@ import { BackupStatusComponent } from './status.component'
       {{ 'Physical Drives' | i18n }}
     </header>
 
-    <table [appTable]="['Status', 'Logicalname', 'Name', 'Capacity']">
+    <table [appTable]="['Status', 'Logicalname', 'Name', 'Capacity', null]">
       @for (target of service.drives(); track $index) {
         <tr
           tabindex="0"
@@ -28,10 +29,19 @@ import { BackupStatusComponent } from './status.component'
           <td class="name">{{ target.entry.logicalname }}</td>
           <td>{{ driveName(target.entry) }}</td>
           <td>{{ formatCapacity(target.entry.capacity) }}</td>
+          <td class="actions">
+            @if (
+              type === 'create' &&
+              target.hasAnyBackup &&
+              target.entry.legacyBackup
+            ) {
+              <backup-legacy-warning [id]="target.id" />
+            }
+          </td>
         </tr>
       } @empty {
         <tr>
-          <td colspan="4">
+          <td colspan="5">
             <app-placeholder icon="@tui.save-off">
               {{ 'No drives detected' | i18n }}
               <button
@@ -54,11 +64,16 @@ import { BackupStatusComponent } from './status.component'
       @include taiga.transition(background);
 
       @media (taiga.$tui-mouse) {
-        &:not(:has(app-placeholder)):hover {
+        &:not(:has(app-placeholder)):hover:not(:has(button:hover)) {
           cursor: pointer;
           background: var(--tui-background-neutral-1-hover);
         }
       }
+    }
+
+    td.actions {
+      text-align: right;
+      white-space: nowrap;
     }
 
     :host-context(tui-root._mobile) {
@@ -77,6 +92,12 @@ import { BackupStatusComponent } from './status.component'
           place-content: center;
           margin: 0 0.5rem;
         }
+
+        &:last-child {
+          grid-area: 1 / 3 / 4 / 3;
+          align-self: center;
+          justify-self: end;
+        }
       }
 
       .name {
@@ -93,13 +114,14 @@ import { BackupStatusComponent } from './status.component'
     TuiButton,
     PlaceholderComponent,
     BackupStatusComponent,
+    BackupLegacyWarningComponent,
     TableComponent,
     i18nPipe,
   ],
 })
 export class BackupPhysicalComponent {
   private readonly dialog = inject(DialogService)
-  private readonly type = inject(ActivatedRoute).snapshot.data['type']
+  protected readonly type = inject(ActivatedRoute).snapshot.data['type']
 
   private readonly i18n = inject(i18nPipe)
 

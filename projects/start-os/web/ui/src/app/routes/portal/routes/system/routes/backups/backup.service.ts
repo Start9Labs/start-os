@@ -76,4 +76,19 @@ export class BackupService {
       Version.parse(item.version).compare(Version.parse('0.3.6')) !== 'less'
     )
   }
+
+  // Drop the now-deleted legacy (V1) backup from the cached target so the
+  // warning + delete button disappear without re-listing every drive.
+  clearLegacy(id: string): void {
+    this.drives.update(drives =>
+      drives.map(t =>
+        t.id === id ? { ...t, entry: { ...t.entry, legacyBackup: null } } : t,
+      ),
+    )
+    this.cifs.update(cifs =>
+      cifs.map(t =>
+        t.id === id ? { ...t, entry: { ...t.entry, legacyBackup: null } } : t,
+      ),
+    )
+  }
 }

@@ -475,6 +475,10 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'backup.target.cifs.remove', params })
   }
 
+  async deleteLegacyBackup(params: T.DeleteLegacyParams): Promise<null> {
+    return this.rpcRequest({ method: 'backup.target.delete-legacy', params })
+  }
+
   async getBackupInfo(params: T.InfoParams): Promise<T.BackupInfo> {
     return this.rpcRequest({ method: 'backup.target.info', params })
   }

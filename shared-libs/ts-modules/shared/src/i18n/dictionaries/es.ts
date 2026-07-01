@@ -792,4 +792,8 @@ export default {
   883: 'Rango externo',
   884: 'Rango interno',
   885: 'O habilite el reenvío de puertos automático (PCP) en la puerta de enlace. UPnP y NAT-PMP no admiten rangos de puertos.',
+  887: 'Eliminar copia antigua',
+  888: 'Copia antigua eliminada',
+  889: '¿Eliminar copia antigua?',
+  890: '¿Eliminar permanentemente la copia antigua (V1) de este destino? Esta acción no se puede deshacer. Su copia actual (V2) no se verá afectada.',
 } satisfies i18n

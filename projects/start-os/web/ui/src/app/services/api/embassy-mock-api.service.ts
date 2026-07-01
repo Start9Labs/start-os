@@ -899,6 +899,13 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async deleteLegacyBackup(params: T.DeleteLegacyParams): Promise<null> {
+    await pauseFor(2000)
+    const target = Mock.BackupTargets[params.targetId]
+    if (target) target.legacyBackup = null
+    return null
+  }
+
   async getBackupInfo(params: T.InfoParams): Promise<T.BackupInfo> {
     await pauseFor(2000)
     return Mock.BackupInfo
@@ -983,6 +990,33 @@ export class MockApiService extends ApiService {
         },
       ]
       this.mockRevision(lastPatch)
+
+      // Feature 1: a completed backup whose target still holds a legacy (V1)
+      // folder raises a warning notification — bumps the unread badge and
+      // lands in the notifications list, pointing the user at the create page.
+      if (Mock.BackupTargets[params.targetId]?.legacyBackup) {
+        const count = mockPatchData.serverInfo.unreadNotificationCount + 1
+        mockPatchData.serverInfo.unreadNotificationCount = count
+        Mock.Notifications.unshift({
+          id: Math.max(0, ...Mock.Notifications.map(n => n.id)) + 1,
+          packageId: null,
+          createdAt: new Date().toISOString(),
+          code: 0,
+          level: 'warning',
+          title: 'Old Backup Still Present',
+          message:
+            'This backup target still contains an old-format (V1) backup that is no longer needed. To free up space on the drive, go to the backup creation page and delete it.',
+          data: null,
+          seen: false,
+        })
+        this.mockRevision([
+          {
+            op: PatchOp.REPLACE,
+            path: '/serverInfo/unreadNotificationCount',
+            value: count,
+          },
+        ])
+      }
     }, 500)
 
     const originalPatch: ReplaceOperation<T.ServerStatus['backupProgress']>[] =

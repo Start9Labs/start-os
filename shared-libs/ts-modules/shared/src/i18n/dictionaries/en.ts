@@ -793,4 +793,8 @@ export const ENGLISH: Record<string, number> = {
   'External Range': 883,
   'Internal Range': 884,
   'Or enable automatic port forwarding (PCP) on the gateway. UPnP and NAT-PMP do not support port ranges.': 885,
+  'Delete old backup': 887,
+  'Old backup deleted': 888,
+  'Delete old backup?': 889,
+  'Permanently delete the old (V1) backup from this target? This cannot be undone. Your current (V2) backup will not be affected.': 890,
 }

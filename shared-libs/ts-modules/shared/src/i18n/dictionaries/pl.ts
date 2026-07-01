@@ -792,4 +792,8 @@ export default {
   883: 'Zakres zewnętrzny',
   884: 'Zakres wewnętrzny',
   885: 'Lub włącz automatyczne przekierowanie portów (PCP) w bramie. UPnP i NAT-PMP nie obsługują zakresów portów.',
+  887: 'Usuń starą kopię zapasową',
+  888: 'Stara kopia zapasowa usunięta',
+  889: 'Usunąć starą kopię zapasową?',
+  890: 'Trwale usunąć starą kopię (V1) z tego celu? Tej operacji nie można cofnąć. Bieżąca kopia (V2) nie zostanie naruszona.',
 } satisfies i18n
