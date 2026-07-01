@@ -443,7 +443,7 @@ impl VHostController {
     pub fn sync_hostname_mappings(
         &self,
         owner: HostMapOwner,
-        desired: BTreeMap<(Ipv4Addr, u16), (u16, Vec<IpAddr>, Vec<String>)>,
+        desired: BTreeMap<(Ipv4Addr, u16), (u16, Vec<(IpAddr, Option<u32>)>, Vec<String>)>,
     ) {
         let want: BTreeSet<(Ipv4Addr, u16, String)> = desired
             .iter()

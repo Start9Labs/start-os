@@ -179,7 +179,7 @@ fn targets_for(info: &NetworkInterfaceInfo) -> Vec<(IpAddr, IpAddr)> {
     let Some(ip_info) = &info.ip_info else {
         return Vec::new();
     };
-    let resolvers = candidate_gateways(info);
+    let resolvers: Vec<IpAddr> = candidate_gateways(info).into_iter().map(|(g, _)| g).collect();
     let mut out = Vec::new();
     for subnet in &ip_info.subnets {
         let our_ip = subnet.addr();

@@ -343,12 +343,12 @@ impl NetServiceData {
                 let Some(gua) = a.gua() else {
                     continue;
                 };
-                let v6_gateways: Vec<IpAddr> = a
+                let v6_gateways: Vec<(IpAddr, Option<u32>)> = a
                     .metadata
                     .gateways()
                     .filter_map(|gw| net_ifaces.get(gw))
                     .flat_map(|info| candidate_gateways(info))
-                    .filter(|g| g.is_ipv6())
+                    .filter(|(g, _)| g.is_ipv6())
                     .collect();
                 if v6_gateways.is_empty() {
                     continue;
@@ -754,8 +754,10 @@ impl NetServiceData {
         // PCP HOSTNAME mappings come only from PUBLIC domain vhosts: each binds
         // its FQDN on the shared external port so the gateway demultiplexes
         // inbound TLS by SNI. Computed before the drain loop consumes `vhosts`.
-        let mut hostname_maps: BTreeMap<(Ipv4Addr, u16), (u16, Vec<IpAddr>, Vec<String>)> =
-            BTreeMap::new();
+        let mut hostname_maps: BTreeMap<
+            (Ipv4Addr, u16),
+            (u16, Vec<(IpAddr, Option<u32>)>, Vec<String>),
+        > = BTreeMap::new();
         for ((maybe_host, external), target) in vhosts.iter() {
             let Some(hostname) = maybe_host else { continue };
             if target.public.is_empty() {

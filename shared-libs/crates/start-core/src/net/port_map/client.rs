@@ -11,7 +11,7 @@
 //! gateway never blocks the forward path.
 
 use std::collections::BTreeMap;
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::num::NonZeroU16;
 use std::time::Duration;
 
@@ -56,15 +56,15 @@ type MappingKey = (IpAddr, u16, Option<String>);
 /// Candidate PCP/NAT-PMP servers for a gateway interface: the NM default
 /// gateways (router) that fall on one of this interface's own subnets, plus the
 /// v6 link-local default gateway.
-pub fn candidate_gateways(info: &NetworkInterfaceInfo) -> Vec<IpAddr> {
-    let mut out: Vec<IpAddr> = Vec::new();
-    let mut push = |ip: IpAddr| {
+pub fn candidate_gateways(info: &NetworkInterfaceInfo) -> Vec<(IpAddr, Option<u32>)> {
+    let mut out: Vec<(IpAddr, Option<u32>)> = Vec::new();
+    let mut push = |ip: IpAddr, scope_id: Option<u32>| {
         let bad = match ip {
             IpAddr::V4(v4) => v4.is_unspecified() || v4.is_loopback() || v4.is_broadcast(),
             IpAddr::V6(v6) => v6.is_unspecified() || v6.is_loopback(),
         };
-        if !bad && !out.contains(&ip) {
-            out.push(ip);
+        if !bad && !out.iter().any(|(g, _)| *g == ip) {
+            out.push((ip, scope_id));
         }
     };
     if let Some(ip_info) = &info.ip_info {
@@ -75,12 +75,12 @@ pub fn candidate_gateways(info: &NetworkInterfaceInfo) -> Vec<IpAddr> {
             match ip {
                 IpAddr::V4(_) => {
                     if ip_info.subnets.iter().any(|s| s.contains(ip)) {
-                        push(*ip);
+                        push(*ip, None);
                     }
                 }
                 IpAddr::V6(v6) => {
                     if ipv6_is_link_local(*v6) || ip_info.subnets.iter().any(|s| s.contains(ip)) {
-                        push(*ip);
+                        push(*ip, Some(ip_info.scope_id));
                     }
                 }
             }
@@ -92,7 +92,7 @@ pub fn candidate_gateways(info: &NetworkInterfaceInfo) -> Vec<IpAddr> {
 #[derive(Clone)]
 struct Spec {
     internal_port: u16,
-    gateways: Vec<IpAddr>,
+    gateways: Vec<(IpAddr, Option<u32>)>,
     /// Contiguous ports to map via PCP PORT_SET (RFC 7753); `1` is single-port.
     /// `> 1` is PCP-only and skipped where the gateway won't grant the full
     /// range (UPnP/NAT-PMP can't map ranges). Always `1` for HOSTNAME mappings.
@@ -166,7 +166,7 @@ impl PortMapController {
         local_ip: IpAddr,
         external_port: u16,
         internal_port: u16,
-        gateways: Vec<IpAddr>,
+        gateways: Vec<(IpAddr, Option<u32>)>,
     ) {
         self.send_ensure(local_ip, external_port, internal_port, gateways, None, 1);
     }
@@ -179,7 +179,7 @@ impl PortMapController {
         local_ip: IpAddr,
         external_port: u16,
         internal_port: u16,
-        gateways: Vec<IpAddr>,
+        gateways: Vec<(IpAddr, Option<u32>)>,
         hostname: String,
     ) {
         self.send_ensure(local_ip, external_port, internal_port, gateways, Some(hostname), 1);
@@ -194,7 +194,7 @@ impl PortMapController {
         external_port: u16,
         internal_port: u16,
         count: u16,
-        gateways: Vec<IpAddr>,
+        gateways: Vec<(IpAddr, Option<u32>)>,
     ) {
         self.send_ensure(local_ip, external_port, internal_port, gateways, None, count);
     }
@@ -204,7 +204,7 @@ impl PortMapController {
         local_ip: IpAddr,
         external_port: u16,
         internal_port: u16,
-        gateways: Vec<IpAddr>,
+        gateways: Vec<(IpAddr, Option<u32>)>,
         hostname: Option<String>,
         count: u16,
     ) {
@@ -372,13 +372,13 @@ impl State {
                 code: OPTION_HOSTNAME,
                 data: hostname.as_bytes().to_vec(),
             }];
-            for gw in &spec.gateways {
+            for (gw, scope_id) in &spec.gateways {
                 if gw.is_ipv4() != local_ip.is_ipv4() {
                     continue;
                 }
                 // Never hand a Private-Use OPTION_HOSTNAME to a gateway that
                 // hasn't confirmed it speaks the extension via ANNOUNCE.
-                if !self.gateway_supports_hostname(local_ip, *gw).await {
+                if !self.gateway_supports_hostname(local_ip, *gw, *scope_id).await {
                     tracing::debug!("PCP HOSTNAME skip {gw}: no ANNOUNCE confirmation of support");
                     continue;
                 }
@@ -390,6 +390,7 @@ impl State {
                         external_port: Some(ext),
                         lifetime_seconds: Some(PCP_LIFETIME_SECONDS),
                         timeout_config: Some(PCP_TIMEOUTS),
+                        gateway_scope_id: *scope_id,
                     },
                     &options,
                 )
@@ -433,7 +434,7 @@ impl State {
                 }
                 .to_payload(),
             };
-            for gw in &spec.gateways {
+            for (gw, scope_id) in &spec.gateways {
                 if gw.is_ipv4() != local_ip.is_ipv4() {
                     continue;
                 }
@@ -445,6 +446,7 @@ impl State {
                         external_port: Some(ext),
                         lifetime_seconds: Some(PCP_LIFETIME_SECONDS),
                         timeout_config: Some(PCP_TIMEOUTS),
+                        gateway_scope_id: *scope_id,
                     },
                     std::slice::from_ref(&option),
                 )
@@ -482,7 +484,7 @@ impl State {
         }
 
         // PCP first, NAT-PMP fallback (crab_nat), against each candidate gateway.
-        for gw in &spec.gateways {
+        for (gw, scope_id) in &spec.gateways {
             if gw.is_ipv4() != local_ip.is_ipv4() {
                 continue;
             }
@@ -495,6 +497,7 @@ impl State {
                     external_port: Some(ext),
                     lifetime_seconds: Some(PCP_LIFETIME_SECONDS),
                     timeout_config: Some(PCP_TIMEOUTS),
+                    gateway_scope_id: *scope_id,
                 },
             )
             .await
@@ -569,14 +572,19 @@ impl State {
     /// cached per gateway (a yes trusted for GATEWAY_CACHE_TTL, a no re-probed
     /// after RETRY_INTERVAL). Gates OPTION_HOSTNAME while we ride a Private-Use
     /// option code.
-    async fn gateway_supports_hostname(&mut self, local_ip: IpAddr, gw: IpAddr) -> bool {
+    async fn gateway_supports_hostname(
+        &mut self,
+        local_ip: IpAddr,
+        gw: IpAddr,
+        scope_id: Option<u32>,
+    ) -> bool {
         if let Some((ok, at)) = self.hostname_caps.get(&gw) {
             let ttl = if *ok { GATEWAY_CACHE_TTL } else { RETRY_INTERVAL };
             if at.elapsed() < ttl {
                 return *ok;
             }
         }
-        let ok = probe_announce(local_ip, gw).await;
+        let ok = probe_announce(local_ip, gw, scope_id).await;
         self.hostname_caps.insert(gw, (ok, Instant::now()));
         ok
     }
@@ -595,14 +603,19 @@ fn announce_marker_ok(resp: &[u8]) -> bool {
 /// Send a PCP ANNOUNCE to `gw:5351` and report whether it answers with the
 /// Start9 capability marker. Raw UDP since crab_nat exposes no ANNOUNCE;
 /// best-effort — any error/timeout/non-marker reply is "not supported".
-async fn probe_announce(local_ip: IpAddr, gw: IpAddr) -> bool {
+async fn probe_announce(local_ip: IpAddr, gw: IpAddr, scope_id: Option<u32>) -> bool {
     // Bind the gateway-facing source IP (as the crab_nat MAP path does) so the
     // ANNOUNCE egresses the right interface — e.g. the WireGuard tunnel to a
     // StartTunnel gateway — and the reply routes back to us.
     let Ok(sock) = UdpSocket::bind((local_ip, 0)).await else {
         return false;
     };
-    if sock.connect((gw, PCP_PORT)).await.is_err() {
+    // A link-local (fe80::) gateway needs the interface zone/scope id to connect.
+    let dst = match gw {
+        IpAddr::V4(v4) => SocketAddr::V4(SocketAddrV4::new(v4, PCP_PORT)),
+        IpAddr::V6(v6) => SocketAddr::V6(SocketAddrV6::new(v6, PCP_PORT, 0, scope_id.unwrap_or(0))),
+    };
+    if sock.connect(dst).await.is_err() {
         return false;
     }
     // Bare 24-byte PCP header: version 2, opcode 0 (ANNOUNCE), client IP.

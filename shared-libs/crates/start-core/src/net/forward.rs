@@ -617,7 +617,8 @@ impl InterfaceForwardEntry {
         // Only public (WAN-facing) forwards need this; private subnets are already
         // reachable. A `count > 1` range is one PCP PORT_SET request (RFC 7753),
         // skipped on gateways without it (UPnP/NAT-PMP can't map ranges).
-        let mut want = BTreeMap::<(Ipv4Addr, u16), (u16, u16, Vec<IpAddr>)>::new();
+        let mut want =
+            BTreeMap::<(Ipv4Addr, u16), (u16, u16, Vec<(IpAddr, Option<u32>)>)>::new();
 
         for (gw_id, info) in ip_info.iter() {
             if let Some(ip_info) = &info.ip_info {
