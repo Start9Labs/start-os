@@ -1,8 +1,9 @@
 #!/bin/bash
 
 # Local, human-run release toolkit for StartWRT, modeled on start-os's
-# scripts/manage-release.sh. CI (.github/workflows/build-image.yaml) builds the
-# image, cuts a GitHub Release on a v* tag, and uploads the images to S3.
+# scripts/manage-release.sh. CI (.github/workflows/start-wrt.yaml, the `deploy`
+# job — run via workflow_dispatch with deploy=release) builds the image, uploads
+# the images to S3, and cuts a GitHub Release.
 # Registering and indexing into the registry (and signing) are deliberately
 # user-initiated and live here, so they sit as a human gate between "built +
 # uploaded" and "live in the registry".
@@ -38,9 +39,9 @@ REGISTRY_SLOTS="img squashfs"
 SIGNING_KEY="${STARTWRT_GPG_KEY:-5456DBFF1B9DF905041FA7765259ADFC2D63C217}"
 
 # Name of the GitHub Actions build artifact that holds the images (see
-# build-image.yaml "Upload image artifact"). Must contain BOTH the sdcard .img
-# and the sysupgrade .img.gz.
-BUILD_ARTIFACT="openwrt-image"
+# start-wrt.yaml, the `image` job's upload-artifact step). Must contain BOTH the
+# sdcard .img and the sysupgrade .img.gz.
+BUILD_ARTIFACT="startwrt-openwrt-image"
 
 # The two image artifacts StartWRT publishes. Globs match the OpenWrt output
 # names for the spacemit-k1-sbc-bananapi-f3 board.
@@ -125,7 +126,7 @@ cmd_download() {
     require_version
 
     if [ -z "${RUN_ID:-}" ]; then
-        read -rp "RUN_ID (build-image run): " RUN_ID
+        read -rp "RUN_ID (start-wrt build run): " RUN_ID
     fi
     RUN_ID=$(parse_run_id "${RUN_ID:-}")
     if [ -z "$RUN_ID" ]; then
@@ -212,8 +213,8 @@ cmd_verify() {
 }
 
 # Manual fallback: upload the images to S3 (the registry CDN serves them from
-# here). The normal flow uploads via CI (build-image.yaml); use this only to
-# re-publish a corrected image without a fresh CI run. Needs ~/.s3cfg.
+# here). The normal flow uploads via CI (start-wrt.yaml `deploy` job); use this
+# only to re-publish a corrected image without a fresh CI run. Needs ~/.s3cfg.
 cmd_upload() {
     require_version
     enter_release_dir
@@ -369,7 +370,7 @@ usage() {
 Usage: manage-release.sh <subcommand>
 
 Subcommands:
-  download        Download freshly-built images from a build-image GH Actions run
+  download        Download freshly-built images from a start-wrt GH Actions run
                   Requires: RUN_ID
   pull            Download + fully verify an already-published version (registry
                   ed25519 sig + blake3 via asset get, then org GPG sig) and fetch
@@ -389,7 +390,7 @@ Subcommands:
 
 Environment variables:
   VERSION          (required) Release version, e.g. 0.1.0-beta.3 (a leading 'v' is stripped)
-  RUN_ID           GitHub Actions run ID for the build-image workflow (download subcommand)
+  RUN_ID           GitHub Actions run ID for the start-wrt build workflow (download subcommand)
   STARTWRT_GPG_KEY GPG key id/fingerprint for the StartWRT release signature (sign subcommand)
   GH_USER          Override GitHub username (default: autodetected via gh cli)
   CLEAN            Set to 1 to wipe and recreate the release directory

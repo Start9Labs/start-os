@@ -57,6 +57,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `@start9labs/shared` is now marked `sideEffects: false` so importing a few symbols from
   its barrel tree-shakes cleanly (start-wrt's embedded UI bundle would otherwise pull in
   ~875 kB of unused shared code). This also shrinks the other apps' bundles.
+- Restored the release CI that the monorepo migration had dropped: `start-wrt.yaml` again
+  has a `deploy` job that uploads the built images to S3 (`s3://startwrt-images`) and cuts a
+  GitHub Release. To match `startos-iso.yaml`, it is `workflow_dispatch`-gated on a `deploy:
+  release` input (rather than the old standalone workflow's `v*`-tag push) and reads the
+  version from `backend/ctrl/Cargo.toml` (the standalone workflow read the now-removed
+  `web/package.json`). Registry indexing/signing stays a local gate in
+  `scripts/manage-release.sh`, which is re-pointed at the new workflow and artifact name.
+- Restored the OpenWrt download-cache keying the migration had narrowed: the `image` job's
+  cache key again includes `build/feeds.conf` (so changing the feed set busts the cache) and
+  carries a `restore-keys` fallback (so a partial older cache can seed a fresh run).
 
 ## [0.1.0-beta.3]
 
