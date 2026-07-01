@@ -316,6 +316,10 @@ pub async fn nft_ensure_base() -> Result<(), Error> {
         .arg(include_str!("startos-base.nft"))
         .invoke(ErrorKind::Network)
         .await?;
+    Command::new("nft")
+        .arg(include_str!("startos-base-v6.nft"))
+        .invoke(ErrorKind::Network)
+        .await?;
     Ok(())
 }
 
@@ -453,6 +457,11 @@ impl PortForwardController {
                 Command::new("sysctl")
                     .arg("-w")
                     .arg("net.ipv4.ip_forward=1")
+                    .invoke(ErrorKind::Network)
+                    .await?;
+                Command::new("sysctl")
+                    .arg("-w")
+                    .arg("net.ipv6.conf.all.forwarding=1")
                     .invoke(ErrorKind::Network)
                     .await?;
                 Ok::<_, Error>(())

@@ -187,12 +187,14 @@ impl NetController {
         self: &Arc<Self>,
         package: PackageId,
         ip: Ipv4Addr,
+        ipv6: Option<Ipv6Addr>,
     ) -> Result<NetService, Error> {
         let dns = self.dns.add_service(Some(package.clone()), ip)?;
 
         let res = NetService::new(NetServiceData {
             id: Some(package),
             ip,
+            ipv6,
             _dns: dns,
             controller: Arc::downgrade(self),
             binds: BTreeMap::new(),
@@ -207,6 +209,7 @@ impl NetController {
         let service = NetService::new(NetServiceData {
             id: None,
             ip: [127, 0, 0, 1].into(),
+            ipv6: None,
             _dns: dns,
             controller: Arc::downgrade(self),
             binds: BTreeMap::new(),
@@ -299,6 +302,9 @@ struct HostBinds {
 pub struct NetServiceData {
     id: Option<PackageId>,
     ip: Ipv4Addr,
+    // consumed by the v6 forward path (WIP)
+    #[allow(dead_code)]
+    ipv6: Option<Ipv6Addr>,
     _dns: Arc<()>,
     controller: Weak<NetController>,
     binds: BTreeMap<HostId, HostBinds>,
@@ -858,6 +864,7 @@ impl NetService {
             data: Arc::new(Mutex::new(NetServiceData {
                 id: None,
                 ip: Ipv4Addr::new(0, 0, 0, 0),
+                ipv6: None,
                 _dns: Default::default(),
                 controller: Default::default(),
                 binds: BTreeMap::new(),

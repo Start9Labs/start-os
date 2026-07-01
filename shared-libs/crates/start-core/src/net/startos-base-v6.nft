@@ -1,0 +1,10 @@
+# IPv6 counterpart of startos-base.nft. Non-SSL services reachable over an IPv6
+# GUA route inbound to the container here (DNAT host-GUA:port -> container:port),
+# so the same nat + filter chain layout as `ip startos` is mirrored in `ip6`.
+# `add table`/`add chain` are idempotent; per-forward rules are added elsewhere
+# (comment-tagged for dedup), never here.
+add table ip6 startos
+add chain ip6 startos prerouting { type nat hook prerouting priority dstnat; policy accept; }
+add chain ip6 startos output { type nat hook output priority -100; policy accept; }
+add chain ip6 startos postrouting { type nat hook postrouting priority srcnat; policy accept; }
+add chain ip6 startos forward { type filter hook forward priority filter; policy drop; }

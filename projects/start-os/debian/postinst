@@ -170,6 +170,11 @@ sed -i 's/\(#\|\^\)\s*\([^=]\+\)=\(suspend\|hibernate\)\s*$/\2=ignore/g' /etc/sy
 sed -i '/\(^\|#\)MulticastDNS=/c\MulticastDNS=no' /etc/systemd/resolved.conf
 sed -i '/\(^\|#\)DNSStubListener=/c\DNSStubListener=no' /etc/systemd/resolved.conf
 sed -i '/\(^\|#\)LXC_DHCP_CONFILE=/c\LXC_DHCP_CONFILE=/etc/dnsmasq.conf' /etc/default/lxc-net
+for kv in 'LXC_IPV6_ADDR="fd00:3::1"' 'LXC_IPV6_MASK="64"' 'LXC_IPV6_NETWORK="fd00:3::/64"' 'LXC_IPV6_NAT="true"'; do
+    key="${kv%%=*}"
+    sed -i "/^#\?${key}=/d" /etc/default/lxc-net
+    echo "$kv" >> /etc/default/lxc-net
+done
 echo 'port=0' > /etc/dnsmasq.conf
 sed -i 's/\[Service\]/[Service]\nEnvironment=SYSTEMD_LOG_LEVEL=debug/' /lib/systemd/system/systemd-timesyncd.service
 sed -i "s/\.debian\./\./g;s/#FallbackNTP=/FallbackNTP=/"  /etc/systemd/timesyncd.conf

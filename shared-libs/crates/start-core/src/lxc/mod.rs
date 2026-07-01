@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::Ipv4Addr;
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
@@ -427,6 +427,27 @@ impl LxcContainer {
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
+    }
+
+    /// Best-effort: the container's first non-link-local IPv6 (SLAAC ULA), or
+    /// `None` if it has none yet. Unlike `ip()`, IPv6 is optional, so this reads
+    /// `lxc-info -iH` once without blocking on a retry loop.
+    pub async fn ipv6(&self) -> Result<Option<Ipv6Addr>, Error> {
+        let guid: &str = &self.guid;
+        let output = String::from_utf8(
+            Command::new("lxc-info")
+                .arg("--name")
+                .arg(guid)
+                .arg("-iH")
+                .invoke(ErrorKind::Docker)
+                .await?,
+        )?;
+        Ok(output.lines().find_map(|line| {
+            line.trim()
+                .parse::<Ipv6Addr>()
+                .ok()
+                .filter(|ip| !crate::net::utils::ipv6_is_link_local(*ip))
+        }))
     }
 
     pub fn rpc_dir(&self) -> &Path {
