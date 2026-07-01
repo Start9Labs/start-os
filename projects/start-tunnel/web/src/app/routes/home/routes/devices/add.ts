@@ -212,8 +212,18 @@ export class DevicesAdd {
   protected readonly stringify = ({ range, name }: MappedSubnet) =>
     range ? `${name} (${range})` : ''
   protected readonly stringifyWan = ({ ip }: WanItem) =>
-    wanLabel(ip, 'Use Subnet Default')
+    wanLabel(ip, 'Subnet default', this.subnetWanIp())
   protected readonly matchWan = matchWan
+
+  // The address the device inherits on "Subnet default": the selected subnet's
+  // own WAN override, or the system default when the subnet has none.
+  private subnetWanIp(): string | null {
+    const range = this.form.controls.subnet.value?.range
+    return (
+      this.context.data.subnets().find(s => s.range === range)?.wanIp ??
+      this.context.data.defaultWan
+    )
+  }
 
   protected onSubnet(subnet: MappedSubnet) {
     this.form.controls.ip.clearValidators()

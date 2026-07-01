@@ -60,8 +60,14 @@ export function toWanItems(options: readonly string[]): readonly WanItem[] {
 
 export const matchWan = (a: WanItem, b: WanItem) => a.ip === b.ip
 
-// `defaultLabel` names what the null/default option inherits from, e.g.
-// "Use System Default" (subnet) or "Use Subnet Default" (device).
-export function wanLabel(ip: string | null, defaultLabel: string): string {
-  return ip ?? defaultLabel
+// `defaultLabel` names what the null/default option inherits from — "System
+// default" (subnet) or "Subnet default" (device). When that default resolves to
+// a known address, show it parenthetically, e.g. "System default (1.2.3.4)".
+export function wanLabel(
+  ip: string | null,
+  defaultLabel: string,
+  inheritedIp: string | null = null,
+): string {
+  if (ip) return ip
+  return inheritedIp ? `${defaultLabel} (${inheritedIp})` : defaultLabel
 }

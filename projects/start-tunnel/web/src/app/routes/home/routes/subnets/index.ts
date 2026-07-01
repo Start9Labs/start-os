@@ -44,7 +44,7 @@ import { SUBNETS_ADD } from './add'
             <th>Name</th>
             <th>IP Range</th>
             <th>DNS</th>
-            <th>WAN</th>
+            <th>WAN IP</th>
             <th></th>
           </tr>
         </thead>
@@ -54,7 +54,9 @@ import { SUBNETS_ADD } from './add'
               <td>{{ subnet.name }}</td>
               <td>{{ subnet.range }}</td>
               <td>{{ subnet.dnsLabel }}</td>
-              <td>{{ wanLabel(subnet.wanIp, 'Use System Default') }}</td>
+              <td>
+                {{ wanLabel(subnet.wanIp, 'System default', defaultWan()) }}
+              </td>
               <td [style.padding-inline-end.rem]="0.625">
                 <button
                   tuiIconButton
