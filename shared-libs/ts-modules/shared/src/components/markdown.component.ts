@@ -27,6 +27,12 @@ import { getErrorMessage } from '../services/error.service'
       }
     }
   `,
+  styles: `
+    :host ::ng-deep pre {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+  `,
   host: { class: 'g-subpage' },
   imports: [
     TuiNotification,
