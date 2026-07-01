@@ -125,7 +125,9 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: startwrt-openwrt-image
-          path: results/openwrt-spacemit-k1-*
+          # Mirrors build.mk's STARTWRT_BASENAME: the image rule renames the raw
+          # OpenWrt outputs to startwrt-<version>-<githash7>_spacemit-k1-*.
+          path: results/startwrt-*
           retention-days: 14
 
   # Publish path: upload the built images to shared S3 (the registry CDN serves

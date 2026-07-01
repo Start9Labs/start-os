@@ -46,8 +46,10 @@ SIGNING_KEY="${STARTWRT_GPG_KEY:-5456DBFF1B9DF905041FA7765259ADFC2D63C217}"
 # sdcard .img and the sysupgrade .img.gz.
 BUILD_ARTIFACT="startwrt-openwrt-image"
 
-# The two image artifacts StartWRT publishes. Globs match the OpenWrt output
-# names for the spacemit-k1-sbc-bananapi-f3 board.
+# The two image artifacts StartWRT publishes. build.mk renames the raw OpenWrt
+# outputs to the startos naming convention —
+# startwrt-<version>-<githash7>_spacemit-k1-{sdcard.img,sysupgrade.img.gz} —
+# and these globs match on the role suffixes.
 #   sdcard .img        -> fresh-install image (analog of start-os's .iso)
 #   sysupgrade .img.gz -> OTA update image    (analog of start-os's .squashfs)
 SDCARD_GLOB="*-sdcard.img"

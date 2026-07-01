@@ -33,8 +33,27 @@ STARTWRT_WEB_SRC := $(call ls-files, $(STARTWRT_DIR)/web)
 
 STARTWRT_OPENWRT := $(STARTWRT_DIR)/openwrt
 STARTWRT_IMAGE_DIR := $(STARTWRT_OPENWRT)/bin/targets/spacemit
-STARTWRT_SDCARD_NAME := openwrt-spacemit-k1-sbc-bananapi-f3-squashfs-sdcard.img
-STARTWRT_SYSUPGRADE_NAME := openwrt-spacemit-k1-sbc-bananapi-f3-squashfs-sysupgrade.img.gz
+
+# Release-asset basename, following the startos convention from
+# build/env/basename.sh (<project>-<version>-<githash7>_<platform>) — composed
+# here from start-wrt's own stamps rather than by calling basename.sh, which
+# reads StartOS's PLATFORM/ENVIRONMENT/GIT_HASH build state and a manifest path
+# that doesn't exist for start-wrt. The version sed matches the "Determine
+# version" step in .github/workflows/start-wrt.yaml (same manifest, same
+# anchored pattern); the hash comes from the parse-time-refreshed stamp above
+# (truncation to 7 chars drops any -modified marker, as basename.sh does).
+STARTWRT_VERSION := $(shell sed -n 's/^version = "\([^"]*\)".*/\1/p' $(STARTWRT_DIR)/backend/ctrl/Cargo.toml | head -1)
+STARTWRT_SHORT_HASH := $(shell head -c 7 $(STARTWRT_GIT_HASH_FILE))
+STARTWRT_BASENAME := startwrt-$(STARTWRT_VERSION)-$(STARTWRT_SHORT_HASH)_spacemit-k1
+
+# OpenWrt's own output names (what `make -C openwrt` produces)…
+STARTWRT_SDCARD_SRC := openwrt-spacemit-k1-sbc-bananapi-f3-squashfs-sdcard.img
+STARTWRT_SYSUPGRADE_SRC := openwrt-spacemit-k1-sbc-bananapi-f3-squashfs-sysupgrade.img.gz
+# …renamed on copy into results/ to the release-asset names. Keep the
+# -sdcard.img / -sysupgrade.img.gz endings: scripts/manage-release.sh and the
+# registry-kind inference match on those suffixes/extensions.
+STARTWRT_SDCARD_NAME := $(STARTWRT_BASENAME)-sdcard.img
+STARTWRT_SYSUPGRADE_NAME := $(STARTWRT_BASENAME)-sysupgrade.img.gz
 STARTWRT_IMAGES := results/$(STARTWRT_SDCARD_NAME) results/$(STARTWRT_SYSUPGRADE_NAME)
 
 # Remote deploy target (binary only — web UI is embedded in the binary).
@@ -93,8 +112,8 @@ startwrt-image: $(STARTWRT_IMAGES)
 $(STARTWRT_IMAGES) &: $(STARTWRT_OPENWRT)/.config $(STARTWRT_OPENWRT)/files/.staged
 	$(MAKE) -C $(STARTWRT_OPENWRT) V=s -j$(shell nproc)
 	mkdir -p results
-	cp $(STARTWRT_IMAGE_DIR)/$(STARTWRT_SDCARD_NAME) results/$(STARTWRT_SDCARD_NAME)
-	cp $(STARTWRT_IMAGE_DIR)/$(STARTWRT_SYSUPGRADE_NAME) results/$(STARTWRT_SYSUPGRADE_NAME)
+	cp $(STARTWRT_IMAGE_DIR)/$(STARTWRT_SDCARD_SRC) results/$(STARTWRT_SDCARD_NAME)
+	cp $(STARTWRT_IMAGE_DIR)/$(STARTWRT_SYSUPGRADE_SRC) results/$(STARTWRT_SYSUPGRADE_NAME)
 
 # Deploy binary + restart daemon over SSH (atomic temp -> sync -> rename).
 .PHONY: startwrt-update

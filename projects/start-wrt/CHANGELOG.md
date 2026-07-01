@@ -87,7 +87,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   product's releases on independent cadences. Registry indexing/signing stays a local
   gate in `scripts/manage-release.sh`, which is re-pointed at the new repo, workflow,
   artifact name, and tag scheme; the user manual's download/source/issue links point
-  at the monorepo too.
+  at the monorepo too. Release assets follow the startos naming convention —
+  `startwrt-<version>-<git hash>_spacemit-k1-{sdcard.img,sysupgrade.img.gz}` — instead
+  of the raw OpenWrt output names, which carried no product, version, or hash.
 - Restored the OpenWrt download-cache keying the migration had narrowed: the `image` job's
   cache key again includes `build/feeds.conf` (so changing the feed set busts the cache) and
   carries a `restore-keys` fallback (so a partial older cache can seed a fresh run).
