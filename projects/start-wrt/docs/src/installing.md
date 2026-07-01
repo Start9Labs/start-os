@@ -10,7 +10,7 @@ StartWRT comes pre-installed on Start9 routers. If you need to reinstall or flas
 
 ## Download the Image
 
-1. Download the latest StartWRT firmware image from the [Start9 releases page](https://github.com/Start9Labs/start-wrt/releases).
+1. Download the latest StartWRT firmware image from the [Start9 releases page](https://github.com/Start9Labs/start-technologies/releases?q=startwrt&expanded=true) (StartWRT releases are the ones tagged `startwrt/v…`).
 
 1. Verify the SHA256 checksum against the one listed on GitHub (optional but recommended).
    - **Mac**. Open a terminal and run:

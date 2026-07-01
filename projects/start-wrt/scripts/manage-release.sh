@@ -17,7 +17,10 @@
 
 set -e
 
-REPO="Start9Labs/start-wrt"
+# The monorepo hosts every product's releases; StartWRT's are tagged
+# startwrt/v<version> (see start-wrt.yaml's deploy job) so per-product release
+# cadences never collide on bare v* tags.
+REPO="Start9Labs/start-technologies"
 REGISTRY="https://startwrt-registry.start9.com"
 S3_BUCKET="s3://startwrt-images"
 S3_CDN="https://startwrt-images.nyc3.cdn.digitaloceanspaces.com"
@@ -169,7 +172,7 @@ cmd_pull() {
     done
 
     echo "Downloading signatures from the GitHub Release..."
-    gh release download -R $REPO "v$VERSION" -p "signatures.tar.gz" -D "$(pwd)" --clobber
+    gh release download -R $REPO "startwrt/v$VERSION" -p "signatures.tar.gz" -D "$(pwd)" --clobber
     mkdir -p signatures
     tar -xzf signatures.tar.gz -C signatures
 
@@ -288,7 +291,7 @@ cmd_sign() {
     fi
     tar -czvf signatures.tar.gz -C signatures .
 
-    gh release upload -R $REPO "v$VERSION" signatures.tar.gz --clobber
+    gh release upload -R $REPO "startwrt/v$VERSION" signatures.tar.gz --clobber
 }
 
 cmd_cosign() {
@@ -303,7 +306,7 @@ cmd_cosign() {
     fi
 
     echo "Downloading existing signatures..."
-    gh release download -R $REPO "v$VERSION" -p "signatures.tar.gz" -D "$(pwd)" --clobber
+    gh release download -R $REPO "startwrt/v$VERSION" -p "signatures.tar.gz" -D "$(pwd)" --clobber
     mkdir -p signatures
     tar -xzf signatures.tar.gz -C signatures
 
@@ -317,7 +320,7 @@ cmd_cosign() {
     echo "Re-packing signatures..."
     tar -czvf signatures.tar.gz -C signatures .
 
-    gh release upload -R $REPO "v$VERSION" signatures.tar.gz --clobber
+    gh release upload -R $REPO "startwrt/v$VERSION" signatures.tar.gz --clobber
     echo "Done. Personal signatures for $GH_USER added to v$VERSION."
 }
 

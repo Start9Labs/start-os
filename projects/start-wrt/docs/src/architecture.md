@@ -62,6 +62,6 @@ Each router generates a unique per-device ULA /48 prefix at first boot. This ens
 
 ## Source Code
 
-The StartWRT source code lives in the [start-wrt repository](https://github.com/Start9Labs/start-wrt).
+The StartWRT source code lives in the [start-technologies monorepo](https://github.com/Start9Labs/start-technologies/tree/master/projects/start-wrt), alongside the other Start9 products.
 
-To report bugs or request features, [open an issue](https://github.com/Start9Labs/start-wrt/issues).
+To report bugs or request features, [open an issue](https://github.com/Start9Labs/start-technologies/issues).

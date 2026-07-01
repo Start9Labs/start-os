@@ -51,4 +51,4 @@ Absolutely. StartWRT and [StartOS](/start-os/) are complementary products. Start
 
 ## Where can I report bugs or request features?
 
-Open an issue on the [StartWRT GitHub repository](https://github.com/Start9Labs/start-wrt/issues).
+Open an issue on the [start-technologies GitHub repository](https://github.com/Start9Labs/start-technologies/issues) — StartWRT lives in the monorepo alongside the other Start9 products.

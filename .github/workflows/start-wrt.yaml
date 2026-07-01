@@ -191,8 +191,12 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.version }}
-          name: v${{ steps.version.outputs.version }}
+          # Product-namespaced tag: the monorepo hosts every product's releases,
+          # each on its own cadence, so bare v* tags would collide across
+          # products (StartOS history already owns v0.x). Keep in sync with
+          # scripts/manage-release.sh.
+          tag_name: startwrt/v${{ steps.version.outputs.version }}
+          name: StartWRT v${{ steps.version.outputs.version }}
           # Attach both images: the sdcard .img (fresh install) and the
           # sysupgrade .img.gz (OTA), matching what manage-release.sh publishes.
           files: |

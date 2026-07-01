@@ -82,8 +82,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   GitHub Release. To match `startos-iso.yaml`, it is `workflow_dispatch`-gated on a `deploy:
   release` input (rather than the old standalone workflow's `v*`-tag push) and reads the
   version from `backend/ctrl/Cargo.toml` (the standalone workflow read the now-removed
-  `web/package.json`). Registry indexing/signing stays a local gate in
-  `scripts/manage-release.sh`, which is re-pointed at the new workflow and artifact name.
+  `web/package.json`). Releases are cut on `Start9Labs/start-technologies` with
+  product-namespaced tags (`startwrt/v<version>`), since the monorepo hosts every
+  product's releases on independent cadences. Registry indexing/signing stays a local
+  gate in `scripts/manage-release.sh`, which is re-pointed at the new repo, workflow,
+  artifact name, and tag scheme; the user manual's download/source/issue links point
+  at the monorepo too.
 - Restored the OpenWrt download-cache keying the migration had narrowed: the `image` job's
   cache key again includes `build/feeds.conf` (so changing the feed set busts the cache) and
   carries a `restore-keys` fallback (so a partial older cache can seed a fresh run).
