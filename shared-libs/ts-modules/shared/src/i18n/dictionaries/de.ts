@@ -788,7 +788,6 @@ export default {
   879: 'Konfiguration aktualisieren',
   880: 'Oder aktivieren Sie DNS Injection für dieses Gerät auf dem Gateway.',
   881: 'Oder aktivieren Sie die automatische Portweiterleitung (UPnP / NAT-PMP / PCP) auf dem Gateway.',
-  882: 'Portbereich',
   883: 'Externer Portbereich',
   884: 'Interner Portbereich',
   885: 'Oder aktivieren Sie die automatische Portweiterleitung (PCP) auf dem Gateway. UPnP und NAT-PMP unterstützen keine Portbereiche.',
