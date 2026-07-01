@@ -1,6 +1,7 @@
 import { z } from '../zExport'
 import { Effects } from '../Effects'
 import { Origin } from './Origin'
+import { RangeOrigin } from './RangeOrigin'
 import { AddSslOptions } from '../osBindings'
 import { Security } from '../osBindings'
 import { BindOptions } from '../osBindings'
@@ -150,9 +151,10 @@ export class MultiHost {
   /**
    * Bind a contiguous range of UDP+TCP ports to this host.
    *
-   * Intended for real-time / WebRTC servers (coturn, RTP, SIP) that need a
-   * public port range. The whole range is allocated atomically; any
-   * partial collision with already-bound external ports is a hard error.
+   * Intended for real-time / WebRTC servers (coturn, RTP, SIP) and other
+   * pooled-port protocols (bitcoin ZMQ, FTP data) that need a public port
+   * range. The whole range is allocated atomically; any partial collision
+   * with already-bound external ports is a hard error.
    *
    * `externalStartPort` may differ from `internalStartPort` — the forward
    * maps the external range onto the internal range by offset.
@@ -163,19 +165,27 @@ export class MultiHost {
    * - All `numberOfPorts` external ports starting at `externalStartPort`
    *   must be free and non-restricted.
    *
-   * Returns `void`: range bindings are not addressable as HTTP-style
-   * service interfaces, so there is no {@link Origin} / `.export()` step.
+   * Returns a {@link RangeOrigin}, on which you call `.export(builder)` with a
+   * `sdk.createRangeInterface(...)` builder to register the range's single,
+   * restricted `api` service interface (no SSL, no path/query/auth).
    *
    * @example
    * ```
-   * await sdk.MultiHost.of(effects, 'turn-relay').bindPortRange({
+   * const turn = await sdk.MultiHost.of(effects, 'turn-relay').bindPortRange({
    *   internalStartPort: 49152,
    *   externalStartPort: 49152,
    *   numberOfPorts: 100,
    * })
+   * await turn.export(
+   *   sdk.createRangeInterface(effects, {
+   *     id: 'turn-relay',
+   *     name: 'TURN Relay',
+   *     description: 'WebRTC media relay ports',
+   *   }),
+   * )
    * ```
    */
-  async bindPortRange(options: BindPortRangeOptions): Promise<void> {
+  async bindPortRange(options: BindPortRangeOptions): Promise<RangeOrigin> {
     const { internalStartPort, externalStartPort, numberOfPorts } = options
     if (!Number.isInteger(numberOfPorts) || numberOfPorts < 2) {
       throw new Error(
@@ -211,6 +221,13 @@ export class MultiHost {
       externalStartPort,
       numberOfPorts,
     })
+
+    return new RangeOrigin(
+      this,
+      internalStartPort,
+      externalStartPort,
+      numberOfPorts,
+    )
   }
 
   private async bindPortForUnknown(

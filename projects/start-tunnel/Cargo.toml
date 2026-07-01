@@ -1,9 +1,9 @@
 [package]
 name = "start-tunnel"
-version = "1.0.0" # VERSION_BUMP
+version = "1.1.0" # VERSION_BUMP
 edition = "2024"
 license = "MIT"
-repository = "https://github.com/Start9Labs/start-os"
+repository = "https://github.com/Start9Labs/start-technologies"
 
 [[bin]]
 name = "tunnelbox"

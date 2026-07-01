@@ -7,7 +7,7 @@ description = "A toolkit for creating JSON-RPC 2.0 servers with automatic cli bi
 license = "MIT"
 documentation = "https://docs.rs/rpc-toolkit"
 keywords = ["json", "rpc", "cli"]
-repository = "https://github.com/Start9Labs/rpc-toolkit"
+repository = "https://github.com/Start9Labs/start-technologies"
 
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

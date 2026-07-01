@@ -108,5 +108,57 @@ describe('host', () => {
         }),
       ).rejects.toThrow(/greater than 1024/)
     })
+
+    test('export() registers the restricted range interface', async () => {
+      const bindRange = jest.fn(async () => null)
+      const exportRangeServiceInterface = jest.fn(async () => null)
+      const effects = {
+        bindRange,
+        exportRangeServiceInterface,
+      } as unknown as Effects
+      const range = await sdk.MultiHost.of(effects, 'zmq').bindPortRange({
+        internalStartPort: 28332,
+        externalStartPort: 28332,
+        numberOfPorts: 2,
+      })
+      await range.export(
+        sdk.createRangeInterface(effects, {
+          id: 'zmq',
+          name: 'ZMQ',
+          description: 'Bitcoin ZMQ endpoints',
+          scheme: 'tcp',
+        }),
+      )
+      expect(exportRangeServiceInterface).toHaveBeenCalledWith({
+        hostId: 'zmq',
+        internalStartPort: 28332,
+        id: 'zmq',
+        name: 'ZMQ',
+        description: 'Bitcoin ZMQ endpoints',
+        scheme: 'tcp',
+      })
+    })
+
+    test('export() defaults an omitted scheme to null', async () => {
+      const effects = {
+        bindRange: jest.fn(async () => null),
+        exportRangeServiceInterface: jest.fn(async () => null),
+      } as unknown as Effects
+      const range = await sdk.MultiHost.of(effects, 'turn').bindPortRange({
+        internalStartPort: 49152,
+        externalStartPort: 49152,
+        numberOfPorts: 100,
+      })
+      await range.export(
+        sdk.createRangeInterface(effects, {
+          id: 'turn-relay',
+          name: 'TURN Relay',
+          description: 'WebRTC media relay ports',
+        }),
+      )
+      expect(effects.exportRangeServiceInterface).toHaveBeenCalledWith(
+        expect.objectContaining({ scheme: null }),
+      )
+    })
   })
 })

@@ -232,12 +232,6 @@ pub async fn add(
     WifiAddParams { ssid, password }: WifiAddParams,
 ) -> Result<(), Error> {
     let mut wpa_supplicant = ctx.write_wifi_manager().await?;
-    if !ssid.is_ascii() {
-        return Err(Error::new(
-            color_eyre::eyre::eyre!("{}", t!("net.wifi.ssid-no-special-characters")),
-            ErrorKind::Wifi,
-        ));
-    }
     let ssid = Ssid(ssid);
     if !password.is_ascii() {
         return Err(Error::new(
@@ -295,12 +289,6 @@ pub async fn connect(
     WifiSsidParams { ssid }: WifiSsidParams,
 ) -> Result<(), Error> {
     let mut wpa_supplicant = ctx.write_wifi_manager().await?;
-    if !ssid.is_ascii() {
-        return Err(Error::new(
-            color_eyre::eyre::eyre!("{}", t!("net.wifi.ssid-no-special-characters")),
-            ErrorKind::Wifi,
-        ));
-    }
     if let Err(err) = async {
         let current = wpa_supplicant.get_current_network().await?;
         let connected = wpa_supplicant
@@ -360,12 +348,6 @@ pub async fn connect(
 #[instrument(skip_all)]
 pub async fn remove(ctx: RpcContext, WifiSsidParams { ssid }: WifiSsidParams) -> Result<(), Error> {
     let mut wpa_supplicant = ctx.write_wifi_manager().await?;
-    if !ssid.is_ascii() {
-        return Err(Error::new(
-            color_eyre::eyre::eyre!("{}", t!("net.wifi.ssid-no-special-characters")),
-            ErrorKind::Wifi,
-        ));
-    }
     let current = wpa_supplicant.get_current_network().await?;
     let ssid = Ssid(ssid);
     let is_current_being_removed = matches!(current, Some(current) if current == ssid);
@@ -670,6 +652,25 @@ pub struct WifiInfoLow {
 
 #[derive(Clone, Debug)]
 pub struct Psk(String);
+
+/// Split a line of `nmcli -t`/`-g` terse output into fields, honoring nmcli's
+/// backslash escaping (`\:` is a literal colon, `\\` a literal backslash) so an
+/// SSID containing `:` stays one field instead of being split apart.
+fn split_nmcli_terse_line(line: &str) -> Vec<String> {
+    let mut fields = Vec::new();
+    let mut field = String::new();
+    let mut chars = line.chars();
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' => field.push(chars.next().unwrap_or('\\')),
+            ':' => fields.push(std::mem::take(&mut field)),
+            _ => field.push(c),
+        }
+    }
+    fields.push(field);
+    fields
+}
+
 impl WpaCli {
     pub fn new(interface: GatewayId) -> Self {
         WpaCli { interface }
@@ -808,21 +809,17 @@ impl WpaCli {
             .invoke(ErrorKind::Wifi)
             .await?;
         let r = String::from_utf8(r)?;
-        tracing::info!("JCWM: all the networks: {:?}", r);
         Ok(r.lines()
             .filter_map(|l| {
-                let mut cs = l.split(':');
-                let name = Ssid(cs.next()?.to_owned());
-                let uuid = NetworkId(cs.next()?.to_owned());
-                let connection_type = cs.next()?;
-                let device = cs.next();
+                let mut fields = split_nmcli_terse_line(l).into_iter();
+                let name = Ssid(fields.next()?);
+                let uuid = NetworkId(fields.next()?);
+                let connection_type = fields.next()?;
+                let device = fields.next();
                 if !connection_type.contains("wireless") {
                     return None;
                 }
-                let info = WifiInfoLow {
-                    ssid: name,
-                    device: device.map(|x| x.to_owned()),
-                };
+                let info = WifiInfoLow { ssid: name, device };
                 Some((uuid, info))
             })
             .collect::<BTreeMap<NetworkId, WifiInfoLow>>())
@@ -841,9 +838,10 @@ impl WpaCli {
         Ok(String::from_utf8(r)?
             .lines()
             .filter_map(|l| {
-                let mut values = l.split(':');
-                let ssid = Ssid(values.next()?.to_owned());
-                let signal = SignalStrength::new(std::str::FromStr::from_str(values.next()?).ok());
+                let mut values = split_nmcli_terse_line(l).into_iter();
+                let ssid = Ssid(values.next()?);
+                let signal =
+                    SignalStrength::new(std::str::FromStr::from_str(values.next()?.as_str()).ok());
                 let security: Vec<String> =
                     values.next()?.split(' ').map(|x| x.to_owned()).collect();
                 Some((
@@ -1131,4 +1129,32 @@ pub async fn synchronize_network_manager<P: AsRef<Path>>(
             .await?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::split_nmcli_terse_line;
+
+    #[test]
+    fn terse_line_unescapes_colon_and_backslash() {
+        // nmcli `-t` escapes `:` as `\:` and `\` as `\\` within a field.
+        let line = r"my\:wifi\\x:61f7f9e2:802-11-wireless:";
+        assert_eq!(
+            split_nmcli_terse_line(line),
+            vec![
+                "my:wifi\\x".to_owned(),
+                "61f7f9e2".to_owned(),
+                "802-11-wireless".to_owned(),
+                String::new(),
+            ],
+        );
+    }
+
+    #[test]
+    fn terse_line_plain_fields() {
+        assert_eq!(
+            split_nmcli_terse_line("café:90:WPA2 WPA3"),
+            vec!["café".to_owned(), "90".to_owned(), "WPA2 WPA3".to_owned()],
+        );
+    }
 }

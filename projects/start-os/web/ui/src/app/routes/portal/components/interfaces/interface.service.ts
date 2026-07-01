@@ -13,7 +13,41 @@ function isPublicIp(h: T.HostnameInfo): boolean {
   return h.public && (h.metadata.kind === 'ipv4' || h.metadata.kind === 'ipv6')
 }
 
+// An IPv6 global-unicast address (GUA) — not loopback / ULA (fc00::/7) /
+// link-local (fe80::/10). Mirrors the backend's `ipv6_is_local` complement, so
+// the UI shows the tri-state for exactly the addresses the backend treats as GUAs.
+function isGua(h: T.HostnameInfo): boolean {
+  if (h.metadata.kind !== 'ipv6') return false
+  const first = h.hostname.split(':')[0]
+  if (!first) return false // leading "::" (loopback/unspecified) is not a GUA
+  const hextet = parseInt(first, 16)
+  if (Number.isNaN(hextet)) return false
+  const isUla = (hextet & 0xfe00) === 0xfc00
+  const isLinkLocal = (hextet & 0xffc0) === 0xfe80
+  return !isUla && !isLinkLocal
+}
+
+// The `gua_access` map key — the GUA's SocketAddrV6, formatted as Rust's
+// `SocketAddrV6` Display (`[addr]:port`).
+function guaKey(h: T.HostnameInfo): string | null {
+  if (!isGua(h) || h.port === null) return null
+  return `[${h.hostname}]:${h.port}`
+}
+
+// A GUA's current exposure (Disabled / LAN / LAN+WAN), or null for any other
+// address. Untouched GUAs default to LAN.
+function getGuaAccess(
+  addr: T.DerivedAddressInfo,
+  h: T.HostnameInfo,
+): T.GuaAccess | null {
+  const key = guaKey(h)
+  if (key === null) return null
+  return addr.guaAccess?.[key] ?? 'lan'
+}
+
 function isEnabled(addr: T.DerivedAddressInfo, h: T.HostnameInfo): boolean {
+  const gua = getGuaAccess(addr, h)
+  if (gua !== null) return gua !== 'disabled'
   if (isPublicIp(h)) {
     if (h.port === null) return true
     const sa =
@@ -99,11 +133,52 @@ export class InterfaceService {
     const binding = host.bindings[serviceInterface.addressInfo.internalPort]
     if (!binding) return []
 
-    const addr = binding.addresses
-    const masked = serviceInterface.masked
-    const ui = serviceInterface.type === 'ui'
-    const { addSsl, secure } = binding.options
+    return this.buildGatewayGroups(
+      binding.addresses,
+      serviceInterface.addressInfo,
+      serviceInterface.masked,
+      serviceInterface.type === 'ui',
+      binding.options.addSsl,
+      binding.options.secure,
+      host,
+      gateways,
+    )
+  }
 
+  // Port ranges reuse the same per-gateway address grouping, but their
+  // addresses live on the range binding and are always non-SSL (no cert/CA).
+  // `numberOfPorts` drives the port-span shown in URLs and forwarding rules.
+  getRangeGatewayGroups(
+    addressInfo: T.AddressInfo,
+    addresses: T.DerivedAddressInfo,
+    host: T.Host,
+    gateways: GatewayPlus[],
+    numberOfPorts: number,
+  ): GatewayAddressGroup[] {
+    return this.buildGatewayGroups(
+      addresses,
+      addressInfo,
+      false,
+      false,
+      null,
+      null,
+      host,
+      gateways,
+      numberOfPorts,
+    )
+  }
+
+  private buildGatewayGroups(
+    addr: T.DerivedAddressInfo,
+    addressInfo: T.AddressInfo,
+    masked: boolean,
+    ui: boolean,
+    addSsl: T.AddSslOptions | null,
+    secure: T.Security | null,
+    host: T.Host,
+    gateways: GatewayPlus[],
+    count = 1,
+  ): GatewayAddressGroup[] {
     const groupMap = new Map<string, GatewayAddress[]>()
     const gatewayMap = new Map<string, GatewayPlus>()
 
@@ -124,9 +199,16 @@ export class InterfaceService {
         if (!list) continue
         list.push({
           enabled: isEnabled(addr, h),
+          guaAccess: getGuaAccess(addr, h),
           type: getAddressType(h),
           access: h.public ? 'public' : 'private',
-          url: utils.addressHostToUrl(serviceInterface.addressInfo, h),
+          // A port range exposes a span of ports, not one, so its URL is the
+          // bare host (no port) — the span is shown once in the interface
+          // header, never faked onto a per-row URL that no one would copy.
+          url:
+            count > 1
+              ? utils.addressHostToUrl(addressInfo, { ...h, port: null })
+              : utils.addressHostToUrl(addressInfo, h),
           hostnameInfo: h,
           masked,
           ui,
@@ -134,6 +216,7 @@ export class InterfaceService {
             h.metadata.kind === 'private-domain' ||
             h.metadata.kind === 'public-domain',
           certificate: getCertificate(h, host, addSsl, secure),
+          count,
         })
       }
     }
@@ -316,6 +399,9 @@ export class InterfaceService {
 
 export type GatewayAddress = {
   enabled: boolean
+  // For an IPv6 GUA, its tri-state exposure (Disabled / LAN / LAN+WAN); null for
+  // every other address (which use the on/off `enabled` toggle instead).
+  guaAccess: T.GuaAccess | null
   type: string
   access: 'public' | 'private'
   url: string
@@ -324,6 +410,9 @@ export type GatewayAddress = {
   ui: boolean
   deletable: boolean
   certificate: string
+  // Number of forwarded ports: 1 for a single-port binding, the range span for
+  // a port range. Drives the port-span shown in forwarding rules.
+  count: number
 }
 
 export type GatewayAddressGroup = {

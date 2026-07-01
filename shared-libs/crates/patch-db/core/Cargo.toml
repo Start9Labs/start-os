@@ -7,7 +7,7 @@ keywords = ["json", "json-patch", "json-pointer"]
 license = "MIT"
 name = "patch-db"
 readme = "README.md"
-repository = "https://github.com/Start9Labs/patch-db"
+repository = "https://github.com/Start9Labs/start-technologies"
 version = "0.1.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

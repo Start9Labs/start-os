@@ -258,6 +258,21 @@ pub(super) async fn apply_peer_forward_range(
         None => {}
     }
 
+    // A new range must not overlap a different existing forward's ports on this
+    // external IP (the exact-source cases are handled by the match above).
+    if ctx
+        .db
+        .peek()
+        .await
+        .as_port_forwards()
+        .de()
+        .map_err(|_| 501u16)?
+        .overlapping(source, count)
+        .is_some()
+    {
+        return Err(718); // ConflictInMappingEntry
+    }
+
     let prefix = prefix_for(ctx, target.ip()).await;
     let rc = ctx
         .forward

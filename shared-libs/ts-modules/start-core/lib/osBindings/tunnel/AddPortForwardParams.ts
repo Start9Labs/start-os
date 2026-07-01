@@ -12,4 +12,10 @@ export type AddPortForwardParams = {
    * Hostnames to SNI-demux on the shared external port. Empty = normal DNAT.
    */
   sni: Array<string>
+  /**
+   * Number of contiguous ports to forward (a PCP PORT_SET range), counting up
+   * from both `external_port` and the target port. Defaults to 1. Not valid
+   * together with SNI demux.
+   */
+  count?: number
 }

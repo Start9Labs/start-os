@@ -13,6 +13,7 @@ import {
   NetInfo,
   Host,
   ExportServiceInterfaceParams,
+  ExportRangeServiceInterfaceParams,
   ServiceInterface,
   CreateTaskParams,
   MountParams,
@@ -156,12 +157,12 @@ export type Effects = {
   bind(options: BindParams): Promise<null>
   /**
    * Binds a contiguous range of UDP+TCP ports to the specified host. Used
-   * for real-time / WebRTC servers (coturn, RTP, SIP) that need a public
-   * port range. Both `internalStartPort` and `externalStartPort` must be
-   * equal — the underlying iptables forward preserves the destination port
-   * across the range. The whole range is allocated atomically; any
-   * partial collision with already-bound external ports is a hard error.
-   * Capped at 500 ports per call.
+   * for real-time / WebRTC servers (coturn, RTP, SIP) and other pooled-port
+   * protocols (bitcoin ZMQ, FTP data) that need a public port range.
+   * `externalStartPort` may differ from `internalStartPort` — the forward
+   * maps the external range onto the internal range by offset. The whole
+   * range is allocated atomically; any partial collision with already-bound
+   * external ports is a hard error. Capped at 500 ports per call.
    */
   bindRange(options: BindRangeParams): Promise<null>
   /** Get the port address for a service */
@@ -193,6 +194,13 @@ export type Effects = {
   // interface
   /** Creates an interface bound to a specific host and port to show to the user */
   exportServiceInterface(options: ExportServiceInterfaceParams): Promise<null>
+  /**
+   * Exports the single restricted `api` interface for a port-range binding,
+   * stored on the range it belongs to (`RangeOrigin.export`).
+   */
+  exportRangeServiceInterface(
+    options: ExportRangeServiceInterfaceParams,
+  ): Promise<null>
   /** Returns an exported service interface */
   getServiceInterface(options: {
     packageId?: PackageId

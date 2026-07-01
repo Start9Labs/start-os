@@ -1,6 +1,6 @@
 # rpc-toolkit
 
-StartOS uses [rpc-toolkit](https://github.com/Start9Labs/rpc-toolkit) for its JSON-RPC API. This document covers the patterns used in this codebase.
+StartOS uses [rpc-toolkit](https://github.com/Start9Labs/start-technologies/tree/master/shared-libs/crates/rpc-toolkit) for its JSON-RPC API. This document covers the patterns used in this codebase.
 
 ## Overview
 

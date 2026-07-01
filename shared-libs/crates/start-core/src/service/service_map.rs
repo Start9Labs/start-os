@@ -250,7 +250,6 @@ impl ServiceMap {
                                         current_dependencies: Default::default(),
                                         actions: Default::default(),
                                         tasks: Default::default(),
-                                        service_interfaces: Default::default(),
                                         hosts: Default::default(),
                                         store_exposed_dependents: Default::default(),
                                         outbound_gateway: None,

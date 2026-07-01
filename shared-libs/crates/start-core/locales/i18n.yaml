@@ -1602,13 +1602,6 @@ nut.status-missing:
   pl_PL: "Status NUT dla %{target} nie zawierał ups.status"
 
 # net/wifi.rs
-net.wifi.ssid-no-special-characters:
-  en_US: "SSID may not have special characters"
-  de_DE: "SSID darf keine Sonderzeichen enthalten"
-  es_ES: "El SSID no puede tener caracteres especiales"
-  fr_FR: "Le SSID ne peut pas contenir de caractères spéciaux"
-  pl_PL: "SSID nie może zawierać znaków specjalnych"
-
 net.wifi.password-no-special-characters:
   en_US: "WiFi Password may not have special characters"
   de_DE: "WiFi-Passwort darf keine Sonderzeichen enthalten"
@@ -2992,6 +2985,13 @@ help.arg.address:
   fr_FR: "Adresse réseau"
   pl_PL: "Adres sieciowy"
 
+help.arg.gua-access:
+  en_US: "IPv6 GUA exposure: disabled, lan, or lan-wan"
+  de_DE: "IPv6-GUA-Freigabe: disabled, lan oder lan-wan"
+  es_ES: "Exposición de GUA IPv6: disabled, lan o lan-wan"
+  fr_FR: "Exposition de la GUA IPv6 : disabled, lan ou lan-wan"
+  pl_PL: "Ekspozycja GUA IPv6: disabled, lan lub lan-wan"
+
 help.arg.allow-model-mismatch:
   en_US: "Allow database model mismatch"
   de_DE: "Datenbankmodell-Abweichung erlauben"
@@ -3538,12 +3538,6 @@ help.arg.pty-size:
   fr_FR: "Taille du terminal PTY (<lignes>:<cols>[:<x>:<y>])"
   pl_PL: "Rozmiar terminala PTY (<wiersze>:<kolumny>[:<x>:<y>])"
 
-help.arg.range-access:
-  en_US: "How the range is exposed on the gateway: disabled, private, or public"
-  de_DE: "Wie der Bereich auf dem Gateway verfügbar ist: deaktiviert, privat oder öffentlich"
-  es_ES: "Cómo se expone el rango en la puerta de enlace: deshabilitado, privado o público"
-  fr_FR: "Comment la plage est exposée sur la passerelle : désactivée, privée ou publique"
-  pl_PL: "Sposób udostępniania zakresu na bramie: wyłączony, prywatny lub publiczny"
 
 help.arg.registry-hostname:
   en_US: "Registry server hostname"
@@ -4049,12 +4043,6 @@ help.arg.internal-port:
   fr_FR: "Numéro de port interne"
   pl_PL: "Numer portu wewnętrznego"
 
-help.arg.internal-start-port:
-  en_US: "Internal start port of the range"
-  de_DE: "Interner Startport des Bereichs"
-  es_ES: "Puerto inicial interno del rango"
-  fr_FR: "Port de début interne de la plage"
-  pl_PL: "Wewnętrzny port początkowy zakresu"
 
 help.arg.is-public:
   en_US: "Whether the interface is publicly addressable"
@@ -6031,6 +6019,20 @@ about.set-address-enabled-for-binding:
   fr_FR: "Définir une adresse de passerelle activée pour une liaison"
   pl_PL: "Ustaw adres bramy jako włączony dla powiązania"
 
+about.set-range-address-enabled-for-binding:
+  en_US: "Set a gateway address enabled for a port-range binding"
+  de_DE: "Gateway-Adresse für eine Portbereichs-Bindung aktivieren"
+  es_ES: "Establecer una dirección de gateway habilitada para un vínculo de rango de puertos"
+  fr_FR: "Définir une adresse de passerelle activée pour une liaison de plage de ports"
+  pl_PL: "Ustaw adres bramy jako włączony dla powiązania zakresu portów"
+
+about.set-gua-access-for-binding:
+  en_US: "Set the LAN / LAN+WAN exposure of an IPv6 global-unicast address for a binding"
+  de_DE: "LAN-/LAN+WAN-Freigabe einer globalen IPv6-Unicast-Adresse für eine Bindung festlegen"
+  es_ES: "Establecer la exposición LAN / LAN+WAN de una dirección unicast global IPv6 para un vínculo"
+  fr_FR: "Définir l'exposition LAN / LAN+WAN d'une adresse unicast globale IPv6 pour une liaison"
+  pl_PL: "Ustaw ekspozycję LAN / LAN+WAN globalnego adresu unicast IPv6 dla powiązania"
+
 about.set-country:
   en_US: "Set the country"
   de_DE: "Das Land festlegen"
@@ -6101,12 +6103,6 @@ about.set-outbound-gateway-package:
   fr_FR: "Définir la passerelle sortante pour un package"
   pl_PL: "Ustaw bramę wychodzącą dla pakietu"
 
-about.set-range-gateway-access-for-binding:
-  en_US: "Set how a port range is exposed on a specific gateway (disabled, private, or public)"
-  de_DE: "Festlegen, wie ein Portbereich auf einem bestimmten Gateway verfügbar ist (deaktiviert, privat oder öffentlich)"
-  es_ES: "Establecer cómo se expone un rango de puertos en una puerta de enlace específica (deshabilitado, privado o público)"
-  fr_FR: "Définir comment une plage de ports est exposée sur une passerelle spécifique (désactivée, privée ou publique)"
-  pl_PL: "Określ sposób udostępniania zakresu portów dla określonej bramy (wyłączony, prywatny lub publiczny)"
 
 about.set-registry-icon:
   en_US: "Set the registry icon"

@@ -31,10 +31,11 @@ import {
   PkgAddPrivateDomainReq,
   PkgAddPublicDomainReq,
   PkgBindingSetAddressEnabledReq,
-  PkgBindingSetRangeAccessReq,
+  PkgBindingSetGuaAccessReq,
   PkgRemovePrivateDomainReq,
   PkgRemovePublicDomainReq,
   ServerBindingSetAddressEnabledReq,
+  ServerBindingSetGuaAccessReq,
   ServerState,
   WebsocketConfig,
 } from './api.types'
@@ -682,11 +683,29 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async pkgBindingSetRangeAccess(
-    params: PkgBindingSetRangeAccessReq,
+  async pkgBindingSetRangeAddressEnabled(
+    params: PkgBindingSetAddressEnabledReq,
   ): Promise<null> {
     return this.rpcRequest({
-      method: 'package.host.binding.set-range-gateway-access',
+      method: 'package.host.binding.set-range-address-enabled',
+      params,
+    })
+  }
+
+  async serverBindingSetGuaAccess(
+    params: ServerBindingSetGuaAccessReq,
+  ): Promise<null> {
+    return this.rpcRequest({
+      method: 'server.host.binding.set-gua-access',
+      params,
+    })
+  }
+
+  async pkgBindingSetGuaAccess(
+    params: PkgBindingSetGuaAccessReq,
+  ): Promise<null> {
+    return this.rpcRequest({
+      method: 'package.host.binding.set-gua-access',
       params,
     })
   }

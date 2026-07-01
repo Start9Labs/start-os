@@ -101,11 +101,13 @@ Display the WireGuard configuration file for a device. Optionally override the W
 
 Expose a device's port on the server's public IP.
 
-### `start-tunnel port-forward add <SOURCE> <TARGET>`
+### `start-tunnel port-forward add <EXTERNAL_PORT> <TARGET>`
 
-Add a port forwarding rule mapping a public source to a private target.
+Add a port forwarding rule mapping a public external port to a private target. The external IP is fixed server-side to the target device's WAN.
 
 - `--label <LABEL>` — Human-readable label
+- `--sni <SNI>` — Hostname to SNI-demux on a shared external port (TLS services only); repeatable. Omit for a plain port forward.
+- `--count <COUNT>` — Number of contiguous ports to forward as a range (a PCP PORT_SET range), counting up from both the external port and the target port. Defaults to 1. Not valid together with `--sni`.
 
 ### `start-tunnel port-forward remove <SOURCE>`
 

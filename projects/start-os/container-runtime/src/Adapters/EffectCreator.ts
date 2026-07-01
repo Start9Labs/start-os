@@ -217,6 +217,13 @@ export function makeEffects(context: EffectContext): Effects {
         T.Effects["exportServiceInterface"]
       >
     }) as Effects["exportServiceInterface"],
+    exportRangeServiceInterface: ((
+      ...[options]: Parameters<Effects["exportRangeServiceInterface"]>
+    ) => {
+      return rpcRound("export-range-service-interface", options) as ReturnType<
+        T.Effects["exportRangeServiceInterface"]
+      >
+    }) as Effects["exportRangeServiceInterface"],
     getContainerIp(...[options]: Parameters<T.Effects["getContainerIp"]>) {
       return rpcRound("get-container-ip", {
         ...options,

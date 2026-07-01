@@ -142,23 +142,34 @@ const secretKey = await storeJson.read((s) => s.secretKey).const(effects);
 
 ## Getting Hostnames
 
-Use a mapper function to extract only the data you need. The service only restarts if the mapped result changes, not if other interface properties change:
+Interfaces are reached through their **host**. `sdk.host.getOwn(effects, hostId)` returns the host (`hostId` is the id you passed to `sdk.MultiHost.of`); the interface you exported lives under one of the host's bindings, and `utils.filledAddress(host, addressInfo)` turns its address into resolvable hostnames/URLs:
 
 ```typescript
-// With mapper - only restarts if hostnames change
-const allowedHosts =
-  (await sdk.serviceInterface
-    .getOwn(effects, "ui", (i) =>
-      i?.addressInfo?.format("hostname-info").map((h) => h.hostname.value),
-    )
-    .const()) || [];
+import { utils } from "@start9labs/start-sdk";
 
-// Without mapper - restarts on any interface change (not recommended)
-const uiInterface = await sdk.serviceInterface.getOwn(effects, "ui").const();
+const host = await sdk.host.getOwn(effects, "ui").const();
+const ui = Object.values(host?.bindings ?? {})
+  .flatMap((b) => Object.values(b.interfaces))
+  .find((i) => i.id === "ui");
+
 const allowedHosts =
-  uiInterface?.addressInfo
-    ?.format("hostname-info")
-    .map((h) => h.hostname.value) ?? [];
+  host && ui
+    ? utils
+        .filledAddress(host, ui.addressInfo)
+        .format("hostname-info")
+        .map((h) => h.hostname.value)
+    : [];
+```
+
+`.const()` sets up a reactive watcher — `setupMain` re-runs whenever the host's bindings, addresses, or exported interfaces change.
+
+To react to only a slice of the host, pass a `map` selector (and optional `eq`, default deep-equal) to `getOwn`/`get`. `.const()` then re-runs only when the mapped value changes rather than on any change to the whole host:
+
+```typescript
+// re-run only when THIS interface's address info changes
+const ui = await sdk.host
+  .getOwn(effects, "ui", (host) => host?.bindings[80]?.interfaces["ui"])
+  .const();
 ```
 
 ## Oneshots (Runtime)

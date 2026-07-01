@@ -8,9 +8,12 @@ export interface MappedDevice {
 
 export interface MappedForward {
   readonly externalip: string
+  // Start port of the forward; `externalport`/`internalport` stay the raw start
+  // (they rebuild the operation source key), while `count` gives the span.
   readonly externalport: string
   readonly device: MappedDevice
   readonly internalport: string
+  readonly count: number
   readonly label: T.Tunnel.SniRoute['label']
   readonly enabled: T.Tunnel.SniRoute['enabled']
   readonly auto: T.Tunnel.SniRoute['auto']
@@ -37,6 +40,7 @@ export function mapForwards(
             route.enabled,
             route.auto,
             hostname,
+            1,
           ),
         )
       : [
@@ -47,6 +51,7 @@ export function mapForwards(
             forward.enabled,
             forward.auto,
             null,
+            forward.count,
           ),
         ],
   )
@@ -58,6 +63,7 @@ export function mapForwards(
     enabled: boolean,
     auto: boolean,
     hostname: string | null,
+    count: number,
   ): MappedForward {
     const [externalip, externalport] = source.split(':')
     const [targetip, internalport] = target.split(':')
@@ -73,6 +79,7 @@ export function mapForwards(
         name: targetip!,
       },
       internalport: internalport!,
+      count,
       label,
       enabled,
       auto,

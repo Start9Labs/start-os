@@ -1,11 +1,21 @@
 use std::collections::BTreeMap;
 
-use crate::net::service_interface::{AddressInfo, ServiceInterface, ServiceInterfaceType};
+use imbl_value::InternedString;
+
+use crate::net::host::Hosts;
+use crate::net::service_interface::{
+    AddressInfo, RangeServiceInterface, ServiceInterface, ServiceInterfaceType,
+};
 use crate::service::effects::callbacks::CallbackHandler;
 use crate::service::effects::prelude::*;
 use crate::service::rpc::CallbackId;
-use crate::{PackageId, ServiceInterfaceId};
+use crate::{HostId, PackageId, ServiceInterfaceId};
 
+// Every service interface lives under the binding it was exported from
+// (`hosts/{hostId}/bindings/{internalPort}/interfaces/{id}` for single-port
+// `Origin.export`, `hosts/{hostId}/bindingRanges/{internalStartPort}/interface`
+// for `RangeOrigin.export`). The flat `PackageDataEntry.serviceInterfaces` map
+// is gone — these effects read/write the host tree directly.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
@@ -31,6 +41,8 @@ pub async fn export_service_interface(
     let context = context.deref()?;
     let package_id = context.seed.id.clone();
 
+    let host_id = address_info.host_id.clone();
+    let internal_port = address_info.internal_port;
     let service_interface = ServiceInterface {
         id: id.clone(),
         name,
@@ -45,19 +57,102 @@ pub async fn export_service_interface(
         .ctx
         .db
         .mutate(|db| {
-            let ifaces = db
-                .as_public_mut()
+            db.as_public_mut()
                 .as_package_data_mut()
                 .as_idx_mut(&package_id)
                 .or_not_found(&package_id)?
-                .as_service_interfaces_mut();
-            ifaces.insert(&id, &service_interface)?;
+                .as_hosts_mut()
+                .as_idx_mut(&host_id)
+                .or_not_found(&host_id)?
+                .as_bindings_mut()
+                .as_idx_mut(&internal_port)
+                .or_not_found(internal_port)?
+                .as_interfaces_mut()
+                .insert(&id, &service_interface)?;
             Ok(())
         })
         .await
         .result?;
 
     Ok(())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportRangeServiceInterfaceParams {
+    host_id: HostId,
+    internal_start_port: u16,
+    id: ServiceInterfaceId,
+    name: String,
+    description: String,
+    #[ts(type = "string | null")]
+    scheme: Option<InternedString>,
+}
+pub async fn export_range_service_interface(
+    context: EffectContext,
+    ExportRangeServiceInterfaceParams {
+        host_id,
+        internal_start_port,
+        id,
+        name,
+        description,
+        scheme,
+    }: ExportRangeServiceInterfaceParams,
+) -> Result<(), Error> {
+    let context = context.deref()?;
+    let package_id = context.seed.id.clone();
+
+    let interface = RangeServiceInterface {
+        id,
+        name,
+        description,
+        scheme,
+    };
+
+    context
+        .seed
+        .ctx
+        .db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&package_id)
+                .or_not_found(&package_id)?
+                .as_hosts_mut()
+                .as_idx_mut(&host_id)
+                .or_not_found(&host_id)?
+                .as_binding_ranges_mut()
+                .as_idx_mut(&internal_start_port)
+                .or_not_found(internal_start_port)?
+                .as_interface_mut()
+                .ser(&Some(interface))
+        })
+        .await
+        .result?;
+
+    Ok(())
+}
+
+/// Single-port service interface lookup, scanning every binding of every host
+/// for `service_interface_id`. Range interfaces are intentionally excluded —
+/// they have no addressable `AddressInfo` and are read off the host model.
+fn find_service_interface(hosts: &Hosts, id: &ServiceInterfaceId) -> Option<ServiceInterface> {
+    hosts
+        .0
+        .values()
+        .flat_map(|host| host.bindings.values())
+        .find_map(|bind| bind.interfaces.get(id).cloned())
+}
+
+fn list_all_service_interfaces(hosts: &Hosts) -> BTreeMap<ServiceInterfaceId, ServiceInterface> {
+    hosts
+        .0
+        .values()
+        .flat_map(|host| host.bindings.values())
+        .flat_map(|bind| bind.interfaces.iter())
+        .map(|(id, iface)| (id.clone(), iface.clone()))
+        .collect()
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
@@ -81,21 +176,16 @@ pub async fn get_service_interface(
     let context = context.deref()?;
     let package_id = package_id.unwrap_or_else(|| context.seed.id.clone());
 
-    let ptr = format!(
-        "/public/packageData/{}/serviceInterfaces/{}",
-        package_id, service_interface_id
-    )
-    .parse()
-    .expect("valid json pointer");
-    let mut watch = context
-        .seed
-        .ctx
-        .db
-        .watch(ptr)
-        .await
-        .typed::<ServiceInterface>();
+    let ptr = format!("/public/packageData/{}/hosts", package_id)
+        .parse()
+        .expect("valid json pointer");
+    let mut watch = context.seed.ctx.db.watch(ptr).await.typed::<Hosts>();
 
-    let res = watch.peek_and_mark_seen()?.de().ok();
+    let res = watch
+        .peek_and_mark_seen()?
+        .de()
+        .ok()
+        .and_then(|hosts: Hosts| find_service_interface(&hosts, &service_interface_id));
 
     if let Some(callback) = callback {
         let callback = callback.register(&context.seed.persistent_container);
@@ -129,23 +219,28 @@ pub async fn list_service_interfaces(
     let context = context.deref()?;
     let package_id = package_id.unwrap_or_else(|| context.seed.id.clone());
 
-    let ptr = format!("/public/packageData/{}/serviceInterfaces", package_id)
+    let ptr = format!("/public/packageData/{}/hosts", package_id)
         .parse()
         .expect("valid json pointer");
-    let mut watch = context.seed.ctx.db.watch(ptr).await;
+    let mut watch = context.seed.ctx.db.watch(ptr).await.typed::<Hosts>();
 
-    let res: Option<_> = from_value(watch.peek_and_mark_seen()?)?;
+    let res = watch
+        .peek_and_mark_seen()?
+        .de()
+        .ok()
+        .map(|hosts: Hosts| list_all_service_interfaces(&hosts))
+        .unwrap_or_default();
 
     if let Some(callback) = callback {
         let callback = callback.register(&context.seed.persistent_container);
         context.seed.ctx.callbacks.add_list_service_interfaces(
             package_id.clone(),
-            watch.typed::<Option<BTreeMap<ServiceInterfaceId, ServiceInterface>>>(),
+            watch,
             CallbackHandler::new(&context, callback),
         );
     }
 
-    Ok(res.unwrap_or_default())
+    Ok(res)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
@@ -168,12 +263,28 @@ pub async fn clear_service_interfaces(
         .ctx
         .db
         .mutate(|db| {
-            db.as_public_mut()
+            for (_, host) in db
+                .as_public_mut()
                 .as_package_data_mut()
                 .as_idx_mut(&package_id)
                 .or_not_found(&package_id)?
-                .as_service_interfaces_mut()
-                .mutate(|s| Ok(s.retain(|id, _| except.contains(id))))
+                .as_hosts_mut()
+                .as_entries_mut()?
+            {
+                for (_, bind) in host.as_bindings_mut().as_entries_mut()? {
+                    bind.as_interfaces_mut()
+                        .mutate(|ifaces| Ok(ifaces.retain(|id, _| except.contains(id))))?;
+                }
+                for (_, range) in host.as_binding_ranges_mut().as_entries_mut()? {
+                    range.as_interface_mut().mutate(|iface| {
+                        if iface.as_ref().map_or(false, |i| !except.contains(&i.id)) {
+                            *iface = None;
+                        }
+                        Ok(())
+                    })?;
+                }
+            }
+            Ok(())
         })
         .await
         .result?;

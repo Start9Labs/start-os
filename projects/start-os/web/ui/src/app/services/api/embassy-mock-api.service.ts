@@ -43,10 +43,11 @@ import {
   PkgAddPrivateDomainReq,
   PkgAddPublicDomainReq,
   PkgBindingSetAddressEnabledReq,
-  PkgBindingSetRangeAccessReq,
+  PkgBindingSetGuaAccessReq,
   PkgRemovePrivateDomainReq,
   PkgRemovePublicDomainReq,
   ServerBindingSetAddressEnabledReq,
+  ServerBindingSetGuaAccessReq,
   ServerState,
   WebsocketConfig,
 } from './api.types'
@@ -1687,18 +1688,35 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async pkgBindingSetRangeAccess(
-    params: PkgBindingSetRangeAccessReq,
+  async pkgBindingSetRangeAddressEnabled(
+    params: PkgBindingSetAddressEnabledReq,
   ): Promise<null> {
     await pauseFor(2000)
 
-    const hostPath = `/packageData/${params.package}/hosts/${params.host}`
-    this.mockSetRangeGatewayAccess(
-      hostPath,
-      params.internalStartPort,
-      params.gateway,
-      params.access,
-    )
+    const basePath = `/packageData/${params.package}/hosts/${params.host}/bindingRanges/${params.internalPort}/addresses`
+    this.mockSetAddressEnabled(basePath, params.address, params.enabled)
+
+    return null
+  }
+
+  async serverBindingSetGuaAccess(
+    params: ServerBindingSetGuaAccessReq,
+  ): Promise<null> {
+    await pauseFor(2000)
+
+    const basePath = `/serverInfo/network/host/bindings/${params.internalPort}/addresses`
+    this.mockSetGuaAccess(basePath, params.address, params.access)
+
+    return null
+  }
+
+  async pkgBindingSetGuaAccess(
+    params: PkgBindingSetGuaAccessReq,
+  ): Promise<null> {
+    await pauseFor(2000)
+
+    const basePath = `/packageData/${params.package}/hosts/${params.host}/bindings/${params.internalPort}/addresses`
+    this.mockSetGuaAccess(basePath, params.address, params.access)
 
     return null
   }
@@ -2150,10 +2168,9 @@ export class MockApiService extends ApiService {
 
   private mockSetAddressEnabled(
     basePath: string,
-    addressJson: string,
+    h: T.HostnameInfo,
     enabled: boolean | null,
   ): void {
-    const h: T.HostnameInfo = JSON.parse(addressJson)
     const isPublicIp =
       h.public && (h.metadata.kind === 'ipv4' || h.metadata.kind === 'ipv6')
 
@@ -2196,68 +2213,27 @@ export class MockApiService extends ApiService {
     }
   }
 
-  private mockSetRangeGatewayAccess(
-    hostPath: string,
-    internalStartPort: number,
-    gateway: T.GatewayId,
-    access: T.RangeGatewayAccess,
+  private mockSetGuaAccess(
+    basePath: string,
+    h: T.HostnameInfo,
+    access: T.GuaAccess,
   ): void {
-    const rangePath = `${hostPath}/bindingRanges/${internalStartPort}`
-    const range = this.mockData(rangePath) as T.RangeBindInfo
+    if (h.metadata.kind !== 'ipv6' || h.port === null) return
 
-    const gatewayAccess: { [id: string]: T.RangeGatewayAccess } = {
-      ...range.gatewayAccess,
-    }
-    // 'lan' is the default, so clear the entry; otherwise record the choice.
+    const key = `[${h.hostname}]:${h.port}`
+    const current = this.mockData(basePath) as T.DerivedAddressInfo
+    const guaAccess = { ...(current.guaAccess ?? {}) }
+
+    // LAN is the default, so it clears the entry.
     if (access === 'lan') {
-      delete gatewayAccess[gateway]
+      delete guaAccess[key]
     } else {
-      gatewayAccess[gateway] = access
+      guaAccess[key] = access
     }
-    range.gatewayAccess = gatewayAccess
 
-    // Recompute this range's derived port forwards the way `update_addresses`
-    // does on the backend: only Public gateways with a WAN IP need a
-    // router-facing forward (Private is LAN-only, Disabled forwards nothing,
-    // and outbound-only gateways never receive inbound forwards).
-    const gateways = this.mockData('/serverInfo/network/gateways') as Record<
-      string,
-      T.NetworkInterfaceInfo
-    >
-    const portForwards = this.mockData(
-      `${hostPath}/portForwards`,
-    ) as T.PortForward[]
-    const portOf = (sa: string) => Number(sa.slice(sa.lastIndexOf(':') + 1))
-    // Drop this range's existing entries (keyed by its external start port)...
-    const next = portForwards.filter(
-      pf => portOf(pf.src) !== range.externalStartPort,
-    )
-    // ...then re-add for each LAN+WAN inbound gateway that has a WAN IP.
-    for (const [gwId, gw] of Object.entries(gateways)) {
-      if (gw.type === 'outbound-only') continue
-      if ((gatewayAccess[gwId] ?? 'lan') !== 'lan-wan') continue
-      const wanIp = gw.ipInfo?.wanIp
-      if (!wanIp) continue
-      for (const subnet of gw.ipInfo!.subnets) {
-        const ip = subnet.split('/')[0]
-        if (!ip || ip.includes(':')) continue // IPv4 only, matching update_addresses
-        next.push({
-          src: `${wanIp}:${range.externalStartPort}`,
-          dst: `${ip}:${internalStartPort}`,
-          gateway: gwId,
-          count: range.numberOfPorts,
-        })
-      }
-    }
-    portForwards.splice(0, portForwards.length, ...next)
-
-    this.mockRevision<any>([
-      {
-        op: PatchOp.REPLACE,
-        path: `${rangePath}/gatewayAccess`,
-        value: gatewayAccess,
-      },
-      { op: PatchOp.REPLACE, path: `${hostPath}/portForwards`, value: next },
+    current.guaAccess = guaAccess
+    this.mockRevision([
+      { op: PatchOp.ADD, path: `${basePath}/guaAccess`, value: guaAccess },
     ])
   }
 

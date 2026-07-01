@@ -40,7 +40,7 @@ how `startbox` dispatches to `startd`, `start-cli`, etc. The per-entrypoint logi
 
 ## RPC Pattern
 
-The API is JSON-RPC (not REST). All endpoints are RPC methods organized in a hierarchical command structure using [rpc-toolkit](https://github.com/Start9Labs/rpc-toolkit). Handlers are registered in a tree of `ParentHandler` nodes, with four handler types: `from_fn_async` (standard), `from_fn_async_local` (non-Send), `from_fn` (sync), and `from_fn_blocking` (blocking). Metadata like `.with_about()` drives middleware and documentation.
+The API is JSON-RPC (not REST). All endpoints are RPC methods organized in a hierarchical command structure using [rpc-toolkit](https://github.com/Start9Labs/start-technologies/tree/master/shared-libs/crates/rpc-toolkit). Handlers are registered in a tree of `ParentHandler` nodes, with four handler types: `from_fn_async` (standard), `from_fn_async_local` (non-Send), `from_fn` (sync), and `from_fn_blocking` (blocking). Metadata like `.with_about()` drives middleware and documentation.
 
 See [rpc-toolkit.md](rpc-toolkit.md) for full handler patterns and configuration.
 

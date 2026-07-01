@@ -45,6 +45,12 @@ export const setupServiceInterfaces: SetupServiceInterfaces = <
           interfaces.push(params.id)
           return effects.exportServiceInterface(params)
         },
+        exportRangeServiceInterface: (
+          params: T.ExportRangeServiceInterfaceParams,
+        ) => {
+          interfaces.push(params.id)
+          return effects.exportRangeServiceInterface(params)
+        },
       },
     })
     await effects.clearBindings({ except: bindings })

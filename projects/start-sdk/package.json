@@ -20,14 +20,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Start9Labs/start-os.git"
+    "url": "git+https://github.com/Start9Labs/start-technologies.git"
   },
   "author": "Start9 Labs",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/Start9Labs/start-os/issues"
+    "url": "https://github.com/Start9Labs/start-technologies/issues"
   },
-  "homepage": "https://github.com/Start9Labs/start-os#readme",
+  "homepage": "https://github.com/Start9Labs/start-technologies#readme",
   "dependencies": {
     "@iarna/toml": "^3.0.0",
     "@noble/curves": "^1.9.7",
