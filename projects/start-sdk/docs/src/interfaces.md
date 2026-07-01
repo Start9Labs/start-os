@@ -211,15 +211,14 @@ export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
     numberOfPorts: 100,       // 2–500 contiguous ports
   })
 
-  return [
-    await range.export(
-      sdk.createRangeInterface(effects, {
-        id: 'turn-relay',
-        name: i18n('TURN Relay'),
-        description: i18n('WebRTC media relay ports'),
-      }),
-    ),
-  ]
+  await range.export(
+    sdk.createRangeInterface(effects, {
+      id: 'turn-relay',
+      name: i18n('TURN Relay'),
+      description: i18n('WebRTC media relay ports'),
+    }),
+  )
+  return []
 })
 ```
 
@@ -242,7 +241,7 @@ await zmqRange.export(
 )
 ```
 
-Two distinct endpoints are two `bindPortRange` calls — a range is a homogeneous pool of ports, so it maps to one named interface. Range interfaces show up in the service's **Interfaces** page with a per-gateway LAN / LAN+WAN access control; choosing LAN+WAN prompts the operator with the exact port range to forward on their router.
+Two distinct endpoints are two `bindPortRange` calls — a range is a homogeneous pool of ports, so it maps to one named interface. Range interfaces show up in the service's **Interfaces** page using the same per-gateway address cards as single-port interfaces (non-SSL, IPv4-only). The public/WAN address is disabled by default; enabling it surfaces the exact port range to forward on the router.
 
 | `createRangeInterface` option | Type | Description |
 |--------|------|-------------|
