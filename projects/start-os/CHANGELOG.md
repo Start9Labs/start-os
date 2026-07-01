@@ -8,6 +8,17 @@ Full per-release notes are published on the
 [GitHub releases page](https://github.com/Start9Labs/start-technologies/releases). This
 file tracks notable changes since the move to the monorepo.
 
+## [Unreleased]
+
+### Added
+
+- **IPv6 GUA exposure tri-state.** On a service interface, an IPv6 global-unicast
+  address (GUA) now offers a **Disabled / LAN / LAN+WAN** control instead of an
+  on/off toggle. **LAN** (the default) keeps it reachable on the local network
+  only — traffic from outside the subnet is rejected; **LAN+WAN** also exposes it
+  to the Internet and attempts an automatic gateway pinhole (PCP). IPv6 ULAs and
+  IPv4 are unchanged.
+
 ## [0.4.0-beta.10]
 
 ### Added

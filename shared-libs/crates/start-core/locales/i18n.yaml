@@ -2928,6 +2928,13 @@ help.arg.address:
   fr_FR: "Adresse réseau"
   pl_PL: "Adres sieciowy"
 
+help.arg.gua-access:
+  en_US: "IPv6 GUA exposure: disabled, lan, or lan-wan"
+  de_DE: "IPv6-GUA-Freigabe: disabled, lan oder lan-wan"
+  es_ES: "Exposición de GUA IPv6: disabled, lan o lan-wan"
+  fr_FR: "Exposition de la GUA IPv6 : disabled, lan ou lan-wan"
+  pl_PL: "Ekspozycja GUA IPv6: disabled, lan lub lan-wan"
+
 help.arg.allow-model-mismatch:
   en_US: "Allow database model mismatch"
   de_DE: "Datenbankmodell-Abweichung erlauben"
@@ -5961,6 +5968,13 @@ about.set-range-address-enabled-for-binding:
   es_ES: "Establecer una dirección de gateway habilitada para un vínculo de rango de puertos"
   fr_FR: "Définir une adresse de passerelle activée pour une liaison de plage de ports"
   pl_PL: "Ustaw adres bramy jako włączony dla powiązania zakresu portów"
+
+about.set-gua-access-for-binding:
+  en_US: "Set the LAN / LAN+WAN exposure of an IPv6 global-unicast address for a binding"
+  de_DE: "LAN-/LAN+WAN-Freigabe einer globalen IPv6-Unicast-Adresse für eine Bindung festlegen"
+  es_ES: "Establecer la exposición LAN / LAN+WAN de una dirección unicast global IPv6 para un vínculo"
+  fr_FR: "Définir l'exposition LAN / LAN+WAN d'une adresse unicast globale IPv6 pour une liaison"
+  pl_PL: "Ustaw ekspozycję LAN / LAN+WAN globalnego adresu unicast IPv6 dla powiązania"
 
 about.set-country:
   en_US: "Set the country"

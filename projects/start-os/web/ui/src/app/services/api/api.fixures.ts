@@ -2250,6 +2250,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
             addresses: {
               enabled: [],
               disabled: [],
+              guaAccess: {},
               available: [
                 {
                   ssl: true,
@@ -2332,6 +2333,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
             addresses: {
               enabled: [],
               disabled: [],
+              guaAccess: {},
               available: [],
             },
             options: {
@@ -2375,6 +2377,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
             addresses: {
               enabled: [],
               disabled: [],
+              guaAccess: {},
               available: [],
             },
             options: {

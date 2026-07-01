@@ -41,6 +41,7 @@ export const mockPatchData: DataModel = {
             addresses: {
               enabled: [],
               disabled: [],
+              guaAccess: {},
               available: [
                 {
                   ssl: true,
@@ -460,6 +461,7 @@ export const mockPatchData: DataModel = {
               addresses: {
                 enabled: ['203.0.113.45:42443'],
                 disabled: [],
+                guaAccess: {},
                 available: [
                   {
                     ssl: true,
@@ -610,6 +612,7 @@ export const mockPatchData: DataModel = {
               addresses: {
                 enabled: ['203.0.113.45:49152'],
                 disabled: [],
+                guaAccess: {},
                 available: [
                   {
                     ssl: false,
@@ -704,6 +707,7 @@ export const mockPatchData: DataModel = {
               addresses: {
                 enabled: [],
                 disabled: [],
+                guaAccess: {},
                 available: [
                   {
                     ssl: false,
@@ -779,6 +783,7 @@ export const mockPatchData: DataModel = {
               addresses: {
                 enabled: [],
                 disabled: [],
+                guaAccess: {},
                 available: [],
               },
               options: {

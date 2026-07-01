@@ -1,5 +1,5 @@
 use std::collections::BTreeSet;
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6};
 
 use imbl_value::InternedString;
 use serde::{Deserialize, Serialize};
@@ -66,13 +66,25 @@ impl HostnameInfo {
     /// reach the service; they are never operator-disablable, and a binding with
     /// no exported interface is restricted to them.
     pub fn is_internal(&self) -> bool {
-        match self.hostname.parse::<std::net::IpAddr>() {
-            Ok(std::net::IpAddr::V4(v4)) => {
-                v4.is_loopback() || v4 == std::net::Ipv4Addr::from(crate::HOST_IP)
-            }
-            Ok(std::net::IpAddr::V6(v6)) => v6.is_loopback(),
+        match self.hostname.parse::<IpAddr>() {
+            Ok(IpAddr::V4(v4)) => v4.is_loopback() || v4 == Ipv4Addr::from(crate::HOST_IP),
+            Ok(IpAddr::V6(v6)) => v6.is_loopback(),
             Err(_) => false,
         }
+    }
+
+    /// If this address is an IPv6 **global unicast** address (a GUA — not
+    /// loopback / ULA / link-local), return it as a `SocketAddrV6`. GUAs are the
+    /// only addresses that carry the Disabled / LAN / LAN+WAN tri-state.
+    pub fn gua(&self) -> Option<SocketAddrV6> {
+        if !matches!(self.metadata, HostnameMetadata::Ipv6 { .. }) {
+            return None;
+        }
+        let ip = self.hostname.parse::<Ipv6Addr>().ok()?;
+        if crate::net::utils::ipv6_is_local(ip) {
+            return None;
+        }
+        Some(SocketAddrV6::new(ip, self.port?, 0, 0))
     }
 }
 

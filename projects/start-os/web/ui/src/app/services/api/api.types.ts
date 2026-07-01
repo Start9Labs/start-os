@@ -27,7 +27,7 @@ export type FollowServerLogsReq = Omit<T.LogsParams, 'before'>
 export type ServerBindingSetAddressEnabledReq = {
   // server.host.binding.set-address-enabled
   internalPort: 80
-  address: string // JSON-serialized HostnameInfo
+  address: T.HostnameInfo
   enabled: boolean | null // null = reset to default
 }
 
@@ -36,6 +36,23 @@ export type PkgBindingSetAddressEnabledReq = Omit<
   'internalPort'
 > & {
   // package.host.binding.set-address-enabled
+  internalPort: number
+  package: T.PackageId // string
+  host: T.HostId // string
+}
+
+export type ServerBindingSetGuaAccessReq = {
+  // server.host.binding.set-gua-access
+  internalPort: 80
+  address: T.HostnameInfo
+  access: T.GuaAccess // disabled | lan | lan-wan
+}
+
+export type PkgBindingSetGuaAccessReq = Omit<
+  ServerBindingSetGuaAccessReq,
+  'internalPort'
+> & {
+  // package.host.binding.set-gua-access
   internalPort: number
   package: T.PackageId // string
   host: T.HostId // string

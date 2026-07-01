@@ -18,9 +18,11 @@ import {
   PkgAddPrivateDomainReq,
   PkgAddPublicDomainReq,
   PkgBindingSetAddressEnabledReq,
+  PkgBindingSetGuaAccessReq,
   PkgRemovePrivateDomainReq,
   PkgRemovePublicDomainReq,
   ServerBindingSetAddressEnabledReq,
+  ServerBindingSetGuaAccessReq,
   ServerState,
   WebsocketConfig,
 } from './api.types'
@@ -358,6 +360,14 @@ export abstract class ApiService {
 
   abstract pkgBindingSetRangeAddressEnabled(
     params: PkgBindingSetAddressEnabledReq,
+  ): Promise<null>
+
+  abstract serverBindingSetGuaAccess(
+    params: ServerBindingSetGuaAccessReq,
+  ): Promise<null>
+
+  abstract pkgBindingSetGuaAccess(
+    params: PkgBindingSetGuaAccessReq,
   ): Promise<null>
 
   abstract pkgAddPublicDomain(

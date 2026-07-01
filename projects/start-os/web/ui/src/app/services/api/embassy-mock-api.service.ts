@@ -43,9 +43,11 @@ import {
   PkgAddPrivateDomainReq,
   PkgAddPublicDomainReq,
   PkgBindingSetAddressEnabledReq,
+  PkgBindingSetGuaAccessReq,
   PkgRemovePrivateDomainReq,
   PkgRemovePublicDomainReq,
   ServerBindingSetAddressEnabledReq,
+  ServerBindingSetGuaAccessReq,
   ServerState,
   WebsocketConfig,
 } from './api.types'
@@ -1662,6 +1664,28 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async serverBindingSetGuaAccess(
+    params: ServerBindingSetGuaAccessReq,
+  ): Promise<null> {
+    await pauseFor(2000)
+
+    const basePath = `/serverInfo/network/host/bindings/${params.internalPort}/addresses`
+    this.mockSetGuaAccess(basePath, params.address, params.access)
+
+    return null
+  }
+
+  async pkgBindingSetGuaAccess(
+    params: PkgBindingSetGuaAccessReq,
+  ): Promise<null> {
+    await pauseFor(2000)
+
+    const basePath = `/packageData/${params.package}/hosts/${params.host}/bindings/${params.internalPort}/addresses`
+    this.mockSetGuaAccess(basePath, params.address, params.access)
+
+    return null
+  }
+
   async pkgAddPublicDomain(
     params: PkgAddPublicDomainReq,
   ): Promise<T.AddPublicDomainRes> {
@@ -2109,10 +2133,9 @@ export class MockApiService extends ApiService {
 
   private mockSetAddressEnabled(
     basePath: string,
-    addressJson: string,
+    h: T.HostnameInfo,
     enabled: boolean | null,
   ): void {
-    const h: T.HostnameInfo = JSON.parse(addressJson)
     const isPublicIp =
       h.public && (h.metadata.kind === 'ipv4' || h.metadata.kind === 'ipv6')
 
@@ -2153,6 +2176,30 @@ export class MockApiService extends ApiService {
         { op: PatchOp.REPLACE, path: `${basePath}/disabled`, value: arr },
       ])
     }
+  }
+
+  private mockSetGuaAccess(
+    basePath: string,
+    h: T.HostnameInfo,
+    access: T.GuaAccess,
+  ): void {
+    if (h.metadata.kind !== 'ipv6' || h.port === null) return
+
+    const key = `[${h.hostname}]:${h.port}`
+    const current = this.mockData(basePath) as T.DerivedAddressInfo
+    const guaAccess = { ...(current.guaAccess ?? {}) }
+
+    // LAN is the default, so it clears the entry.
+    if (access === 'lan') {
+      delete guaAccess[key]
+    } else {
+      guaAccess[key] = access
+    }
+
+    current.guaAccess = guaAccess
+    this.mockRevision([
+      { op: PatchOp.ADD, path: `${basePath}/guaAccess`, value: guaAccess },
+    ])
   }
 
   private mockData(path: string): any {
