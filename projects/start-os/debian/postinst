@@ -6,6 +6,18 @@ if [ -n "$DPKG_MAINTSCRIPT_PACKAGE" ]; then
 	SYSTEMCTL=deb-systemd-helper
 fi
 
+# Set `KEY=VALUE` in a config file: replace the entry in place if it already
+# exists (bare or commented, any indentation) — preserving its position, which
+# matters for section-scoped configs — or append it if not. VALUE is written
+# verbatim, so the caller supplies any quoting. Usage: set_config FILE KEY VALUE
+set_config() {
+	if grep -qE "^[[:space:]]*#?[[:space:]]*$2[[:space:]]*=" "$1"; then
+		sed -i "/^[[:space:]]*#\\?[[:space:]]*$2[[:space:]]*=/c\\$2=$3" "$1"
+	else
+		printf '%s=%s\n' "$2" "$3" >> "$1"
+	fi
+}
+
 if [ -f /usr/sbin/grub-probe ] && ! [ -L /usr/sbin/grub-probe ]; then
 	mv /usr/sbin/grub-probe /usr/sbin/grub-probe-default
 	ln -s /usr/lib/startos/scripts/grub-probe-eos /usr/sbin/grub-probe
@@ -20,14 +32,13 @@ fi
 update-initramfs -u -k all
 
 if [ -f /etc/default/grub ]; then
-	sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX=/c\GRUB_CMDLINE_LINUX="boot=startos console=ttyS0,115200n8 console=tty0"' /etc/default/grub
-	sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX_DEFAULT=/c\GRUB_CMDLINE_LINUX_DEFAULT=""' /etc/default/grub
-	sed -i '/\(^\|#\)GRUB_DISTRIBUTOR=/c\GRUB_DISTRIBUTOR="StartOS v$(cat /usr/lib/startos/VERSION.txt)"' /etc/default/grub
-	# Set a GRUB variable, replacing if it exists (even commented) or appending if not
+	# GRUB values are always double-quoted; delegate the replace-or-append.
 	grub_set() {
-		sed -i '/\(^\|#\)'"$1"'=/d' /etc/default/grub
-		printf '%s="%s"\n' "$1" "$2" >> /etc/default/grub
+		set_config /etc/default/grub "$1" "\"$2\""
 	}
+	grub_set GRUB_CMDLINE_LINUX 'boot=startos console=ttyS0,115200n8 console=tty0'
+	grub_set GRUB_CMDLINE_LINUX_DEFAULT ''
+	grub_set GRUB_DISTRIBUTOR "StartOS v$(cat /usr/lib/startos/VERSION.txt)"
 	# Graphical terminal (serial added conditionally via /etc/grub.d/01_serial)
 	grub_set GRUB_TERMINAL_INPUT 'console'
 	grub_set GRUB_TERMINAL_OUTPUT 'gfxterm'
@@ -159,26 +170,26 @@ fi
 
 sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/g' /etc/ssh/sshd_config
 sed -i 's/Restart=on-failure/Restart=always/g' /lib/systemd/system/tor@default.service
-sed -i '/\(^\|#\)entries-per-entry-group-max=/c\entries-per-entry-group-max=128' /etc/avahi/avahi-daemon.conf
-sed -i '/\(^\|#\)Storage=/c\Storage=persistent' /etc/systemd/journald.conf
-sed -i '/\(^\|#\)Compress=/c\Compress=yes' /etc/systemd/journald.conf
-sed -i '/\(^\|#\)SystemMaxUse=/c\SystemMaxUse=1G' /etc/systemd/journald.conf
-sed -i '/\(^\|#\)ForwardToSyslog=/c\ForwardToSyslog=no' /etc/systemd/journald.conf
-sed -i '/^\s*#\?\s*issue_discards\s*=\s*/c\issue_discards = 1' /etc/lvm/lvm.conf
-sed -i '/\(^\|#\)\s*unqualified-search-registries\s*=\s*/c\unqualified-search-registries = ["docker.io"]' /etc/containers/registries.conf
+set_config /etc/avahi/avahi-daemon.conf entries-per-entry-group-max 128
+set_config /etc/systemd/journald.conf Storage persistent
+set_config /etc/systemd/journald.conf Compress yes
+set_config /etc/systemd/journald.conf SystemMaxUse 1G
+set_config /etc/systemd/journald.conf ForwardToSyslog no
+set_config /etc/lvm/lvm.conf issue_discards 1
+set_config /etc/containers/registries.conf unqualified-search-registries '["docker.io"]'
 sed -i 's/\(#\|\^\)\s*\([^=]\+\)=\(suspend\|hibernate\)\s*$/\2=ignore/g' /etc/systemd/logind.conf
-sed -i '/\(^\|#\)MulticastDNS=/c\MulticastDNS=no' /etc/systemd/resolved.conf
-sed -i '/\(^\|#\)DNSStubListener=/c\DNSStubListener=no' /etc/systemd/resolved.conf
-sed -i '/\(^\|#\)LXC_DHCP_CONFILE=/c\LXC_DHCP_CONFILE=/etc/dnsmasq.conf' /etc/default/lxc-net
-for kv in 'LXC_IPV6_ADDR="fd00:3::1"' 'LXC_IPV6_MASK="64"' 'LXC_IPV6_NETWORK="fd00:3::/64"' 'LXC_IPV6_NAT="true"'; do
-    key="${kv%%=*}"
-    sed -i "/^#\?${key}=/d" /etc/default/lxc-net
-    echo "$kv" >> /etc/default/lxc-net
-done
+set_config /etc/systemd/resolved.conf MulticastDNS no
+set_config /etc/systemd/resolved.conf DNSStubListener no
+set_config /etc/default/lxc-net LXC_DHCP_CONFILE /etc/dnsmasq.conf
+# Dual-stack lxcbr0: a ULA (fd00:3::/64) + SLAAC RA, so containers get a v6.
+set_config /etc/default/lxc-net LXC_IPV6_ADDR '"fd00:3::1"'
+set_config /etc/default/lxc-net LXC_IPV6_MASK '"64"'
+set_config /etc/default/lxc-net LXC_IPV6_NETWORK '"fd00:3::/64"'
+set_config /etc/default/lxc-net LXC_IPV6_NAT '"true"'
 echo 'port=0' > /etc/dnsmasq.conf
 sed -i 's/\[Service\]/[Service]\nEnvironment=SYSTEMD_LOG_LEVEL=debug/' /lib/systemd/system/systemd-timesyncd.service
 sed -i "s/\.debian\./\./g;s/#FallbackNTP=/FallbackNTP=/"  /etc/systemd/timesyncd.conf
-sed -i '/\(^\|#\)RootDistanceMaxSec=/c\RootDistanceMaxSec=10' /etc/systemd/timesyncd.conf
+set_config /etc/systemd/timesyncd.conf RootDistanceMaxSec 10
 
 # Reserve memory for the host management plane so a burst of resource-hungry
 # service containers can never starve startd / sshd / journald and wedge the
