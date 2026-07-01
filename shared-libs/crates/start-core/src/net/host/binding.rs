@@ -178,6 +178,18 @@ impl RangeBindInfo {
     pub fn disable(&mut self) {
         self.enabled = false;
     }
+
+    /// Addresses actually served by this range. Analogous to
+    /// [`BindInfo::enabled_addresses`]: a range with no exported interface is
+    /// internal-only (lo / lxcbr0), its per-address overrides dormant.
+    pub fn enabled_addresses(&self) -> BTreeSet<&HostnameInfo> {
+        let enabled = self.addresses.enabled();
+        if self.interface.is_none() {
+            enabled.into_iter().filter(|a| a.is_internal()).collect()
+        } else {
+            enabled
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
@@ -204,6 +216,19 @@ pub struct NetInfo {
     pub assigned_ssl_port: Option<u16>,
 }
 impl BindInfo {
+    /// Addresses actually served by this binding. A binding with no exported
+    /// service interface listens internally only (lo / lxcbr0) — the operator's
+    /// per-address `enabled`/`disabled` overrides stay stored but dormant until
+    /// an interface is exported, at which point they take effect again.
+    pub fn enabled_addresses(&self) -> BTreeSet<&HostnameInfo> {
+        let enabled = self.addresses.enabled();
+        if self.interfaces.is_empty() {
+            enabled.into_iter().filter(|a| a.is_internal()).collect()
+        } else {
+            enabled
+        }
+    }
+
     pub fn new(available_ports: &mut AvailablePorts, options: BindOptions) -> Result<Self, Error> {
         let mut assigned_port = None;
         let mut assigned_ssl_port = None;
@@ -588,14 +613,6 @@ pub async fn set_address_enabled<Kind: HostApiKind>(
                 .as_bindings_mut()
                 .mutate(|b| {
                     let bind = b.get_mut(&internal_port).or_not_found(internal_port)?;
-                    if enabled && address.public && bind.interfaces.is_empty() {
-                        return Err(Error::new(
-                            eyre!(
-                                "a binding with no exported service interface cannot expose a public (WAN) address"
-                            ),
-                            ErrorKind::InvalidRequest,
-                        ));
-                    }
                     set_address_enabled_on(&mut bind.addresses, &address, enabled)
                 })
         })
@@ -631,14 +648,6 @@ pub async fn set_range_address_enabled<Kind: HostApiKind>(
                 .as_binding_ranges_mut()
                 .mutate(|ranges| {
                     let range = ranges.get_mut(&internal_port).or_not_found(internal_port)?;
-                    if enabled && address.public && range.interface.is_none() {
-                        return Err(Error::new(
-                            eyre!(
-                                "a range with no exported service interface cannot expose a public (WAN) address"
-                            ),
-                            ErrorKind::InvalidRequest,
-                        ));
-                    }
                     set_address_enabled_on(&mut range.addresses, &address, enabled)
                 })
         })

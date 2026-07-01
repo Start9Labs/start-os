@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::{IpAddr, SocketAddr, SocketAddrV4};
+use std::net::{IpAddr, SocketAddrV4};
 use std::panic::RefUnwindSafe;
 
 use clap::Parser;
@@ -339,15 +339,6 @@ impl Model<Host> {
                 }
             }
             bind.as_addresses_mut().as_available_mut().ser(&available)?;
-            // A binding with no exported interface must not hold an enabled
-            // public (WAN) address — the `enabled` set is public-only, so clear
-            // it. Catches a binding that lost its interface after the operator
-            // had opted a WAN address in.
-            if bind.as_interfaces().de()?.is_empty() {
-                bind.as_addresses_mut()
-                    .as_enabled_mut()
-                    .ser(&BTreeSet::<SocketAddr>::new())?;
-            }
         }
 
         // Port-range bindings get the same reachable-address set as single-port
@@ -447,23 +438,15 @@ impl Model<Host> {
             }
 
             range.as_addresses_mut().as_available_mut().ser(&available)?;
-            // Same invariant as single-port bindings: a range with no exported
-            // interface must not hold an enabled public (WAN) address.
-            if range.as_interface().de()?.is_none() {
-                range
-                    .as_addresses_mut()
-                    .as_enabled_mut()
-                    .ser(&BTreeSet::<SocketAddr>::new())?;
-            }
         }
 
-        // compute port forwards from available public addresses. Non-exported
-        // bindings/ranges hold no enabled public address (cleared above), so
-        // they contribute nothing here without a special-case skip.
+        // compute port forwards from enabled public addresses. A non-exported
+        // binding/range serves internally only (`enabled_addresses`), and no
+        // internal address is public, so it contributes nothing here.
         let bindings: Bindings = this.bindings.de()?;
         let mut port_forwards = BTreeSet::new();
         for bind in bindings.values() {
-            for addr in bind.addresses.enabled() {
+            for addr in bind.enabled_addresses() {
                 if !addr.public {
                     continue;
                 }
@@ -508,7 +491,7 @@ impl Model<Host> {
             if !range.enabled {
                 continue;
             }
-            for addr in range.addresses.enabled() {
+            for addr in range.enabled_addresses() {
                 if !addr.public {
                     continue;
                 }
