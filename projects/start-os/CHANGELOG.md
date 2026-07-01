@@ -8,23 +8,6 @@ Full per-release notes are published on the
 [GitHub releases page](https://github.com/Start9Labs/start-technologies/releases). This
 file tracks notable changes since the move to the monorepo.
 
-## [Unreleased]
-
-### Changed
-
-- **Migrated `startos-backup-fs` into the monorepo** as the `start-os/backup-fs`
-  workspace member (from the former `Start9Labs/start-fs` repo); it is no longer
-  built as an external `cargo install --git` dependency.
-- **Monorepo reorganization.** `start-os` is now the monorepo for all Start9
-  products. The OS product moved into its own `start-os/` directory as a thin
-  wrapper: the `startbox` and `start-container` entry points live in
-  `src/bin/`, the admin UI and setup wizard in `web/`, and the container runtime
-  in `container-runtime/`. Backend logic moved from the old `core/` crate to the
-  shared `start-core` crate (`shared-libs/crates/start-core`); shared Angular
-  libraries moved to `shared-libs/ts-modules`; the SDK to `start-sdk`; and the `patch-db`
-  submodule to `shared-libs/crates/patch-db`. Builds now run against the root Cargo and
-  Angular workspaces (`cargo build -p start-os`, web from `shared-libs/ts-modules`).
-
 ## [0.4.0-beta.10]
 
 ### Added
@@ -54,6 +37,18 @@ file tracks notable changes since the move to the monorepo.
 
 ### Changed
 
+- **Migrated `startos-backup-fs` into the monorepo** as the `start-os/backup-fs`
+  workspace member (from the former `Start9Labs/start-fs` repo); it is no longer
+  built as an external `cargo install --git` dependency.
+- **Monorepo reorganization.** `start-os` is now the monorepo for all Start9
+  products. The OS product moved into its own `start-os/` directory as a thin
+  wrapper: the `startbox` and `start-container` entry points live in
+  `src/bin/`, the admin UI and setup wizard in `web/`, and the container runtime
+  in `container-runtime/`. Backend logic moved from the old `core/` crate to the
+  shared `start-core` crate (`shared-libs/crates/start-core`); shared Angular
+  libraries moved to `shared-libs/ts-modules`; the SDK to `start-sdk`; and the `patch-db`
+  submodule to `shared-libs/crates/patch-db`. Builds now run against the root Cargo and
+  Angular workspaces (`cargo build -p start-os`, web from `shared-libs/ts-modules`).
 - **Firewall migrated from iptables to native nftables (5b9cf7313).** Every StartOS-managed rule now lives in a single `table ip startos` with stable comment tags for handle-based, idempotent teardown (per-forward DNAT/hairpin/masquerade, the FORWARD `policy drop`, lxcbr0 container-egress accept, and the mangle policy-routing marks). lxc-net and wg-quick keep their own iptables-nft rules in separate tables. The `nftables` package is added to dependencies.
 - **Manifest capability flags split (#3271, #3275).** The misleading `nestedRuntime` flag is replaced by two independent capabilities: `userspaceFilesystems` (mounts `/dev/fuse` for fuse-overlayfs storage) and `virtualNetworking` (mounts `/dev/net/tun` for VPN / WireGuard / tun workloads). Both are device grants only — the service LXC already retains `CAP_NET_ADMIN` within its user namespace via the standard `userns.conf` include, so no capability machinery is needed (an earlier `lxc.cap.drop` snippet that was wrongly framed as "re-granting `CAP_NET_ADMIN`" — and actually dropped five caps that were otherwise kept — was removed). Hard rename — packages using `nestedRuntime` must republish.
 - **Service-container memory isolation (#3304).** Every service container is placed in a `services.slice` opted into systemd-oomd PSI monitoring, capped at total RAM minus a fixed 1 GiB host reservation; `system.slice`/`user.slice` get `MemoryMin` floors. A burst of concurrent installs can no longer overcommit RAM and wedge the host.
@@ -85,6 +80,12 @@ file tracks notable changes since the move to the monorepo.
 - **The redundant "Plugin:" prefix is dropped from interface plugin labels (#3349)** — the plugin address group already sits within a plugin section.
 - **Login and CA-wizard UX cleanup (e86dcc242).** The login button uses an inline loading state that holds until navigation completes (replacing the global overlay loader) and is correctly centered; the CA wizard gets a solid card background, drops the redundant "Bookmark this page" step, and moves the "repeat on every device" caveat into a notification.
 - **`fedimintd` → `fedimint-guardian`** package-ID rename is handled across all four `0.3.5.1`→`0.4.0` migration paths (2a806d8b8).
+- **Allow non-ASCII characters in WiFi SSIDs (#3365).** Adding, connecting to, or
+  removing a WiFi network whose SSID contains non-ASCII characters (e.g. an accented
+  letter or a typographic apostrophe) no longer fails with "SSID may not have special
+  characters". SSIDs are passed to NetworkManager as-is, and SSIDs containing a colon
+  are now parsed correctly when listing connections. The WiFi passphrase still
+  requires ASCII, as mandated by WPA.
 
 ### Removed
 

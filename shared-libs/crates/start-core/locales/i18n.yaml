@@ -1545,13 +1545,6 @@ net.tunnel.timeout-waiting-for-remove:
   pl_PL: "upłynął limit czasu oczekiwania na usunięcie bramy %{gateway} z bazy danych"
 
 # net/wifi.rs
-net.wifi.ssid-no-special-characters:
-  en_US: "SSID may not have special characters"
-  de_DE: "SSID darf keine Sonderzeichen enthalten"
-  es_ES: "El SSID no puede tener caracteres especiales"
-  fr_FR: "Le SSID ne peut pas contenir de caractères spéciaux"
-  pl_PL: "SSID nie może zawierać znaków specjalnych"
-
 net.wifi.password-no-special-characters:
   en_US: "WiFi Password may not have special characters"
   de_DE: "WiFi-Passwort darf keine Sonderzeichen enthalten"
