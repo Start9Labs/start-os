@@ -13,6 +13,13 @@ STARTWRT_ARCH := riscv64
 STARTWRT_BIN := target/$(STARTWRT_RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startwrt
 STARTWRT_WEB_DIST := $(STARTWRT_DIR)/web/dist/startwrt/browser/index.html
 STARTWRT_WEB_CONFIG := $(STARTWRT_DIR)/web/config.json
+STARTWRT_GIT_HASH_FILE := $(STARTWRT_DIR)/build/env/GIT_HASH.txt
+
+# Refresh GIT_HASH.txt on every make invocation (parse-time side-effect) so the
+# stamp tracks HEAD; the file is then a prereq of config.json below, forcing a
+# re-stamp whenever HEAD moves. (check-git-hash.sh rewrites the file only when
+# the hash actually changes, so this is a no-op when HEAD is unchanged.)
+_ := $(shell ./$(STARTWRT_DIR)/build/env/check-git-hash.sh)
 
 STARTWRT_RUST_SRC := $(call ls-files, $(STARTWRT_DIR)/backend)
 STARTWRT_WEB_SRC := $(call ls-files, $(STARTWRT_DIR)/web/src)
@@ -45,9 +52,10 @@ $(STARTWRT_WEB_DIST): $(STARTWRT_WEB_SRC) $(WEB_SHARED_SRC) .angular/.updated $(
 	touch $(STARTWRT_WEB_DIST)
 
 # Prod config: useMocks=false + gitHash stamped from the product's own
-# build/env/GIT_HASH.txt (independent of the monorepo-root stamp).
-$(STARTWRT_WEB_CONFIG): $(STARTWRT_DIR)/web/config-sample.json $(STARTWRT_DIR)/web/update-config.sh
-	./$(STARTWRT_DIR)/build/env/check-git-hash.sh >/dev/null
+# build/env/GIT_HASH.txt (independent of the monorepo-root stamp). GIT_HASH.txt
+# is a prereq so config.json is re-stamped whenever HEAD moves; it's refreshed
+# at parse time via the $(shell ...) above.
+$(STARTWRT_WEB_CONFIG): $(STARTWRT_GIT_HASH_FILE) $(STARTWRT_DIR)/web/config-sample.json $(STARTWRT_DIR)/web/update-config.sh
 	./$(STARTWRT_DIR)/web/update-config.sh
 
 # Run start-wrt's Rust unit tests (startwrt-core + uciedit), package-scoped and

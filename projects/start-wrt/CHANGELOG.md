@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The Settings → General **Build** field no longer goes stale after new commits.
+  `build.mk` had lost the wiring that refreshes `build/env/GIT_HASH.txt` on every
+  build and treats it as a prerequisite of `web/config.json`, so the UI's `gitHash`
+  froze at whatever it was when `config.json` was first generated. `build.mk` now
+  refreshes `GIT_HASH.txt` at parse time and re-stamps `config.json` whenever `HEAD`
+  moves.
+- The **Build** field now shows the `-modified` marker on a dirty build. It shortened
+  the 40-char hash with `slice(0, 12)`, which dropped the trailing `-modified` suffix;
+  it now preserves any trailing marker (matching the `-dirty` indicator the
+  `startwrt verify` CLI already shows).
 - Adding an Outbound VPN no longer silently does nothing. On submit the dialog
   called `tuiMarkControlAsTouchedAndValidate`, which re-ran the WireGuard `.conf`
   async validator and left the form stuck `PENDING` (the in-flight validation is

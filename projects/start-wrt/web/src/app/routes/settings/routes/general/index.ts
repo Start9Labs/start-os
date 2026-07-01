@@ -288,9 +288,14 @@ export default class General {
   protected readonly gitHash = inject(GIT_HASH)
   protected readonly languages = LANGUAGES
 
-  protected readonly shortGitHash = computed(() =>
-    this.gitHash ? this.gitHash.slice(0, 12) : 'unknown',
-  )
+  protected readonly shortGitHash = computed(() => {
+    const hash = this.gitHash
+    if (!hash) return 'unknown'
+    // Shorten a leading 40-char hex hash to 12 chars while keeping any trailing
+    // marker (e.g. "-modified" on a dirty build). Non-hash values (e.g. the
+    // "@branch" GIT_BRANCH_AS_HASH dev stamp) don't match and pass through.
+    return hash.replace(/^([0-9a-f]{12})[0-9a-f]{28}/, '$1')
+  })
 
   protected readonly latestVersion = computed(() => {
     const versions = this.system.newerVersions()
