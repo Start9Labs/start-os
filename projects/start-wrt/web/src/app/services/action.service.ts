@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core'
 import { TuiNotificationService } from '@taiga-ui/core'
 import { TuiNotificationMiddleService } from '@taiga-ui/kit'
-import { pauseFor } from 'src/app/utils/pauseFor'
+import { pauseFor } from '@start9labs/shared'
 import {
   ConnectionService,
   isNetworkError,

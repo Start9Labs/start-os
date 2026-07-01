@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { pauseFor } from '../../utils/pauseFor'
+import { pauseFor } from '@start9labs/shared'
 import {
   ApiService,
   ExecReq,

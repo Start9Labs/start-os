@@ -2,11 +2,7 @@ import { Injectable, DOCUMENT, inject } from '@angular/core'
 import { HttpClient, HttpResponse } from '@angular/common/http'
 import { firstValueFrom, timeout, TimeoutError } from 'rxjs'
 import { HttpErrorResponse } from '@angular/common/http'
-import { InjectionToken } from '@angular/core'
-
-export const RELATIVE_URL = new InjectionToken<string>(
-  'Relative URL for requests',
-)
+import { RELATIVE_URL } from '@start9labs/shared'
 
 @Injectable({
   providedIn: 'root',

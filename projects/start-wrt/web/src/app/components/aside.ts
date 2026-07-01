@@ -5,7 +5,7 @@ import { TuiScrollbar } from '@taiga-ui/core'
 import { filter, map } from 'rxjs'
 import { NgDompurifyPipe } from '@taiga-ui/dompurify'
 import { HELP_OPEN, HelpService } from 'src/app/help/help'
-import { MarkdownPipe } from 'src/app/pipes/markdown.pipe'
+import { MarkdownPipe } from '@start9labs/shared'
 
 @Component({
   selector: '[appAside]',

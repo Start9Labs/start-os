@@ -18,7 +18,7 @@ import {
 } from '@taiga-ui/polymorpheus'
 import { HELP_OPEN, HELP_URL, HelpService } from 'src/app/help/help'
 import { i18nPipe } from 'src/app/i18n/i18n.pipe'
-import { MarkdownPipe } from 'src/app/pipes/markdown.pipe'
+import { MarkdownPipe } from '@start9labs/shared'
 
 @Component({
   template: `

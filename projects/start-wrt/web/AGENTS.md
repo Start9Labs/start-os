@@ -4,10 +4,15 @@ Angular + Taiga UI frontend for StartWRT. Assumes you've read the parent
 [`../AGENTS.md`](../AGENTS.md) — this web app is the `start-wrt` project in the **root Angular
 workspace** (it shares the root `package.json`/`node_modules`/`tsconfig.json` and upgrades in
 lockstep with the other apps). Build/serve/check it from the repo root: `npm run build:wrt`,
-`npm run start:wrt`, `npm run check:wrt`. It uses `@start9labs/shared` for common utilities
-(`HttpService`, `ErrorService`, `RELATIVE_URL`, `pauseFor`, the markdown pipe); a few things stay
-local where the shared shapes don't fit — `WorkspaceConfig` (start-wrt's flat `config.json`), the
-WebSocket progress types, and the i18n-routed `validation-errors` provider.
+`npm run start:wrt`, `npm run check:wrt`. It uses `@start9labs/shared` for `RELATIVE_URL`,
+`pauseFor`, and the markdown pipe. It deliberately keeps its own HTTP/RPC/connection stack
+(`HttpService`/`RpcService`/`ConnectionService`): the aborting per-request timeout that surfaces a
+code-0 network error drives the reconnect UX and differs from shared's non-aborting timeout, so
+don't swap it for shared's `HttpService`. Error surfacing is bespoke too — `ActionService`/
+`FormService` route network drops into the global reconnect indicator with per-action copy rather
+than the shared `ErrorService`. `WorkspaceConfig` (start-wrt's flat `config.json`), the WebSocket
+progress types, and the i18n-routed `validation-errors` provider also stay local where the shared
+shapes don't fit.
 
 ## Operating rules
 

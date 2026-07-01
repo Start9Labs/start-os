@@ -38,7 +38,7 @@ import { TuiElasticContainer, TuiHeader } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
 import { Footer } from 'src/app/components/footer'
 import { Form } from 'src/app/components/form'
-import { MarkdownPipe } from 'src/app/pipes/markdown.pipe'
+import { MarkdownPipe } from '@start9labs/shared'
 import { ActionService } from 'src/app/services/action.service'
 import {
   ApiService,

@@ -3,7 +3,7 @@ import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { FormService } from 'src/app/services/form.service'
 import { ApiService } from 'src/app/services/api/api.service'
 import { isNetworkError } from 'src/app/services/connection.service'
-import { pauseFor } from 'src/app/utils/pauseFor'
+import { pauseFor } from '@start9labs/shared'
 import { buildRouterIp, LanIpv4Form, parseIpToForm } from './utils'
 import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 

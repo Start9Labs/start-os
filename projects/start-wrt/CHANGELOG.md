@@ -39,10 +39,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of a standalone app. It shares the root `package.json`/`node_modules`/
   `tsconfig.json` and builds via `npm run build:wrt` (serve `npm run start:wrt`,
   type-check `npm run check:wrt`) — and so upgrades in lockstep with the other Start9
-  Angular apps. Its hand-mirrored utilities (`HttpService`, `ErrorService`,
-  `RELATIVE_URL`, `pauseFor`, the markdown pipe) were replaced with real
-  `@start9labs/shared` imports; `WorkspaceConfig`, the WebSocket progress types, and the
-  i18n-routed `validation-errors` provider stay local where the shared shapes don't fit.
+  Angular apps. `RELATIVE_URL`, `pauseFor`, and the markdown pipe now come from
+  `@start9labs/shared`. The HTTP/RPC/connection stack (its aborting-timeout, code-0
+  reconnect flow is deliberately different from shared's), the bespoke error surfacing,
+  `WorkspaceConfig`, the WebSocket progress types, and the i18n-routed `validation-errors`
+  provider stay local where the shared code would regress behavior or the shapes don't fit.
+- `@start9labs/shared` is now marked `sideEffects: false` so importing a few symbols from
+  its barrel tree-shakes cleanly (start-wrt's embedded UI bundle would otherwise pull in
+  ~875 kB of unused shared code). This also shrinks the other apps' bundles.
 
 ## [0.1.0-beta.3]
 

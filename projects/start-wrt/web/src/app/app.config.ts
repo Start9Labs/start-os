@@ -42,7 +42,7 @@ import { ApiService } from './services/api/api.service'
 import { LiveApiService } from './services/api/live-api.service'
 import { MockApiService } from './services/api/mock-api.service'
 import { AuthService } from './services/auth.service'
-import { RELATIVE_URL } from './services/http.service'
+import { RELATIVE_URL } from '@start9labs/shared'
 import { GIT_HASH, IS_MOCK, WorkspaceConfig } from './utils/workspace-config'
 
 const { useMocks, api, gitHash } =
