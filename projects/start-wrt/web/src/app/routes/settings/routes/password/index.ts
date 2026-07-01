@@ -70,6 +70,7 @@ function passwordsMatch(control: AbstractControl): ValidationErrors | null {
   providers: [
     provideTranslatedValidationErrors({
       required: 'This field is required',
+      minlength: 'Password must be at least 12 characters',
       mismatch: 'Passwords do not match',
     }),
   ],
@@ -96,7 +97,7 @@ export default class Password {
   public readonly form = inject(NonNullableFormBuilder).group(
     {
       old: ['', Validators.required],
-      password: ['', Validators.required],
+      password: ['', [Validators.required, Validators.minLength(12)]],
       confirm: ['', Validators.required],
     },
     { validators: passwordsMatch },

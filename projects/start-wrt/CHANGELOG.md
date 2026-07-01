@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Changing the admin password now enforces the 12-character minimum. The
+  Settings → Password form and its `auth.set-password` backend endpoint (also
+  reached via the `startwrt auth set-password` CLI) accepted passwords shorter
+  than 12 characters, even though first-time setup required it and the docs
+  documented the minimum. Both the frontend form and the backend now reject
+  passwords under 12 characters on change, matching initial setup.
+
 - Changing the Router IP can no longer strand the network on a colliding subnet.
   The LAN IPv4 page exposed a "Router IP" (3rd-octet) field that duplicated the
   Admin Security Profile's subnet field but, unlike it, had no collision guard —

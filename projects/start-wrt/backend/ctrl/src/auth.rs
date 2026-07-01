@@ -167,6 +167,22 @@ async fn get_shadow_hash(username: &str) -> Result<Option<String>, Error> {
     Ok(None)
 }
 
+/// Minimum length for the admin password, enforced on both first-time setup and
+/// subsequent password changes.
+const MIN_PASSWORD_LEN: usize = 12;
+
+/// Reject passwords shorter than [`MIN_PASSWORD_LEN`]. Shared by the initial-setup
+/// and password-change endpoints so the rule can't drift between the two.
+fn validate_password_length(password: &str) -> Result<(), Error> {
+    if password.len() < MIN_PASSWORD_LEN {
+        return Err(Error::new(
+            eyre!("password must be at least {MIN_PASSWORD_LEN} characters"),
+            ErrorKind::InvalidRequest,
+        ));
+    }
+    Ok(())
+}
+
 /// Check password against /etc/shadow (or dev password if STARTWRT_DEV_PASSWORD is set)
 pub async fn check_password(password: &str) -> Result<(), Error> {
     // Dev mode: check against env var password (for development without root access)
@@ -435,6 +451,9 @@ pub async fn reset_password_impl(
     // Verify old password first
     check_password(&old_password).await?;
 
+    // Enforce minimum length before accepting the new password
+    validate_password_length(&new_password)?;
+
     // Generate new password hash using SHA-512 crypt
     let new_hash = pwhash::sha512_crypt::hash(&new_password)
         .map_err(|e| Error::new(eyre!("Failed to hash password: {e}"), ErrorKind::PasswordHashGeneration))?;
@@ -544,9 +563,7 @@ pub async fn set_initial_password_impl(
     }
 
     // Validate minimum length
-    if password.len() < 12 {
-        return Err(Error::new(eyre!("password must be at least 12 characters"), ErrorKind::InvalidRequest));
-    }
+    validate_password_length(&password)?;
 
     // Hash and write to shadow
     let new_hash = pwhash::sha512_crypt::hash(&password)
@@ -629,4 +646,23 @@ pub fn auth<C: Context>() -> ParentHandler<C> {
                 .with_metadata("login", Value::Bool(true))
                 .no_cli(),
         )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn validate_password_length_rejects_short() {
+        // 11 chars — one below the minimum
+        assert!(validate_password_length("shortpass12").is_err());
+        assert!(validate_password_length("").is_err());
+    }
+
+    #[test]
+    fn validate_password_length_accepts_min_and_above() {
+        // Exactly 12 chars
+        assert!(validate_password_length("exactly12chr").is_ok());
+        assert!(validate_password_length("a-longer-passphrase").is_ok());
+    }
 }
