@@ -429,9 +429,12 @@ impl LxcContainer {
         }
     }
 
-    /// Best-effort: the container's first non-link-local IPv6 (SLAAC ULA), or
-    /// `None` if it has none yet. Unlike `ip()`, IPv6 is optional, so this reads
-    /// `lxc-info -iH` once without blocking on a retry loop.
+    /// Best-effort: the container's SLAAC **ULA** (`fd00:3::/64` off lxcbr0), the
+    /// DNAT target for a non-SSL GUA forward, or `None` if it has none yet.
+    /// Deliberately the ULA only — StartOS is v4-parity for v6 (one server GUA
+    /// port-forwarded to container ULAs), so a container never holds a GUA and
+    /// any non-ULA address here is ignored. Unlike `ip()`, IPv6 is optional, so
+    /// this reads `lxc-info -iH` once without blocking on a retry loop.
     pub async fn ipv6(&self) -> Result<Option<Ipv6Addr>, Error> {
         let guid: &str = &self.guid;
         let output = String::from_utf8(
@@ -446,7 +449,7 @@ impl LxcContainer {
             line.trim()
                 .parse::<Ipv6Addr>()
                 .ok()
-                .filter(|ip| !crate::net::utils::ipv6_is_link_local(*ip))
+                .filter(|ip| crate::net::utils::ipv6_is_ula(*ip))
         }))
     }
 
