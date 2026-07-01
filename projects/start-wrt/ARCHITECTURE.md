@@ -31,7 +31,7 @@ StartWRT is an OpenWrt-based router OS for home self-hosting. It pairs a Rust ba
 │
 ├── openwrt/             # OpenWrt fork (git submodule, branch: bianbu)
 ├── build/               # Build scripts and OpenWrt diffconfig
-├── docs/                # Cross-cutting specs and proposals
+├── docs/                # User-facing docs book (src/, book.toml) + cross-cutting specs/proposals
 └── API_CONTRACT.md      # Complete RPC endpoint contract with Rust types
 ```
 
