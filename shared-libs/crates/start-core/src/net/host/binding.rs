@@ -588,6 +588,14 @@ pub async fn set_address_enabled<Kind: HostApiKind>(
                 .as_bindings_mut()
                 .mutate(|b| {
                     let bind = b.get_mut(&internal_port).or_not_found(internal_port)?;
+                    if enabled && address.public && bind.interfaces.is_empty() {
+                        return Err(Error::new(
+                            eyre!(
+                                "a binding with no exported service interface cannot expose a public (WAN) address"
+                            ),
+                            ErrorKind::InvalidRequest,
+                        ));
+                    }
                     set_address_enabled_on(&mut bind.addresses, &address, enabled)
                 })
         })
@@ -623,6 +631,14 @@ pub async fn set_range_address_enabled<Kind: HostApiKind>(
                 .as_binding_ranges_mut()
                 .mutate(|ranges| {
                     let range = ranges.get_mut(&internal_port).or_not_found(internal_port)?;
+                    if enabled && address.public && range.interface.is_none() {
+                        return Err(Error::new(
+                            eyre!(
+                                "a range with no exported service interface cannot expose a public (WAN) address"
+                            ),
+                            ErrorKind::InvalidRequest,
+                        ));
+                    }
                     set_address_enabled_on(&mut range.addresses, &address, enabled)
                 })
         })

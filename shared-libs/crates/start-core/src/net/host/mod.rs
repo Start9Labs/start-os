@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::{IpAddr, SocketAddrV4};
+use std::net::{IpAddr, SocketAddr, SocketAddrV4};
 use std::panic::RefUnwindSafe;
 
 use clap::Parser;
@@ -339,6 +339,15 @@ impl Model<Host> {
                 }
             }
             bind.as_addresses_mut().as_available_mut().ser(&available)?;
+            // A binding with no exported interface must not hold an enabled
+            // public (WAN) address — the `enabled` set is public-only, so clear
+            // it. Catches a binding that lost its interface after the operator
+            // had opted a WAN address in.
+            if bind.as_interfaces().de()?.is_empty() {
+                bind.as_addresses_mut()
+                    .as_enabled_mut()
+                    .ser(&BTreeSet::<SocketAddr>::new())?;
+            }
         }
 
         // Port-range bindings get the same reachable-address set as single-port
@@ -438,16 +447,22 @@ impl Model<Host> {
             }
 
             range.as_addresses_mut().as_available_mut().ser(&available)?;
+            // Same invariant as single-port bindings: a range with no exported
+            // interface must not hold an enabled public (WAN) address.
+            if range.as_interface().de()?.is_none() {
+                range
+                    .as_addresses_mut()
+                    .as_enabled_mut()
+                    .ser(&BTreeSet::<SocketAddr>::new())?;
+            }
         }
 
-        // compute port forwards from available public addresses
+        // compute port forwards from available public addresses. Non-exported
+        // bindings/ranges hold no enabled public address (cleared above), so
+        // they contribute nothing here without a special-case skip.
         let bindings: Bindings = this.bindings.de()?;
         let mut port_forwards = BTreeSet::new();
         for bind in bindings.values() {
-            // A binding with no exported interface is internal-only; don't forward it.
-            if bind.interfaces.is_empty() {
-                continue;
-            }
             for addr in bind.addresses.enabled() {
                 if !addr.public {
                     continue;
@@ -491,10 +506,6 @@ impl Model<Host> {
         let binding_ranges: BindingRanges = this.binding_ranges.de()?;
         for (&internal_start, range) in binding_ranges.iter() {
             if !range.enabled {
-                continue;
-            }
-            // A range with no exported interface is internal-only; don't forward it.
-            if range.interface.is_none() {
                 continue;
             }
             for addr in range.addresses.enabled() {
