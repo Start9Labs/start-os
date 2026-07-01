@@ -1,8 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
+use ipnet::IpNet;
 use imbl_value::InternedString;
 use nix::net::if_::if_nametoindex;
 use patch_db::json_ptr::JsonPointer;
@@ -297,13 +298,18 @@ struct HostBinds {
     /// PortMapController pinhole. Tracked so it is withdrawn when a GUA leaves
     /// LAN+WAN or its binding goes away.
     gua_pinholes: BTreeSet<(Ipv6Addr, u16)>,
+    /// Non-SSL v6 forwards: `(host GUA, external port) -> (container v6, internal
+    /// port, LAN source filter)`. A non-SSL GUA has no host terminator, so its
+    /// port is DNAT'd to the container (see `forward6`); tracked so a stale
+    /// forward is torn down when the GUA's exposure or target changes.
+    gua_forwards: BTreeMap<(Ipv6Addr, u16), (Ipv6Addr, u16, Option<IpNet>)>,
 }
 
 pub struct NetServiceData {
     id: Option<PackageId>,
     ip: Ipv4Addr,
-    // consumed by the v6 forward path (WIP)
-    #[allow(dead_code)]
+    /// The container's SLAAC ULA, DNAT target for a non-SSL GUA forward. `None`
+    /// until the container has a v6 (or for the OS's own bindings).
     ipv6: Option<Ipv6Addr>,
     _dns: Arc<()>,
     controller: Weak<NetController>,
@@ -324,6 +330,8 @@ impl NetServiceData {
         let mut vhosts: BTreeMap<(Option<InternedString>, u16), ProxyTarget> = BTreeMap::new();
         let mut private_dns: BTreeMap<InternedString, BTreeSet<GatewayId>> = BTreeMap::new();
         let mut gua_pinholes: BTreeSet<(Ipv6Addr, u16)> = BTreeSet::new();
+        let mut gua_forwards: BTreeMap<(Ipv6Addr, u16), (Ipv6Addr, u16, Option<IpNet>)> =
+            BTreeMap::new();
         let binds = self.binds.entry(id.clone()).or_default();
 
         let net_ifaces = ctrl.net_iface.watcher.ip_info();
@@ -529,6 +537,37 @@ impl NetServiceData {
                         },
                     ),
                 );
+
+                // Non-SSL GUAs have no host terminator, so DNAT the host's
+                // GUA:external to the container's v6:internal. A LAN-only GUA is
+                // source-restricted to its on-link subnet; a LAN+WAN GUA is
+                // unrestricted. Fail closed: skip a LAN-only GUA whose subnet we
+                // can't determine rather than expose it unrestricted.
+                if let Some(container_v6) = self.ipv6 {
+                    for a in enabled_addresses.iter() {
+                        let Some(gua) = a.gua() else {
+                            continue;
+                        };
+                        let src_filter = if bind.addresses.is_wan(a) {
+                            None
+                        } else {
+                            match a
+                                .metadata
+                                .gateways()
+                                .filter_map(|gw| net_ifaces.get(gw))
+                                .filter_map(|info| info.ip_info.as_ref())
+                                .flat_map(|ip| ip.subnets.iter())
+                                .find(|s| s.contains(&IpAddr::V6(*gua.ip())))
+                                .copied()
+                            {
+                                Some(subnet) => Some(subnet),
+                                None => continue,
+                            }
+                        };
+                        gua_forwards
+                            .insert((*gua.ip(), gua.port()), (container_v6, *port, src_filter));
+                    }
+                }
             }
 
             // Passthrough vhosts: if the service handles its own TLS
@@ -710,6 +749,45 @@ impl NetServiceData {
             ctrl.port_map.remove(IpAddr::V6(ip), port);
         }
         binds.gua_pinholes = gua_pinholes;
+
+        // Reconcile non-SSL v6 forwards: tear down any that changed or went
+        // away, then install new/changed ones. Best-effort — a nft failure on
+        // one forward is logged, not fatal to the whole update.
+        for (key, spec) in &binds.gua_forwards {
+            if gua_forwards.get(key) != Some(spec) {
+                let &(gua, ext) = key;
+                let &(tgt, int, ref src) = spec;
+                if let Err(e) = crate::net::forward::unforward6(
+                    SocketAddrV6::new(gua, ext, 0, 0),
+                    SocketAddrV6::new(tgt, int, 0, 0),
+                    64,
+                    src.as_ref(),
+                )
+                .await
+                {
+                    tracing::error!("failed to remove v6 forward [{gua}]:{ext}: {e}");
+                    tracing::debug!("{e:?}");
+                }
+            }
+        }
+        for (key, spec) in &gua_forwards {
+            if binds.gua_forwards.get(key) != Some(spec) {
+                let &(gua, ext) = key;
+                let &(tgt, int, ref src) = spec;
+                if let Err(e) = crate::net::forward::forward6(
+                    SocketAddrV6::new(gua, ext, 0, 0),
+                    SocketAddrV6::new(tgt, int, 0, 0),
+                    64,
+                    src.as_ref(),
+                )
+                .await
+                {
+                    tracing::error!("failed to add v6 forward [{gua}]:{ext} -> [{tgt}]:{int}: {e}");
+                    tracing::debug!("{e:?}");
+                }
+            }
+        }
+        binds.gua_forwards = gua_forwards;
 
         // ── Phase 3: Reconcile ──
         let all = binds

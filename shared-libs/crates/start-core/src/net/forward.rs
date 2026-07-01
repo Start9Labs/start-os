@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
-use std::net::{IpAddr, Ipv4Addr, SocketAddrV4};
+use std::net::{IpAddr, Ipv4Addr, SocketAddrV4, SocketAddrV6};
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
@@ -1013,6 +1013,55 @@ async fn unforward(
         .env("sport", source.port().to_string())
         .env("dport", target.port().to_string())
         .env("count", count.to_string());
+    if let Some(subnet) = src_filter {
+        cmd.env("src_subnet", subnet.to_string());
+    }
+    cmd.invoke(ErrorKind::Network).await?;
+    Ok(())
+}
+
+/// The lxcbr0 IPv6 bridge subnet (a ULA), assigned by lxc-net (see
+/// `debian/postinst`). Containers get a SLAAC address in it.
+pub(crate) const START9_BRIDGE_V6_SUBNET: &str = "fd00:3::/64";
+
+/// IPv6 counterpart of [`forward`]: DNAT `source` (a host GUA:port) to `target`
+/// (the container's ULA:port) via the `forward-port6` script. `src_filter`
+/// restricts inbound to a LAN v6 subnet (a LAN-only GUA); `None` is WAN.
+pub(crate) async fn forward6(
+    source: SocketAddrV6,
+    target: SocketAddrV6,
+    target_prefix: u8,
+    src_filter: Option<&IpNet>,
+) -> Result<(), Error> {
+    let mut cmd = Command::new("/usr/lib/startos/scripts/forward-port6");
+    cmd.env("sip", source.ip().to_string())
+        .env("dip", target.ip().to_string())
+        .env("dprefix", target_prefix.to_string())
+        .env("sport", source.port().to_string())
+        .env("dport", target.port().to_string())
+        .env("bridge_subnet", START9_BRIDGE_V6_SUBNET);
+    if let Some(subnet) = src_filter {
+        cmd.env("src_subnet", subnet.to_string());
+    }
+    cmd.invoke(ErrorKind::Network).await?;
+    Ok(())
+}
+
+/// Tear down a forward created by [`forward6`]. Passes the same identifying env
+/// so the script recomputes the matching comment tag.
+pub(crate) async fn unforward6(
+    source: SocketAddrV6,
+    target: SocketAddrV6,
+    target_prefix: u8,
+    src_filter: Option<&IpNet>,
+) -> Result<(), Error> {
+    let mut cmd = Command::new("/usr/lib/startos/scripts/forward-port6");
+    cmd.env("UNDO", "1")
+        .env("sip", source.ip().to_string())
+        .env("dip", target.ip().to_string())
+        .env("dprefix", target_prefix.to_string())
+        .env("sport", source.port().to_string())
+        .env("dport", target.port().to_string());
     if let Some(subnet) = src_filter {
         cmd.env("src_subnet", subnet.to_string());
     }
