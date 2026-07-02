@@ -128,17 +128,28 @@ enter_release_dir() {
     cd "$dir"
 }
 
-# List the files in the (current) release dir that this project actually ships,
-# one per line. Consume with `mapfile -t files < <(release_files)`.
+# List the CLI binaries in the (current) release dir, one per line.
+cli_binaries() {
+    local f
+    for f in start-cli_*; do
+        case "$f" in *.asc | *.deb) continue ;; esac
+        [ -f "$f" ] && echo "$f"
+    done
+}
+
+# List the .deb packages in the (current) release dir, one per line.
+deb_files() {
+    local f
+    for f in *.deb; do [ -f "$f" ] && echo "$f"; done
+}
+
+# List every file the project ships (for signing / checksums), one per line.
 release_files() {
     local f
     case "$KIND" in
         os) for f in *.iso *.squashfs; do [ -f "$f" ] && echo "$f"; done ;;
-        cli) for f in start-cli_*; do
-            case "$f" in *.asc) continue ;; esac
-            [ -f "$f" ] && echo "$f"
-        done ;;
-        deb) for f in *.deb; do [ -f "$f" ] && echo "$f"; done ;;
+        cli) cli_binaries; deb_files ;;
+        deb) deb_files ;;
     esac
 }
 
@@ -167,6 +178,54 @@ changelog_section() {
     ' "$(changelog_path "$PROJECT")"
 }
 
+# --- Deb helpers (shared by the deb and cli kinds) ---
+
+# Download this project's per-arch debs from a GitHub Actions run into the cwd.
+pull_gha_debs() {
+    local arch
+    for arch in $DEB_ARCHES; do
+        echo "  ${PROJECT}_${arch}.deb"
+        gh run download -R "$REPO" "$RUN_ID" -n "${PROJECT}_${arch}.deb" -D "$(pwd)"
+    done
+}
+
+# Download this project's released debs from the apt repository into the cwd.
+pull_apt_debs() {
+    local arch darch idx filename
+    for arch in $DEB_ARCHES; do
+        darch=$(deb_arch "$arch")
+        idx="${APT_BASE_URL}/dists/${APT_SUITE}/${APT_COMPONENT}/binary-${darch}/Packages"
+        filename=$(curl -fsSL "$idx" 2>/dev/null | awk -v pkg="$PROJECT" -v ver="$VERSION" '
+            /^$/ { p=""; v="" }
+            /^Package:/ { p=$2 }
+            /^Version:/ { v=$2 }
+            /^Filename:/ { if (p==pkg && index(v, ver) > 0) print $2 }
+        ' | head -1)
+        if [ -n "$filename" ]; then
+            echo "  ${arch}: ${filename}"
+            curl -fsSL "${APT_BASE_URL}/${filename}" -o "$(basename "$filename")"
+        else
+            >&2 echo "  ! no ${PROJECT} ${arch} deb for ${VERSION} in apt repo"
+        fi
+    done
+}
+
+# Publish the debs in the cwd to the apt repository and the GitHub release.
+publish_debs() {
+    local files file
+    mapfile -t files < <(deb_files)
+    if [ ${#files[@]} -eq 0 ]; then
+        >&2 echo "No .deb files in $(release_dir)"
+        return 1
+    fi
+    echo "Publishing ${PROJECT} debs to the apt repository..."
+    "$REPO_ROOT/debian/publish.sh" "${files[@]}"
+    echo "Uploading ${PROJECT} debs to GitHub release ${TAG}..."
+    for file in "${files[@]}"; do
+        gh release upload -R "$REPO" "$TAG" "$file" --clobber
+    done
+}
+
 # --- Subcommands ---
 
 cmd_pre_check() {
@@ -174,9 +233,9 @@ cmd_pre_check() {
     echo "Pre-checking ${PROJECT} v${VERSION} (tag ${TAG})..."
 
     # 1. Changelog must document this version explicitly (not just Unreleased).
-    local changelog
+    local changelog ver_re
     changelog=$(changelog_path "$PROJECT")
-    local ver_re=${VERSION//./\\.}
+    ver_re=${VERSION//./\\.}
     if [ ! -f "$changelog" ]; then
         >&2 echo "  ✗ no CHANGELOG.md at $changelog"
         errors=1
@@ -263,12 +322,10 @@ cmd_pull_gha() {
                 gh run download -R "$REPO" "$RUN_ID" -n "start-cli_${triple}" -D "$(pwd)"
                 mv start-cli "start-cli_${name}"
             done
+            pull_gha_debs
             ;;
         deb)
-            for arch in $DEB_ARCHES; do
-                echo "  ${PROJECT}_${arch}.deb"
-                gh run download -R "$REPO" "$RUN_ID" -n "${PROJECT}_${arch}.deb" -D "$(pwd)"
-            done
+            pull_gha_debs
             ;;
     esac
 }
@@ -288,25 +345,10 @@ cmd_pull() {
             ;;
         cli)
             gh release download -R "$REPO" "$TAG" -p 'start-cli_*' -D "$(pwd)" --clobber
+            pull_apt_debs
             ;;
         deb)
-            for arch in $DEB_ARCHES; do
-                local darch idx filename
-                darch=$(deb_arch "$arch")
-                idx="${APT_BASE_URL}/dists/${APT_SUITE}/${APT_COMPONENT}/binary-${darch}/Packages"
-                filename=$(curl -fsSL "$idx" 2>/dev/null | awk -v pkg="$PROJECT" -v ver="$VERSION" '
-                    /^$/ { p=""; v="" }
-                    /^Package:/ { p=$2 }
-                    /^Version:/ { v=$2 }
-                    /^Filename:/ { if (p==pkg && index(v, ver) > 0) print $2 }
-                ' | head -1)
-                if [ -n "$filename" ]; then
-                    echo "  ${arch}: ${filename}"
-                    curl -fsSL "${APT_BASE_URL}/${filename}" -o "$(basename "$filename")"
-                else
-                    >&2 echo "  ! no ${PROJECT} ${arch} deb for ${VERSION} in apt repo"
-                fi
-            done
+            pull_apt_debs
             ;;
         npm)
             npm pack "${SDK_NPM_PACKAGE}@${VERSION}"
@@ -351,28 +393,17 @@ cmd_push() {
             ;;
         cli)
             enter_release_dir
-            local files
-            mapfile -t files < <(release_files)
+            local files file
+            mapfile -t files < <(cli_binaries)
+            echo "Uploading start-cli binaries to GitHub release ${TAG}..."
             for file in "${files[@]}"; do
                 gh release upload -R "$REPO" "$TAG" "$file" --clobber
             done
+            publish_debs
             ;;
         deb)
             enter_release_dir
-            local debs=()
-            for file in *.deb; do
-                [ -f "$file" ] && debs+=("$file")
-            done
-            if [ ${#debs[@]} -eq 0 ]; then
-                >&2 echo "No .deb files in $(release_dir)"
-                exit 1
-            fi
-            echo "Publishing ${PROJECT} debs to the apt repository..."
-            "$REPO_ROOT/debian/publish.sh" "${debs[@]}"
-            echo "Uploading ${PROJECT} debs to GitHub release ${TAG}..."
-            for file in "${debs[@]}"; do
-                gh release upload -R "$REPO" "$TAG" "$file" --clobber
-            done
+            publish_debs
             ;;
         npm)
             echo "Building and publishing ${SDK_NPM_PACKAGE}@${VERSION} to npm..."
@@ -403,7 +434,7 @@ cmd_sign() {
     enter_release_dir
     resolve_gh_user
 
-    local files
+    local files file
     mapfile -t files < <(release_files)
     mkdir -p signatures
     for file in "${files[@]}"; do
@@ -441,7 +472,7 @@ cmd_cosign() {
     tar -xzf signatures.tar.gz -C signatures
 
     echo "Adding personal signatures as $GH_USER..."
-    local files
+    local files file
     mapfile -t files < <(release_files)
     for file in "${files[@]}"; do
         gpg -u "$GH_GPG_KEY" --detach-sign --armor -o "signatures/${file}.${GH_USER}.asc" "$file"
@@ -455,19 +486,16 @@ cmd_cosign() {
 
 # Compose the release-notes body for the current project.
 release_notes() {
-    local files
-    mapfile -t files < <(release_files)
-
     echo "## What's Changed"
     echo
     changelog_section
     echo
 
+    local platform file
     case "$KIND" in
         os)
             echo "## ISO Downloads"
             echo
-            local platform file
             for platform in $OS_PLATFORMS; do
                 for file in *_"$platform".iso; do
                     [ -f "$file" ] || continue
@@ -475,13 +503,21 @@ release_notes() {
                 done
             done
             echo
-            checksum_block "OS Images" "${files[@]}"
+            local imgs
+            mapfile -t imgs < <(release_files)
+            checksum_block "OS Images" "${imgs[@]}"
             ;;
         cli)
-            checksum_block "start-cli" "${files[@]}"
+            local bins debs
+            mapfile -t bins < <(cli_binaries)
+            checksum_block "start-cli" "${bins[@]}"
+            mapfile -t debs < <(deb_files)
+            checksum_block "start-cli packages" "${debs[@]}"
             ;;
         deb)
-            checksum_block "${PROJECT} packages" "${files[@]}"
+            local debs
+            mapfile -t debs < <(deb_files)
+            checksum_block "${PROJECT} packages" "${debs[@]}"
             ;;
     esac
 }
@@ -489,6 +525,7 @@ release_notes() {
 checksum_block() {
     local title=$1
     shift
+    [ "$#" -gt 0 ] || return 0
     echo "## ${title} Checksums"
     echo
     echo "### SHA-256"
@@ -541,10 +578,10 @@ Usage: manage-release.sh <subcommand> <project>
 
 Projects:
   start-os        OS images (iso/squashfs) -> S3 + registry OS index
-  start-cli       per-triple binaries      -> GitHub release
-  start-tunnel    per-arch .deb            -> apt repo + GitHub release
-  start-registry  per-arch .deb            -> apt repo + GitHub release
-  start-sdk       npm package              -> npm
+  start-cli       per-triple binaries -> GitHub release; per-arch .deb -> apt + GitHub
+  start-tunnel    per-arch .deb -> apt repo + GitHub release
+  start-registry  per-arch .deb -> apt repo + GitHub release
+  start-sdk       npm package -> npm
 
 Version is read from the project's manifest (Cargo.toml, or package.json for
 start-sdk); the git tag / GitHub release is <project>_v<version>.
@@ -560,7 +597,7 @@ Subcommands:
   create-gh-release  Create (or update) the GitHub release with notes.
                      (os/cli/deb.)
   push               Upload artifacts to their destination (S3 for os, GitHub
-                     release for cli, apt+GitHub for deb, npm publish for sdk).
+                     release + apt for cli/deb, npm publish for sdk).
   index              Register and index the version in the registry. (os only.)
   sign               Sign artifacts with the Start9 org key (+ personal key if
                      available) and upload signatures.tar.gz. (os/cli/deb.)
