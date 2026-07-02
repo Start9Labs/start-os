@@ -1,6 +1,13 @@
-import { TuiCheckbox } from '@taiga-ui/core'
+import { TuiButton, TuiCheckbox } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
-import { Component, computed, input, OnChanges, signal } from '@angular/core'
+import {
+  Component,
+  computed,
+  input,
+  OnChanges,
+  output,
+  signal,
+} from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { i18nPipe } from '@start9labs/shared'
 import { TuiFade, TuiSkeleton } from '@taiga-ui/kit'
@@ -10,8 +17,15 @@ import { T } from '@start9labs/start-core'
 @Component({
   selector: '[keys]',
   template: `
-    <table [appTable]="['Created At', 'Algorithm', 'Fingerprint']">
-      <th [style.text-indent.rem]="1.75">
+    <table
+      [appTable]="['Created At', 'Algorithm', 'Fingerprint']"
+      [appTableSelected]="selected().length"
+    >
+      <th
+        class="g-table-select"
+        [attr.colspan]="selected().length ? 4 : null"
+        [style.text-indent.rem]="1.75"
+      >
         <input
           tuiCheckbox
           size="s"
@@ -20,7 +34,23 @@ import { T } from '@start9labs/start-core'
           [ngModel]="all()"
           (ngModelChange)="selected.set(($event && keys()) || [])"
         />
-        {{ 'Hostname' | i18n }}
+        @if (selected().length) {
+          @let count = selected().length;
+          <span class="g-table-group">
+            <button
+              tuiButton
+              size="xs"
+              appearance="flat-destructive"
+              iconStart="@tui.trash"
+              (click)="deleteSelected.emit()"
+            >
+              {{ 'Delete' | i18n }}
+            </button>
+            <span class="count">{{ count }} {{ 'selected' | i18n }}</span>
+          </span>
+        } @else {
+          {{ 'Hostname' | i18n }}
+        }
       </th>
       @for (key of keys(); track $index) {
         <tr
@@ -137,6 +167,7 @@ import { T } from '@start9labs/start-core'
   imports: [
     CommonModule,
     FormsModule,
+    TuiButton,
     TuiCheckbox,
     TuiFade,
     TuiSkeleton,
@@ -148,6 +179,7 @@ export class SSHTableComponent<
   K extends T.SshKeyResponse,
 > implements OnChanges {
   readonly keys = input<readonly K[] | null>(null)
+  readonly deleteSelected = output()
 
   readonly selected = signal<readonly K[]>([])
   readonly all = computed(

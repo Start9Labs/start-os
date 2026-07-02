@@ -28,23 +28,32 @@ import { SessionsTableComponent } from './table.component'
     <section class="g-card">
       <header>
         {{ 'Other sessions' | i18n }}
-        <button
-          tuiButton
-          size="xs"
-          appearance="primary-destructive"
-          [style.margin-inline-start]="'auto'"
-          [disabled]="!sessions()?.selected()?.length"
-          (click)="terminate(others || [])"
-        >
-          {{ 'Terminate selected' | i18n }}
-        </button>
+        @if (sessions()?.selected()?.length) {
+          <button
+            tuiButton
+            class="terminate"
+            size="xs"
+            appearance="primary-destructive"
+            (click)="terminate(others || [])"
+          >
+            {{ 'Terminate' | i18n }}
+          </button>
+        }
       </header>
-      <div #table [sessions]="others"></div>
+      <div
+        #table
+        [sessions]="others"
+        (terminateSelected)="terminate(others || [])"
+      ></div>
     </section>
   `,
   styles: `
     :host {
       max-width: 80rem;
+    }
+
+    :host-context(tui-root:not(._mobile)) .terminate {
+      display: none;
     }
   `,
   imports: [

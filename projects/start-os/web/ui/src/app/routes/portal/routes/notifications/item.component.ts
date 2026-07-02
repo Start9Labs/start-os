@@ -114,13 +114,16 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
       }
 
       td:first-child {
+        grid-row: 3;
         padding: 0;
         font: var(--tui-typography-body-s);
         color: var(--tui-text-secondary);
-        margin-block-end: -0.25rem;
+        margin-block-start: -0.25rem;
       }
 
       .title {
+        grid-row: 1;
+        width: auto;
         font-weight: bold;
         font-size: 1.2em;
         display: flex;
@@ -128,7 +131,12 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
         gap: 0.375rem;
       }
 
+      .content {
+        grid-row: 2;
+      }
+
       .service {
+        grid-row: 1;
         width: auto;
 
         &:not(:has(a)) {

@@ -18,8 +18,128 @@ import { LogsPipe } from './logs.pipe'
 
 @Component({
   selector: 'logs',
-  templateUrl: './logs.component.html',
-  styleUrls: ['./logs.component.scss'],
+  template: `
+    <tui-scrollbar class="scrollbar">
+      <section
+        class="top"
+        waIntersectionObserver
+        (waIntersectionObservee)="onLoading(!!$event[0]?.isIntersecting)"
+        (logsFetch)="onPrevious($event)"
+      >
+        @if (loading) {
+          <tui-loader [textContent]="'Loading older logs' | i18n" />
+        }
+      </section>
+
+      <section #el childList (waMutationObserver)="restoreScroll(el)">
+        @for (log of previous; track log) {
+          <pre [innerHTML]="log | dompurify"></pre>
+        }
+      </section>
+
+      @if (followLogs | logs | async; as logs) {
+        <section childList (waMutationObserver)="scrollToBottom()">
+          @for (log of logs; track $index) {
+            <pre [innerHTML]="log | dompurify"></pre>
+          }
+
+          @if ((status$ | async) !== 'connected') {
+            <div class="g-dots" [attr.data-status]="status$.value">
+              {{
+                status$.value === 'reconnecting'
+                  ? ('Reconnecting' | i18n)
+                  : ('Waiting for network connectivity' | i18n)
+              }}
+            </div>
+          }
+        </section>
+      } @else {
+        <tui-loader class="loader" [textContent]="'Loading logs' | i18n" />
+      }
+
+      <section
+        #bottom
+        class="bottom"
+        waIntersectionObserver
+        (waIntersectionObservee)="
+          setScroll(!!$event[$event.length - 1]?.isIntersecting)
+        "
+      ></section>
+    </tui-scrollbar>
+
+    <footer class="footer">
+      <button
+        tuiButton
+        appearance="flat-grayscale"
+        iconStart="@tui.circle-arrow-down"
+        (click)="setScroll(true); scrollToBottom()"
+      >
+        {{ 'Scroll to bottom' | i18n }}
+      </button>
+      <button
+        tuiButton
+        appearance="flat-grayscale"
+        iconStart="@tui.download"
+        [logsDownload]="fetchLogs"
+      >
+        {{ 'Download' | i18n }}
+      </button>
+    </footer>
+  `,
+  styles: `
+    :host {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    .scrollbar {
+      flex: 1;
+      background: var(--tui-background-neutral-1);
+      border-radius: var(--tui-radius-m);
+      border: 1rem solid transparent;
+    }
+
+    .g-dots {
+      text-align: center;
+    }
+
+    .top {
+      height: 10rem;
+      margin-bottom: -5rem;
+    }
+
+    .loader {
+      position: absolute;
+      inset: 0;
+    }
+
+    .bottom {
+      height: 3rem;
+    }
+
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 1rem;
+    }
+
+    [data-status='reconnecting'] {
+      color: var(--tui-status-positive);
+    }
+
+    [data-status='disconnected'] {
+      color: var(--tui-status-warning);
+    }
+
+    pre {
+      overflow: visible;
+      white-space: normal;
+      margin: 0;
+    }
+  `,
   imports: [
     CommonModule,
     WaIntersectionObserver,

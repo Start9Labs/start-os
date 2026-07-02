@@ -48,6 +48,9 @@ file tracks notable changes since the move to the monorepo.
 
 ### Changed
 
+- **OS Logs and Kernel Logs moved into System settings.** The top-level Logs tab
+  is removed; OS Logs and Kernel Logs are now entries at the bottom of the System
+  menu.
 - **Migrated `startos-backup-fs` into the monorepo** as the `start-os/backup-fs`
   workspace member (from the former `Start9Labs/start-fs` repo); it is no longer
   built as an external `cargo install --git` dependency.

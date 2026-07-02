@@ -78,7 +78,6 @@ export const ENGLISH: Record<string, number> = {
   'Sideload': 80, // installing a service manually
   'Updates': 81,
   'Metrics': 82, // system info such as CPU, RAM, and storage usage
-  'Logs': 83, // as in, application logs
   'Notifications': 84,
   'Hard uninstall': 85, // as in, hard reset or hard reboot, except for uninstalling
   'Show QR': 86,
@@ -128,8 +127,6 @@ export const ENGLISH: Record<string, number> = {
   'OS Logs': 135,
   'Kernel Logs': 136,
   'Tor Logs': 137,
-  'Raw, unfiltered operating system logs': 138,
-  'Diagnostics for drivers and other kernel processes': 139,
   'Downgrade': 141,
   'Reinstall': 142,
   'Installed': 143,
@@ -360,7 +357,6 @@ export const ENGLISH: Record<string, number> = {
   'Sending email': 384,
   'A test email has been sent to': 385,
   'Check your spam folder and mark as not spam.': 386,
-  'The web user interface for your StartOS server, accessible from any browser.': 387,
   'You will still need your current password to decrypt existing backups!': 389,
   'New passwords do not match': 390,
   'New password must be 12 characters or greater': 391,
@@ -372,7 +368,6 @@ export const ENGLISH: Record<string, number> = {
   'Retype New Password': 397,
   'Current session': 399,
   'Other sessions': 400,
-  'Terminate selected': 401,
   'Terminating sessions': 402,
   'No sessions': 403,
   'Password needed': 404,
@@ -491,7 +486,6 @@ export const ENGLISH: Record<string, number> = {
   'To resolve the issue, refer to': 521,
   'SDK version': 522,
   'Backup Report': 523,
-  'Delete selected': 524,
   'No SSH keys': 525,
   'Add SSH key': 526,
   'SSH Keys': 527,
@@ -797,4 +791,7 @@ export const ENGLISH: Record<string, number> = {
   'Old backup deleted': 888,
   'Delete old backup?': 889,
   'Permanently delete the old (V1) backup from this target? This cannot be undone. Your current (V2) backup will not be affected.': 890,
+  'Terminate': 891, // verb, terminate a session
+  'selected': 892, // as in, "3 selected"
+  'Your personal StartOS web user interface.': 893,
 }

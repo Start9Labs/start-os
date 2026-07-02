@@ -12,14 +12,16 @@ import {
     <thead>
       <tr>
         <ng-content select="th" />
-        @for (header of appTable(); track $index) {
-          <th
-            tuiTh
-            [requiredSort]="true"
-            [sorter]="appTableSorters()[$index] || null"
-          >
-            {{ header | i18n }}
-          </th>
+        @if (!appTableSelected()) {
+          @for (header of appTable(); track $index) {
+            <th
+              tuiTh
+              [requiredSort]="true"
+              [sorter]="appTableSorters()[$index] || null"
+            >
+              {{ header | i18n }}
+            </th>
+          }
         }
       </tr>
     </thead>
@@ -44,4 +46,7 @@ import {
 export class TableComponent {
   readonly appTable = input.required<ReadonlyArray<i18nKey | null>>()
   readonly appTableSorters = input<ReadonlyArray<TuiComparator<any> | null>>([])
+  // Number of currently-selected rows. When > 0 the column headers are hidden
+  // so the projected header cell can show the group action + count instead.
+  readonly appTableSelected = input(0)
 }

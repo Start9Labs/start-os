@@ -1,18 +1,32 @@
-import { TuiCheckbox } from '@taiga-ui/core'
-import { TuiSkeleton } from '@taiga-ui/kit'
-import { Component, computed, input, OnChanges, signal } from '@angular/core'
+import {
+  Component,
+  computed,
+  input,
+  OnChanges,
+  output,
+  signal,
+} from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { ServerNotification } from 'src/app/services/api/api.types'
-import { TableComponent } from 'src/app/routes/portal/components/table.component'
-import { NotificationItemComponent } from './item.component'
 import { i18nPipe } from '@start9labs/shared'
+import { TuiButton, TuiCheckbox } from '@taiga-ui/core'
+import { TuiSkeleton } from '@taiga-ui/kit'
+import { TableComponent } from 'src/app/routes/portal/components/table.component'
+import { ServerNotification } from 'src/app/services/api/api.types'
 import { PlaceholderComponent } from '../../components/placeholder.component'
+import { NotificationItemComponent } from './item.component'
 
 @Component({
   selector: '[notifications]',
   template: `
-    <table [appTable]="['Title', 'Service', 'Message']">
-      <th [style.text-indent.rem]="1.75">
+    <table
+      [appTable]="['Title', 'Service', 'Message']"
+      [appTableSelected]="selected().length"
+    >
+      <th
+        class="g-table-select"
+        [attr.colspan]="selected().length ? 4 : null"
+        [style.text-indent.rem]="1.75"
+      >
         <input
           tuiCheckbox
           size="s"
@@ -21,7 +35,23 @@ import { PlaceholderComponent } from '../../components/placeholder.component'
           [ngModel]="all()"
           (ngModelChange)="selected.set(($event && notifications()) || [])"
         />
-        {{ 'Date' | i18n }}
+        @if (selected().length) {
+          @let count = selected().length;
+          <span class="g-table-group">
+            <button
+              tuiButton
+              size="xs"
+              appearance="flat-destructive"
+              iconStart="@tui.trash"
+              (click)="deleteSelected.emit()"
+            >
+              {{ 'Delete' | i18n }}
+            </button>
+            <span class="count">{{ count }} {{ 'selected' | i18n }}</span>
+          </span>
+        } @else {
+          {{ 'Date' | i18n }}
+        }
       </th>
       @for (not of notifications(); track not) {
         <tr
@@ -47,7 +77,7 @@ import { PlaceholderComponent } from '../../components/placeholder.component'
             {{ 'No notifications' | i18n }}
           </app-placeholder>
         } @else {
-          @for (i of ['', '']; track $index) {
+          @for (i of ['', '', '', '']; track $index) {
             <tr>
               <td colspan="4">
                 <div [tuiSkeleton]="true">{{ 'Loading' | i18n }}</div>
@@ -82,6 +112,7 @@ import { PlaceholderComponent } from '../../components/placeholder.component'
   `,
   imports: [
     FormsModule,
+    TuiButton,
     TuiCheckbox,
     NotificationItemComponent,
     TuiSkeleton,
@@ -94,6 +125,7 @@ export class NotificationsTableComponent<
   T extends ServerNotification<number>,
 > implements OnChanges {
   readonly notifications = input<readonly T[] | null>(null)
+  readonly deleteSelected = output()
 
   readonly selected = signal<readonly T[]>([])
   readonly all = computed(
