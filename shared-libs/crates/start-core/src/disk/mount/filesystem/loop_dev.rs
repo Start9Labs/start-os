@@ -2,8 +2,7 @@ use std::fmt::Display;
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
-use digest::generic_array::GenericArray;
-use digest::{Digest, OutputSizeUser};
+use digest::Digest;
 use lazy_format::lazy_format;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -42,7 +41,7 @@ impl<LogicalName: AsRef<Path> + Send + Sync> FileSystem for LoopDev<LogicalName>
     }
     async fn source_hash(
         &self,
-    ) -> Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error> {
+    ) -> Result<digest::Output<Sha256>, Error> {
         let mut sha = Sha256::new();
         sha.update("LoopDev");
         sha.update(

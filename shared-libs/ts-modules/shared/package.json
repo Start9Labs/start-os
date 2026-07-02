@@ -22,7 +22,6 @@
     "@taiga-ui/kit": ">=5.0.0",
     "@taiga-ui/polymorpheus": ">=5.0.0",
     "ansi-to-html": "^0.7.2",
-    "base64-js": "^1.5.1",
     "marked": "^4.0.0",
     "rxjs": ">=7.0.0"
   },

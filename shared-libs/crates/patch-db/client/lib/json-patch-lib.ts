@@ -222,14 +222,15 @@ function recursiveApplyObject<T extends Record<string, any>>(
   op: PatchOp,
   value?: any,
 ): T {
-  const updated = recursiveApply(data[path[0]], path.slice(1), op, value)
+  const segment = path[0] || ''
+  const updated = recursiveApply(data[segment], path.slice(1), op, value)
   const result = {
     ...data,
-    [path[0]]: updated,
+    [segment]: updated,
   }
 
   if (updated === REMOVE_SENTINEL) {
-    delete result[path[0]]
+    delete result[segment]
   }
 
   return result
@@ -241,17 +242,18 @@ function recursiveApplyArray<T extends any[]>(
   op: PatchOp,
   value?: any,
 ): T {
+  const segment = path[0] || ''
   const result = [...data] as T
 
   if (path.length === 1 && op === PatchOp.ADD) {
     // RFC 6902: add with "-" appends to the end
-    const index = resolveArrayIndex(path[0], data.length)
+    const index = resolveArrayIndex(segment, data.length)
     result.splice(index, 0, value)
   } else if (path.length === 1 && op === PatchOp.REMOVE) {
-    const index = resolveArrayIndex(path[0], data.length)
+    const index = resolveArrayIndex(segment, data.length)
     result.splice(index, 1)
   } else {
-    const index = resolveArrayIndex(path[0], data.length)
+    const index = resolveArrayIndex(segment, data.length)
     const updated = recursiveApply(data[index], path.slice(1), op, value)
     if (updated === REMOVE_SENTINEL) {
       // Nested remove targeting an array element — splice it out

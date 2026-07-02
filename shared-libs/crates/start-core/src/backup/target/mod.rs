@@ -5,8 +5,6 @@ use chrono::{DateTime, Utc};
 use clap::Parser;
 use clap::builder::ValueParserFactory;
 use color_eyre::eyre::eyre;
-use digest::OutputSizeUser;
-use digest::generic_array::GenericArray;
 use exver::Version;
 use imbl_value::InternedString;
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
@@ -132,7 +130,7 @@ impl FileSystem for BackupTargetFS {
     }
     async fn source_hash(
         &self,
-    ) -> Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error> {
+    ) -> Result<digest::Output<Sha256>, Error> {
         match self {
             BackupTargetFS::Disk(a) => a.source_hash().await,
             BackupTargetFS::Cifs(a) => a.source_hash().await,
@@ -175,6 +173,13 @@ pub fn target<C: Context>() -> ParentHandler<C> {
             from_fn_async(umount)
                 .no_display()
                 .with_about("about.unmount-backup-target")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "delete-legacy",
+            from_fn_async(delete_legacy)
+                .no_display()
+                .with_about("about.delete-legacy-backup")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -426,5 +431,28 @@ pub async fn umount(_: RpcContext, UmountParams { target_id }: UmountParams) -> 
         }
     }
 
+    Ok(())
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[group(skip)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct DeleteLegacyParams {
+    #[arg(help = "help.arg.backup-target-id")]
+    target_id: BackupTargetId,
+}
+
+/// Delete the pre-V2 `StartOSBackups` folder from a target, freeing the space it
+/// occupied. The current `StartOSBackupsV2` data is untouched. No-op if absent.
+#[instrument(skip_all)]
+pub async fn delete_legacy(
+    ctx: RpcContext,
+    DeleteLegacyParams { target_id }: DeleteLegacyParams,
+) -> Result<(), Error> {
+    let guard = TmpMountGuard::mount(&target_id.load(&ctx.db.peek().await)?, ReadWrite).await?;
+    crate::util::io::delete_dir(guard.path().join(crate::disk::LEGACY_BACKUP_DIR_NAME)).await?;
+    guard.unmount().await?;
     Ok(())
 }

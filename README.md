@@ -38,7 +38,7 @@ All products share a single Rust backend library (`start-core`) and a single Ang
 | `shared-libs/ts-modules/`        | —                | Shared Angular libraries (the Angular workspace is rooted at the repo root)                               |
 | `shared-libs/crates/patch-db/`   | —                | Diff-based reactive state store (first-party crate)                                                       |
 
-**Tech stack:** Rust backend (Tokio/Axum), Angular frontend (Taiga UI), Node.js container runtime with LXC, and a custom diff-based database ([Patch-DB](https://github.com/Start9Labs/patch-db)) for reactive state synchronization. Services run in isolated LXC containers, packaged as S9PKs — a signed, merkle-archived format supporting partial downloads and cryptographic verification.
+**Tech stack:** Rust backend (Tokio/Axum), Angular frontend (Taiga UI), Node.js container runtime with LXC, and a custom diff-based database ([Patch-DB](https://github.com/Start9Labs/start-technologies/tree/master/shared-libs/crates/patch-db)) for reactive state synchronization. Services run in isolated LXC containers, packaged as S9PKs — a signed, merkle-archived format supporting partial downloads and cryptographic verification.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for how the pieces fit together.
 
@@ -64,13 +64,12 @@ Follow the [install guide](https://docs.start9.com/start-os/installing-startos.h
 
 ### Build from source
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup, build instructions, and the development workflow. In short:
-
 ```sh
 git clone https://github.com/Start9Labs/start-technologies.git
-cd start-os
-PLATFORM=$(uname -m) ENVIRONMENT=dev make startos   # build a StartOS image
+cd start-technologies
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the shared toolchain and development workflow, and [projects/start-os/CONTRIBUTING.md](projects/start-os/CONTRIBUTING.md) to build a StartOS image.
 
 ## The rest of the monorepo
 

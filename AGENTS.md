@@ -19,7 +19,7 @@ Each product lives under `projects/` as a thin wrapper; the bulk of the code liv
 - `projects/start-registry/` — `registrybox` bin; registry server, serves the shared marketplace UI lib.
 - `projects/start-tunnel/` — `tunnelbox` bin + `web/` (StartTunnel UI).
 - `projects/start-wrt/` — StartWRT, an OpenWrt-based router OS. Rust backend (`startwrt` bin: RPC daemon + CLI, crates `ctrl`/`uciedit`/`uciedit_macros`) building on shared `start-core`; an Angular `web/` UI (a project in the root Angular workspace) embedded into the binary; `openwrt/` git submodule; flashable image for the SpaceMiT K1.
-- `projects/start-sdk/` — `@start9labs/start-sdk` (flattened, source in `lib/`; imports the shared `@start9labs/start-core` lib and bundles it into its published `dist/`) + `Makefile`/`s9pk.mk` + `docs/` (packaging mdbook).
+- `projects/start-sdk/` — `@start9labs/start-sdk` (source in `lib/`; imports the shared `@start9labs/start-core` lib and bundles it into its published `dist/`) + `Makefile`/`s9pk.mk` + `docs/` (packaging mdbook).
 - `projects/brochure-marketplace/` — public marketplace/landing Angular app (deploys to marketplace.start9.com).
 - `projects/start-docs/` — the documentation website (build infra + landing + Bitcoin guides; each product's own book lives in its `docs/`).
 - `shared-libs/crates/start-core/` — the **entire** Rust backend lib (package `start-core`, lib name `start_core`). All six bins depend on it. Internally unchanged from the old `core/` crate.
@@ -36,7 +36,7 @@ Each product lives under `projects/` as a thin wrapper; the bulk of the code liv
 ## Gotchas
 
 - **Polyglot repo.** Per-component gotchas live in component-level `AGENTS.md` files — read the relevant one before operating on that component (see Sub-scopes).
-- **Verify cross-layer changes in order.** Rust → ts-bindings → SDK rebuild → web/container-runtime type checks. See [ARCHITECTURE.md](ARCHITECTURE.md#cross-layer-verification). Editing `shared-libs/ts-modules/start-core/lib/osBindings/*.ts` alone is NOT sufficient — start-core (and the SDK bundle, for container-runtime) must be rebuilt before web/container-runtime see the change.
+- **Verify cross-layer changes in order.** Rust → ts-bindings → SDK rebuild → web/container-runtime type checks. See [ARCHITECTURE.md](ARCHITECTURE.md#cross-layer-verification). Editing `shared-libs/ts-modules/start-core/lib/osBindings/*.ts` alone is NOT sufficient — start-core (and the SDK bundle, for container-runtime) must be rebuilt before web/container-runtime will see the change.
 - **Ask before destructive `make` recipes.** Image flashing, deploy targets (`update*`, `reflash`, `wormhole*`), and `make clean*` consume hours and disk — confirm with the user first.
 - **Git submodule.** `projects/start-wrt/openwrt` is the repo's **only** git submodule (a large external OpenWrt fork; everything else is vendored). Clone with `--recursive` or `git submodule update --init projects/start-wrt/openwrt`. Only start-wrt's full *image* build needs it — every other product, and start-wrt's own binary build, does not.
 - **Stale-path watch.** Old docs referenced `core/`, `web/`, `sdk/`, `container-runtime/`, `patch-db/` at the repo root, and the products + `shared/` directly at the root. Those are gone — products now live under `projects/`, the shared libs under `shared-libs/`; use the locations above.
@@ -69,4 +69,4 @@ Already enforced or checked elsewhere (listed here for completeness; documented 
 - [`projects/brochure-marketplace/AGENTS.md`](projects/brochure-marketplace/AGENTS.md) — public marketplace site
 - [`projects/start-docs/AGENTS.md`](projects/start-docs/AGENTS.md) — documentation website
 - [`shared-libs/AGENTS.md`](shared-libs/AGENTS.md) — shared libs container: [`crates/start-core`](shared-libs/crates/start-core/AGENTS.md) (Rust backend), [`web`](shared-libs/ts-modules/AGENTS.md) (Angular workspace + UI/setup-wizard/shared libs)
-- `shared-libs/crates/patch-db/` — first-party crate (upstream: github.com/Start9Labs/patch-db)
+- `shared-libs/crates/patch-db/` — first-party crate (maintained in-tree; the standalone `Start9Labs/patch-db` repo is being retired)

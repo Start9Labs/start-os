@@ -105,20 +105,23 @@ sdk.action.createTask(
 
 ## Reading Dependency Interfaces
 
-Use `sdk.serviceInterface.get()` in `main.ts` to read a dependency's interface at runtime:
+Get the dependency's **host** with `sdk.host.get()` (the `hostId` and interface `id` are part of the dependency's documented contract), then read the interface off its bindings:
 
 ```typescript
-const url = await sdk.serviceInterface
-  .get(
-    effects,
-    { id: 'interface-id', packageId: 'dependency-id' },
-    (i) => {
-      const urls = i?.addressInfo?.format()
-      if (!urls || urls.length === 0) return null
-      return urls[0]
-    },
-  )
-  .const()  // re-runs setupMain if the interface changes
+import { utils } from '@start9labs/start-sdk'
+
+const host = await sdk.host
+  .get(effects, { hostId: 'host-id', packageId: 'dependency-id' })
+  .const() // re-runs setupMain if the dependency's host changes
+
+const iface = Object.values(host?.bindings ?? {})
+  .flatMap((b) => Object.values(b.interfaces))
+  .find((i) => i.id === 'interface-id')
+
+const url =
+  host && iface
+    ? (utils.filledAddress(host, iface.addressInfo).format()[0] ?? null)
+    : null
 ```
 
 Alternatively, services are reachable directly by hostname at `http://<package-id>.startos:<port>`:

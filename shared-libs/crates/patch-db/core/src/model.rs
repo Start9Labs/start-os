@@ -200,17 +200,19 @@ mod test {
     #[model = "Model<Self>"]
     // #[macro_debug]
     struct Foo {
+        #[allow(dead_code)]
         a: Bar,
     }
 
     #[derive(crate::HasModel)]
     #[model = "Model<Self>"]
     struct Bar {
+        #[allow(dead_code)]
         b: String,
     }
 
     fn mutate_fn(v: &mut Model<Foo>) {
-        let mut a = v.as_a_mut();
+        let a = v.as_a_mut();
         a.as_b_mut().ser(&"NotThis".into()).unwrap();
         a.as_b_mut().ser(&"Replaced".into()).unwrap();
     }

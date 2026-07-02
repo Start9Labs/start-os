@@ -38,6 +38,8 @@ export type PgDumpConfig<M extends T.SDKManifest> = {
   initdbArgs?: string[]
   /** Additional options passed to `pg_ctl start -o` (e.g. '-c shared_preload_libraries=vectorchord'). Appended after `-c listen_addresses=`. */
   pgOptions?: string
+  /** Milliseconds to wait for PostgreSQL to accept connections before failing (default 60000). Raise for large clusters that need longer to start or run crash recovery. */
+  readyTimeout?: number
 }
 
 /** Configuration for MySQL/MariaDB dump-based backup */
@@ -60,6 +62,8 @@ export type MysqlDumpConfig<M extends T.SDKManifest> = {
   readyCommand?: string[]
   /** Additional options passed to `mysqld` on startup (e.g. '--innodb-buffer-pool-size=256M'). Appended after `--bind-address=127.0.0.1`. */
   mysqldOptions?: string[]
+  /** Milliseconds to wait for MySQL/MariaDB to become ready before failing (default 30000). Raise for large data directories that need longer to initialize or run crash recovery. */
+  readyTimeout?: number
 }
 
 /**
@@ -196,6 +200,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
       password,
       initdbArgs = [],
       pgOptions,
+      readyTimeout = 60_000,
     } = config
     const pgdata = `${mountpoint}${pgdataPath}`
     const dumpFile = `${BACKUP_CONTAINER_MOUNT}/${database}-db.dump`
@@ -242,7 +247,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
       await sub.execFail(['pg_ctl', 'start', '-D', pgdata, '-o', pgStartOpts], {
         user: 'postgres',
       })
-      for (let i = 0; i < 60; i++) {
+      for (let elapsed = 0; elapsed < readyTimeout; elapsed += 1000) {
         const { exitCode } = await sub.exec(['pg_isready', '-U', user], {
           user: 'postgres',
         })
@@ -252,7 +257,9 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
         }
         await new Promise(r => setTimeout(r, 1000))
       }
-      throw new Error('PostgreSQL failed to become ready within 60 seconds')
+      throw new Error(
+        `PostgreSQL failed to become ready within ${readyTimeout / 1000} seconds`,
+      )
     }
 
     return new Backups<M>()
@@ -374,6 +381,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
       engine,
       readyCommand,
       mysqldOptions = [],
+      readyTimeout = 30_000,
     } = config
     const dumpFile = `${BACKUP_CONTAINER_MOUNT}/${database}-db.dump`
     // See the comment on `tmpDumpFile` in withPgDump — backup-fs FUSE
@@ -394,12 +402,14 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
       sub: { exec(cmd: string[]): Promise<{ exitCode: number | null }> },
       cmd: string[],
     ) {
-      for (let i = 0; i < 30; i++) {
+      for (let elapsed = 0; elapsed < readyTimeout; elapsed += 1000) {
         const { exitCode } = await sub.exec(cmd)
         if (exitCode === 0) return
         await new Promise(r => setTimeout(r, 1000))
       }
-      throw new Error('MySQL/MariaDB failed to become ready within 30 seconds')
+      throw new Error(
+        `MySQL/MariaDB failed to become ready within ${readyTimeout / 1000} seconds`,
+      )
     }
 
     async function startMysql(sub: {

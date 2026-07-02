@@ -2241,8 +2241,8 @@ fn compression_shrinks_compressible_content() {
     // 2 MiB of random with an incompressible extension → stored raw.
     let mut rnd = vec![0u8; 2 * 1024 * 1024];
     {
-        use rand::RngCore;
-        rand::rng().fill_bytes(&mut rnd);
+        use rand::Rng;
+        rand::rand_core::UnwrapErr(rand::rng()).fill_bytes(&mut rnd);
     }
     let data_jpg = TempDir::new("backupfs_jpg").unwrap();
     with_backupfs(
@@ -2359,9 +2359,9 @@ fn measure_compression_ratio() {
         out
     }
     fn random_corpus(bytes: usize) -> Vec<u8> {
-        use rand::RngCore;
+        use rand::Rng;
         let mut v = vec![0u8; bytes];
-        rand::rng().fill_bytes(&mut v);
+        rand::rand_core::UnwrapErr(rand::rng()).fill_bytes(&mut v);
         v
     }
 

@@ -13,6 +13,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { BackupService, MappedBackupTarget } from './backup.service'
+import { BackupLegacyWarningComponent } from './legacy-warning.component'
 import { BackupStatusComponent } from './status.component'
 
 const ERROR =
@@ -58,30 +59,41 @@ const ERROR =
           <td class="name">{{ target.entry.path.split('/').pop() }}</td>
           <td>{{ target.entry.hostname }}</td>
           <td>{{ target.entry.path }}</td>
-          <td (click)="$event.stopPropagation()">
-            <button
-              tuiIconButton
-              tuiDropdown
-              size="s"
-              appearance="flat-grayscale"
-              iconStart="@tui.ellipsis-vertical"
-              [tuiDropdownOpen]="!!opens[$index]"
-              (tuiDropdownOpenChange)="opens[$index] = $event"
-            >
-              {{ 'More' | i18n }}
-              <tui-data-list *tuiDropdown>
-                <button tuiOption (click)="edit(target)">
-                  {{ 'Edit' | i18n }}
-                </button>
-                <button
-                  tuiOption
-                  class="g-negative"
-                  (click)="forget(target, $index)"
-                >
-                  {{ 'Delete' | i18n }}
-                </button>
-              </tui-data-list>
-            </button>
+          <td>
+            <div class="actions">
+              @if (
+                type === 'create' &&
+                target.entry.mountable &&
+                target.hasAnyBackup &&
+                target.entry.legacyBackup
+              ) {
+                <backup-legacy-warning [id]="target.id" />
+              }
+              <button
+                tuiIconButton
+                tuiDropdown
+                size="s"
+                appearance="flat-grayscale"
+                iconStart="@tui.ellipsis-vertical"
+                [tuiDropdownOpen]="!!opens[$index]"
+                (tuiDropdownOpenChange)="opens[$index] = $event"
+                (click)="$event.stopPropagation()"
+              >
+                {{ 'More' | i18n }}
+                <tui-data-list *tuiDropdown>
+                  <button tuiOption (click)="edit(target)">
+                    {{ 'Edit' | i18n }}
+                  </button>
+                  <button
+                    tuiOption
+                    class="g-negative"
+                    (click)="forget(target, $index)"
+                  >
+                    {{ 'Delete' | i18n }}
+                  </button>
+                </tui-data-list>
+              </button>
+            </div>
           </td>
         </tr>
       } @empty {
@@ -102,7 +114,7 @@ const ERROR =
       @include taiga.transition(background);
 
       @media (taiga.$tui-mouse) {
-        &:not(:has(app-placeholder)):hover {
+        &:not(:has(app-placeholder)):hover:not(:has(button:hover)) {
           cursor: pointer;
           background: var(--tui-background-neutral-1-hover);
         }
@@ -116,6 +128,12 @@ const ERROR =
     td:last-child {
       white-space: nowrap;
       text-align: right;
+    }
+
+    .actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
     }
 
     span {
@@ -170,6 +188,7 @@ const ERROR =
     TuiIcon,
     PlaceholderComponent,
     BackupStatusComponent,
+    BackupLegacyWarningComponent,
     TableComponent,
     i18nPipe,
   ],
@@ -180,7 +199,7 @@ export class BackupNetworkComponent {
   private readonly api = inject(ApiService)
   private readonly loader = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
-  private readonly type = inject(ActivatedRoute).snapshot.data['type']
+  protected readonly type = inject(ActivatedRoute).snapshot.data['type']
   private readonly i18n = inject(i18nPipe)
 
   readonly service = inject(BackupService)

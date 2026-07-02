@@ -20,6 +20,7 @@ export interface MappedSubnet {
   readonly range: string
   readonly name: string
   readonly clients: T.Tunnel.WgSubnetClients
+  readonly wanIp: string | null
 }
 
 export interface DeviceData {

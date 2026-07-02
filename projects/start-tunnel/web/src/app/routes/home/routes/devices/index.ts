@@ -8,6 +8,7 @@ import {
   TuiButton,
   TuiDataList,
   TuiDropdown,
+  TuiIcon,
   TuiLoader,
   TuiTitle,
 } from '@taiga-ui/core'
@@ -36,6 +37,7 @@ import { MappedDevice } from './utils'
   template: `
     <div tuiCardLarge="compact" appearance="floating">
       <header tuiHeader="body-l">
+        <tui-icon icon="@tui.server" />
         <h3 tuiTitle>Servers</h3>
         <aside tuiAccessories>
           <button tuiButton iconStart="@tui.plus" (click)="onAdd('server')">
@@ -51,7 +53,7 @@ import { MappedDevice } from './utils'
             <th>LAN IP</th>
             <th>DNS Injection</th>
             <th>Auto Port Forward</th>
-            <th>WAN</th>
+            <th>WAN IP</th>
             <th></th>
           </tr>
         </thead>
@@ -95,7 +97,7 @@ import { MappedDevice } from './utils'
                   />
                 </tui-loader>
               </td>
-              <td>{{ wanLabel(device.wanIp, 'Use Subnet Default') }}</td>
+              <td>{{ device.wan }}</td>
               <td [style.padding-inline-end.rem]="0.625">
                 <button
                   tuiIconButton
@@ -127,10 +129,10 @@ import { MappedDevice } from './utils'
                     </button>
                     <button
                       tuiOption
-                      iconStart="@tui.arrow-down"
+                      iconStart="@tui.laptop"
                       (click)="onSetKind(device, 'client')"
                     >
-                      Demote to Client
+                      Change to Client
                     </button>
                     <button
                       tuiOption
@@ -156,6 +158,7 @@ import { MappedDevice } from './utils'
 
     <div tuiCardLarge="compact" appearance="floating">
       <header tuiHeader="body-l">
+        <tui-icon icon="@tui.laptop" />
         <h3 tuiTitle>Clients</h3>
         <aside tuiAccessories>
           <button tuiButton iconStart="@tui.plus" (click)="onAdd('client')">
@@ -169,7 +172,7 @@ import { MappedDevice } from './utils'
             <th>Name</th>
             <th>Subnet</th>
             <th>LAN IP</th>
-            <th>WAN</th>
+            <th>WAN IP</th>
             <th></th>
           </tr>
         </thead>
@@ -179,7 +182,7 @@ import { MappedDevice } from './utils'
               <td>{{ device.name }}</td>
               <td>{{ device.subnet.name }}</td>
               <td>{{ device.ip }}</td>
-              <td>{{ wanLabel(device.wanIp, 'Use Subnet Default') }}</td>
+              <td>{{ device.wan }}</td>
               <td [style.padding-inline-end.rem]="0.625">
                 <button
                   tuiIconButton
@@ -211,10 +214,10 @@ import { MappedDevice } from './utils'
                     </button>
                     <button
                       tuiOption
-                      iconStart="@tui.arrow-up"
+                      iconStart="@tui.server"
                       (click)="onSetKind(device, 'server')"
                     >
-                      Promote to Server
+                      Change to Server
                     </button>
                     <button
                       tuiOption
@@ -256,6 +259,7 @@ import { MappedDevice } from './utils'
     PlaceholderComponent,
     TuiSkeleton,
     TuiHeader,
+    TuiIcon,
     TuiTitle,
   ],
 })
@@ -265,8 +269,6 @@ export default class Devices {
   private readonly loading = inject(TuiNotificationMiddleService)
   private readonly errorService = inject(ErrorService)
   private readonly patch = inject<PatchDB<TunnelData>>(PatchDB)
-
-  protected readonly wanLabel = wanLabel
 
   protected readonly togglingDns = signal<string | null>(null)
   protected readonly togglingPf = signal<string | null>(null)
@@ -284,18 +286,21 @@ export default class Devices {
   protected readonly subnets = toSignal(
     this.patch.watch$('wg', 'subnets').pipe(
       map(subnets =>
-        Object.entries(subnets).map(([range, { name, clients }]) => ({
+        Object.entries(subnets).map(([range, { name, clients, wanIp }]) => ({
           range,
           name,
           clients,
+          wanIp,
         })),
       ),
     ),
     { initialValue: null },
   )
 
-  protected readonly devices = computed(() =>
-    this.subnets()?.flatMap(subnet =>
+  protected readonly devices = computed(() => {
+    const defaultWan = this.defaultWan()
+
+    return this.subnets()?.flatMap(subnet =>
       Object.entries(subnet.clients).map(
         ([
           ip,
@@ -311,10 +316,11 @@ export default class Devices {
           allowDnsInjection,
           allowAutoPortForward,
           wanIp,
+          wan: wanLabel(wanIp, 'Subnet default', subnet.wanIp ?? defaultWan),
         }),
       ),
-    ),
-  )
+    )
+  })
 
   protected readonly servers = computed(() =>
     this.devices()?.filter(d => d.kind === 'server'),

@@ -32,7 +32,7 @@ use crate::util::cpupower::Governor;
 use crate::util::lshw::LshwDevice;
 use crate::util::serde::MaybeUtf8String;
 use crate::version::{Current, VersionT};
-use crate::{ARCH, GatewayId, PLATFORM, PackageId};
+use crate::{GatewayId, PLATFORM};
 
 pub static DB_UI_SEED_CELL: OnceLock<&'static str> = OnceLock::new();
 
@@ -79,6 +79,7 @@ impl Public {
                                                 MaybeUtf8String("http/1.1".into()),
                                             ])),
                                             auth: None,
+                                            upstream_cert_validation: Default::default(),
                                         }),
                                         secure: None,
                                     },
@@ -87,6 +88,7 @@ impl Public {
                                         assigned_ssl_port: Some(443),
                                     },
                                     addresses: DerivedAddressInfo::default(),
+                                    interfaces: BTreeMap::new(),
                                 },
                             )]
                             .into_iter()

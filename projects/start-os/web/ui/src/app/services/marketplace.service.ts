@@ -47,7 +47,7 @@ const { start9, community } = defaultRegistries
 })
 export class MarketplaceService extends AbstractMarketplaceService {
   private readonly api = inject(ApiService)
-  private readonly patch: PatchDB<DataModel> = inject(PatchDB)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly exver = inject(Exver)
   private readonly storage = inject(StorageService)
   private readonly i18n = inject(i18nPipe)

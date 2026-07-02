@@ -8,7 +8,6 @@ use clap::builder::ValueParserFactory;
 use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use color_eyre::eyre::eyre;
 use digest::Update;
-use digest::generic_array::GenericArray;
 use hashing_serializer::HashingSerializer;
 use imbl_value::imbl::OrdMap;
 use openssl::pkey::{PKey, Private};
@@ -1089,6 +1088,46 @@ impl<T> Deref for Base64<T> {
     }
 }
 
+/// A parameter that arrives as structured `T` over the JSON-RPC wire, but as a
+/// JSON **string** argument on the CLI. serde is a pure passthrough to `T` (the
+/// wire carries `T` directly — no double-encoding), while the clap `ValueParser`
+/// parses the string argument as JSON. Pair with `#[ts(as = "T")]` on the field
+/// so the generated binding shows `T`, not a string.
+#[derive(Debug, Clone)]
+pub struct CliFromJsonString<T>(pub T);
+impl<T> Deref for CliFromJsonString<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<T: Serialize> Serialize for CliFromJsonString<T> {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        self.0.serialize(serializer)
+    }
+}
+impl<'de, T: Deserialize<'de>> Deserialize<'de> for CliFromJsonString<T> {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        T::deserialize(deserializer).map(Self)
+    }
+}
+impl<T: DeserializeOwned> FromStr for CliFromJsonString<T> {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(
+            serde_json::from_str(s).with_kind(ErrorKind::Deserialization)?,
+        ))
+    }
+}
+impl<T: DeserializeOwned + Clone + Send + Sync + 'static> ValueParserFactory
+    for CliFromJsonString<T>
+{
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Regex(regex::Regex);
 impl From<Regex> for regex::Regex {
@@ -1469,7 +1508,7 @@ pub fn is_partial_of(partial: &Value, full: &Value) -> bool {
 
 pub fn hash_serializable<D: Digest + Update, T: Serialize>(
     value: &T,
-) -> Result<GenericArray<u8, D::OutputSize>, Error> {
+) -> Result<digest::Output<D>, Error> {
     let mut digest = D::new();
     value
         .serialize(HashingSerializer {

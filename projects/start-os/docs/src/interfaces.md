@@ -22,7 +22,7 @@ Each table has the following columns:
 
 | Column                    | Description                                                                                                                                                                                                                                                                                                                    |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Toggle**                | Enable or disable the address. This directly affects iptables and firewall rules — disabling an address blocks traffic to it. Public IPv4 addresses are off by default. All other addresses are on by default.                                                                                                                 |
+| **Toggle**                | Enable or disable the address. This directly affects iptables and firewall rules — disabling an address blocks traffic to it. Public IPv4 addresses are off by default. All other addresses are on by default. **IPv6 global-unicast (GUA) addresses use a three-way control instead** — see the note below.                    |
 | **Access**                | **Public** or **Private**. Public addresses are reachable from the Internet. Private addresses are only reachable on the LAN or via VPN.                                                                                                                                                                                       |
 | **Type**                  | The address type: `IPv4`, `IPv6`, `Domain`, or `mDNS` (mDNS is only available on router gateways).                                                                                                                                                                                                                             |
 | **Certificate Authority** | Who signs the SSL certificate for this address: **Root CA** (your server's own CA), **Let's Encrypt** (publicly trusted), or **None** (non-SSL, e.g. plain HTTP).                                                                                                                                                              |
@@ -31,6 +31,15 @@ Each table has the following columns:
 
 > [!NOTE]
 > The Settings button appears for addresses that require external configuration: [public domains](clearnet.md) (DNS + port forwarding), [private domains](private-domains.md) (DNS), and [public IP addresses](public-ip.md) (port forwarding).
+
+> [!NOTE]
+> Unlike a private LAN address, an IPv6 **global-unicast address (GUA)** is a single globally-routable address — so instead of an on/off toggle it offers three states:
+>
+> - **Disabled** — not reachable.
+> - **LAN** (default) — reachable on the local network only; traffic from outside your subnet is rejected.
+> - **LAN+WAN** — also reachable from the Internet. StartOS attempts to open the matching pinhole on your gateway automatically (via PCP); if your gateway doesn't support it you may need to allow inbound traffic to that address and port manually.
+>
+> This only applies to IPv6 GUAs. IPv6 ULAs (private) stay a simple toggle, and IPv4 keeps its separate LAN and WAN address rows.
 
 ### Adding Domains
 

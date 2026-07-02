@@ -342,7 +342,7 @@ mod tests {
         f.set_len(capacity).unwrap();
     }
 
-    /// Regression test for https://github.com/Start9Labs/start-os/pull/3193
+    /// Regression test for https://github.com/Start9Labs/start-technologies/pull/3193
     /// preserve path on 0.3.5.1 disks: the .min() that was originally used to
     /// pick the free region before the protected data partition picked the
     /// 2014-LBA sliver between LBA 34 and the new 2048-aligned EFI start, so

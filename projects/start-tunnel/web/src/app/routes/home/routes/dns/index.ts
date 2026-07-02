@@ -8,7 +8,13 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ErrorService } from '@start9labs/shared'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import { TuiButton, TuiDataList, TuiDropdown, TuiTitle } from '@taiga-ui/core'
+import {
+  TuiButton,
+  TuiDataList,
+  TuiDropdown,
+  TuiIcon,
+  TuiTitle,
+} from '@taiga-ui/core'
 import {
   TUI_CONFIRM,
   TuiNotificationMiddleService,
@@ -28,6 +34,7 @@ import { DNS_ADD } from './add'
   template: `
     <div tuiCardLarge="compact" appearance="floating">
       <header tuiHeader="body-l">
+        <tui-icon icon="@tui.pencil" />
         <h3 tuiTitle>Manual</h3>
         <aside tuiAccessories>
           <button tuiButton iconStart="@tui.plus" (click)="onAdd()">Add</button>
@@ -38,7 +45,7 @@ import { DNS_ADD } from './add'
           <tr>
             <th>Name</th>
             <th>Type</th>
-            <th>Value</th>
+            <th>Server</th>
             <th>TTL</th>
             <th></th>
           </tr>
@@ -48,7 +55,7 @@ import { DNS_ADD } from './add'
             <tr>
               <td>{{ record.name }}</td>
               <td>{{ record.type }}</td>
-              <td>{{ record.value }}</td>
+              <td>{{ serverDisplay(record) }}</td>
               <td>{{ record.ttl }}</td>
               <td [style.padding-inline-end.rem]="0.625">
                 <button
@@ -91,17 +98,16 @@ import { DNS_ADD } from './add'
 
     <div tuiCardLarge="compact" appearance="floating">
       <header tuiHeader="body-l">
+        <tui-icon icon="@tui.zap" />
         <h3 tuiTitle>Automatic</h3>
       </header>
-      <table class="g-table" [tuiSkeleton]="!records()">
+      <table class="g-table no-actions" [tuiSkeleton]="!records()">
         <thead>
           <tr>
             <th>Name</th>
             <th>Type</th>
-            <th>Value</th>
+            <th>Server</th>
             <th>TTL</th>
-            <th>Source</th>
-            <th [style.padding-inline-end.rem]="0.625"></th>
           </tr>
         </thead>
         <tbody>
@@ -109,38 +115,12 @@ import { DNS_ADD } from './add'
             <tr>
               <td>{{ record.name }}</td>
               <td>{{ record.type }}</td>
-              <td>{{ record.value }}</td>
+              <td>{{ serverDisplay(record) }}</td>
               <td>{{ record.ttl }}</td>
-              <td>{{ sourceName(record.source) }}</td>
-              <td>
-                <button
-                  tuiIconButton
-                  size="xs"
-                  tuiDropdown
-                  tuiDropdownAuto
-                  appearance="flat-grayscale"
-                  iconStart="@tui.ellipsis-vertical"
-                >
-                  Actions
-                  <tui-data-list
-                    *tuiDropdown="let close"
-                    size="s"
-                    (click)="close()"
-                  >
-                    <button
-                      tuiOption
-                      iconStart="@tui.trash"
-                      (click)="onDelete(record)"
-                    >
-                      Delete
-                    </button>
-                  </tui-data-list>
-                </button>
-              </td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="6">
+              <td colspan="4">
                 <app-placeholder icon="@tui.list">
                   No automatic DNS records. Devices you trust can add their own
                   via RFC 2136.
@@ -168,6 +148,7 @@ import { DNS_ADD } from './add'
     PlaceholderComponent,
     TuiSkeleton,
     TuiHeader,
+    TuiIcon,
     TuiTitle,
   ],
 })
@@ -199,17 +180,40 @@ export default class Dns {
     { initialValue: [] },
   )
 
-  // Records carry the injecting device's IP; show its friendly name when known.
-  protected sourceName(source: string | null): string {
-    if (!source) return '—'
-    return this.devices().find(d => d.ip === source)?.name ?? source
+  // DNS records point a name at a server, so the picker lists servers only.
+  protected readonly servers: Signal<MappedDevice[]> = toSignal(
+    this.patch.watch$('wg', 'subnets').pipe(
+      map(subnets =>
+        Object.values(subnets).flatMap(({ clients }) =>
+          Object.entries(clients)
+            .filter(([, c]) => c.kind === 'server')
+            .map(([ip, { name }]) => ({ ip, name })),
+        ),
+      ),
+    ),
+    { initialValue: [] },
+  )
+
+  // Only A/AAAA values are server IPs; for those, show the server's friendly
+  // name and IP (the injecting server for automatic records, the selected one
+  // for manual). CNAME/TXT/other rdata renders verbatim.
+  protected serverDisplay(record: {
+    type: string
+    source: string | null
+    value: string
+  }): string {
+    if (record.type !== 'A' && record.type !== 'AAAA') return record.value
+
+    const ip = record.source ?? record.value
+    const name = this.devices().find(d => d.ip === ip)?.name
+    return name ? `${name} (${ip})` : record.value
   }
 
   protected onAdd(): void {
     this.dialogs
       .open(DNS_ADD, {
         label: 'Add DNS record',
-        data: { devices: this.devices },
+        data: { devices: this.servers },
       })
       .subscribe()
   }

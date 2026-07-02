@@ -2,7 +2,7 @@
 
 set -e
 
-REPO="Start9Labs/start-os"
+REPO="Start9Labs/start-technologies"
 REGISTRY="https://alpha-registry-x.start9.com"
 S3_BUCKET="s3://startos-images"
 S3_CDN="https://startos-images.nyc3.cdn.digitaloceanspaces.com"

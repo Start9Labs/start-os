@@ -618,7 +618,6 @@ pub struct ParserNode {
 
 #[cfg(test)]
 mod path_parser_tests {
-    use imbl_value::imbl::vector;
     use paths::path_parser::PathParser;
     use paths::str_reader::StrRange;
     use paths::tokens::{FilterToken, ParseToken};

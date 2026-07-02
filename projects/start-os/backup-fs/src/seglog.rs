@@ -660,7 +660,7 @@ mod tests {
     use crate::inode::{FileData, InodeAttributes};
 
     fn key() -> Key {
-        *Key::from_slice(&[5u8; 32])
+        Key::from([5u8; 32])
     }
 
     fn attrs(size: u64) -> Attributes {

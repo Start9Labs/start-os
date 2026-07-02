@@ -1,6 +1,5 @@
 use std::process::Stdio;
 
-use rpc_toolkit::Empty;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tracing::instrument;

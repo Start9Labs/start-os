@@ -217,17 +217,10 @@ async fn control(
     handle_control(&ctx, peer, &headers, &body).await
 }
 
-pub(super) async fn apply_peer_forward(
-    ctx: &TunnelContext,
-    source: SocketAddrV4,
-    target: SocketAddrV4,
-) -> Result<(), u16> {
-    apply_peer_forward_range(ctx, source, target, 1, "UPnP").await
-}
-
-/// Like [`apply_peer_forward`] but forwards `count` contiguous ports (a PCP
-/// PORT_SET range). `protocol_label` is the DB label (e.g. "UPnP", "PCP"); the
-/// requesting device is already shown by the forward's target.
+/// Installs (or re-asserts) a forward of `count` contiguous ports (a PCP
+/// PORT_SET range) from `source` to `target`. `protocol_label` is the DB label
+/// (e.g. "UPnP", "PCP"); the requesting device is already shown by the forward's
+/// target.
 pub(super) async fn apply_peer_forward_range(
     ctx: &TunnelContext,
     source: SocketAddrV4,
@@ -265,27 +258,61 @@ pub(super) async fn apply_peer_forward_range(
         None => {}
     }
 
-    let prefix = prefix_for(ctx, target.ip()).await;
-    let rc = ctx
-        .forward
-        .add_forward_range(source, target, count, prefix, None)
-        .await
-        .map_err(|_| 501u16)?;
-    ctx.active_forwards.mutate(|m| {
-        m.insert(source, rc);
-    });
-    let entry = PortForward::Dnat {
-        target,
-        label: Some(protocol_label.to_string()),
-        enabled: true,
-        count,
-        auto: true,
-    };
-    ctx.db
-        .mutate(|db| db.as_port_forwards_mut().insert(&source, &entry).map(|_| ()))
+    // A new range must not overlap a different existing forward's ports on this
+    // external IP (the exact-source cases are handled by the match above).
+    // Reserve the slot atomically before touching the dataplane so concurrent
+    // auto-forwards can't both pass the overlap check.
+    let reserved = ctx
+        .db
+        .mutate(|db| {
+            db.as_port_forwards_mut().mutate(|pf| {
+                if pf.overlapping(source, count).is_some() {
+                    return Ok(false);
+                }
+                pf.0.insert(
+                    source,
+                    PortForward::Dnat {
+                        target,
+                        label: Some(protocol_label.to_string()),
+                        enabled: true,
+                        count,
+                        auto: true,
+                    },
+                );
+                Ok(true)
+            })
+        })
         .await
         .result
         .map_err(|_| 501u16)?;
+    if !reserved {
+        return Err(718); // ConflictInMappingEntry
+    }
+
+    let prefix = prefix_for(ctx, target.ip()).await;
+    let rc = match ctx
+        .forward
+        .add_forward_range(source, target, count, prefix, None)
+        .await
+    {
+        Ok(rc) => rc,
+        Err(_) => {
+            ctx.db
+                .mutate(|db| {
+                    db.as_port_forwards_mut().mutate(|pf| {
+                        pf.0.remove(&source);
+                        Ok(())
+                    })
+                })
+                .await
+                .result
+                .ok();
+            return Err(501);
+        }
+    };
+    ctx.active_forwards.mutate(|m| {
+        m.insert(source, rc);
+    });
     Ok(())
 }
 

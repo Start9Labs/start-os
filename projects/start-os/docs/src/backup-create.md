@@ -27,10 +27,14 @@ Back up your server's data to a physical drive or a network folder.
 
 1. Backups taken from a specific system architecture (x86, ARM, RISC-V) are backed up for just that architecture. If restored to another architecture, they will likely need to be reinstalled to run efficiently.
 
-1. The backup format changed. New backups are written to a `StartOSBackupsV2` folder on the target. If the target still contains an older `StartOSBackups` folder from a previous version, StartOS warns you when you select that drive — and once the new backup completes successfully, you can delete the old `StartOSBackups` folder (do _not_ delete `StartOSBackupsV2`) to reclaim space.
+1. The backup format changed. New backups are written to a `StartOSBackupsV2` folder on the target, replacing the older `StartOSBackups` (V1) format. StartOS helps you clean up the obsolete V1 data:
+
+   - When you select a target that still holds a V1 backup, StartOS warns you before backing up (and refuses if the old folder is too large to leave room for the new one — see below).
+   - After a backup completes, if the target still contains a V1 backup, StartOS raises a notification reminding you it is no longer needed.
+   - On the `Create Backup` page, any target holding **both** a V1 and a V2 backup shows a warning with a **Delete old backup** button. After you confirm, StartOS removes the old `StartOSBackups` folder to reclaim space; your current `StartOSBackupsV2` backup is untouched.
 
    > [!WARNING]
-   > If the old `StartOSBackups` folder is larger than the free space remaining on the drive, the new backup will not fit and StartOS will not start it. Delete the old `StartOSBackups` folder first, or choose another drive.
+   > If the old `StartOSBackups` folder is larger than the free space remaining on the drive, a new backup will not fit and StartOS will not start it. Use the **Delete old backup** button (or remove the `StartOSBackups` folder manually), or choose another drive.
 
 ## Best Practices
 
@@ -347,68 +351,84 @@ A network folder backup sends your encrypted backup over the LAN to a shared fol
 
 1. Complete the form:
 
-   {{#tabs global="backup-target"}}
+{{#tabs global="backup-target"}}
 
-   {{#tab name="Mac"}}
-   1. **Hostname**: The hostname or IP address of your Mac (see the tip in the section above).
-   1. **Path**: The _name_ of your shared folder, _not_ the full directory path.
-   1. **Username**: Your Mac user who owns the shared folder.
-   1. **Password**: Your password for the above user.
-      {{#endtab}}
+{{#tab name="Mac"}}
 
-   {{#tab name="Windows"}}
-   1. **Hostname**: Your Windows computer name (shown after `\\` in the sharing dialog).
-   1. **Path**: The share name from the sharing dialog (e.g. `SharedFolder`), _not_ the full directory path.
-   1. **Username**: Your Windows user who owns the shared folder.
-   1. **Password**: Your password for the above user. You _cannot_ use a PIN.
+1. **Hostname**: The hostname or IP address of your Mac (see the tip in the section above).
+1. **Path**: The _name_ of your shared folder, _not_ the full directory path.
+1. **Username**: Your Mac user who owns the shared folder.
+1. **Password**: Your password for the above user.
 
-   > [!WARNING]
-   > Ensure you are not using a PIN and that Office365 accounts are not in use — try a regular local user instead. If you receive `mount error(115): Operation now in progress`, navigate to `Start > Settings > Network & Internet > Ethernet (or WiFi)` and select the "Private" profile.
-   > {{#endtab}}
+{{#endtab}}
 
-   {{#tab name="Ubuntu"}}
-   1. **Hostname**: The name of your Linux machine on the LAN.
-   1. **Path**: The share name from your Samba config (e.g. `start9-backup`), _not_ the full directory path.
-   1. **Username**: Your Linux username on the remote machine.
-   1. **Password**: The SMB password you created with `smbpasswd`.
-      {{#endtab}}
+{{#tab name="Windows"}}
 
-   {{#tab name="Mint"}}
-   1. **Hostname**: The name of your Linux machine on the LAN.
-   1. **Path**: The "Share Name" from the sharing dialog, _not_ the full directory path.
-   1. **Username**: Your Linux username on the remote machine.
-   1. **Password**: The SMB password you created with `smbpasswd`.
-      {{#endtab}}
+1. **Hostname**: Your Windows computer name (shown after `\\` in the sharing dialog).
+1. **Path**: The share name from the sharing dialog (e.g. `SharedFolder`), _not_ the full directory path.
+1. **Username**: Your Windows user who owns the shared folder.
+1. **Password**: Your password for the above user. You _cannot_ use a PIN.
 
-   {{#tab name="Other Linux"}}
-   1. **Hostname**: The name of your Linux machine on the LAN.
-   1. **Path**: The "Share Name" from your Samba config, _not_ the full directory path (e.g. `backup-share`).
-   1. **Username**: Your Linux username on the remote machine.
-   1. **Password**: The SMB password you created with `smbpasswd`.
-      {{#endtab}}
+> [!WARNING]
+> Ensure you are not using a PIN and that Office365 accounts are not in use — try a regular local user instead. If you receive `mount error(115): Operation now in progress`, navigate to `Start > Settings > Network & Internet > Ethernet (or WiFi)` and select the "Private" profile.
 
-   {{#tab name="Synology"}}
-   1. **Hostname**: The name of your Synology device on the LAN.
-   1. **Path**: The _name_ of your shared folder, _not_ the full directory path (e.g. `Backups`).
-   1. **Username**: Your Synology user who owns the shared folder.
-   1. **Password**: Your password for the above user.
-      {{#endtab}}
+{{#endtab}}
 
-   {{#tab name="TrueNAS SCALE"}}
-   1. **Hostname**: The name of your TrueNAS device on the LAN (e.g. `truenas.local`).
-   1. **Path**: The share name you chose when creating the SMB share, _not_ the full directory path.
-   1. **Username**: The TrueNAS user you created for backups.
-   1. **Password**: Your password for the above user.
-      {{#endtab}}
+{{#tab name="Ubuntu"}}
 
-   {{#tab name="TrueNAS CORE"}}
-   1. **Hostname**: The name of your TrueNAS device on the LAN (e.g. `truenas.local`).
-   1. **Path**: The share name you chose when creating the SMB share, _not_ the full directory path.
-   1. **Username**: The TrueNAS user you created for backups.
-   1. **Password**: Your password for the above user.
-      {{#endtab}}
+1. **Hostname**: The name of your Linux machine on the LAN.
+1. **Path**: The share name from your Samba config (e.g. `start9-backup`), _not_ the full directory path.
+1. **Username**: Your Linux username on the remote machine.
+1. **Password**: The SMB password you created with `smbpasswd`.
 
-   {{#endtabs}}
+{{#endtab}}
+
+{{#tab name="Mint"}}
+
+1. **Hostname**: The name of your Linux machine on the LAN.
+1. **Path**: The "Share Name" from the sharing dialog, _not_ the full directory path.
+1. **Username**: Your Linux username on the remote machine.
+1. **Password**: The SMB password you created with `smbpasswd`.
+
+{{#endtab}}
+
+{{#tab name="Other Linux"}}
+
+1. **Hostname**: The name of your Linux machine on the LAN.
+1. **Path**: The "Share Name" from your Samba config, _not_ the full directory path (e.g. `backup-share`).
+1. **Username**: Your Linux username on the remote machine.
+1. **Password**: The SMB password you created with `smbpasswd`.
+
+{{#endtab}}
+
+{{#tab name="Synology"}}
+
+1. **Hostname**: The name of your Synology device on the LAN.
+1. **Path**: The _name_ of your shared folder, _not_ the full directory path (e.g. `Backups`).
+1. **Username**: Your Synology user who owns the shared folder.
+1. **Password**: Your password for the above user.
+
+{{#endtab}}
+
+{{#tab name="TrueNAS SCALE"}}
+
+1. **Hostname**: The name of your TrueNAS device on the LAN (e.g. `truenas.local`).
+1. **Path**: The share name you chose when creating the SMB share, _not_ the full directory path.
+1. **Username**: The TrueNAS user you created for backups.
+1. **Password**: Your password for the above user.
+
+{{#endtab}}
+
+{{#tab name="TrueNAS CORE"}}
+
+1. **Hostname**: The name of your TrueNAS device on the LAN (e.g. `truenas.local`).
+1. **Path**: The share name you chose when creating the SMB share, _not_ the full directory path.
+1. **Username**: The TrueNAS user you created for backups.
+1. **Password**: Your password for the above user.
+
+{{#endtab}}
+
+{{#endtabs}}
 
 > [!WARNING]
 > If you receive `Filesystem I/O Error mount error(13): Permission denied`, ensure you have entered the correct values. The hostname can be particularly tricky.

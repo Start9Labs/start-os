@@ -1,8 +1,7 @@
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
-use digest::generic_array::GenericArray;
-use digest::{Digest, OutputSizeUser};
+use digest::Digest;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use ts_rs::TS;
@@ -27,7 +26,7 @@ impl<LogicalName: AsRef<Path> + Send + Sync> FileSystem for BlockDev<LogicalName
     }
     async fn source_hash(
         &self,
-    ) -> Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error> {
+    ) -> Result<digest::Output<Sha256>, Error> {
         let mut sha = Sha256::new();
         sha.update("BlockDev");
         sha.update(

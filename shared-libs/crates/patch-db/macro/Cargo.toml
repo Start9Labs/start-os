@@ -5,7 +5,7 @@ authors = ["Aiden McClelland <me@drbonez.dev>"]
 edition = "2018"
 description = "macros for defining typed patch dbs"
 license = "MIT"
-repository = "https://github.com/Start9Labs/patch-db"
+repository = "https://github.com/Start9Labs/start-technologies"
 
 [lib]
 proc-macro = true

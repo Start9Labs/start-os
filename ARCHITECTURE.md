@@ -14,7 +14,7 @@ This repo is the **monorepo for all Start9 products**. Each product is a thin to
 ## Repository layout
 
 ```
-start-os/                          # repo root (monorepo)
+start-technologies/                # repo root (monorepo)
 ├── projects/start-os/             # OS product
 │   ├── src/bin/{startbox,start-container}.rs
 │   ├── web/                       #   Angular UI + setup-wizard
@@ -28,7 +28,7 @@ start-os/                          # repo root (monorepo)
 ├── projects/start-tunnel/         # tunnelbox bin + web/ (StartTunnel UI)
 │   └── start-tunneld.service
 ├── projects/start-wrt/            # StartWRT router OS: startwrt bin + web/ (root Angular workspace) + openwrt submodule
-├── projects/start-sdk/                     # @start9labs/start-sdk (base/ + package/) + Makefile/s9pk.mk + docs/
+├── projects/start-sdk/                     # @start9labs/start-sdk (source in lib/) + Makefile/s9pk.mk + docs/
 ├── projects/brochure-marketplace/ # marketing/landing Angular app
 ├── shared-libs/
 │   ├── crates/
@@ -58,9 +58,9 @@ start-os/                          # repo root (monorepo)
 
 - **`projects/start-os/container-runtime/`** — Node.js runtime that runs inside each service's LXC container. Loads the service's JavaScript from its S9PK and manages subcontainers; talks to the host daemon via JSON-RPC over a Unix socket. See [projects/start-os/container-runtime/AGENTS.md](projects/start-os/container-runtime/AGENTS.md).
 
-- **`projects/start-sdk/`** — TypeScript SDK for packaging services (`@start9labs/start-sdk`), flattened with source in `lib/`. It imports the shared `@start9labs/start-core` lib (`shared-libs/ts-modules/start-core/` — core types, ABI, effects interface, also consumed directly by web) and bundles it into its published `dist/`, so container-runtime and external service developers install a single package. Its `Makefile`/`s9pk.mk` is the source of truth for the published tarball.
+- **`projects/start-sdk/`** — TypeScript SDK for packaging services (`@start9labs/start-sdk`), with source in `lib/`. It imports the shared `@start9labs/start-core` lib (`shared-libs/ts-modules/start-core/` — core types, ABI, effects interface, also consumed directly by web) and bundles it into its published `dist/`, so container-runtime and external service developers install a single package. Its `Makefile`/`s9pk.mk` is the source of truth for the published tarball.
 
-- **`shared-libs/crates/patch-db/`** — first-party crate providing diff-based state sync (CBOR encoded). Backend mutations produce diffs pushed to the frontend over WebSocket for reactive UI. See the [patch-db repo](https://github.com/Start9Labs/patch-db).
+- **`shared-libs/crates/patch-db/`** — first-party crate providing diff-based state sync (CBOR encoded). Backend mutations produce diffs pushed to the frontend over WebSocket for reactive UI. See the [patch-db crate](https://github.com/Start9Labs/start-technologies/tree/master/shared-libs/crates/patch-db).
 
 ## Build pipeline
 

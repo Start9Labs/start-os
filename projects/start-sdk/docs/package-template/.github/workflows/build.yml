@@ -13,7 +13,7 @@ concurrency:
 jobs:
   build:
     if: github.event.pull_request.draft == false
-    uses: Start9Labs/start-os/.github/workflows/build.yml@master
+    uses: Start9Labs/start-technologies/.github/workflows/build.yml@master
     # with:
     #   FREE_DISK_SPACE: true
     secrets:

@@ -36,15 +36,13 @@ my-service-startos/
 │   ├── utils.ts            # Package-specific utilities (empty in barebones scaffold)
 │   └── versions/           # Version management and migrations
 ├── .gitignore
-├── AGENTS.md               # Pointer for AI coding agents — read CONTRIBUTING.md first
+├── AGENTS.md               # Agent context: repo identity + how to work in this repo
 ├── CLAUDE.md               # One-line `@AGENTS.md` import for Claude Code
-├── CONTRIBUTING.md         # Doc-sync rule, environment setup, build, CI/CD, contribution flow
 ├── Dockerfile              # Optional - for custom images
 ├── icon.svg                # Service icon (max 40 KiB)
 ├── instructions.md         # User-facing instructions packed into the .s9pk (see Writing Instructions)
 ├── LICENSE                 # Package license (symlink to upstream)
-├── Makefile                # Project config (includes s9pk.mk)
-├── s9pk.mk                 # Shared build logic (boilerplate)
+├── Makefile                # Project config (includes the SDK's s9pk.mk from node_modules)
 ├── package.json
 ├── package-lock.json
 ├── README.md               # Service documentation (see Writing READMEs)
@@ -61,8 +59,7 @@ my-service-startos/
 These files typically require minimal modification:
 
 - `.gitignore`
-- `Makefile` - Just includes `s9pk.mk` (see [Makefile](./makefile.md))
-- `s9pk.mk` - Shared build logic, copy from template without modification
+- `Makefile` - Includes the SDK's `s9pk.mk` from `node_modules` (see [Makefile](./makefile.md))
 - `package.json` / `package-lock.json`
 - `tsconfig.json`
 
@@ -156,9 +153,9 @@ jobs:
 
 ### AGENTS.md and CLAUDE.md
 
-These two files are **pointers, not content.** Generic packaging knowledge — SDK patterns, the disciplines on the [Development Workflow](./workflow.md) page, the rules throughout this guide — lives in one canonical place: the packaging guide. It is **not** copied into each package repo, where 40+ duplicates would drift out of sync. `AGENTS.md` and `CLAUDE.md` only identify the repo and point an agent at the repo's own `CONTRIBUTING.md`.
+`AGENTS.md` is the package's agent-context file. Generic packaging knowledge — SDK patterns, the disciplines on the [Development Workflow](./workflow.md) page, the rules throughout this guide — lives in one canonical place: the packaging guide, **not** copied into each package repo where 40+ duplicates would drift out of sync. `AGENTS.md` carries only what's specific to *this* repo.
 
-`AGENTS.md` is a short, repo-identical pointer: it states that this is a StartOS service-package repo and tells any AI coding agent to read `CONTRIBUTING.md` (and the documents it links) before doing anything. Keep it to a few lines; carry no substantive rules here, and **do not turn it into a web-fetch driver** — don't instruct the agent to pull guide pages over the web up front. Developers are expected to work with the guide checked out locally alongside the package (see [Environment Setup](./environment-setup.md)). The local-first navigation — read `start-technologies/projects/start-sdk/docs/src/` directly, fall back to <https://docs.start9.com/packaging> only when no local copy exists — is set up once by the workspace-level `CLAUDE.md`, not repeated per repo.
+Keep it short and repo-specific: state that this is a StartOS service package, point at the repo's `TODO.md` as the worklist, give the doc-sync rule (keep `README.md` and `instructions.md` in step with every change), and capture any package-specific gotchas — in short, how to work in *this* repo. Do **not** restate generic guide content or turn it into a web-fetch driver (don't instruct the agent to pull guide pages over the web up front). Developers work with the guide checked out locally alongside the package (see [Environment Setup](./environment-setup.md)); the local-first navigation — read `start-technologies/projects/start-sdk/docs/src/` directly, fall back to <https://docs.start9.com/packaging> only when no local copy exists — is set up once by the workspace-level `CLAUDE.md`, not repeated per repo.
 
 `CLAUDE.md` is a one-line import of that same file:
 
@@ -167,19 +164,6 @@ These two files are **pointers, not content.** Generic packaging knowledge — S
 ```
 
 Claude Code auto-loads `CLAUDE.md` when it opens the repo, and the `@AGENTS.md` import pulls in the pointer so the same entry point covers both Claude and any other agent that reads `AGENTS.md` by convention. Don't duplicate anything into `CLAUDE.md`; keep the content in `AGENTS.md` and let the import do the work.
-
-### CONTRIBUTING.md
-
-The per-repo home for *how to work in this repo* — the one committed file that travels with the package and carries its contribution workflow, for both humans and AI agents. Keep it **thin and link-heavy**: state the repo-specific facts inline (the package's own files, its CI workflow names, its build command) and link out to the packaging guide for everything generic, rather than restating it. Because this file is committed and browsable on GitHub, those links use the public `docs.start9.com` URLs; they are on-demand references (followed when a task needs them, resolved against the local checkout first), not pages to fetch up front. It contains:
-
-- **Keep these in sync** — a doc-sync pointer naming `README.md`, `instructions.md`, and `TODO.md`, with the rule "Read all three before starting any work" and the requirement that any code change affecting user-visible behavior updates `README.md` and `instructions.md` in the same change.
-- **Environment setup** — links to [Environment Setup](./environment-setup.md).
-- **Building** — `npm ci && make`, linking to the [Makefile](./makefile.md) reference.
-- **Updating the upstream version** — points at the package's `UPDATING.md` for per-package bump steps, and references [Versions](./versions.md) for the rule on when to create a new version file versus renaming the existing one in place.
-- **CI/CD** — a short summary of the three workflows under `.github/workflows/` (see above) and the manual promotion to `beta`/`prod`.
-- **How to contribute** — fork, branch from `master`, open a PR back to `master`.
-
-Match the template that every existing package follows — copy `CONTRIBUTING.md` from a recent package (e.g. [hello-world-startos](https://github.com/Start9Labs/hello-world-startos/blob/master/CONTRIBUTING.md)) and adjust the per-package details.
 
 ### Dockerfile (optional)
 
@@ -222,7 +206,7 @@ It has two sections:
 - **Determining the upstream version** — for each upstream this package pulls, the canonical place to find the latest version (e.g. `gh release view -R <org>/<repo> --json tagName -q .tagName`, a Docker Hub tags listing, etc.) and the manifest field where the current pin lives (typically `images.<name>.source.dockerTag` in `startos/manifest/index.ts`).
 - **Applying the bump** — the exact file and field to edit, including any tag-format quirks (e.g. drop the leading `v`, append `-alpine`, keep the major version aligned with a sibling image).
 
-Packages with multiple upstream sources (e.g. a service plus its database sidecar) get one subsection per source under each heading. CONTRIBUTING.md's "Updating the upstream version" section points here for the per-package detail and adds the cross-cutting rule about renaming the file in `startos/versions/` versus creating a new one.
+Packages with multiple upstream sources (e.g. a service plus its database sidecar) get one subsection per source under each heading. The cross-cutting rule about renaming the file in `startos/versions/` versus creating a new one lives in [Versions](./versions.md).
 
 ## assets/
 

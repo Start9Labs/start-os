@@ -4,8 +4,7 @@ use std::str::FromStr;
 
 use clap::Parser;
 use clap::builder::ValueParserFactory;
-use digest::generic_array::GenericArray;
-use digest::{Digest, OutputSizeUser};
+use digest::Digest;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use ts_rs::TS;
@@ -19,9 +18,10 @@ use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::prelude::*;
 use crate::util::FromStrParser;
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, Parser, TS)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, Parser, TS)]
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct IdMap {
     pub from_id: u32,
     pub to_id: u32,
@@ -121,7 +121,7 @@ impl<Fs: FileSystem> FileSystem for IdMapped<Fs> {
     }
     async fn source_hash(
         &self,
-    ) -> Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error> {
+    ) -> Result<digest::Output<Sha256>, Error> {
         let mut sha = Sha256::new();
         sha.update("IdMapped");
         sha.update(self.filesystem.source_hash().await?);

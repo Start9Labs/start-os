@@ -82,7 +82,7 @@ Write for two audiences:
 
 ## Contributing
 
-[Link to CONTRIBUTING.md]
+[Link to AGENTS.md]
 
 ---
 
@@ -224,4 +224,3 @@ End every README with a YAML block for machine parsing. This block should contai
 - [ ] YAML quick reference block for AI consumers
 - [ ] No specific version numbers anywhere (image tags, upstream version, dep version constraints — all stale the moment you bump)
 - [ ] Tested that documented features match actual behavior
-- [ ] `CONTRIBUTING.md` exists with build instructions

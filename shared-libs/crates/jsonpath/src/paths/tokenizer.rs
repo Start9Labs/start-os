@@ -223,7 +223,6 @@ impl<'a> Tokenizer<'a> {
 pub(super) struct TokenReader<'a> {
     tokenizer: Tokenizer<'a>,
     curr_pos: usize,
-    err: Option<TokenError>,
     peeked: Option<Result<Token, TokenError>>,
 }
 
@@ -232,7 +231,6 @@ impl<'a> TokenReader<'a> {
         TokenReader {
             tokenizer: Tokenizer::new(input),
             curr_pos: 0,
-            err: None,
             peeked: None,
         }
     }
@@ -288,7 +286,6 @@ impl<'a> TokenReader<'a> {
 
 #[cfg(test)]
 mod tokenizer_tests {
-    use imbl_value::imbl::vector;
     use paths::str_reader::StrRange;
     use paths::tokenizer::{TokenError, TokenReader};
     use paths::tokens::Token;

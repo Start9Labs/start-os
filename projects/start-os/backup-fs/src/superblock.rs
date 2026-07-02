@@ -46,7 +46,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use chacha20::Key;
 use log::warn;
-use rand::{rng, RngCore};
+use rand::rand_core::UnwrapErr;
+use rand::{rng, Rng};
 use zeroize::{Zeroize, Zeroizing};
 
 use crate::atomic_file::AtomicFile;
@@ -357,9 +358,9 @@ impl Superblock {
         let constants = Constants::create(ecc);
         constants.validate()?;
         let mut master = Zeroizing::new([0u8; 32]);
-        rng().fill_bytes(&mut *master);
+        UnwrapErr(rng()).fill_bytes(&mut *master);
         let sb = Superblock {
-            key: *Key::from_slice(&*master),
+            key: Key::from(*master),
             constants,
             generation: 1,
             created_unix: now_unix(),
@@ -441,7 +442,7 @@ impl Superblock {
     pub fn persist(&self, primary: &Path, password: &str) -> BkfsResult<()> {
         use std::io::Write;
         let mut salt = [0u8; PBKDF2_SALT_LEN];
-        rng().fill_bytes(&mut salt);
+        UnwrapErr(rng()).fill_bytes(&mut salt);
         let key = vault::derive_key(password, &salt, PBKDF2_ROUNDS)?;
 
         let mut master = Zeroizing::new([0u8; 32]);
@@ -455,7 +456,7 @@ impl Superblock {
             features: 0,
         };
         let mut body_bytes = encode(&body, superblock_config())?;
-        let sealed = vault::seal(&body_bytes, Key::from_slice(&*key), self.constants.ecc());
+        let sealed = vault::seal(&body_bytes, <&Key>::from(&*key), self.constants.ecc());
         body_bytes.zeroize();
 
         let mut file = Vec::with_capacity(ENVELOPE_LEN + sealed.len());
@@ -536,7 +537,7 @@ fn parse_one(raw: &[u8], password: &str) -> BkfsResult<Superblock> {
     let key = vault::derive_key(password, salt, kdf_rounds)?;
     // open()-then-decode: a wrong password fails the vault tag (BadChecksum)
     // before any decode runs, so it never surfaces as a decode error.
-    let mut plain = vault::open(sealed, Key::from_slice(&*key))?;
+    let mut plain = vault::open(sealed, <&Key>::from(&*key))?;
     let body: Body = decode(&plain, superblock_config())?;
     plain.zeroize();
 
@@ -548,7 +549,7 @@ fn parse_one(raw: &[u8], password: &str) -> BkfsResult<Superblock> {
     body.constants.validate()?;
 
     Ok(Superblock {
-        key: *Key::from_slice(&*body.master_key),
+        key: Key::from(*body.master_key),
         constants: body.constants,
         generation: body.generation,
         created_unix: body.created_unix,

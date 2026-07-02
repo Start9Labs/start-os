@@ -223,6 +223,8 @@ migrations: {
 }
 ```
 
+Each migration also receives `progress` alongside `effects` — a [`FullProgressTracker`](./init.md) you can add a phase to and update for long-running migrations, so the work shows up in the update progress bar. Destructure it only when you use it: `up: async ({ effects, progress }) => …`.
+
 Use `IMPOSSIBLE` for the `down` migration when:
 
 - It is the initial version (nothing to roll back to)

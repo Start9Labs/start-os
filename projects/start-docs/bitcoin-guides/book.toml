@@ -19,8 +19,8 @@ default-theme = "ayu"
 preferred-dark-theme = "ayu"
 additional-css = ["./theme/youtube.css", "./theme/tabs.css", "./accent.css"]
 additional-js = ["./theme/youtube.js", "./theme/tabs.js", "./theme/home-link.js"]
-git-repository-url = "https://github.com/Start9Labs/start-os"
-edit-url-template = "https://github.com/Start9Labs/start-os/edit/master/docs/bitcoin-guides/{path}"
+git-repository-url = "https://github.com/Start9Labs/start-technologies"
+edit-url-template = "https://github.com/Start9Labs/start-technologies/edit/master/docs/bitcoin-guides/{path}"
 site-url = "/bitcoin-guides/"
 
 [output.html.fold]

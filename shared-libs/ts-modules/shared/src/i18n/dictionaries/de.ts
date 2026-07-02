@@ -788,4 +788,11 @@ export default {
   879: 'Konfiguration aktualisieren',
   880: 'Oder aktivieren Sie DNS Injection für dieses Gerät auf dem Gateway.',
   881: 'Oder aktivieren Sie die automatische Portweiterleitung (UPnP / NAT-PMP / PCP) auf dem Gateway.',
+  883: 'Externer Portbereich',
+  884: 'Interner Portbereich',
+  885: 'Oder aktivieren Sie die automatische Portweiterleitung (PCP) auf dem Gateway. UPnP und NAT-PMP unterstützen keine Portbereiche.',
+  887: 'Alte Sicherung löschen',
+  888: 'Alte Sicherung gelöscht',
+  889: 'Alte Sicherung löschen?',
+  890: 'Die alte (V1) Sicherung dauerhaft von diesem Ziel löschen? Dies kann nicht rückgängig gemacht werden. Ihre aktuelle (V2) Sicherung ist nicht betroffen.',
 } satisfies i18n

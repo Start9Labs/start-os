@@ -133,6 +133,14 @@ impl GatewayBackend for TunnelContext {
             .mutate(|db| {
                 db.as_port_forwards_mut().mutate(|pf| {
                     use crate::tunnel::db::{PortForward, SniRoute};
+                    // SNI routes may share a source (demux by hostname), but the
+                    // source must not fall inside a different DNAT range.
+                    if let Some(conflict) = pf.overlapping(source, 1) {
+                        return Err(Error::new(
+                            eyre!("{source} overlaps an existing forward at {conflict}"),
+                            ErrorKind::InvalidRequest,
+                        ));
+                    }
                     let entry = pf.0.entry(source).or_insert_with(|| PortForward::Sni {
                         routes: std::collections::BTreeMap::new(),
                     });

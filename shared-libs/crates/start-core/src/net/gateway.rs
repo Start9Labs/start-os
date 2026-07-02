@@ -604,7 +604,9 @@ pub async fn check_port(
     }) {
         if let Ok(Some(IpAddr::V4(ip))) = tokio::time::timeout(
             Duration::from_secs(2),
-            ctx.net_controller.port_map.mapped_external_ip(ip, port),
+            ctx.net_controller
+                .port_map
+                .mapped_external_ip(IpAddr::V4(ip), port),
         )
         .await
         {

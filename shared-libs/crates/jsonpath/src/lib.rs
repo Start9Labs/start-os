@@ -289,7 +289,7 @@ pub fn selector<'a>(
 /// ```
 pub fn selector_as<'a, T: serde::de::DeserializeOwned>(
     json: &'a Value,
-) -> impl FnMut(&'a str) -> Result<Vec<T>, JsonPathError> + '_ {
+) -> impl FnMut(&'a str) -> Result<Vec<T>, JsonPathError> + 'a {
     let mut selector = JsonSelector::default();
     let _ = selector.value(json);
     move |path: &str| {
@@ -622,7 +622,7 @@ impl<'a> PathCompiled<'a> {
     /// Compile a path expression and return a compiled instance.
     ///
     /// If parsing the path fails, it will return an error.
-    pub fn compile(path: &str) -> Result<PathCompiled, JsonPathError> {
+    pub fn compile(path: &str) -> Result<PathCompiled<'_>, JsonPathError> {
         let parser = PathParser::compile(path).map_err(|e| JsonPathError::from(&e))?;
         Ok(PathCompiled {
             parser: Rc::new(parser),

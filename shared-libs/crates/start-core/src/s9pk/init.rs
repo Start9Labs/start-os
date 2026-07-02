@@ -167,11 +167,9 @@ pub async fn init_workspace(
     write_if_absent(&startos.join(CONFIG_FILE), WORKSPACE_CONFIG_CONTENTS).await?;
     let build_key = startos.join(BUILD_KEY_FILE);
     if tokio::fs::symlink_metadata(&build_key).await.is_err() {
-        write_developer_key(
-            &SigningKey::generate(&mut ssh_key::rand_core::OsRng::default()),
-            &build_key,
-        )
-        .await?;
+        // bind before the await so the !Send ThreadRng isn't held across it
+        let key = SigningKey::generate(&mut crate::util::crypto::os_rng());
+        write_developer_key(&key, &build_key).await?;
     }
 
     println!(

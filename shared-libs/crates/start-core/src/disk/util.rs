@@ -92,6 +92,16 @@ pub async fn legacy_backup_info(
     Ok(Some(LegacyBackupInfo { size, available }))
 }
 
+/// Whether a pre-V2 `StartOSBackups` folder is present on a mounted target. A
+/// lightweight existence check — unlike [`legacy_backup_info`], it computes
+/// neither the folder size nor the free space.
+pub async fn has_legacy_backup(mountpoint: impl AsRef<Path>) -> bool {
+    tokio::fs::metadata(mountpoint.as_ref().join(super::LEGACY_BACKUP_DIR_NAME))
+        .await
+        .map(|m| m.is_dir())
+        .unwrap_or(false)
+}
+
 #[derive(Clone, Debug, Default, Deserialize, Serialize, ts_rs::TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]

@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::Ipv4Addr;
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
@@ -424,6 +424,50 @@ impl LxcContainer {
                     eyre!("{}", t!("lxc.mod.dhcp-timeout")),
                     ErrorKind::Timeout,
                 ));
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+    }
+
+    /// The container's SLAAC **ULA** (`fd00:3::/64` off lxcbr0), the DNAT target
+    /// for a non-SSL GUA forward, or `None` if it never gets one.
+    ///
+    /// Deliberately the ULA only — StartOS is v4-parity for v6 (one server GUA
+    /// port-forwarded to container ULAs), so a container never holds a GUA and
+    /// any non-ULA address is ignored. Polls with the same retry loop as [`ip`]
+    /// since SLAAC, like DHCP, lands a moment after boot. lxcbr0 always advertises
+    /// the prefix, so kernel SLAAC gives every container a ULA — a timeout here
+    /// should never happen short of a source-code bug, and is logged at error
+    /// level. It's still non-fatal (unlike the mandatory v4 lease): a container
+    /// runs fine on v4 without v6, so v6 forwarding is skipped rather than failing
+    /// startup.
+    ///
+    /// [`ip`]: Self::ip
+    pub async fn ipv6(&self) -> Result<Option<Ipv6Addr>, Error> {
+        let start = Instant::now();
+        let guid: &str = &self.guid;
+        loop {
+            let output = String::from_utf8(
+                Command::new("lxc-info")
+                    .arg("--name")
+                    .arg(guid)
+                    .arg("-iH")
+                    .invoke(ErrorKind::Docker)
+                    .await?,
+            )?;
+            if let Some(ula) = output.lines().find_map(|line| {
+                line.trim()
+                    .parse::<Ipv6Addr>()
+                    .ok()
+                    .filter(|ip| crate::net::utils::ipv6_is_ula(*ip))
+            }) {
+                return Ok(Some(ula));
+            }
+            if start.elapsed() > CONTAINER_DHCP_TIMEOUT {
+                tracing::error!(
+                    "container {guid} has no IPv6 ULA after SLAAC timeout — lxcbr0 always advertises the prefix, so this indicates a bug; v6 forwarding disabled for it"
+                );
+                return Ok(None);
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
         }

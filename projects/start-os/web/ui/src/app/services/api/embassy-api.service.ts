@@ -18,10 +18,11 @@ import {
   PkgAddPrivateDomainReq,
   PkgAddPublicDomainReq,
   PkgBindingSetAddressEnabledReq,
-  PkgBindingSetRangeAccessReq,
+  PkgBindingSetGuaAccessReq,
   PkgRemovePrivateDomainReq,
   PkgRemovePublicDomainReq,
   ServerBindingSetAddressEnabledReq,
+  ServerBindingSetGuaAccessReq,
   ServerState,
   WebsocketConfig,
 } from './api.types'
@@ -239,6 +240,8 @@ export abstract class ApiService {
 
   abstract removeBackupTarget(params: T.CifsRemoveParams): Promise<null>
 
+  abstract deleteLegacyBackup(params: T.DeleteLegacyParams): Promise<null>
+
   abstract getBackupInfo(params: T.InfoParams): Promise<T.BackupInfo>
 
   abstract createBackup(params: T.BackupParams): Promise<null>
@@ -357,8 +360,16 @@ export abstract class ApiService {
     params: PkgBindingSetAddressEnabledReq,
   ): Promise<null>
 
-  abstract pkgBindingSetRangeAccess(
-    params: PkgBindingSetRangeAccessReq,
+  abstract pkgBindingSetRangeAddressEnabled(
+    params: PkgBindingSetAddressEnabledReq,
+  ): Promise<null>
+
+  abstract serverBindingSetGuaAccess(
+    params: ServerBindingSetGuaAccessReq,
+  ): Promise<null>
+
+  abstract pkgBindingSetGuaAccess(
+    params: PkgBindingSetGuaAccessReq,
   ): Promise<null>
 
   abstract pkgAddPublicDomain(

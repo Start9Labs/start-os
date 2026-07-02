@@ -1,7 +1,6 @@
 use std::path::Path;
 
-use digest::generic_array::GenericArray;
-use digest::{Digest, OutputSizeUser};
+use digest::Digest;
 use sha2::Sha256;
 
 use super::FileSystem;
@@ -24,7 +23,7 @@ impl<S: AsRef<str> + Send + Sync> FileSystem for Label<S> {
     }
     async fn source_hash(
         &self,
-    ) -> Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error> {
+    ) -> Result<digest::Output<Sha256>, Error> {
         let mut sha = Sha256::new();
         sha.update("Label");
         sha.update(self.label.as_ref().as_bytes());

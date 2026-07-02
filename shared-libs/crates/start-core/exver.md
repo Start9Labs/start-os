@@ -3,7 +3,7 @@
 Extended semver supporting **downstream versioning** (wrapper updates independent of upstream) and **flavors** (package fork variants).
 
 Two implementations exist:
-- **Rust crate** (`exver`) — used in `core/`. Source: https://github.com/Start9Labs/exver-rs
+- **Rust crate** (`exver`) — used in `core/`. Source: https://github.com/Start9Labs/start-technologies/tree/master/shared-libs/crates/exver
 - **TypeScript** (`shared-libs/ts-modules/start-core/lib/exver/index.ts`, package `@start9labs/start-core`) — used in `sdk/` and `web/`
 
 Both parse the same string format and agree on `satisfies` semantics.

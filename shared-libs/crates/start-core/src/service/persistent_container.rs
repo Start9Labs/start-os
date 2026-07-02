@@ -282,9 +282,10 @@ impl PersistentContainer {
             }
         }
         let ip = lxc_container.ip().await?;
+        let ipv6 = lxc_container.ipv6().await?;
         let net_service = ctx
             .net_controller
-            .create_service(s9pk.as_manifest().id.clone(), ip)
+            .create_service(s9pk.as_manifest().id.clone(), ip, ipv6)
             .await?;
         if let Some(callbacks) = ctx.callbacks.get_container_ip(&s9pk.as_manifest().id) {
             callbacks

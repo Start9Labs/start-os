@@ -164,6 +164,7 @@ The key steps are:
 | `addSsl.preferredExternalPort` | `number` | External port for SSL connections. |
 | `addSsl.addXForwardedHeaders` | `boolean` | Whether to add `X-Forwarded-*` headers. |
 | `addSsl.auth` | `ProxyAuth` \| `null` | Optional auth gate enforced by the OS reverse proxy. See [Authenticating at the Proxy](#authenticating-at-the-proxy). |
+| `addSsl.upstreamCertValidation` | `'disable'` \| `{ certificate: string }` \| _omitted_ | How the OS validates your container's TLS cert when it [rewraps SSL](#rewrapping-ssl-to-a-tls-container). Omit to validate against the StartOS root CA (default). See [Rewrapping SSL](#rewrapping-ssl-to-a-tls-container). |
 | `secure` | `{ ssl: boolean }` \| `null` | For non-HTTP protocols, whether the connection is secure. |
 
 ## Interface Options
@@ -171,7 +172,7 @@ The key steps are:
 ```typescript
 sdk.createInterface(effects, {
   name: i18n('Display Name'),      // Shown in UI (wrap with i18n)
-  id: 'unique-id',                 // Used in sdk.serviceInterface.getOwn()
+  id: 'unique-id',                 // How you find this interface under its host
   description: i18n('Description'),// Shown in UI (wrap with i18n)
   type: 'ui',                      // 'ui', 'api', or 'p2p'
   masked: false,                   // Hide URLs with sensitive credentials?
@@ -185,7 +186,7 @@ sdk.createInterface(effects, {
 | Option | Type | Description |
 |--------|------|-------------|
 | `name` | `string` | Display name shown to the user. Wrap with `i18n()`. |
-| `id` | `string` | Unique identifier. Used to retrieve this interface in [main.ts](./main.md) via `sdk.serviceInterface.getOwn()`. |
+| `id` | `string` | Unique identifier. How you find this interface at runtime, by walking the host from `sdk.host.getOwn()` (see [main.ts](./main.md)). |
 | `description` | `string` | Description shown to the user. Wrap with `i18n()`. |
 | `type` | `'ui'`, `'api'`, or `'p2p'` | `'ui'` for browser interfaces, `'api'` for programmatic endpoints, `'p2p'` for peer-to-peer connections. |
 | `masked` | `boolean` | If `true`, the interface URL is shown as a copyable secret. Use for URLs containing credentials or tokens. |
@@ -195,7 +196,59 @@ sdk.createInterface(effects, {
 | `query` | `object` | URL query parameters as key-value pairs (e.g., `{ macaroon: 'abc123' }`). |
 
 > [!TIP]
-> The `id` you assign to an interface is what you use in `main.ts` to retrieve hostnames for that interface. For example, if you set `id: 'ui'`, you would call `sdk.serviceInterface.getOwn(effects, 'ui')` to get its address information. See [Main](./main.md#getting-hostnames) for details.
+> The `id` you assign to an interface is what you use in `main.ts` to retrieve hostnames for it. Interfaces are reached through their **host**: `sdk.host.getOwn(effects, hostId)` returns the host, and the interface lives at `host.bindings[internalPort].interfaces[id]`. See [Main](./main.md#getting-hostnames) for details.
+
+## Port Ranges
+
+Some services need a **contiguous block of ports** rather than a single one — coturn / RTP media relays, bitcoin's ZMQ notification endpoints, passive-FTP data ports. Use `bindPortRange` instead of one `bindPort` per port:
+
+```typescript
+export const setInterfaces = sdk.setupInterfaces(async ({ effects }) => {
+  const turn = sdk.MultiHost.of(effects, 'turn')
+  const range = await turn.bindPortRange({
+    internalStartPort: 49152,
+    externalStartPort: 49152, // may differ; the forward maps by offset
+    numberOfPorts: 100,       // 2–500 contiguous ports
+  })
+
+  await range.export(
+    sdk.createRangeInterface(effects, {
+      id: 'turn-relay',
+      name: i18n('TURN Relay'),
+      description: i18n('WebRTC media relay ports'),
+    }),
+  )
+  return []
+})
+```
+
+A range binds **TCP + UDP** together and exposes **exactly one** `api` service interface spanning the whole range. The interface is deliberately restricted compared to `createInterface`: it is always `type: 'api'` and has **no** `masked`, `username`, `path`, `query`, or `schemeOverride`. The one extra option is an optional `scheme` — a transport prefix for protocols addressed as `scheme://host:port`, e.g. `tcp` for bitcoin ZMQ:
+
+```typescript
+const zmq = sdk.MultiHost.of(effects, 'zmq')
+const zmqRange = await zmq.bindPortRange({
+  internalStartPort: 28332,
+  externalStartPort: 28332,
+  numberOfPorts: 2,
+})
+await zmqRange.export(
+  sdk.createRangeInterface(effects, {
+    id: 'zmq',
+    name: i18n('ZMQ'),
+    description: i18n('Bitcoin ZMQ notification endpoints'),
+    scheme: 'tcp', // omit for raw UDP/TCP ranges (coturn, RTP, FTP data)
+  }),
+)
+```
+
+Two distinct endpoints are two `bindPortRange` calls — a range is a homogeneous pool of ports, so it maps to one named interface. Range interfaces show up in the service's **Interfaces** page using the same per-gateway address cards as single-port interfaces (non-SSL, IPv4-only). The public/WAN address is disabled by default; enabling it surfaces the exact port range to forward on the router.
+
+| `createRangeInterface` option | Type | Description |
+|--------|------|-------------|
+| `id` | `string` | Unique identifier for the range interface. |
+| `name` | `string` | Display name shown to the user. Wrap with `i18n()`. |
+| `description` | `string` | Description shown to the user. Wrap with `i18n()`. |
+| `scheme` | `string` \| `null` | Optional transport prefix (e.g. `'tcp'`). Omit for raw UDP/TCP ranges. |
 
 ## TLS Termination
 
@@ -216,6 +269,30 @@ return 200 '{"api_url":"https://$host/api"}';
 ```
 
 This applies to any configuration file generated in `setupMain` or any runtime response that includes absolute URLs — not just nginx. When in doubt, hardcode `https://`.
+
+## Rewrapping SSL to a TLS container
+
+The guidance above ("do not configure in-container HTTPS") applies when StartOS terminates TLS and forwards plain HTTP — the `http`/`ws` protocols. The `https`/`wss` protocols are different: the container serves its **own** TLS, StartOS terminates the client's TLS at the edge, and then opens a **fresh TLS connection to your container** (a "rewrap"). This happens whenever `addSsl` is set and the protocol's `secure.ssl` is `true`.
+
+On that inner OS→container leg, StartOS validates your container's certificate. By default it requires a certificate signed by the StartOS root CA. A container serving a **self-signed** certificate on the internal bridge will fail that check, so use `addSsl.upstreamCertValidation` to control it:
+
+| Value | Behavior |
+|-------|----------|
+| _omitted_ | Validate against the StartOS root CA (default). |
+| `'disable'` | Skip certificate validation entirely. Appropriate for a self-signed cert on the trusted internal bridge. |
+| `{ certificate: '<pem>' }` | Validate against the supplied PEM certificate/chain instead of the root CA. |
+
+```typescript
+const origin = await multi.bindPort(443, {
+  protocol: 'https',
+  addSsl: {
+    upstreamCertValidation: 'disable', // container serves its own self-signed cert
+  },
+})
+```
+
+> [!NOTE]
+> For `{ certificate }`, StartOS connects to the container by IP, so the pinned certificate must be valid for that internal IP (present in its SANs). If it isn't, use `'disable'` instead.
 
 ## Authenticating at the Proxy
 

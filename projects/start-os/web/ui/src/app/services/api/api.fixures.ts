@@ -1311,7 +1311,17 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
       path: '/Desktop/startos-backups-2',
       username: 'TestUser',
       mountable: true,
-      startOs: {},
+      startOs: {
+        '1234-5678-9876-5432': {
+          hostname: 'adjective-noun',
+          timestamp: new Date().toISOString(),
+          version: '0.4.0',
+          passwordHash:
+            // password is asdfasdf
+            '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+          wrappedKey: '',
+        },
+      },
       legacyBackup: { size: 5000000000, available: 50000000000 },
     },
     powjefhjbnwhdva: {
@@ -2237,56 +2247,6 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
         group: null,
       },
     },
-    serviceInterfaces: {
-      ui: {
-        id: 'ui',
-        masked: false,
-        name: 'Web UI',
-        description:
-          'A launchable web app for you to interact with your Bitcoin node',
-        type: 'ui',
-        addressInfo: {
-          username: null,
-          hostId: 'abcdefg',
-          internalPort: 80,
-          scheme: 'http',
-          sslScheme: 'https',
-          suffix: '',
-        },
-      },
-      rpc: {
-        id: 'rpc',
-        masked: false,
-        name: 'RPC',
-        description:
-          'Used by dependent services and client wallets for connecting to your node',
-        type: 'api',
-        addressInfo: {
-          username: null,
-          hostId: 'bcdefgh',
-          internalPort: 8332,
-          scheme: 'http',
-          sslScheme: 'https',
-          suffix: '',
-        },
-      },
-      p2p: {
-        id: 'p2p',
-        masked: false,
-        name: 'P2P',
-        description:
-          'Used for connecting to other nodes on the Bitcoin network',
-        type: 'p2p',
-        addressInfo: {
-          username: null,
-          hostId: 'cdefghi',
-          internalPort: 8333,
-          scheme: 'bitcoin',
-          sslScheme: null,
-          suffix: '',
-        },
-      },
-    },
     currentDependencies: {},
     hosts: {
       abcdefg: {
@@ -2300,6 +2260,7 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
             addresses: {
               enabled: [],
               disabled: [],
+              guaAccess: {},
               available: [
                 {
                   ssl: true,
@@ -2346,6 +2307,24 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
               preferredExternalPort: 443,
               secure: { ssl: true },
             },
+            interfaces: {
+              ui: {
+                id: 'ui',
+                masked: false,
+                name: 'Web UI',
+                description:
+                  'A launchable web app for you to interact with your Bitcoin node',
+                type: 'ui',
+                addressInfo: {
+                  username: null,
+                  hostId: 'abcdefg',
+                  internalPort: 80,
+                  scheme: 'http',
+                  sslScheme: 'https',
+                  suffix: '',
+                },
+              },
+            },
           },
         },
         bindingRanges: {},
@@ -2364,12 +2343,31 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
             addresses: {
               enabled: [],
               disabled: [],
+              guaAccess: {},
               available: [],
             },
             options: {
               addSsl: null,
               preferredExternalPort: 8332,
               secure: { ssl: false },
+            },
+            interfaces: {
+              rpc: {
+                id: 'rpc',
+                masked: false,
+                name: 'RPC',
+                description:
+                  'Used by dependent services and client wallets for connecting to your node',
+                type: 'api',
+                addressInfo: {
+                  username: null,
+                  hostId: 'bcdefgh',
+                  internalPort: 8332,
+                  scheme: 'http',
+                  sslScheme: 'https',
+                  suffix: '',
+                },
+              },
             },
           },
         },
@@ -2389,12 +2387,31 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
             addresses: {
               enabled: [],
               disabled: [],
+              guaAccess: {},
               available: [],
             },
             options: {
               addSsl: null,
               preferredExternalPort: 8333,
               secure: { ssl: false },
+            },
+            interfaces: {
+              p2p: {
+                id: 'p2p',
+                masked: false,
+                name: 'P2P',
+                description:
+                  'Used for connecting to other nodes on the Bitcoin network',
+                type: 'p2p',
+                addressInfo: {
+                  username: null,
+                  hostId: 'cdefghi',
+                  internalPort: 8333,
+                  scheme: 'bitcoin',
+                  sslScheme: null,
+                  suffix: '',
+                },
+              },
             },
           },
         },
@@ -2447,23 +2464,6 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
       error: null,
     },
     actions: {},
-    serviceInterfaces: {
-      ui: {
-        id: 'ui',
-        masked: false,
-        name: 'Web UI',
-        description: 'A launchable web app for Bitcoin Proxy',
-        type: 'ui',
-        addressInfo: {
-          username: null,
-          hostId: 'hijklmnop',
-          internalPort: 80,
-          scheme: 'http',
-          sslScheme: 'https',
-          suffix: '',
-        },
-      },
-    },
     currentDependencies: {
       bitcoind: {
         title: BitcoinDep.title,
@@ -2514,56 +2514,6 @@ For the full changelog, see https://github.com/bitcoin/bitcoin/blob/v27.0.0/doc/
         allowedStatuses: 'any',
         hasInput: true,
         group: 'Connecting',
-      },
-    },
-    serviceInterfaces: {
-      grpc: {
-        id: 'grpc',
-        masked: false,
-        name: 'GRPC',
-        description:
-          'Used by dependent services and client wallets for connecting to your node',
-        type: 'api',
-        addressInfo: {
-          username: null,
-          hostId: 'qrstuv',
-          internalPort: 10009,
-          scheme: null,
-          sslScheme: 'grpc',
-          suffix: '',
-        },
-      },
-      lndconnect: {
-        id: 'lndconnect',
-        masked: true,
-        name: 'LND Connect',
-        description:
-          'Used by client wallets adhering to LND Connect protocol to connect to your node',
-        type: 'api',
-        addressInfo: {
-          username: null,
-          hostId: 'qrstuv',
-          internalPort: 10009,
-          scheme: null,
-          sslScheme: 'lndconnect',
-          suffix: 'cert=askjdfbjadnaskjnd&macaroon=ksjbdfnhjasbndjksand',
-        },
-      },
-      p2p: {
-        id: 'p2p',
-        masked: false,
-        name: 'P2P',
-        description:
-          'Used for connecting to other nodes on the Bitcoin network',
-        type: 'p2p',
-        addressInfo: {
-          username: null,
-          hostId: 'rstuvw',
-          internalPort: 9735,
-          scheme: 'lightning',
-          sslScheme: null,
-          suffix: '',
-        },
       },
     },
     currentDependencies: {

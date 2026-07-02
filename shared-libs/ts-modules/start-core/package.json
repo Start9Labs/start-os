@@ -5,6 +5,7 @@
   "sideEffects": true,
   "scripts": {
     "peggy": "peggy --allowed-start-rules \"*\" --plugin ./node_modules/ts-pegjs/dist/tspegjs -o lib/exver/exver.ts lib/exver/exver.pegjs",
+    "copy": "cpy \"**/*.js\" \"**/*.d.ts\" ../dist --cwd=lib --parents && cpy node_modules/** dist/node_modules --parents && cpy package.json README.md LICENSE dist",
     "test": "jest -c ./jest.config.js --coverage",
     "buildOutput": "npx prettier --write \"**/*.ts\"",
     "check": "tsc --noEmit",
@@ -12,14 +13,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Start9Labs/start-os.git"
+    "url": "git+https://github.com/Start9Labs/start-technologies.git"
   },
   "author": "Start9 Labs",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/Start9Labs/start-os/issues"
+    "url": "https://github.com/Start9Labs/start-technologies/issues"
   },
-  "homepage": "https://github.com/Start9Labs/start-os#readme",
+  "homepage": "https://github.com/Start9Labs/start-technologies#readme",
   "dependencies": {
     "@iarna/toml": "^3.0.0",
     "@noble/curves": "^1.9.7",
@@ -41,6 +42,7 @@
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/lodash.merge": "^4.6.2",
+    "cpy-cli": "7.0.0",
     "jest": "^30.0.0",
     "peggy": "^3.0.2",
     "prettier": "3.8.3",

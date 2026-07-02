@@ -370,7 +370,7 @@ jobs:
           ASSET_NAME="start-cli_${ARCH}-${OS}"
           DOWNLOAD_URL=$(curl -fsS \
             -H "Authorization: token ${{ github.token }}" \
-            https://api.github.com/repos/Start9Labs/start-os/releases \
+            https://api.github.com/repos/Start9Labs/start-technologies/releases \
             | jq -r '[.[].assets[] | select(.name=="'"$ASSET_NAME"'")] | first | .browser_download_url')
           curl -fsSL \
             -H "Authorization: token ${{ github.token }}" \

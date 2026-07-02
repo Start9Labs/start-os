@@ -12,8 +12,8 @@ sub-library; each has its own `CONTRIBUTING.md` with the full detail.
 
 ## Prerequisites
 
-Start from the root [`CONTRIBUTING.md`](../CONTRIBUTING.md) for environment setup
-(Debian/Ubuntu deps, Docker, Rust, Node) and the overall workflow.
+Start from the root [`CONTRIBUTING.md`](../CONTRIBUTING.md) for the shared
+toolchain (Rust, Node, Make) and the overall workflow.
 
 ## crates/start-core (Rust)
 

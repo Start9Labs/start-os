@@ -312,6 +312,12 @@ pub async fn userns_fd_from_idmap(
 }
 
 fn which_self_exe() -> Result<OsString, Error> {
+    // Tests run outside the multicall binary, so the `unshare-userns` applet
+    // isn't reachable via current_exe; let them point at a stand-in helper.
+    #[cfg(test)]
+    if let Some(p) = std::env::var_os("STARTOS_TEST_USERNS_HELPER") {
+        return Ok(p);
+    }
     std::env::current_exe()
         .map(|p| p.into_os_string())
         .map_err(|e| Error::new(e, ErrorKind::Filesystem))

@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
@@ -30,7 +29,7 @@ use crate::s9pk::merkle_archive::source::FileSource;
 use crate::service::rpc::{ExitParams, InitKind};
 use crate::service::{LoadDisposition, Service, ServiceRef, get_data_version};
 use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
-use crate::status::{DesiredStatus, StatusInfo};
+use crate::status::StatusInfo;
 use crate::util::future::NonDetachingJoinHandle;
 use crate::util::serde::{Base32, Pem};
 use crate::util::sync::SyncMutex;
@@ -251,7 +250,6 @@ impl ServiceMap {
                                         current_dependencies: Default::default(),
                                         actions: Default::default(),
                                         tasks: Default::default(),
-                                        service_interfaces: Default::default(),
                                         hosts: Default::default(),
                                         store_exposed_dependents: Default::default(),
                                         outbound_gateway: None,

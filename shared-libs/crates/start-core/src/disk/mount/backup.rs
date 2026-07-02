@@ -145,6 +145,16 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
         })
     }
 
+    /// Root of the backup target drive — the parent of both the legacy
+    /// `StartOSBackups` folder and the current `StartOSBackupsV2` folder.
+    /// (`path()` instead returns the decrypted V2 crypt mount.)
+    pub fn backup_disk_path(&self) -> &Path {
+        self.backup_disk_mount_guard
+            .as_ref()
+            .expect("backup disk mount guard present")
+            .path()
+    }
+
     pub fn change_password(&mut self, new_password: &str) -> Result<(), Error> {
         self.unencrypted_metadata.password_hash = Some(
             argon2::hash_encoded(

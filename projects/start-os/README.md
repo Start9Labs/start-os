@@ -54,8 +54,8 @@ full ISO/img build.
 ## Quickstart
 
 Build commands run from the **repo root** (one Cargo workspace, one Angular
-workspace). See the [root CONTRIBUTING](../../CONTRIBUTING.md) for full environment
-setup (Debian/Ubuntu, Docker, Rust, Node 24).
+workspace). See [CONTRIBUTING.md](CONTRIBUTING.md) for environment setup
+(including the OS-image toolchain) and the full build/test workflow.
 
 ```sh
 # from the repo root

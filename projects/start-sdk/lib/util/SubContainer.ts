@@ -576,27 +576,13 @@ export class SubContainerEager<
         await bind(from, path, options.filetype, options.idmap)
       } else if (options.type === 'pointer') {
         await prepBind(null, path, 'directory')
-        // Host-side does the base-mapped bind; the SDK idmap is applied
-        // separately below as a nested syscall bind so pointer mounts
-        // pick up the same idmap semantics as volume/asset mounts.
+        // The host-side mount effect applies the SDK idmap in startd, which
+        // holds CAP_SYS_ADMIN over the source superblock's userns — the idmap
+        // can't be set from inside the LXC against a host-mounted filesystem.
         await this.effects.mount({
           location: path,
           target: options,
         })
-        if (options.idmap.length) {
-          const args = [
-            'bind-mount',
-            '--source',
-            path,
-            '--target',
-            path,
-            '--recursive',
-          ]
-          for (const i of options.idmap) {
-            args.push('--idmap', `${i.fromId}:${i.toId}:${i.range}`)
-          }
-          await execFile('start-container', args)
-        }
       } else {
         throw new Error(`unknown type ${(options as any).type}`)
       }

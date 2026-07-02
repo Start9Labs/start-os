@@ -508,7 +508,7 @@ export const configToml = FileHelper.toml(
 );
 
 // In main.ts, mount the volume so the config file is accessible in the subcontainer.
-const appSub = await sdk.SubContainer.of(
+const appSub = sdk.SubContainer.of(
   effects,
   { imageId: "my-app" },
   sdk.Mounts.of().mountVolume({

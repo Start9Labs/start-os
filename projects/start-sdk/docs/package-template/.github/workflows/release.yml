@@ -20,7 +20,7 @@ jobs:
   release:
     needs: guard
     if: needs.guard.outputs.id != 'hello-world'
-    uses: Start9Labs/start-os/.github/workflows/release.yml@master
+    uses: Start9Labs/start-technologies/.github/workflows/release.yml@master
     with:
       # FREE_DISK_SPACE: true
       RELEASE_REGISTRY: ${{ vars.RELEASE_REGISTRY }}

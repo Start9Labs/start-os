@@ -353,7 +353,7 @@ export class MockApiService extends ApiService {
         target: params.target,
         label: params.label || null,
         enabled: true,
-        count: 1,
+        count: params.count ?? 1,
         auto: false,
       }
       forwards[source] = value

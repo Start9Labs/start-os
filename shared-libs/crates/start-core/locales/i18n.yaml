@@ -1363,6 +1363,20 @@ backup.bulk.complete-with-failures:
   fr_FR: "Votre sauvegarde est terminée, mais certains paquets n'ont pas pu être sauvegardés"
   pl_PL: "Twoja kopia zapasowa została zakończona, ale niektóre pakiety nie zostały zapisane"
 
+backup.bulk.legacy-present-title:
+  en_US: "Old Backup Still Present"
+  de_DE: "Alte Sicherung noch vorhanden"
+  es_ES: "Copia de seguridad antigua aún presente"
+  fr_FR: "Ancienne sauvegarde toujours présente"
+  pl_PL: "Stara kopia zapasowa nadal obecna"
+
+backup.bulk.legacy-present-message:
+  en_US: "This backup target still contains an old-format (V1) backup that is no longer needed. To free up space on the drive, go to the backup creation page and delete it."
+  de_DE: "Dieses Sicherungsziel enthält noch eine Sicherung im alten Format (V1), die nicht mehr benötigt wird. Um Speicherplatz auf dem Laufwerk freizugeben, öffnen Sie die Seite zur Sicherungserstellung und löschen Sie sie."
+  es_ES: "Este destino de copia de seguridad todavía contiene una copia en formato antiguo (V1) que ya no es necesaria. Para liberar espacio en la unidad, vaya a la página de creación de copias de seguridad y elimínela."
+  fr_FR: "Cette cible de sauvegarde contient encore une sauvegarde à l'ancien format (V1) qui n'est plus nécessaire. Pour libérer de l'espace sur le disque, accédez à la page de création de sauvegarde et supprimez-la."
+  pl_PL: "Ten cel kopii zapasowej nadal zawiera kopię w starym formacie (V1), która nie jest już potrzebna. Aby zwolnić miejsce na dysku, przejdź do strony tworzenia kopii zapasowej i usuń ją."
+
 backup.bulk.failed-error:
   en_US: "Backup Failed: %{error}"
   de_DE: "Sicherung fehlgeschlagen: %{error}"
@@ -1545,13 +1559,6 @@ net.tunnel.timeout-waiting-for-remove:
   pl_PL: "upłynął limit czasu oczekiwania na usunięcie bramy %{gateway} z bazy danych"
 
 # net/wifi.rs
-net.wifi.ssid-no-special-characters:
-  en_US: "SSID may not have special characters"
-  de_DE: "SSID darf keine Sonderzeichen enthalten"
-  es_ES: "El SSID no puede tener caracteres especiales"
-  fr_FR: "Le SSID ne peut pas contenir de caractères spéciaux"
-  pl_PL: "SSID nie może zawierać znaków specjalnych"
-
 net.wifi.password-no-special-characters:
   en_US: "WiFi Password may not have special characters"
   de_DE: "WiFi-Passwort darf keine Sonderzeichen enthalten"
@@ -2682,6 +2689,14 @@ update.failed-title:
   fr_FR: "Échec de la mise à jour de StartOS"
   pl_PL: "Aktualizacja StartOS nie powiodła się"
 
+# control.rs
+control.start-critical-task:
+  en_US: "Service %{id} has an unresolved critical task; use --force to start"
+  de_DE: "Der Dienst %{id} hat eine ungelöste kritische Aufgabe; verwenden Sie --force zum Starten"
+  es_ES: "El servicio %{id} tiene una tarea crítica sin resolver; use --force para iniciar"
+  fr_FR: "Le service %{id} a une tâche critique non résolue ; utilisez --force pour démarrer"
+  pl_PL: "Usługa %{id} ma nierozwiązane zadanie krytyczne; użyj --force aby uruchomić"
+
 # shutdown.rs
 shutdown.beginning-restart:
   en_US: "Beginning server restart"
@@ -2935,6 +2950,13 @@ help.arg.address:
   fr_FR: "Adresse réseau"
   pl_PL: "Adres sieciowy"
 
+help.arg.gua-access:
+  en_US: "IPv6 GUA exposure: disabled, lan, or lan-wan"
+  de_DE: "IPv6-GUA-Freigabe: disabled, lan oder lan-wan"
+  es_ES: "Exposición de GUA IPv6: disabled, lan o lan-wan"
+  fr_FR: "Exposition de la GUA IPv6 : disabled, lan ou lan-wan"
+  pl_PL: "Ekspozycja GUA IPv6: disabled, lan lub lan-wan"
+
 help.arg.allow-model-mismatch:
   en_US: "Allow database model mismatch"
   de_DE: "Datenbankmodell-Abweichung erlauben"
@@ -3158,6 +3180,13 @@ help.arg.force-remove-package:
   es_ES: "Forzar la eliminación aunque el paquete tenga versiones"
   fr_FR: "Forcer la suppression même si le paquet a des versions"
   pl_PL: "Wymuś usunięcie nawet jeśli pakiet ma wersje"
+
+help.arg.force-start:
+  en_US: "Start the service even if it has an unresolved critical task"
+  de_DE: "Den Dienst starten, auch wenn er eine ungelöste kritische Aufgabe hat"
+  es_ES: "Iniciar el servicio aunque tenga una tarea crítica sin resolver"
+  fr_FR: "Démarrer le service même s'il a une tâche critique non résolue"
+  pl_PL: "Uruchom usługę nawet jeśli ma nierozwiązane zadanie krytyczne"
 
 help.arg.force-stderr-tty:
   en_US: "Force stderr to be treated as a TTY"
@@ -3481,12 +3510,6 @@ help.arg.pty-size:
   fr_FR: "Taille du terminal PTY (<lignes>:<cols>[:<x>:<y>])"
   pl_PL: "Rozmiar terminala PTY (<wiersze>:<kolumny>[:<x>:<y>])"
 
-help.arg.range-access:
-  en_US: "How the range is exposed on the gateway: disabled, private, or public"
-  de_DE: "Wie der Bereich auf dem Gateway verfügbar ist: deaktiviert, privat oder öffentlich"
-  es_ES: "Cómo se expone el rango en la puerta de enlace: deshabilitado, privado o público"
-  fr_FR: "Comment la plage est exposée sur la passerelle : désactivée, privée ou publique"
-  pl_PL: "Sposób udostępniania zakresu na bramie: wyłączony, prywatny lub publiczny"
 
 help.arg.registry-hostname:
   en_US: "Registry server hostname"
@@ -3992,12 +4015,6 @@ help.arg.internal-port:
   fr_FR: "Numéro de port interne"
   pl_PL: "Numer portu wewnętrznego"
 
-help.arg.internal-start-port:
-  en_US: "Internal start port of the range"
-  de_DE: "Interner Startport des Bereichs"
-  es_ES: "Puerto inicial interno del rango"
-  fr_FR: "Port de début interne de la plage"
-  pl_PL: "Wewnętrzny port początkowy zakresu"
 
 help.arg.is-public:
   en_US: "Whether the interface is publicly addressable"
@@ -4951,6 +4968,13 @@ about.create-developer-key:
   es_ES: "Crear una nueva clave de desarrollador"
   fr_FR: "Créer une nouvelle clé de développeur"
   pl_PL: "Utwórz nowy klucz deweloperski"
+
+about.delete-legacy-backup:
+  en_US: "Delete the legacy (V1) backup from a backup target"
+  de_DE: "Die alte (V1) Sicherung von einem Sicherungsziel löschen"
+  es_ES: "Eliminar la copia de seguridad heredada (V1) de un destino de copia de seguridad"
+  fr_FR: "Supprimer la sauvegarde héritée (V1) d'une cible de sauvegarde"
+  pl_PL: "Usuń starą kopię zapasową (V1) z celu kopii zapasowej"
 
 about.disable-kiosk-mode:
   en_US: "Disable kiosk mode"
@@ -5974,6 +5998,20 @@ about.set-address-enabled-for-binding:
   fr_FR: "Définir une adresse de passerelle activée pour une liaison"
   pl_PL: "Ustaw adres bramy jako włączony dla powiązania"
 
+about.set-range-address-enabled-for-binding:
+  en_US: "Set a gateway address enabled for a port-range binding"
+  de_DE: "Gateway-Adresse für eine Portbereichs-Bindung aktivieren"
+  es_ES: "Establecer una dirección de gateway habilitada para un vínculo de rango de puertos"
+  fr_FR: "Définir une adresse de passerelle activée pour une liaison de plage de ports"
+  pl_PL: "Ustaw adres bramy jako włączony dla powiązania zakresu portów"
+
+about.set-gua-access-for-binding:
+  en_US: "Set the LAN / LAN+WAN exposure of an IPv6 global-unicast address for a binding"
+  de_DE: "LAN-/LAN+WAN-Freigabe einer globalen IPv6-Unicast-Adresse für eine Bindung festlegen"
+  es_ES: "Establecer la exposición LAN / LAN+WAN de una dirección unicast global IPv6 para un vínculo"
+  fr_FR: "Définir l'exposition LAN / LAN+WAN d'une adresse unicast globale IPv6 pour une liaison"
+  pl_PL: "Ustaw ekspozycję LAN / LAN+WAN globalnego adresu unicast IPv6 dla powiązania"
+
 about.set-country:
   en_US: "Set the country"
   de_DE: "Das Land festlegen"
@@ -6044,12 +6082,6 @@ about.set-outbound-gateway-package:
   fr_FR: "Définir la passerelle sortante pour un package"
   pl_PL: "Ustaw bramę wychodzącą dla pakietu"
 
-about.set-range-gateway-access-for-binding:
-  en_US: "Set how a port range is exposed on a specific gateway (disabled, private, or public)"
-  de_DE: "Festlegen, wie ein Portbereich auf einem bestimmten Gateway verfügbar ist (deaktiviert, privat oder öffentlich)"
-  es_ES: "Establecer cómo se expone un rango de puertos en una puerta de enlace específica (deshabilitado, privado o público)"
-  fr_FR: "Définir comment une plage de ports est exposée sur une passerelle spécifique (désactivée, privée ou publique)"
-  pl_PL: "Określ sposób udostępniania zakresu portów dla określonej bramy (wyłączony, prywatny lub publiczny)"
 
 about.set-registry-icon:
   en_US: "Set the registry icon"

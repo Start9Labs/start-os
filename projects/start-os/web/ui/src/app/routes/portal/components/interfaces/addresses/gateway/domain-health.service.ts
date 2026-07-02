@@ -20,10 +20,15 @@ export class DomainHealthService {
     fqdn: string,
     gatewayId: string,
     portOrRes: number | T.AddPublicDomainRes,
+    count = 1,
   ): Promise<void> {
     try {
       const gateway = await this.getGatewayData(gatewayId)
       if (!gateway) return
+
+      // A port range can't be reachability-tested a port at a time, so we only
+      // verify DNS and never claim its port forward is (or isn't) open.
+      const isRange = count > 1
 
       let dnsPass: boolean
       let port: number
@@ -36,27 +41,30 @@ export class DomainHealthService {
             .queryDns({ fqdn })
             .then(ip => ip === gateway.ipInfo.wanIp)
             .catch(() => false),
-          this.api
-            .checkPort({ gateway: gatewayId, port: portOrRes })
-            .catch((): null => null),
+          isRange
+            ? Promise.resolve(null)
+            : this.api
+                .checkPort({ gateway: gatewayId, port: portOrRes })
+                .catch((): null => null),
         ])
         dnsPass = dns
         portResult = portRes
       } else {
         dnsPass = portOrRes.dns === gateway.ipInfo.wanIp
         port = portOrRes.port.port
-        portResult = portOrRes.port
+        portResult = isRange ? null : portOrRes.port
       }
 
       const portOk =
-        !!portResult?.openInternally &&
-        !!portResult?.openExternally &&
-        !!portResult?.hairpinning
+        isRange ||
+        (!!portResult?.openInternally &&
+          !!portResult?.openExternally &&
+          !!portResult?.hairpinning)
 
       if (!dnsPass || !portOk) {
         setTimeout(
           () =>
-            this.openPublicDomainModal(fqdn, gateway, port, {
+            this.openPublicDomainModal(fqdn, gateway, port, count, {
               dnsPass,
               portResult,
             }),
@@ -98,12 +106,13 @@ export class DomainHealthService {
     fqdn: string,
     gatewayId: string,
     port: number,
+    count = 1,
   ): Promise<void> {
     try {
       const gateway = await this.getGatewayData(gatewayId)
       if (!gateway) return
 
-      this.openPublicDomainModal(fqdn, gateway, port)
+      this.openPublicDomainModal(fqdn, gateway, port, count)
     } catch (e: any) {
       this.errorService.handleError(e)
     }
@@ -125,7 +134,7 @@ export class DomainHealthService {
 
       if (!portOk) {
         setTimeout(
-          () => this.openPortForwardModal(gateway, port, { portResult }),
+          () => this.openPortForwardModal(gateway, port, 1, { portResult }),
           250,
         )
       }
@@ -134,12 +143,16 @@ export class DomainHealthService {
     }
   }
 
-  async showPortForwardSetup(gatewayId: string, port: number): Promise<void> {
+  async showPortForwardSetup(
+    gatewayId: string,
+    port: number,
+    count = 1,
+  ): Promise<void> {
     try {
       const gateway = await this.getGatewayData(gatewayId)
       if (!gateway) return
 
-      this.openPortForwardModal(gateway, port)
+      this.openPortForwardModal(gateway, port, count)
     } catch (e: any) {
       this.errorService.handleError(e)
     }
@@ -169,6 +182,7 @@ export class DomainHealthService {
     fqdn: string,
     gateway: DnsGateway,
     port: number,
+    count: number,
     initialResults?: {
       dnsPass: boolean
       portResult: T.CheckPortRes | null
@@ -178,7 +192,7 @@ export class DomainHealthService {
       .openComponent(DOMAIN_VALIDATION, {
         label: 'Address Requirements',
         size: 'm',
-        data: { fqdn, gateway, port, initialResults },
+        data: { fqdn, gateway, port, count, initialResults },
       })
       .subscribe()
   }
@@ -186,13 +200,14 @@ export class DomainHealthService {
   private openPortForwardModal(
     gateway: DnsGateway,
     port: number,
+    count: number,
     initialResults?: { portResult: T.CheckPortRes | null },
   ) {
     this.dialog
       .openComponent(PORT_FORWARD_VALIDATION, {
         label: 'Address Requirements',
         size: 'm',
-        data: { gateway, port, initialResults },
+        data: { gateway, port, count, initialResults },
       })
       .subscribe()
   }

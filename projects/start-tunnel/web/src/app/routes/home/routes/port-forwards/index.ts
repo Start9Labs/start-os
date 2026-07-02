@@ -8,6 +8,7 @@ import {
   TuiButton,
   TuiDataList,
   TuiDropdown,
+  TuiIcon,
   TuiLoader,
   TuiTextfield,
   TuiTitle,
@@ -33,6 +34,7 @@ import { mapForwards, MappedDevice, MappedForward } from './utils'
   template: `
     <div tuiCardLarge="compact" appearance="floating">
       <header tuiHeader="body-l">
+        <tui-icon icon="@tui.pencil" />
         <h3 tuiTitle>Manual</h3>
         <aside tuiAccessories>
           <button tuiButton iconStart="@tui.plus" (click)="onAdd()">Add</button>
@@ -46,7 +48,7 @@ import { mapForwards, MappedDevice, MappedForward } from './utils'
             <th>External IP</th>
             <th>External Port</th>
             <th>Hostname</th>
-            <th>Device</th>
+            <th>Server</th>
             <th>Internal Port</th>
             <th>Protocol</th>
             <th></th>
@@ -74,10 +76,10 @@ import { mapForwards, MappedDevice, MappedForward } from './utils'
               </td>
               <td>{{ forward.label || '—' }}</td>
               <td>{{ forward.externalip }}</td>
-              <td>{{ forward.externalport }}</td>
+              <td>{{ span(forward.externalport, forward.count) }}</td>
               <td>{{ forward.sni || '—' }}</td>
               <td>{{ forward.device.name }}</td>
-              <td>{{ forward.internalport }}</td>
+              <td>{{ span(forward.internalport, forward.count) }}</td>
               <td>TCP/UDP</td>
               <td [style.padding-inline-end.rem]="0.625">
                 <button
@@ -126,57 +128,34 @@ import { mapForwards, MappedDevice, MappedForward } from './utils'
     </div>
 
     <div tuiCardLarge="compact" appearance="floating">
-      <header tuiHeader="body-l"><h3 tuiTitle>Automatic</h3></header>
-      <table class="g-table" [tuiSkeleton]="!portForwards()">
+      <header tuiHeader="body-l">
+        <tui-icon icon="@tui.zap" />
+        <h3 tuiTitle>Automatic</h3>
+      </header>
+      <table class="g-table no-actions" [tuiSkeleton]="!portForwards()">
         <thead>
           <tr>
             <th>External IP</th>
             <th>External Port</th>
             <th>Hostname</th>
-            <th>Device</th>
+            <th>Server</th>
             <th>Internal Port</th>
             <th>Protocol</th>
-            <th></th>
           </tr>
         </thead>
         <tbody>
           @for (forward of automatic(); track $index) {
             <tr>
               <td>{{ forward.externalip }}</td>
-              <td>{{ forward.externalport }}</td>
+              <td>{{ span(forward.externalport, forward.count) }}</td>
               <td>{{ forward.sni || '—' }}</td>
               <td>{{ forward.device.name }}</td>
-              <td>{{ forward.internalport }}</td>
+              <td>{{ span(forward.internalport, forward.count) }}</td>
               <td>TCP/UDP</td>
-              <td [style.padding-inline-end.rem]="0.625">
-                <button
-                  tuiIconButton
-                  size="xs"
-                  tuiDropdown
-                  tuiDropdownAuto
-                  appearance="flat-grayscale"
-                  iconStart="@tui.ellipsis-vertical"
-                >
-                  Actions
-                  <tui-data-list
-                    *tuiDropdown="let close"
-                    size="s"
-                    (click)="close()"
-                  >
-                    <button
-                      tuiOption
-                      iconStart="@tui.trash"
-                      (click)="onDelete(forward)"
-                    >
-                      Delete
-                    </button>
-                  </tui-data-list>
-                </button>
-              </td>
             </tr>
           } @empty {
             <tr>
-              <td colspan="7">
+              <td colspan="6">
                 <app-placeholder icon="@tui.globe">
                   No port forwards
                 </app-placeholder>
@@ -206,6 +185,7 @@ import { mapForwards, MappedDevice, MappedForward } from './utils'
     PlaceholderComponent,
     TuiSkeleton,
     TuiHeader,
+    TuiIcon,
     TuiTitle,
   ],
 })
@@ -229,7 +209,22 @@ export default class PortForwards {
     { initialValue: [] },
   )
 
+  // Only servers can receive forwards, so the picker lists servers only.
   private readonly devices: Signal<MappedDevice[]> = toSignal(
+    this.patch.watch$('wg', 'subnets').pipe(
+      map(subnets =>
+        Object.values(subnets).flatMap(({ clients }) =>
+          Object.entries(clients)
+            .filter(([, c]) => c.kind === 'server')
+            .map(([ip, { name }]) => ({ ip, name })),
+        ),
+      ),
+    ),
+    { initialValue: [] },
+  )
+
+  // All devices (any kind), so rows targeting a client still resolve a name.
+  private readonly allDevices: Signal<MappedDevice[]> = toSignal(
     this.patch
       .watch$('wg', 'subnets')
       .pipe(
@@ -244,7 +239,7 @@ export default class PortForwards {
 
   protected readonly portForwards = toSignal(this.patch.watch$('portForwards'))
   protected readonly forwards = computed(() =>
-    mapForwards(this.portForwards() || {}, this.devices()),
+    mapForwards(this.portForwards() || {}, this.allDevices()),
   )
   protected readonly manual = computed(() =>
     this.forwards().filter(f => !f.auto),
@@ -257,6 +252,12 @@ export default class PortForwards {
 
   protected key(forward: MappedForward): string {
     return `${forward.externalip}:${forward.externalport}:${forward.hostname ?? ''}`
+  }
+
+  // Renders a forwarded port span: a single port when count is 1, else `start-end`.
+  protected span(startPort: string, count: number): string {
+    const start = Number(startPort)
+    return count > 1 ? `${start}-${start + count - 1}` : startPort
   }
 
   protected async onToggle(forward: MappedForward) {

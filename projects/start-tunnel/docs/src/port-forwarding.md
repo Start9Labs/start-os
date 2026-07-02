@@ -18,7 +18,9 @@ The `Port Forwards` page shows two tables: **Manual** forwards you added by hand
 
 1. Select the external IP address you want to use (there is usually only one).
 
-1. Enter the external port and the internal (device) port as. In almost all cases, they will be the same.
+1. Enter the external port and the internal (device) port. In almost all cases, they will be the same.
+
+1. To forward a **range** of ports, set "Number of Ports" to the size of the range. It counts up from both the external and internal ports you entered — for example external `49152`, internal `49152`, count `100` forwards `49152–49251` on each side. Leave it at `1` for a single port. Ranges are plain port forwards and cannot be combined with an SNI hostname.
 
 1. If you are forwarding port `443 -> 443`, you will see a checkbox to also forward port `80 -> 443`. This is highly recommended, as it will automatically redirect HTTP to HTTPS.
 
