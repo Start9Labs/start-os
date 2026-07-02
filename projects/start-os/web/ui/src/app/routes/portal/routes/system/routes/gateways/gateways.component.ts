@@ -59,7 +59,7 @@ import { GatewaysTableComponent } from './table.component'
           iconStart="@tui.plus"
           (click)="add()"
         >
-          Add
+          {{ 'Add' | i18n }}
         </button>
       </header>
       <gateways-table />

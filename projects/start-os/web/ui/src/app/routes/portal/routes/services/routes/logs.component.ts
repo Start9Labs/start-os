@@ -9,10 +9,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
   template: '<logs [fetchLogs]="fetch" [followLogs]="follow" [context]="id" />',
   styles: `
     :host {
-      overflow: hidden;
-    }
-
-    :host-context(tui-root._mobile) {
       min-height: 0;
     }
   `,

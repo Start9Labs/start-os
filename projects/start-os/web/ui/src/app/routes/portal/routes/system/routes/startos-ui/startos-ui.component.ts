@@ -28,6 +28,7 @@ import { TitleDirective } from 'src/app/services/title.service'
         <p tuiSubtitle>{{ iface.description }}</p>
       </hgroup>
     </header>
+    <br />
     <service-interface [value]="ui()" [isRunning]="true" />
   `,
   host: { class: 'g-subpage' },
@@ -51,7 +52,7 @@ export default class StartOsUiComponent {
     id: 'startos-ui',
     name: 'StartOS UI',
     description: this.i18n.transform(
-      'The web user interface for your StartOS server, accessible from any browser.',
+      'Your personal StartOS web user interface.',
     )!,
     type: 'ui' as const,
     masked: false,

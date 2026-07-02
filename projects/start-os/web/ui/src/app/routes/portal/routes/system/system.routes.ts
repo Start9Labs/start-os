@@ -82,6 +82,18 @@ export default [
         title: titleResolver,
         loadComponent: () => import('./routes/dns/dns.component'),
       },
+      {
+        path: 'os-logs',
+        title: titleResolver,
+        data: { title: 'OS Logs' },
+        loadComponent: () => import('../logs/routes/os.component'),
+      },
+      {
+        path: 'kernel-logs',
+        title: titleResolver,
+        data: { title: 'Kernel Logs' },
+        loadComponent: () => import('../logs/routes/kernel.component'),
+      },
     ],
   },
 ] satisfies Routes

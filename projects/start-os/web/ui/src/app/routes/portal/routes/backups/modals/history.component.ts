@@ -25,19 +25,21 @@ import { HasErrorPipe } from '../pipes/has-error.pipe'
   template: `
     <h3 class="g-title">
       Past Events
-      <button
-        tuiButton
-        appearance="primary-destructive"
-        [disabled]="disabled"
-        (click)="delete()"
-      >
-        Delete Selected
-      </button>
+      @if (selectedCount) {
+        <button
+          tuiButton
+          class="delete"
+          appearance="primary-destructive"
+          (click)="delete()"
+        >
+          Delete Selected
+        </button>
+      }
     </h3>
     <table class="g-table">
       <thead>
         <tr>
-          <th>
+          <th class="g-table-select">
             <input
               type="checkbox"
               size="s"
@@ -47,11 +49,28 @@ import { HasErrorPipe } from '../pipes/has-error.pipe'
               (ngModelChange)="toggle()"
             />
           </th>
-          <th>Started At</th>
-          <th>Duration</th>
-          <th>Job</th>
-          <th>Result</th>
-          <th>Target</th>
+          @if (selectedCount) {
+            <th [attr.colspan]="5">
+              <span class="g-table-group">
+                <button
+                  tuiButton
+                  size="xs"
+                  appearance="flat-destructive"
+                  iconStart="@tui.trash"
+                  (click)="delete()"
+                >
+                  Delete
+                </button>
+                <span class="count">{{ selectedCount }} selected</span>
+              </span>
+            </th>
+          } @else {
+            <th>Started At</th>
+            <th>Duration</th>
+            <th>Job</th>
+            <th>Result</th>
+            <th>Target</th>
+          }
         </tr>
       </thead>
       <tbody>
@@ -152,6 +171,10 @@ import { HasErrorPipe } from '../pipes/has-error.pipe'
         text-align: right;
       }
     }
+
+    :host-context(tui-root:not(._mobile)) .delete {
+      display: none;
+    }
   `,
   imports: [
     CommonModule,
@@ -190,8 +213,8 @@ export class BackupsHistoryModal {
     return response
   }
 
-  get disabled() {
-    return !this.selected.length || !this.selected.some(Boolean)
+  get selectedCount(): number {
+    return this.selected.filter(Boolean).length
   }
 
   async ngOnInit() {

@@ -66,7 +66,7 @@ import { SYSTEM_MENU } from './system.const'
       display: none;
     }
 
-    router-outlet + ::ng-deep * {
+    router-outlet + ::ng-deep *:not(.g-subpage) {
       height: fit-content;
       flex: 1;
       display: flex;

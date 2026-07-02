@@ -1,25 +1,30 @@
 import { Component, inject } from '@angular/core'
+import { RouterLink } from '@angular/router'
 import { i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-core'
+import { TuiButton } from '@taiga-ui/core'
 import { LogsComponent } from 'src/app/routes/portal/components/logs/logs.component'
-import { LogsHeaderComponent } from 'src/app/routes/portal/routes/logs/components/header.component'
 import { FollowServerLogsReq } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { TitleDirective } from 'src/app/services/title.service'
 
 @Component({
   template: `
-    <logs-header [title]="'OS Logs' | i18n">
-      {{ 'Raw, unfiltered operating system logs' | i18n }}
-    </logs-header>
+    <ng-container *title>
+      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
+        {{ 'Back' | i18n }}
+      </a>
+      {{ 'OS Logs' | i18n }}
+    </ng-container>
     <logs context="os" [followLogs]="follow" [fetchLogs]="fetch" />
   `,
   styles: `
     :host {
-      padding: 1rem;
+      min-height: 0;
     }
   `,
-  imports: [LogsComponent, LogsHeaderComponent, i18nPipe],
-  host: { class: 'g-page' },
+  host: { class: 'g-subpage' },
+  imports: [LogsComponent, TitleDirective, RouterLink, TuiButton, i18nPipe],
 })
 export default class SystemOSComponent {
   private readonly api = inject(ApiService)

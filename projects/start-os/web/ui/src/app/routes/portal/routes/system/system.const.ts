@@ -71,4 +71,16 @@ export const SYSTEM_MENU = [
       link: 'password',
     },
   ],
+  [
+    {
+      icon: '@tui.scroll-text',
+      item: 'OS Logs',
+      link: 'os-logs',
+    },
+    {
+      icon: '@tui.scroll-text',
+      item: 'Kernel Logs',
+      link: 'kernel-logs',
+    },
+  ],
 ] as const

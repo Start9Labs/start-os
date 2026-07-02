@@ -40,27 +40,29 @@ import { SSHTableComponent } from './table.component'
     <section class="g-card">
       <header>
         {{ 'SSH Keys' | i18n }}
-        <button
-          tuiButton
-          size="xs"
-          iconStart="@tui.trash"
-          appearance="primary-destructive"
-          [style.margin]="'0 0.5rem 0 auto'"
-          [disabled]="!tableKeys()?.selected()?.length"
-          (click)="remove(keys || [])"
-        >
-          {{ 'Delete selected' | i18n }}
-        </button>
-        <button
-          tuiButton
-          size="xs"
-          iconStart="@tui.plus"
-          (click)="add(keys || [])"
-        >
-          Add Key
-        </button>
+        @if (tableKeys()?.selected()?.length) {
+          <button
+            tuiButton
+            class="delete"
+            size="xs"
+            appearance="primary-destructive"
+            (click)="remove(keys || [])"
+          >
+            {{ 'Delete' | i18n }}
+          </button>
+        } @else {
+          <button
+            tuiButton
+            size="xs"
+            iconStart="@tui.plus"
+            [style.margin]="'0 0.5rem 0 auto'"
+            (click)="add(keys || [])"
+          >
+            {{ 'Add' | i18n }}
+          </button>
+        }
       </header>
-      <div #table [keys]="keys"></div>
+      <div #table [keys]="keys" (deleteSelected)="remove(keys || [])"></div>
     </section>
   `,
   styles: `
@@ -68,11 +70,8 @@ import { SSHTableComponent } from './table.component'
       max-width: 70rem;
     }
 
-    :host-context(tui-root._mobile) {
-      [tuiButton] {
-        font-size: 0;
-        gap: 0;
-      }
+    :host-context(tui-root:not(._mobile)) .delete {
+      display: none;
     }
   `,
   imports: [

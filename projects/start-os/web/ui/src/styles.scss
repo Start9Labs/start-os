@@ -270,6 +270,30 @@ ul {
   }
 }
 
+// Group action + count shown in a multi-select table header, in place of the
+// column names, when rows are selected: `‹action› │ n selected`.
+.g-table-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  vertical-align: middle;
+  text-indent: 0;
+
+  .count {
+    padding-inline-start: 1rem;
+    border-inline-start: 1px solid var(--tui-border-normal);
+    white-space: nowrap;
+  }
+}
+
+// The select-all header cell of a multi-select table: same weight as the
+// sortable column headers, and a constant height so the row doesn't resize when
+// the group action replaces the column names.
+.g-table th.g-table-select {
+  height: 2.75rem;
+  font-weight: normal;
+}
+
 .g-table-service {
   width: stretch;
 

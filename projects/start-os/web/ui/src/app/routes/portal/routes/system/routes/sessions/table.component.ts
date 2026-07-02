@@ -1,7 +1,14 @@
 import { CommonModule } from '@angular/common'
-import { Component, computed, input, OnChanges, signal } from '@angular/core'
+import {
+  Component,
+  computed,
+  input,
+  OnChanges,
+  output,
+  signal,
+} from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { TuiIcon, TuiCheckbox } from '@taiga-ui/core'
+import { TuiButton, TuiIcon, TuiCheckbox } from '@taiga-ui/core'
 import { TuiFade, TuiSkeleton } from '@taiga-ui/kit'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { T } from '@start9labs/start-core'
@@ -17,9 +24,14 @@ import { i18nPipe } from '@start9labs/shared'
           ? ['User Agent', 'Platform', 'Last Active']
           : ['Platform', 'Last Active']
       "
+      [appTableSelected]="selected().length"
     >
       @if (!single()) {
-        <th [style.text-indent.rem]="1.75">
+        <th
+          class="g-table-select"
+          [attr.colspan]="selected().length ? 3 : null"
+          [style.text-indent.rem]="1.75"
+        >
           <input
             tuiCheckbox
             size="s"
@@ -28,7 +40,23 @@ import { i18nPipe } from '@start9labs/shared'
             [ngModel]="all()"
             (ngModelChange)="selected.set(($event && sessions()) || [])"
           />
-          {{ 'User Agent' | i18n }}
+          @if (selected().length) {
+            @let count = selected().length;
+            <span class="g-table-group">
+              <button
+                tuiButton
+                size="xs"
+                appearance="flat-destructive"
+                iconStart="@tui.log-out"
+                (click)="terminateSelected.emit()"
+              >
+                {{ 'Terminate' | i18n }}
+              </button>
+              <span class="count">{{ count }} {{ 'selected' | i18n }}</span>
+            </span>
+          } @else {
+            {{ 'User Agent' | i18n }}
+          }
         </th>
       }
       @for (session of sessions(); track $index) {
@@ -149,6 +177,7 @@ import { i18nPipe } from '@start9labs/shared'
     CommonModule,
     FormsModule,
     PlatformInfoPipe,
+    TuiButton,
     TuiIcon,
     TuiCheckbox,
     TuiFade,
@@ -160,6 +189,7 @@ import { i18nPipe } from '@start9labs/shared'
 export class SessionsTableComponent<S extends T.Session> implements OnChanges {
   readonly sessions = input<readonly S[] | null>(null)
   readonly single = input(false)
+  readonly terminateSelected = output()
 
   readonly selected = signal<readonly S[]>([])
   readonly all = computed(

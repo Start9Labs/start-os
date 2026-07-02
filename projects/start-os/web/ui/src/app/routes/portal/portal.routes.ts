@@ -29,12 +29,6 @@ const ROUTES: Routes = [
       // },
       {
         title: titleResolver,
-        path: 'logs',
-        loadChildren: () => import('./routes/logs/logs.routes'),
-        data: toNavigationItem('logs'),
-      },
-      {
-        title: titleResolver,
         path: 'marketplace',
         loadChildren: () => import('./routes/marketplace/marketplace.routes'),
         data: toNavigationItem('marketplace'),
