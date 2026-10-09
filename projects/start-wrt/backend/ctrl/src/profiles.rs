@@ -7,7 +7,7 @@ use clap::Parser;
 use rpc_toolkit::{from_fn_async_local, HandlerExt as _, ParentHandler};
 use serde::{Deserialize, Serialize};
 use uciedit::openwrt::{
-    DeviceType, Dhcp, FirewallForwarding, FirewallRedirect, FirewallRule, FirewallTarget,
+    DeviceType, Dhcp, DhcpHost, FirewallForwarding, FirewallRedirect, FirewallRule, FirewallTarget,
     FirewallZone, InterfaceProto, NetworkBridgeVlan, NetworkDevice, NetworkInterface, NetworkRoute,
     NetworkRoute6, NetworkRule, NetworkRule6, NetworkVlanPort, NetworkVlanPortTagging,
     ProfileDnsmasq, WifiStation, WifiVlan,
@@ -252,6 +252,16 @@ fn has_effective_dns(cfgs: &Configs, profile: &Profile) -> bool {
         || (profile.outbound != "wan" && !get_vpn_dns(cfgs, &profile.outbound).is_empty())
 }
 
+/// Whether any device may inject DNS records. Box-wide: a device's profile is
+/// a runtime fact. Separate from `has_effective_dns`, which also gates the
+/// `DNS-Override` redirect.
+fn has_dns_injection(cfgs: &Configs) -> bool {
+    cfgs["dhcp"].sections.iter().any(|s| {
+        s.get::<DhcpHost>()
+            .is_ok_and(|h| h._allow_dns_inject.as_deref() == Some("1"))
+    })
+}
+
 /// Rewrite DNS forwarding (dnsmasq sections) for ALL profiles.
 /// Call after any operation that changes system DNS settings.
 pub(crate) fn rewrite_all_dns_forwarding(cfgs: &mut Configs) -> Result<(), Error> {
@@ -396,12 +406,21 @@ pub(crate) fn rewrite_dns_forwarding(cfgs: &mut Configs, profile: &Profile) -> R
         }
     };
 
-    if !servers.is_empty() {
+    // Injection needs an instance even in ISP mode; with no `server` list and
+    // `noresolv` unset it forwards to resolv.conf.auto like the main one.
+    let inject = has_dns_injection(cfgs);
+    if !servers.is_empty() || inject {
+        let noresolv = (!servers.is_empty()).then(|| "1".to_string());
+        let mut server = servers;
+        // Firefox's DoH canary: an NXDOMAIN here turns off its default-enabled
+        // DNS-over-HTTPS on this network.
+        server.push("/use-application-dns.net/".to_string());
         cfgs["dhcp"].append(
             &ProfileDnsmasq {
-                server: servers,
-                noresolv: Some("1".to_string()),
-                interface: vec![],
+                noresolv,
+                server,
+                // An unscoped instance serves every profile's DHCP pool.
+                interface: vec![profile.id.interface.clone()],
                 localservice: Some("1".to_string()),
                 nonwildcard: Some("1".to_string()),
                 listen_address: vec![profile.gateway_ip.to_string()],
@@ -415,6 +434,11 @@ pub(crate) fn rewrite_dns_forwarding(cfgs: &mut Configs, profile: &Profile) -> R
                 boguspriv: Some("0".to_string()),
                 local: Some("/lan/".to_string()),
                 dhcpscript: Some(crate::device_ident::FINGERPRINT_SCRIPT_PATH.to_string()),
+                addnhosts: if inject {
+                    vec![crate::dns_inject::inject_hosts_path(&profile.id.interface)]
+                } else {
+                    vec![]
+                },
             },
             Some(&section_name),
         )?;
@@ -661,6 +685,7 @@ fn delete_config(
     cfgs: &mut Configs,
     query: &ProfileIdOpt,
 ) -> Result<(), Error> {
+    let wan_v4 = ctx.wan_ipv4_addrs();
     let lookup = Lookup::parse(ctx, cfgs)?;
     let id = lookup.resolve(query)?.clone();
 
@@ -825,6 +850,11 @@ fn delete_config(
 
     // Clean up orphaned VPN interfaces from WAN zone
     cleanup_orphaned_vpn_zones(cfgs);
+
+    // The zone and its forwardings are gone; drop them from every
+    // published-port/auto-forward hairpin projection, or fw4 rejects those
+    // redirects outright over the now-unknown name.
+    crate::published_ports::sync_hairpin(&mut cfgs["firewall"], &wan_v4)?;
 
     Ok(())
 }
@@ -1820,7 +1850,7 @@ fn create_config(
 }
 
 fn rewrite_firewall(
-    _ctx: &impl CtrlContext,
+    ctx: &impl CtrlContext,
     cfgs: &mut Configs,
     profile: &Profile,
     all_interfaces: &BTreeSet<String>,
@@ -2110,6 +2140,10 @@ fn rewrite_firewall(
             }
         }
     }
+
+    // The forwardings and egress rules just changed; every hairpin
+    // projection is derived from them.
+    crate::published_ports::sync_hairpin(&mut cfgs["firewall"], &ctx.wan_ipv4_addrs())?;
 
     Ok(())
 }
@@ -2462,7 +2496,7 @@ const VPN_KILLSWITCH_METRIC: u32 = 2048;
 
 /// Ensure a single `ip rule` exists that routes fwmark 0x80 packets via the
 /// main routing table.  This cooperates with the static nftables chain
-/// (/etc/nftables.d/10-startwrt-dnat-mark.nft), which marks DNAT-state packets
+/// (/usr/share/nftables.d/table-pre/10-startwrt-dnat-mark.nft), which marks DNAT-state packets
 /// with 0x80, to prevent DNAT reply traffic from being captured by source-based
 /// VPN policy routing rules.
 fn ensure_dnat_return_rule(cfgs: &mut Configs) -> Result<(), Error> {
@@ -2489,7 +2523,7 @@ fn ensure_dnat_return_rule(cfgs: &mut Configs) -> Result<(), Error> {
 /// Ensure a single `ip -6 rule` exists that routes fwmark 0x80 packets via the
 /// main routing table.  This is the IPv6 sibling of [`ensure_dnat_return_rule`]:
 /// it cooperates with the static nftables chain
-/// (/etc/nftables.d/11-startwrt-inbound6-mark.nft), which connection-marks
+/// (/usr/share/nftables.d/table-pre/11-startwrt-inbound6-mark.nft), which connection-marks
 /// IPv6 flows initiated from WAN, so that replies to inbound port-forwarded
 /// connections route out wan6 instead of being captured by the per-VLAN VPN
 /// policy rules (prr6_*). Priority 100 (DNAT_RETURN_PRIORITY) keeps it ahead of
@@ -3440,6 +3474,7 @@ pub(crate) async fn regenerate_schedule_crontab(ctx: &impl CtrlContext) -> Resul
                      uci set firewall.{sec}.dest='{egress}'; \
                      uci set firewall.{sec}.target='REJECT'; \
                      uci commit firewall; \
+                     /usr/bin/startwrt-cli published-ports sync-hairpin; \
                      /etc/init.d/firewall reload \
                      {SCHEDULE_TAG}\n"
                 ));
@@ -3452,6 +3487,7 @@ pub(crate) async fn regenerate_schedule_crontab(ctx: &impl CtrlContext) -> Resul
                     "{end_m} {end_h} * * {days_str} \
                      uci -q delete firewall.{sec}; \
                      uci commit firewall; \
+                     /usr/bin/startwrt-cli published-ports sync-hairpin; \
                      /etc/init.d/firewall reload \
                      {SCHEDULE_TAG}\n"
                 ));
@@ -3577,6 +3613,9 @@ pub(crate) async fn evaluate_and_apply_schedules(ctx: &impl CtrlContext) -> Resu
             Some(&section_name),
         )?;
     }
+
+    // A blackout REJECT also takes the profile's hairpin away.
+    crate::published_ports::sync_hairpin(&mut cfgs["firewall"], &ctx.wan_ipv4_addrs())?;
 
     dump_all(ctx.uci_root(), cfgs).await?;
     drop(arena);
@@ -4011,6 +4050,314 @@ config wifi-vlan
 ",
         )
         .unwrap();
+    }
+
+    /// `setup_configs`' firewall plus the reflection fixtures: optionally the
+    /// forwarding that grants Guest Access to the admin LAN, a published port
+    /// into `lan`, and an automatic (UPnP) forward — both hairpin lists
+    /// matching the granted state.
+    fn seed_reflection_firewall(dir: &std::path::Path, with_guest_access: bool) {
+        let mut fw = std::fs::read_to_string(dir.join("firewall")).unwrap();
+        // The shipped wan zone masquerades; `setup_configs` leaves it out.
+        let wan = "\toption name 'wan'\n\tlist network 'wan'\n";
+        assert_eq!(fw.matches(wan).count(), 1);
+        fw = fw.replace(wan, &format!("{wan}\toption masq '1'\n"));
+        if with_guest_access {
+            fw.push_str(
+                "\nconfig forwarding 'fwd_guest_lan'\n\toption src 'vlan_guest'\n\toption dest 'lan'\n",
+            );
+        }
+        let zones = if with_guest_access {
+            "\tlist reflection_zone 'lan'\n\tlist reflection_zone 'vlan_guest'\n"
+        } else {
+            "\tlist reflection_zone 'lan'\n"
+        };
+        fw.push_str(&format!(
+            "\nconfig redirect 'pp_x'\n\toption name 'Server'\n\toption src 'wan'\n\toption dest 'lan'\n\toption target 'DNAT'\n\tlist proto 'tcp'\n\toption src_dport '8443'\n\toption dest_ip '192.168.1.10'\n\toption dest_port '8443'\n\toption _pp_id 'x'\n\toption _pp_mac 'AA:BB:CC:DD:EE:FF'\n{zones}"
+        ));
+        fw.push_str(&format!(
+            "\nconfig redirect 'apf_aabbccddeeff_9000'\n\toption name 'Auto forward (UPnP)'\n\toption src 'wan'\n\toption dest 'lan'\n\toption target 'DNAT'\n\tlist proto 'tcp'\n\tlist proto 'udp'\n\toption src_dport '9000'\n\toption dest_ip '192.168.1.10'\n\toption dest_port '9000'\n\toption enabled '1'\n\toption _apf_label 'UPnP'\n\toption _apf_mac 'AA:BB:CC:DD:EE:FF'\n{zones}"
+        ));
+        std::fs::write(dir.join("firewall"), fw).unwrap();
+    }
+
+    fn reflection_list(cfgs: &Configs, section: &str) -> Vec<String> {
+        cfgs["firewall"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some(section))
+            .and_then(|s| s.get::<FirewallRedirect>().ok())
+            .map(|r| r.reflection_zone)
+            .unwrap_or_else(|| panic!("missing redirect section {section}"))
+    }
+
+    fn guest_profile(lan_access: LanAccess<ProfileIdOpt>) -> Profile<ProfileIdOpt> {
+        guest_profile_with_wan(lan_access, WanAccess::All)
+    }
+
+    fn guest_profile_with_wan(
+        lan_access: LanAccess<ProfileIdOpt>,
+        wan_access: WanAccess,
+    ) -> Profile<ProfileIdOpt> {
+        Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wan".into(),
+            lan_access,
+            wan_access,
+            dns_override: Vec::new(),
+            dns_source: String::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        }
+    }
+
+    /// A test context that knows the router's WAN address.
+    #[derive(Clone)]
+    struct WanTestContext(PathBuf, Vec<Ipv4Addr>);
+
+    impl Context for WanTestContext {
+        fn runtime(&self) -> Option<Arc<Runtime>> {
+            None
+        }
+    }
+
+    impl CtrlContext for WanTestContext {
+        fn uci_root(&self) -> PathBuf {
+            self.0.clone()
+        }
+        fn effectful(&self) -> bool {
+            false
+        }
+        fn wan_ipv4_addrs(&self) -> Vec<Ipv4Addr> {
+            self.1.clone()
+        }
+    }
+
+    async fn guest_hairpin_after(
+        dir: &std::path::Path,
+        profile: &Profile<ProfileIdOpt>,
+    ) -> (Vec<String>, Vec<String>) {
+        guest_hairpin_after_with(WanTestContext(dir.to_path_buf(), Vec::new()), profile).await
+    }
+
+    async fn guest_hairpin_after_with(
+        ctx: WanTestContext,
+        profile: &Profile<ProfileIdOpt>,
+    ) -> (Vec<String>, Vec<String>) {
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+        set_config(ctx.clone(), &mut cfgs, profile).unwrap();
+        (
+            reflection_list(&cfgs, "pp_x"),
+            reflection_list(&cfgs, "apf_aabbccddeeff_9000"),
+        )
+    }
+
+    /// A profile keeps the hairpin on either ground: Access to the target's
+    /// profile, or Internet access. Losing both strips its zone from every
+    /// hairpin list — published ports and automatic forwards alike — or that
+    /// profile keeps reaching the port via the WAN address.
+    #[tokio::test]
+    async fn hairpin_follows_access_and_internet_grounds() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_configs(dir.path());
+        seed_reflection_firewall(dir.path(), true);
+
+        let both = vec!["lan".to_string(), "vlan_guest".into()];
+        let lan_only = vec!["lan".to_string()];
+
+        // Access revoked, Internet kept: still eligible.
+        let profile = guest_profile(LanAccess::SameProfile);
+        assert_eq!(
+            guest_hairpin_after(dir.path(), &profile).await,
+            (both.clone(), both.clone())
+        );
+        // Internet revoked, Access kept: still eligible.
+        let access = LanAccess::OtherProfiles(BTreeSet::from([ProfileIdOpt {
+            fullname: None,
+            interface: Some("lan".into()),
+            vlan_tag: None,
+        }]));
+        let profile = guest_profile_with_wan(access, WanAccess::None);
+        assert_eq!(
+            guest_hairpin_after(dir.path(), &profile).await,
+            (both.clone(), both)
+        );
+        // Neither: gone.
+        let profile = guest_profile_with_wan(LanAccess::SameProfile, WanAccess::None);
+        assert_eq!(
+            guest_hairpin_after(dir.path(), &profile).await,
+            (lan_only.clone(), lan_only.clone())
+        );
+        // A Whitelist is not Internet access: its catch-all reject stands
+        // ahead of the forwarding.
+        let profile = guest_profile_with_wan(
+            LanAccess::SameProfile,
+            WanAccess::Whitelist(vec!["1.1.1.1".into()]),
+        );
+        assert_eq!(
+            guest_hairpin_after(dir.path(), &profile).await,
+            (lan_only.clone(), lan_only.clone())
+        );
+        // A Blacklist is: it only rejects named destinations.
+        let profile = guest_profile_with_wan(
+            LanAccess::SameProfile,
+            WanAccess::Blacklist(vec!["1.1.1.1".into()]),
+        );
+        let both = vec!["lan".to_string(), "vlan_guest".into()];
+        assert_eq!(
+            guest_hairpin_after(dir.path(), &profile).await,
+            (both.clone(), both.clone())
+        );
+
+        // The entries are read against the router's WAN address: a Whitelist
+        // naming it is Internet access to the port, a Blacklist naming it is
+        // not — and with the address unknown, neither entry covers anything.
+        let wan_ip: Ipv4Addr = "203.0.113.7".parse().unwrap();
+        let with_wan = || WanTestContext(dir.path().to_path_buf(), vec![wan_ip]);
+        let profile = guest_profile_with_wan(
+            LanAccess::SameProfile,
+            WanAccess::Whitelist(vec!["1.1.1.1".into(), wan_ip.to_string()]),
+        );
+        assert_eq!(
+            guest_hairpin_after_with(with_wan(), &profile).await,
+            (both.clone(), both.clone())
+        );
+        assert_eq!(
+            guest_hairpin_after(dir.path(), &profile).await,
+            (lan_only.clone(), lan_only.clone())
+        );
+        let profile = guest_profile_with_wan(
+            LanAccess::SameProfile,
+            WanAccess::Blacklist(vec!["203.0.113.0/24".into()]),
+        );
+        assert_eq!(
+            guest_hairpin_after_with(with_wan(), &profile).await,
+            (lan_only.clone(), lan_only.clone())
+        );
+        assert_eq!(
+            guest_hairpin_after(dir.path(), &profile).await,
+            (both.clone(), both)
+        );
+    }
+
+    /// The crontab edges rewrite the firewall behind the daemon's back, so
+    /// each must resync the hairpin projections before its reload.
+    #[tokio::test]
+    async fn schedule_crontab_resyncs_hairpin_on_both_edges() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+        let startwrt = std::fs::read_to_string(dir.path().join("startwrt")).unwrap();
+        std::fs::write(
+            dir.path().join("startwrt"),
+            startwrt.replace(
+                "\toption vlan_tag '101'\n",
+                "\toption vlan_tag '101'\n\tlist wan_schedule '22:00|06:00|0,1,2,3,4,5,6'\n",
+            ),
+        )
+        .unwrap();
+
+        regenerate_schedule_crontab(&ctx).await.unwrap();
+
+        let crontab = std::fs::read_to_string(dir.path().join("crontab_root")).unwrap();
+        let edges: Vec<&str> = crontab
+            .lines()
+            .filter(|l| l.contains(SCHEDULE_TAG))
+            .collect();
+        assert_eq!(edges.len(), 2, "{crontab}");
+        for edge in edges {
+            assert!(
+                edge.contains(
+                    "uci commit firewall; /usr/bin/startwrt-cli published-ports sync-hairpin; /etc/init.d/firewall reload"
+                ),
+                "{edge}"
+            );
+        }
+    }
+
+    /// Deleting a profile removes its zone; every hairpin list naming it must
+    /// be rewritten in the same transaction — fw4 treats one unknown name as
+    /// an invalid option and drops the whole redirect, WAN DNAT included.
+    #[tokio::test]
+    async fn deleting_profile_resyncs_reflection_zones() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+        seed_reflection_firewall(dir.path(), true);
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp", "wireless"],
+        )
+        .await
+        .unwrap();
+
+        delete_config(
+            ctx.clone(),
+            &mut cfgs,
+            &ProfileIdOpt {
+                fullname: None,
+                interface: Some("guest".into()),
+                vlan_tag: None,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(reflection_list(&cfgs, "pp_x"), vec!["lan".to_string()]);
+        assert_eq!(
+            reflection_list(&cfgs, "apf_aabbccddeeff_9000"),
+            vec!["lan".to_string()]
+        );
+    }
+
+    /// The reverse transition: granting a profile Access to the LAN must add
+    /// its zone to the hairpin lists of ports already published there, so the
+    /// feature applies to profiles reconfigured after the port was created.
+    #[tokio::test]
+    async fn granting_access_resyncs_reflection_zones() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+        seed_reflection_firewall(dir.path(), false);
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+
+        let access = LanAccess::OtherProfiles(BTreeSet::from([ProfileIdOpt {
+            fullname: None,
+            interface: Some("lan".into()),
+            vlan_tag: None,
+        }]));
+        set_config(ctx.clone(), &mut cfgs, &guest_profile(access)).unwrap();
+
+        assert_eq!(
+            reflection_list(&cfgs, "pp_x"),
+            vec!["lan".to_string(), "vlan_guest".into()]
+        );
+        assert_eq!(
+            reflection_list(&cfgs, "apf_aabbccddeeff_9000"),
+            vec!["lan".to_string(), "vlan_guest".into()]
+        );
     }
 
     #[tokio::test]
@@ -5042,7 +5389,7 @@ config profile guest
         assert!(dnat_data.src.is_none());
 
         // The DNAT-return mark is no longer a per-profile UCI firewall rule —
-        // it moved to a static nftables chain (/etc/nftables.d/10-startwrt-dnat-mark.nft)
+        // it moved to a static nftables chain (10-startwrt-dnat-mark.nft)
         // because fw4 has no UCI option for `ct status dnat` matching.
         assert!(
             !cfgs["firewall"]
@@ -6277,6 +6624,170 @@ config zone
             .any(|s| s.name().as_deref() == Some("dns_guest"));
         assert!(dns_lan, "Admin profile should get per-profile dnsmasq");
         assert!(dns_guest, "Guest profile should get per-profile dnsmasq");
+
+        // The instance serves exactly its own bridge: an unscoped instance
+        // picks up every profile's `config dhcp` pool.
+        let section = cfgs["dhcp"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("dns_lan"))
+            .unwrap()
+            .get::<ProfileDnsmasq>()
+            .unwrap();
+        assert_eq!(section.interface, vec!["lan".to_string()]);
+        assert_eq!(section.noresolv.as_deref(), Some("1"));
+        assert!(section.addnhosts.is_empty(), "no injection, no hosts file");
+    }
+
+    /// Write the ISP-mode base fixture (no system DNS, no overrides), with a
+    /// DHCP host section carrying `_allow_dns_inject` when asked — the case
+    /// where DNS injection alone must create the per-profile instances.
+    fn setup_isp_mode_configs(dir: &std::path::Path, inject: bool) {
+        std::fs::write(
+            dir.join("startwrt"),
+            "\
+config profile lan
+\toption fullname 'Admin'
+\toption interface 'lan'
+\toption vlan_tag '1'
+
+config profile guest
+\toption fullname 'Guest'
+\toption interface 'guest'
+\toption vlan_tag '101'
+",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("network"),
+            "\
+config interface 'lan'
+\toption proto 'static'
+\toption ipaddr '192.168.1.1'
+\toption device 'br-lan.1'
+
+config interface 'guest'
+\toption proto 'static'
+\toption ipaddr '192.168.101.1'
+\toption device 'br-lan.101'
+",
+        )
+        .unwrap();
+        let host = if inject {
+            "\n\
+config host host_001a2b3c4d5e
+\toption mac '00:1A:2B:3C:4D:5E'
+\toption dns '1'
+\toption _allow_dns_inject '1'
+"
+        } else {
+            ""
+        };
+        std::fs::write(
+            dir.join("dhcp"),
+            format!("config dnsmasq\n\toption domainneeded '1'\n{host}"),
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("firewall"),
+            "\
+config zone
+\toption name 'lan'
+\tlist network 'lan'
+
+config zone
+\toption name 'vlan_guest'
+\tlist network 'guest'
+",
+        )
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn dns_injection_creates_isp_mode_instances() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_isp_mode_configs(dir.path(), true);
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            dir.path(),
+            &arena,
+            &["startwrt", "network", "dhcp", "firewall"],
+        )
+        .await
+        .unwrap();
+        rewrite_all_dns_forwarding(&mut cfgs).unwrap();
+
+        for (name, iface) in [("dns_lan", "lan"), ("dns_guest", "guest")] {
+            let section = cfgs["dhcp"]
+                .sections
+                .iter()
+                .find(|s| s.name().as_deref() == Some(name))
+                .unwrap_or_else(|| panic!("{name} instance created by injection alone"))
+                .get::<ProfileDnsmasq>()
+                .unwrap();
+            assert_eq!(
+                section.addnhosts,
+                vec![crate::dns_inject::inject_hosts_path(iface)]
+            );
+            assert_eq!(section.interface, vec![iface.to_string()]);
+            assert_eq!(
+                section.server,
+                vec!["/use-application-dns.net/".to_string()],
+                "ISP mode: no upstream override, only the Firefox DoH canary"
+            );
+            assert_eq!(
+                section.noresolv, None,
+                "falls back to resolv.conf.auto like the main instance"
+            );
+        }
+        // The main instance stays off the profile bridges.
+        let main = cfgs["dhcp"]
+            .sections
+            .iter()
+            .find(|s| s.ty() == "dnsmasq" && s.name().is_none())
+            .unwrap();
+        let notinterface: Vec<_> = main
+            .lines
+            .iter()
+            .filter_map(|line| match line {
+                Line::List { list, item, .. } if list.as_str() == "notinterface" => {
+                    Some(item.as_str().to_string())
+                }
+                _ => None,
+            })
+            .collect();
+        assert!(notinterface.contains(&"lan".to_string()));
+        assert!(notinterface.contains(&"guest".to_string()));
+
+        // Injection alone must not start hijacking port-53 traffic.
+        assert!(
+            !cfgs["firewall"].sections.iter().any(|s| s
+                .get::<FirewallRedirect>()
+                .is_ok_and(|r| r.name.contains("DNS-Override"))),
+            "no DNS-Override redirect from the inject flag"
+        );
+    }
+
+    #[tokio::test]
+    async fn no_injection_means_no_isp_mode_instances() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_isp_mode_configs(dir.path(), false);
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            dir.path(),
+            &arena,
+            &["startwrt", "network", "dhcp", "firewall"],
+        )
+        .await
+        .unwrap();
+        rewrite_all_dns_forwarding(&mut cfgs).unwrap();
+        assert!(
+            !cfgs["dhcp"]
+                .sections
+                .iter()
+                .any(|s| s.name().is_some_and(|n| n.starts_with("dns_"))),
+            "ISP mode without injection keeps the single main instance"
+        );
     }
 
     // === IPv6 routing tests ===

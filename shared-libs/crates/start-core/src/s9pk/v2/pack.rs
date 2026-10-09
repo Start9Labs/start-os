@@ -298,17 +298,92 @@ impl PackParams {
     }
 }
 
-#[derive(Debug, Default, Clone, Deserialize, Serialize, TS)]
+#[derive(Debug, Default, Clone, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct ImageConfig {
     pub source: ImageSource,
     #[ts(type = "string[]")]
     pub arch: BTreeSet<InternedString>,
-    #[ts(type = "string | null")]
-    pub emulate_missing_as: Option<InternedString>,
+    pub emulate_missing: bool,
+    #[serde(rename = "emulateMissingAs", skip_serializing_if = "Option::is_none")]
+    #[ts(skip)]
+    legacy_emulate_missing_as: Option<InternedString>,
     #[serde(default)]
     pub nvidia_container: bool,
+}
+impl ImageConfig {
+    fn legacy_emulation_arch(&self) -> Option<&InternedString> {
+        self.legacy_emulate_missing_as
+            .as_ref()
+            .filter(|arch| self.arch.contains(*arch))
+    }
+
+    fn emulation_arch(&self, is_available: impl Fn(&str) -> bool) -> Option<&InternedString> {
+        self.legacy_emulation_arch()
+            .filter(|arch| is_available(arch))
+            .or_else(|| self.arch.iter().find(|arch| is_available(arch)))
+    }
+
+    pub(crate) fn resolve_arch<'a, T>(
+        &'a self,
+        requested: &'a str,
+        image_id: &ImageId,
+        archive: &DirectoryContents<T>,
+    ) -> Option<&'a str> {
+        let is_available = |arch: &str| {
+            archive
+                .get_path(
+                    Path::new("images")
+                        .join(arch)
+                        .join(image_id)
+                        .with_extension("squashfs"),
+                )
+                .and_then(|entry| entry.as_file())
+                .is_some()
+        };
+        if is_available(requested) {
+            Some(requested)
+        } else if self.emulate_missing {
+            self.emulation_arch(is_available).map(|arch| &**arch)
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ImageConfigInput {
+    source: ImageSource,
+    arch: BTreeSet<InternedString>,
+    #[serde(default)]
+    emulate_missing: Option<bool>,
+    #[serde(default)]
+    emulate_missing_as: Option<InternedString>,
+    #[serde(default)]
+    nvidia_container: bool,
+}
+
+impl<'de> Deserialize<'de> for ImageConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let input = ImageConfigInput::deserialize(deserializer)?;
+        let legacy_emulate_missing_as = input
+            .emulate_missing_as
+            .filter(|arch| !arch.is_empty() && input.emulate_missing != Some(false));
+        Ok(Self {
+            source: input.source,
+            arch: input.arch,
+            emulate_missing: input
+                .emulate_missing
+                .unwrap_or(legacy_emulate_missing_as.is_some()),
+            legacy_emulate_missing_as,
+            nvidia_container: input.nvidia_container,
+        })
+    }
 }
 
 #[derive(Parser)]
@@ -324,15 +399,15 @@ struct CliImageConfig {
     docker_tag: Option<String>,
     #[arg(long, help = "help.arg.architecture-mask")]
     arch: Vec<InternedString>,
-    #[arg(long, help = "help.arg.emulate-missing-arch")]
-    emulate_missing_as: Option<InternedString>,
+    #[arg(long, help = "help.arg.no-emulation")]
+    no_emulation: bool,
     #[arg(long, help = "help.arg.nvidia-container")]
     nvidia_container: bool,
 }
 impl TryFrom<CliImageConfig> for ImageConfig {
     type Error = clap::Error;
     fn try_from(value: CliImageConfig) -> Result<Self, Self::Error> {
-        let res = Self {
+        Ok(Self {
             source: if value.docker_build {
                 ImageSource::DockerBuild {
                     dockerfile: value.dockerfile,
@@ -345,23 +420,10 @@ impl TryFrom<CliImageConfig> for ImageConfig {
                 ImageSource::Packed
             },
             arch: value.arch.into_iter().collect(),
-            emulate_missing_as: value.emulate_missing_as,
+            emulate_missing: !value.no_emulation,
+            legacy_emulate_missing_as: None,
             nvidia_container: value.nvidia_container,
-        };
-        res.emulate_missing_as
-            .as_ref()
-            .map(|a| {
-                if !res.arch.contains(a) {
-                    Err(clap::Error::raw(
-                        clap::error::ErrorKind::InvalidValue,
-                        "`emulate-missing-as` must match one of the provided `arch`es",
-                    ))
-                } else {
-                    Ok(())
-                }
-            })
-            .transpose()?;
-        Ok(res)
+        })
     }
 }
 impl clap::Args for ImageConfig {
@@ -414,6 +476,81 @@ impl Default for ImageSource {
         ImageSource::Packed
     }
 }
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct DockerImageConfig {
+    env: Option<Vec<String>>,
+    #[serde(default)]
+    working_dir: PathBuf,
+    #[serde(default)]
+    user: String,
+    entrypoint: Option<Vec<String>>,
+    cmd: Option<Vec<String>>,
+}
+
+impl DockerImageConfig {
+    fn into_parts(self) -> (ImageMetadata, Vec<String>) {
+        (
+            ImageMetadata {
+                workdir: if self.working_dir == Path::new("") {
+                    "/".into()
+                } else {
+                    self.working_dir
+                },
+                user: if self.user.is_empty() {
+                    "root".into()
+                } else {
+                    self.user.into()
+                },
+                entrypoint: self.entrypoint,
+                cmd: self.cmd,
+            },
+            self.env.unwrap_or_default(),
+        )
+    }
+}
+
+fn docker_platform(arch: &str) -> String {
+    let arch = match arch {
+        "x86_64" => "amd64",
+        "aarch64" => "arm64",
+        arch => arch,
+    };
+    format!("--platform=linux/{arch}")
+}
+
+fn image_config_inspect_command(tool: &str, image: &str, platform: &str) -> Command {
+    let mut command = Command::new(tool);
+    command.arg("image").arg("inspect");
+    if tool == "docker" {
+        command.arg(platform);
+    }
+    command.arg("--format").arg("{{json .Config}}").arg(image);
+    command
+}
+
+async fn inspect_image_config(
+    tool: &str,
+    container: &str,
+    platform: &str,
+) -> Result<DockerImageConfig, Error> {
+    let image = Command::new(tool)
+        .arg("container")
+        .arg("inspect")
+        .arg("--format")
+        .arg("{{.Image}}")
+        .arg(container)
+        .invoke(ErrorKind::Docker)
+        .await?;
+    let image = String::from_utf8(image)?;
+    serde_json::from_slice(
+        &image_config_inspect_command(tool, image.trim(), platform)
+            .invoke(ErrorKind::Docker)
+            .await?,
+    )
+    .with_kind(ErrorKind::Deserialization)
+}
+
 impl ImageSource {
     pub fn ingredients(&self) -> Vec<PathBuf> {
         match self {
@@ -443,18 +580,8 @@ impl ImageSource {
         arch: &'a str,
         into: &'a mut DirectoryContents<S>,
     ) -> BoxFuture<'a, Result<(), Error>> {
-        #[derive(Deserialize)]
-        #[serde(rename_all = "PascalCase")]
-        struct DockerImageConfig {
-            env: Vec<String>,
-            #[serde(default)]
-            working_dir: PathBuf,
-            #[serde(default)]
-            user: String,
-            entrypoint: Option<Vec<String>>,
-            cmd: Option<Vec<String>>,
-        }
         async move {
+            let docker_platform = docker_platform(arch);
             match self {
                 ImageSource::Packed => Ok(()),
                 ImageSource::DockerBuild {
@@ -466,14 +593,6 @@ impl ImageSource {
                     let dockerfile = dockerfile
                         .clone()
                         .unwrap_or_else(|| workdir.join("Dockerfile"));
-                    let docker_platform = if arch == "x86_64" {
-                        "--platform=linux/amd64".to_owned()
-                    } else if arch == "aarch64" {
-                        "--platform=linux/arm64".to_owned()
-                    } else {
-                        format!("--platform=linux/{arch}")
-                    };
-                    // docker buildx build ${path} -o type=image,name=start9/${id}
                     let tag = format!("start9/{id}/{image_id}:{}", new_guid());
                     let mut command = Command::new(*CONTAINER_TOOL);
                     if *CONTAINER_TOOL == "docker" {
@@ -490,17 +609,14 @@ impl ImageSource {
                         .arg("--build-arg")
                         .arg(format!("ARCH={}", arch));
 
-                    // add build arguments
                     if let Some(build_args) = build_args {
                         for (key, value) in build_args {
                             let build_arg_value = match value {
                                 BuildArg::String(val) => val.to_string(),
-                                BuildArg::EnvVar { env } => {
-                                    match std::env::var(&env) {
-                                        Ok(val) => val,
-                                        Err(_) => continue, // skip if env var not set or invalid
-                                    }
-                                }
+                                BuildArg::EnvVar { env } => match std::env::var(&env) {
+                                    Ok(val) => val,
+                                    Err(_) => continue,
+                                },
                             };
 
                             command
@@ -516,104 +632,86 @@ impl ImageSource {
                         .pipe(Command::new(*CONTAINER_TOOL).arg("load"))
                         .invoke(ErrorKind::Docker)
                         .await?;
-                    ImageSource::DockerTag(tag.clone())
+                    let loaded = ImageSource::DockerTag(tag.clone())
                         .load(tmp_dir, id, version, image_id, arch, into)
-                        .await?;
-                    Command::new(*CONTAINER_TOOL)
+                        .await;
+                    let removed = Command::new(*CONTAINER_TOOL)
                         .arg("rmi")
                         .arg("-f")
                         .arg(&tag)
                         .invoke(ErrorKind::Docker)
-                        .await?;
+                        .await;
+                    loaded?;
+                    removed?;
                     Ok(())
                 }
                 ImageSource::DockerTag(tag) => {
-                    let docker_platform = if arch == "x86_64" {
-                        "--platform=linux/amd64".to_owned()
-                    } else if arch == "aarch64" {
-                        "--platform=linux/arm64".to_owned()
-                    } else {
-                        format!("--platform=linux/{arch}")
-                    };
-                    let container = String::from_utf8(
-                        Command::new(*CONTAINER_TOOL)
-                            .arg("create")
-                            .arg(&docker_platform)
-                            .arg(&tag)
-                            .invoke(ErrorKind::Docker)
-                            .await?,
-                    )?;
-                    let container = container.trim();
-                    let config = serde_json::from_slice::<DockerImageConfig>(
-                        &Command::new(*CONTAINER_TOOL)
-                            .arg("container")
-                            .arg("inspect")
-                            .arg("--format")
-                            .arg("{{json .Config}}")
-                            .arg(container)
-                            .invoke(ErrorKind::Docker)
-                            .await?,
-                    )
-                    .with_kind(ErrorKind::Deserialization)?;
-                    let base_path = Path::new("images").join(arch).join(image_id);
-                    into.insert_path(
-                        base_path.with_extension("json"),
-                        Entry::file(
-                            TmpSource::new(
-                                tmp_dir.clone(),
-                                PackSource::Buffered(
-                                    serde_json::to_vec(&ImageMetadata {
-                                        workdir: if config.working_dir == Path::new("") {
-                                            "/".into()
-                                        } else {
-                                            config.working_dir
-                                        },
-                                        user: if config.user.is_empty() {
-                                            "root".into()
-                                        } else {
-                                            config.user.into()
-                                        },
-                                        entrypoint: config.entrypoint,
-                                        cmd: config.cmd,
-                                    })
-                                    .with_kind(ErrorKind::Serialization)?
-                                    .into(),
-                                ),
-                            )
-                            .into(),
-                        ),
-                    )?;
-                    into.insert_path(
-                        base_path.with_extension("env"),
-                        Entry::file(
-                            TmpSource::new(
-                                tmp_dir.clone(),
-                                PackSource::Buffered(config.env.join("\n").into_bytes().into()),
-                            )
-                            .into(),
-                        ),
-                    )?;
-                    let dest = tmp_dir
-                        .join(Guid::new().as_ref())
-                        .with_extension("squashfs");
-
-                    Command::new(*CONTAINER_TOOL)
-                        .arg("export")
-                        .arg(container)
-                        .pipe(&mut tar2sqfs(&dest)?)
-                        .capture(false)
+                    let container = Command::new(*CONTAINER_TOOL)
+                        .arg("create")
+                        .arg(&docker_platform)
+                        .arg(&tag)
+                        .arg("/startos-pack-placeholder")
                         .invoke(ErrorKind::Docker)
                         .await?;
-                    Command::new(*CONTAINER_TOOL)
+                    let container = String::from_utf8(container)?;
+                    let container = container.trim();
+                    let packed = async {
+                        let config =
+                            inspect_image_config(*CONTAINER_TOOL, container, &docker_platform)
+                                .await?;
+                        let (metadata, env) = config.into_parts();
+                        let base_path = Path::new("images").join(arch).join(image_id);
+                        into.insert_path(
+                            base_path.with_extension("json"),
+                            Entry::file(
+                                TmpSource::new(
+                                    tmp_dir.clone(),
+                                    PackSource::Buffered(
+                                        serde_json::to_vec(&metadata)
+                                            .with_kind(ErrorKind::Serialization)?
+                                            .into(),
+                                    ),
+                                )
+                                .into(),
+                            ),
+                        )?;
+                        into.insert_path(
+                            base_path.with_extension("env"),
+                            Entry::file(
+                                TmpSource::new(
+                                    tmp_dir.clone(),
+                                    PackSource::Buffered(env.join("\n").into_bytes().into()),
+                                )
+                                .into(),
+                            ),
+                        )?;
+                        let dest = tmp_dir
+                            .join(Guid::new().as_ref())
+                            .with_extension("squashfs");
+
+                        Command::new(*CONTAINER_TOOL)
+                            .arg("export")
+                            .arg(container)
+                            .pipe(&mut tar2sqfs(&dest)?)
+                            .capture(false)
+                            .invoke(ErrorKind::Docker)
+                            .await?;
+                        into.insert_path(
+                            base_path.with_extension("squashfs"),
+                            Entry::file(
+                                TmpSource::new(tmp_dir.clone(), PackSource::File(dest)).into(),
+                            ),
+                        )?;
+                        Ok::<_, Error>(())
+                    }
+                    .await;
+                    let removed = Command::new(*CONTAINER_TOOL)
                         .arg("rm")
                         .arg(container)
                         .invoke(ErrorKind::Docker)
-                        .await?;
-                    into.insert_path(
-                        base_path.with_extension("squashfs"),
-                        Entry::file(TmpSource::new(tmp_dir.clone(), PackSource::File(dest)).into()),
-                    )?;
-
+                        .await;
+                    packed?;
+                    removed?;
                     Ok(())
                 }
             }
@@ -762,28 +860,48 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
             ));
         }
         manifest.images.iter_mut().for_each(|(id, c)| {
-            let filtered = c
+            let has_missing_native_arch = arches.iter().any(|arch| !c.arch.contains(arch));
+            let mut filtered = c
                 .arch
                 .intersection(&arches)
                 .cloned()
                 .collect::<BTreeSet<_>>();
             if filtered.is_empty() {
-                if let Some(arch) = &c.emulate_missing_as {
-                    tracing::warn!(
-                        "ImageId {} is not available for {}, emulating as {}",
-                        id,
-                        arches.iter().join("/"),
-                        arch
-                    );
-                    c.arch = [arch.clone()].into_iter().collect();
+                if c.emulate_missing {
+                    if let Some(arch) = c.emulation_arch(|_| true).cloned() {
+                        tracing::warn!(
+                            "{}",
+                            t!(
+                                "s9pk.pack.image-unavailable-emulating",
+                                image = id.to_string(),
+                                requested = arches.iter().join("/"),
+                                emulated = arch.to_string(),
+                            )
+                        );
+                        c.arch = [arch].into_iter().collect();
+                    } else {
+                        tracing::error!(
+                            "{}",
+                            t!(
+                                "s9pk.pack.image-no-architecture-to-emulate",
+                                image = id.to_string(),
+                            )
+                        );
+                    }
                 } else {
                     tracing::error!(
-                        "ImageId {} is not available for {}",
-                        id,
-                        arches.iter().join("/"),
+                        "{}",
+                        t!(
+                            "s9pk.pack.image-unavailable",
+                            image = id.to_string(),
+                            requested = arches.iter().join("/"),
+                        )
                     );
                 }
             } else {
+                if has_missing_native_arch {
+                    filtered.extend(c.legacy_emulation_arch().cloned());
+                }
                 c.arch = filtered;
             }
         });
@@ -965,4 +1083,141 @@ pub async fn list_ingredients(_: CliContext, params: PackParams) -> Result<Vec<P
     }
 
     Ok(ingredients)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn image_inspection_uses_the_requested_docker_platform() {
+        for (arch, platform) in [
+            ("x86_64", "--platform=linux/amd64"),
+            ("aarch64", "--platform=linux/arm64"),
+            ("riscv64", "--platform=linux/riscv64"),
+        ] {
+            let command =
+                image_config_inspect_command("docker", "sha256:index", &docker_platform(arch));
+            assert_eq!(command.as_std().get_program(), "docker");
+            assert_eq!(
+                command.as_std().get_args().collect::<Vec<_>>(),
+                [
+                    "image",
+                    "inspect",
+                    platform,
+                    "--format",
+                    "{{json .Config}}",
+                    "sha256:index"
+                ]
+            );
+        }
+    }
+
+    #[test]
+    fn podman_inspects_the_resolved_image_without_a_platform_flag() {
+        let command = image_config_inspect_command(
+            "podman",
+            "sha256:arm64-image",
+            &docker_platform("aarch64"),
+        );
+        assert_eq!(command.as_std().get_program(), "podman");
+        assert_eq!(
+            command.as_std().get_args().collect::<Vec<_>>(),
+            [
+                "image",
+                "inspect",
+                "--format",
+                "{{json .Config}}",
+                "sha256:arm64-image"
+            ]
+        );
+    }
+
+    #[test]
+    fn image_config_preserves_original_command_and_defaults() {
+        let config: DockerImageConfig = serde_json::from_str(
+            r#"{
+            "Cmd": ["serve", "--foreground"],
+            "Entrypoint": ["/app/entrypoint"],
+            "Env": ["MODE=production", "EMPTY="],
+            "WorkingDir": "/app",
+            "User": "1000:1000"
+        }"#,
+        )
+        .unwrap();
+        let (metadata, env) = config.into_parts();
+        assert_eq!(metadata.cmd.unwrap(), ["serve", "--foreground"]);
+        assert_eq!(metadata.entrypoint.unwrap(), ["/app/entrypoint"]);
+        assert_eq!(metadata.workdir, Path::new("/app"));
+        assert_eq!(&*metadata.user, "1000:1000");
+        assert_eq!(env, ["MODE=production", "EMPTY="]);
+    }
+
+    #[test]
+    fn image_config_accepts_missing_and_null_optional_fields() {
+        for json in [
+            "{}",
+            r#"{"Env":null,"Entrypoint":null,"Cmd":null,"WorkingDir":"","User":""}"#,
+        ] {
+            let config: DockerImageConfig = serde_json::from_str(json).unwrap();
+            let (metadata, env) = config.into_parts();
+            assert!(metadata.cmd.is_none());
+            assert!(metadata.entrypoint.is_none());
+            assert_eq!(metadata.workdir, Path::new("/"));
+            assert_eq!(&*metadata.user, "root");
+            assert!(env.is_empty());
+        }
+    }
+
+    #[test]
+    fn cli_enables_emulation_by_default() {
+        let config = CliImageConfig::try_parse_from(["image", "--arch", "x86_64"]).unwrap();
+        let config = ImageConfig::try_from(config).unwrap();
+
+        assert!(config.emulate_missing);
+        let serialized = serde_json::to_value(config).unwrap();
+        assert!(serialized.get("emulateMissingAs").is_none());
+    }
+
+    #[test]
+    fn no_emulation_cli_flag_disables_emulation() {
+        let config =
+            CliImageConfig::try_parse_from(["image", "--arch", "x86_64", "--no-emulation"])
+                .unwrap();
+        let config = ImageConfig::try_from(config).unwrap();
+
+        assert!(!config.emulate_missing);
+    }
+
+    #[test]
+    fn old_cli_flags_are_rejected() {
+        for args in [
+            vec!["image", "--arch", "x86_64", "--emulate-missing"],
+            vec![
+                "image",
+                "--arch",
+                "x86_64",
+                "--emulate-missing-as",
+                "x86_64",
+            ],
+        ] {
+            assert!(CliImageConfig::try_parse_from(args).is_err());
+        }
+    }
+
+    #[test]
+    fn legacy_manifest_fallback_remains_the_preferred_emulation_architecture() {
+        let config: ImageConfig = serde_json::from_value(serde_json::json!({
+            "source": "packed",
+            "arch": ["aarch64", "x86_64"],
+            "emulateMissingAs": "x86_64",
+            "nvidiaContainer": false
+        }))
+        .unwrap();
+
+        assert_eq!(
+            config.emulation_arch(|_| true).map(|arch| &**arch),
+            Some("x86_64"),
+        );
+    }
 }

@@ -325,45 +325,60 @@ function isPublicIp(h: HostnameInfo): boolean {
   return h.public && (h.metadata.kind === 'ipv4' || h.metadata.kind === 'ipv6')
 }
 
-/**
- * mDNS (.local) names resolve only via LAN IPs on a shared gateway, so an mDNS
- * address is reachable only when one of its gateways has an enabled LAN IP among
- * `enabled`. Non-mDNS addresses are always resolvable here.
- */
-export function mdnsResolvable(
+function overridden(
+  overrides: DerivedAddressInfo['disabled'],
   h: HostnameInfo,
-  enabled: HostnameInfo[],
 ): boolean {
-  if (h.metadata.kind !== 'mdns') return true
-  const lanGateways = new Set(
-    enabled.flatMap(a =>
-      !a.public && (a.metadata.kind === 'ipv4' || a.metadata.kind === 'ipv6')
-        ? [a.metadata.gateway]
-        : [],
-    ),
+  return overrides.some(
+    ([hostname, port]) => hostname === h.hostname && port === (h.port ?? 0),
   )
-  return h.metadata.gateways.some(g => lanGateways.has(g))
+}
+
+function mdnsCovers(mdns: HostnameInfo, ip: HostnameInfo): boolean {
+  return (
+    mdns.metadata.kind === 'mdns' &&
+    (ip.metadata.kind === 'ipv4' || ip.metadata.kind === 'ipv6') &&
+    mdns.port === ip.port &&
+    mdns.metadata.gateways.includes(ip.metadata.gateway)
+  )
+}
+
+/**
+ * Whether the user's overrides leave this address on. A LAN IP without an
+ * override follows the mDNS address resolving to it.
+ */
+export function isAddressEnabled(
+  addr: DerivedAddressInfo,
+  h: HostnameInfo,
+): boolean {
+  if (isPublicIp(h)) {
+    if (h.port === null) return true
+    const sa =
+      h.metadata.kind === 'ipv6'
+        ? `[${h.hostname}]:${h.port}`
+        : `${h.hostname}:${h.port}`
+    return addr.enabled.includes(sa)
+  }
+  if (h.metadata.kind === 'ipv4' || h.metadata.kind === 'ipv6') {
+    if (overridden(addr.lanEnabled, h)) return true
+    if (overridden(addr.disabled, h)) return false
+    return addr.available
+      .filter(mdns => mdnsCovers(mdns, h))
+      .every(mdns => !overridden(addr.disabled, mdns))
+  }
+  if (!overridden(addr.disabled, h)) return true
+  // An enabled public GUA serves the name too; the switch stays off beside one.
+  return (
+    h.metadata.kind === 'mdns' &&
+    !h.ssl &&
+    addr.available.some(
+      ip => !ip.public && mdnsCovers(h, ip) && isAddressEnabled(addr, ip),
+    )
+  )
 }
 
 function enabledAddresses(addr: DerivedAddressInfo): HostnameInfo[] {
-  const enabled = addr.available.filter(h => {
-    if (isPublicIp(h)) {
-      // Public IPs: disabled by default, explicitly enabled via SocketAddr string
-      if (h.port === null) return true
-      const sa =
-        h.metadata.kind === 'ipv6'
-          ? `[${h.hostname}]:${h.port}`
-          : `${h.hostname}:${h.port}`
-      return addr.enabled.includes(sa)
-    } else {
-      // Everything else: enabled by default, explicitly disabled via [hostname, port] tuple
-      return !addr.disabled.some(
-        ([hostname, port]) => hostname === h.hostname && port === (h.port ?? 0),
-      )
-    }
-  })
-
-  return enabled.filter(h => mdnsResolvable(h, enabled))
+  return addr.available.filter(h => isAddressEnabled(addr, h))
 }
 
 /**
@@ -373,6 +388,16 @@ function enabledAddresses(addr: DerivedAddressInfo): HostnameInfo[] {
 export function filterNonLocal(hostnames: HostnameInfo[]): HostnameInfo[] {
   return filterRec(hostnames, nonLocalFilter, false)
 }
+
+const HELPER_KEYS = [
+  'toUrl',
+  'format',
+  'filter',
+  'matchesAny',
+  'nonLocal',
+  'public',
+  'bridge',
+] as const
 
 export const filledAddress = (
   host: Host,
@@ -400,7 +425,7 @@ export const filledAddress = (
         filterRec(hostnames, bridgeFilter, false),
       ),
     )
-    return {
+    const filled = {
       ...addressInfo,
       hostnames,
       toUrl,
@@ -440,6 +465,14 @@ export const filledAddress = (
         return getBridge()
       },
     }
+
+    // Non-enumerable so a filled address compares and serializes as the data
+    // it wraps: the derived getters are otherwise an endless walk for deepEqual.
+    for (const key of HELPER_KEYS) {
+      Object.defineProperty(filled, key, { enumerable: false })
+    }
+
+    return filled
   }
 
   return filledAddressFromHostnames<{}>(hostnames)

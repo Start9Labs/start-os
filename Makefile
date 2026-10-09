@@ -16,16 +16,16 @@ include projects/start-wrt/build.mk
 include projects/start-docs/build.mk
 include build/complexity.mk
 
-.PHONY: help start-os metadata start-os-install clean format format-check complexity complexity-top complexity-diff complexity-record complexity-verify start-cli-install start-cli start-cli-deb start-os-uis start-os-ui start-os-emulate-reflash start-os-deb start-os-$(IMAGE_TYPE) start-os-squashfs start-os-wormhole start-os-wormhole-deb start-os-update start-os-update-from-gha test start-core-test start-sdk-test container-runtime-test start-wrt-test start-registry start-registry-install start-tunnel start-tunnel-install start-core-ts-bindings
+.PHONY: help start-os metadata start-os-install clean format format-check complexity complexity-top complexity-diff complexity-record complexity-verify start-cli-install start-cli start-cli-deb start-os-uis start-os-ui start-os-emulate-reflash start-os-deb start-os-$(IMAGE_TYPE) start-os-squashfs start-os-wormhole start-os-wormhole-deb start-os-update start-os-update-from-gha test start-core-test start-sdk-test backup-fs-test container-runtime-test start-os-scripts-test start-wrt-test start-registry start-registry-install start-tunnel start-tunnel-install start-core-ts-bindings
 
 help:
 	@echo "No default target — specify one. Common targets:"
 	@echo "  start-os start-os-deb start-os-squashfs start-os-ui start-os-uis start-os-install   (StartOS)"
 	@echo "  start-cli start-cli-deb start-registry start-tunnel start-wrt start-wrt-image        (other products)"
-	@echo "  test start-core-test start-sdk-test container-runtime-test start-wrt-test            (tests)"
+	@echo "  test start-core-test start-sdk-test container-runtime-test start-os-scripts-test start-wrt-test release-notes-test (tests)"
 	@echo "  format format-check start-core-ts-bindings clean                                     (tooling)"
 	@echo "  complexity complexity-top complexity-diff                                            (complexity)"
-	@echo "See CONTRIBUTING.md for the full list."
+	@echo "See AGENTS.md for the full list."
 
 touch:
 	touch $(STARTOS_TARGETS)
@@ -49,4 +49,8 @@ format-check:
 	npm --prefix . run format:check
 	npm --prefix . run format:toml:check
 
-test: | start-core-test start-sdk-test container-runtime-test start-wrt-test
+.PHONY: release-notes-test
+release-notes-test:
+	node --test scripts/tests/*-test.mjs
+
+test: | start-core-test start-sdk-test backup-fs-test container-runtime-test start-os-scripts-test start-wrt-test release-notes-test

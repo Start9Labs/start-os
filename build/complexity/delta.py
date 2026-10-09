@@ -42,16 +42,10 @@ gone = [r for k, r in B.items() if k not in H]
 if gone:
     print(f"\n  removed: {len(gone)} functions, {sum(r['cognitive'] for r in gone)} cognitive")
 
-# A helper whose only caller shares its file is the shape a shredded function takes.
-# One that anything else calls is a shared utility, and is not the target here.
-# Adoption is the counterweight to a rising number: complexity that moved into a
-# shared helper a second subsystem now calls reads differently from complexity added.
 adopted = []
 for k, r in H.items():
     before = set((B[k].get('scopes') or []) if k in B else ())
     after = set(r.get('scopes') or [])
-    # Two distinct subsystems is where generality stops being a claim; the first
-    # caller is just the author, so creating a utility earns nothing.
     if after - before and len(after) >= 2:
         adopted.append((r, sorted(after - before), len(after)))
 if adopted:
@@ -69,4 +63,3 @@ private = [r for r in new
            and not r.get('util') and r['name'] != '<anonymous>']
 if private:
     print(f"  single-use helpers alongside their only caller: {len(private)}")
-

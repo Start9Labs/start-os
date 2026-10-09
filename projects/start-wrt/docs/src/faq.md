@@ -51,7 +51,15 @@ No. StartWRT has no telemetry, no analytics, and no phone-home behavior. For ful
 
 ## Can I use StartWRT with StartOS?
 
-Absolutely. StartWRT and [StartOS](/start-os/) are complementary products. StartOS runs your self-hosted services; StartWRT handles the networking. Together, they provide a complete self-hosting stack with proper network isolation, VPN access, and port forwarding — all without touching the command line.
+Absolutely. StartWRT and [StartOS](/start-os/) are complementary products. StartOS runs your self-hosted services; StartWRT handles the networking. Together, they provide a complete self-hosting stack with proper network isolation, VPN access, and port forwarding — all without touching the command line. Turn on **Allow automatic port forwarding** for the server on its [device page](devices.md#device-detail-page) and StartOS opens and renews the ports its services need by itself, including [hostname routes](published-ports.md#hostname-routes-shared-ports) that let several services with their own domains share port 443.
+
+## Why can't my StartOS server or game console open ports on its own?
+
+Automatic port forwarding (UPnP/PCP) is off for every device until you allow it. Open the device's [detail page](devices.md#device-detail-page) and turn on **Allow automatic port forwarding**. A device can only ever forward ports to itself, and the router refuses requests for ports a manual [Published Ports](published-ports.md) rule or the router itself uses — remote access to its web interface, SSH, or an inbound VPN. See [Automatic port forwarding](published-ports.md#automatic-port-forwarding).
+
+## Why can't my phone resolve `.local` names over the VPN?
+
+`.local` names are resolved by mDNS, which does not cross a VPN. A StartOS server joined over the [Inbound VPN](inbound-vpn.md) publishes its `.local` name into the router's DNS through the tunnel, so VPN devices resolve it like any other name; no toggle is needed, the VPN connection itself authenticates it. For other `.local` names, connect the device to the network directly or use a name the router serves, such as a [published DNS record](devices.md#device-detail-page) or the device's `.lan` hostname.
 
 ## Where can I report bugs or request features?
 

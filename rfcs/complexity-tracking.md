@@ -1,7 +1,7 @@
 # Complexity tracking
 
 A way to see what a change does to this repo's complexity, and to watch the figure move over
-time. It gates nothing. The numbers are context for whoever is making the change — an
+time. The numbers gate nothing; CI checks record freshness. The numbers are context for whoever is making the change — an
 unexpected rise is a symptom worth looking at, and one the author should be able to explain or
 refute. Every number below was measured on `7e58f9d45`.
 
@@ -202,9 +202,9 @@ noticing:
 
 None of these are gated either; they are reported because they move independently of diff size.
 
-## No gate
+## No numeric gate
 
-Nothing here fails a build, blocks a merge, or caps a number. That is deliberate, and it is what
+No complexity value fails a build, blocks a merge, or caps a number. That is deliberate, and it
 makes the rest safe: a metric with a reward attached gets optimised, and every cheap way to
 optimise this one makes the code worse. Splitting a clear function into six poorly-named pieces
 lowers its cognitive score. Hiding a body in `macro_rules!` takes it to zero. Leaving a helper
@@ -239,18 +239,15 @@ cognitive, cyclomatic, sloc, and the count over 25. It is seeded with 28 sampled
 history. `make complexity-record` prints the delta and appends a row; whoever opens a PR runs it
 and commits the result.
 
-**The check reads the branch head, not the merge commit.** A `pull_request` event checks out
-head merged into the current base by default, so its numbers move every time master does —
-numbers no author could have recorded. The first green run of this job proved the point by
-passing for the wrong reason: master had moved seven commits, CI measured a tree the author
-never saw, and its figures happened to match a backfilled row from two days earlier. The job
-now pins `ref: github.event.pull_request.head.sha`, and the check compares the **last** row
-rather than searching the whole log, so a coincidental historical match cannot pass it.
+**The check reads the PR head, not the merge commit.** On non-draft code PRs, after the
+formatting gate succeeds, CI pins `ref: github.event.pull_request.head.sha` and compares the
+**last** row's numeric totals with a fresh census of that head. It checks numeric freshness,
+not complexity thresholds or commit identity. A later commit makes the row stale only if its
+census totals change.
 
-**CI checks that a row describes the tree being shipped, and nothing else.** That is the whole
-enforcement: it proves the census was run on what is actually being merged. It does not look at
-whether the numbers went up, because a threshold is the thing that would make the metric worth
-gaming. Push another commit and the row goes stale, and the check says so.
+The merged tree actually shipped is not measured by this job. Master CI neither checks nor
+appends a row: the history preserves author-recorded PR trees, and its last row need not
+describe a merged tree.
 
 Requiring every PR to append to one file is normally how you manufacture the conflict this repo
 already suffers from its append-only i18n dictionaries — two branches adding different rows at
@@ -291,14 +288,3 @@ remains a habit, not a check.
   leaky, or an interface badly cut.
 - **`bca` is four months old and carried by one maintainer.** That is the trade for it being
   maintained at all; its parent's last release is January 2023 and Mozilla no longer uses it.
-
-## What is left to decide
-
-1. **Where the report reaches an agent.** A CI job can post the delta as a PR comment, or the
-   convention can be that whoever opens the PR runs `make complexity-diff` and pastes it. The
-   first is reliable and costs a job; the second costs nothing and is followed about 28% of the
-   time, measured against the closest existing precedent in `AGENTS.md`.
-2. **Whether master CI appends to the history log**, which is the only piece that needs write
-   access to the repo.
-3. **Whether any of this belongs in `AGENTS.md`.** It is 43 KB already, and a rule that gates
-   nothing competes for attention with rules that do.

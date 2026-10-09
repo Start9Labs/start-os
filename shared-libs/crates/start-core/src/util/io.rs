@@ -243,13 +243,33 @@ pub async fn copy_and_shutdown<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
     Ok(())
 }
 
-pub fn dir_size<'a, P: AsRef<Path> + 'a + Send + Sync>(
+pub fn dir_size<'a, P: AsRef<Path>>(
     path: P,
     ctr: Option<&'a Counter>,
 ) -> BoxFuture<'a, Result<u64, std::io::Error>> {
+    dir_size_inner(path.as_ref().to_owned(), None, ctr)
+}
+
+pub(crate) fn dir_size_excluding<'a, P: AsRef<Path>>(
+    path: P,
+    excluded: &'a Path,
+    ctr: Option<&'a Counter>,
+) -> BoxFuture<'a, Result<u64, std::io::Error>> {
+    dir_size_inner(path.as_ref().to_owned(), Some(excluded), ctr)
+}
+
+fn dir_size_inner<'a>(
+    path: PathBuf,
+    excluded: Option<&'a Path>,
+    ctr: Option<&'a Counter>,
+) -> BoxFuture<'a, Result<u64, std::io::Error>> {
     async move {
-        tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(path.as_ref()).await?)
+        tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(&path).await?)
             .try_fold(0, |acc, e| async move {
+                let path = e.path();
+                if excluded.is_some_and(|excluded| excluded == path) {
+                    return Ok(acc);
+                }
                 let m = e.metadata().await?;
                 Ok(acc
                     + if m.is_file() {
@@ -258,7 +278,7 @@ pub fn dir_size<'a, P: AsRef<Path> + 'a + Send + Sync>(
                         }
                         m.len()
                     } else if m.is_dir() {
-                        dir_size(e.path(), ctr).await?
+                        dir_size_inner(path, excluded, ctr).await?
                     } else {
                         0
                     })
@@ -289,6 +309,7 @@ pub struct IOHook<'a, T> {
     pub io: T,
     pre_write: Option<Box<dyn FnMut(&[u8]) -> Result<(), std::io::Error> + Send + 'a>>,
     post_write: Option<Box<dyn FnMut(&[u8]) + Send + 'a>>,
+    post_flush: Option<Box<dyn FnMut() + Send + 'a>>,
     post_read: Option<Box<dyn FnMut(&[u8]) + Send + 'a>>,
 }
 impl<'a, T> IOHook<'a, T> {
@@ -297,6 +318,7 @@ impl<'a, T> IOHook<'a, T> {
             io,
             pre_write: None,
             post_write: None,
+            post_flush: None,
             post_read: None,
         }
     }
@@ -309,11 +331,43 @@ impl<'a, T> IOHook<'a, T> {
     pub fn post_write<F: FnMut(&[u8]) + Send + 'a>(&mut self, f: F) {
         self.post_write = Some(Box::new(f))
     }
+    /// Invokes the callback after each successful flush, excluding shutdown.
+    pub fn post_flush<F: FnMut() + Send + 'a>(&mut self, f: F) {
+        self.post_flush = Some(Box::new(f))
+    }
     pub fn post_read<F: FnMut(&[u8]) + Send + 'a>(&mut self, f: F) {
         self.post_read = Some(Box::new(f))
     }
 }
 impl<'a, T: AsyncWrite> AsyncWrite for IOHook<'a, T> {
+    fn is_write_vectored(&self) -> bool {
+        self.io.is_write_vectored()
+    }
+    fn poll_write_vectored(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        bufs: &[std::io::IoSlice<'_>],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        let this = self.project();
+        if let Some(pre_write) = this.pre_write {
+            for buf in bufs {
+                pre_write(buf)?;
+            }
+        }
+        let written = futures::ready!(this.io.poll_write_vectored(cx, bufs)?);
+        if let Some(post_write) = this.post_write {
+            let mut remaining = written;
+            for buf in bufs {
+                if remaining == 0 {
+                    break;
+                }
+                let len = remaining.min(buf.len());
+                post_write(&buf[..len]);
+                remaining -= len;
+            }
+        }
+        Poll::Ready(Ok(written))
+    }
     fn poll_write(
         self: Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
@@ -333,7 +387,12 @@ impl<'a, T: AsyncWrite> AsyncWrite for IOHook<'a, T> {
         self: Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(), std::io::Error>> {
-        self.project().io.poll_flush(cx)
+        let this = self.project();
+        futures::ready!(this.io.poll_flush(cx)?);
+        if let Some(post_flush) = this.post_flush {
+            post_flush();
+        }
+        Poll::Ready(Ok(()))
     }
     fn poll_shutdown(
         self: Pin<&mut Self>,
@@ -658,14 +717,37 @@ impl<'a, R: AsyncRead> AsyncRead for CountingReader<'a, R> {
     }
 }
 
-pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + Send + Sync>(
+pub fn dir_copy<'a, P0: AsRef<Path>, P1: AsRef<Path>>(
     src: P0,
     dst: P1,
     ctr: Option<&'a Counter>,
 ) -> BoxFuture<'a, Result<(), crate::Error>> {
+    dir_copy_inner(src.as_ref().to_owned(), dst.as_ref().to_owned(), None, ctr)
+}
+
+pub(crate) fn dir_copy_excluding<'a, P0: AsRef<Path>, P1: AsRef<Path>>(
+    src: P0,
+    dst: P1,
+    excluded: &'a Path,
+    ctr: Option<&'a Counter>,
+) -> BoxFuture<'a, Result<(), crate::Error>> {
+    dir_copy_inner(
+        src.as_ref().to_owned(),
+        dst.as_ref().to_owned(),
+        Some(excluded),
+        ctr,
+    )
+}
+
+fn dir_copy_inner<'a>(
+    src: PathBuf,
+    dst: PathBuf,
+    excluded: Option<&'a Path>,
+    ctr: Option<&'a Counter>,
+) -> BoxFuture<'a, Result<(), crate::Error>> {
     async move {
         let m = tokio::fs::metadata(&src).await?;
-        let dst_path = dst.as_ref();
+        let dst_path = dst.as_path();
         tokio::fs::create_dir_all(&dst_path).await.with_ctx(|_| {
             (
                 crate::ErrorKind::Filesystem,
@@ -696,19 +778,24 @@ pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + S
                 format!("chown {}", dst_path.display()),
             )
         })?;
-        tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(src.as_ref()).await?)
+        tokio_stream::wrappers::ReadDirStream::new(tokio::fs::read_dir(&src).await?)
             .map_err(|e| crate::Error::new(e, crate::ErrorKind::Filesystem))
             .try_for_each(|e| async move {
-                let m = e.metadata().await?;
                 let src_path = e.path();
+                if excluded.is_some_and(|excluded| excluded == src_path) {
+                    return Ok(());
+                }
+                let m = e.metadata().await?;
                 let dst_path = dst_path.join(e.file_name());
                 if m.is_file() {
-                    let mut dst_file = create_file(&dst_path).await.with_ctx(|_| {
-                        (
-                            crate::ErrorKind::Filesystem,
-                            format!("create {}", dst_path.display()),
-                        )
-                    })?;
+                    let mut dst_file = create_file_mod(&dst_path, m.mode() & 0o7777)
+                        .await
+                        .with_ctx(|_| {
+                            (
+                                crate::ErrorKind::Filesystem,
+                                format!("create {}", dst_path.display()),
+                            )
+                        })?;
                     let mut rdr = open_file(&src_path).await.with_ctx(|_| {
                         (
                             crate::ErrorKind::Filesystem,
@@ -730,6 +817,7 @@ pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + S
                     dst_file.shutdown().await?;
                     dst_file.sync_all().await?;
                     drop(dst_file);
+                    let permissions = m.permissions();
                     let tmp_dst_path = dst_path.clone();
                     tokio::task::spawn_blocking(move || {
                         nix::unistd::chown(
@@ -746,8 +834,17 @@ pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + S
                             format!("chown {}", dst_path.display()),
                         )
                     })?;
+                    // Creation and chown can clear source mode bits.
+                    tokio::fs::set_permissions(&dst_path, permissions)
+                        .await
+                        .with_ctx(|_| {
+                            (
+                                crate::ErrorKind::Filesystem,
+                                format!("chmod {}", dst_path.display()),
+                            )
+                        })?;
                 } else if m.is_dir() {
-                    dir_copy(src_path, dst_path, ctr).await?;
+                    dir_copy_inner(src_path, dst_path, excluded, ctr).await?;
                 } else if m.file_type().is_symlink() {
                     tokio::fs::symlink(
                         tokio::fs::read_link(&src_path).await.with_ctx(|_| {
@@ -765,7 +862,6 @@ pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + S
                             format!("cp -P {} -> {}", src_path.display(), dst_path.display()),
                         )
                     })?;
-                    // Do not set permissions (see https://unix.stackexchange.com/questions/87200/change-permissions-for-a-symbolic-link)
                 }
                 Ok(())
             })
@@ -1837,7 +1933,280 @@ impl Drop for AtomicFile {
 
 #[cfg(test)]
 mod test {
+    use std::io::{ErrorKind as IoErrorKind, IoSlice};
+    use std::sync::Mutex;
+    use std::task::Context;
+
     use super::*;
+
+    #[derive(Default)]
+    struct ScriptedWriter {
+        flushes: VecDeque<Poll<std::io::Result<()>>>,
+        writes: VecDeque<Poll<std::io::Result<usize>>>,
+        offered: Vec<Vec<Vec<u8>>>,
+        vectored: bool,
+        shutdowns: usize,
+    }
+
+    impl AsyncWrite for ScriptedWriter {
+        fn poll_write(
+            self: Pin<&mut Self>,
+            _: &mut Context<'_>,
+            _: &[u8],
+        ) -> Poll<std::io::Result<usize>> {
+            panic!("vectored writes must reach poll_write_vectored")
+        }
+
+        fn is_write_vectored(&self) -> bool {
+            self.vectored
+        }
+
+        fn poll_write_vectored(
+            mut self: Pin<&mut Self>,
+            _: &mut Context<'_>,
+            bufs: &[IoSlice<'_>],
+        ) -> Poll<std::io::Result<usize>> {
+            self.offered
+                .push(bufs.iter().map(|buf| buf.to_vec()).collect());
+            self.writes.pop_front().unwrap()
+        }
+
+        fn poll_flush(mut self: Pin<&mut Self>, _: &mut Context<'_>) -> Poll<std::io::Result<()>> {
+            self.flushes.pop_front().unwrap()
+        }
+
+        fn poll_shutdown(
+            mut self: Pin<&mut Self>,
+            _: &mut Context<'_>,
+        ) -> Poll<std::io::Result<()>> {
+            self.shutdowns += 1;
+            Poll::Ready(Ok(()))
+        }
+    }
+
+    #[test]
+    fn io_hook_post_flush_fires_on_success_not_pending_error_or_shutdown() {
+        let calls = Mutex::new(0);
+        let mut hook = IOHook::new(ScriptedWriter {
+            flushes: VecDeque::from([
+                Poll::Pending,
+                Poll::Ready(Err(IoErrorKind::BrokenPipe.into())),
+                Poll::Ready(Ok(())),
+                Poll::Ready(Ok(())),
+            ]),
+            ..Default::default()
+        });
+        hook.post_flush(|| *calls.lock().unwrap() += 1);
+        let mut cx = Context::from_waker(futures::task::noop_waker_ref());
+
+        assert!(Pin::new(&mut hook).poll_flush(&mut cx).is_pending());
+        assert_eq!(*calls.lock().unwrap(), 0);
+        assert!(matches!(
+            Pin::new(&mut hook).poll_flush(&mut cx),
+            Poll::Ready(Err(e)) if e.kind() == IoErrorKind::BrokenPipe
+        ));
+        assert_eq!(*calls.lock().unwrap(), 0);
+        for expected in [1, 2] {
+            assert!(matches!(
+                Pin::new(&mut hook).poll_flush(&mut cx),
+                Poll::Ready(Ok(()))
+            ));
+            assert_eq!(*calls.lock().unwrap(), expected);
+        }
+        assert!(matches!(
+            Pin::new(&mut hook).poll_shutdown(&mut cx),
+            Poll::Ready(Ok(()))
+        ));
+        assert_eq!(*calls.lock().unwrap(), 2);
+        assert_eq!(hook.io.shutdowns, 1);
+        assert!(hook.io.flushes.is_empty());
+    }
+
+    #[test]
+    fn io_hook_vectored_write_forwards_capability_and_accounts_written_prefix() {
+        let bufs = [
+            IoSlice::new(b"ab"),
+            IoSlice::new(b""),
+            IoSlice::new(b"cde"),
+            IoSlice::new(b"fgh"),
+        ];
+        let offered = vec![b"ab".to_vec(), vec![], b"cde".to_vec(), b"fgh".to_vec()];
+        let cases: &[(usize, &[&[u8]])] = &[
+            (0, &[]),
+            (1, &[b"a"]),
+            (2, &[b"ab"]),
+            (4, &[b"ab", b"", b"cd"]),
+            (5, &[b"ab", b"", b"cde"]),
+            (8, &[b"ab", b"", b"cde", b"fgh"]),
+        ];
+        let mut cx = Context::from_waker(futures::task::noop_waker_ref());
+        for &(written, expected) in cases {
+            let pre = Mutex::new(Vec::new());
+            let post = Mutex::new(Vec::new());
+            let mut hook = IOHook::new(ScriptedWriter {
+                writes: VecDeque::from([Poll::Ready(Ok(written))]),
+                vectored: true,
+                ..Default::default()
+            });
+            hook.pre_write(|buf| {
+                pre.lock().unwrap().push(buf.to_vec());
+                Ok(())
+            });
+            hook.post_write(|buf| post.lock().unwrap().push(buf.to_vec()));
+
+            assert!(hook.is_write_vectored());
+            assert!(matches!(
+                Pin::new(&mut hook).poll_write_vectored(&mut cx, &bufs),
+                Poll::Ready(Ok(n)) if n == written
+            ));
+            assert_eq!(*pre.lock().unwrap(), offered);
+            assert_eq!(*post.lock().unwrap(), expected);
+            assert_eq!(hook.io.offered, vec![offered.clone()]);
+        }
+        assert!(!IOHook::new(ScriptedWriter::default()).is_write_vectored());
+    }
+
+    #[test]
+    fn io_hook_vectored_write_pending_and_error_do_not_run_post_hook() {
+        let pre = Mutex::new(Vec::new());
+        let post = Mutex::new(Vec::new());
+        let mut hook = IOHook::new(ScriptedWriter {
+            writes: VecDeque::from([
+                Poll::Pending,
+                Poll::Ready(Err(IoErrorKind::BrokenPipe.into())),
+            ]),
+            ..Default::default()
+        });
+        hook.pre_write(|buf| {
+            pre.lock().unwrap().push(buf.to_vec());
+            Ok(())
+        });
+        hook.post_write(|buf| post.lock().unwrap().push(buf.to_vec()));
+        let bufs = [IoSlice::new(b"ab"), IoSlice::new(b"cd")];
+        let mut cx = Context::from_waker(futures::task::noop_waker_ref());
+
+        assert!(
+            Pin::new(&mut hook)
+                .poll_write_vectored(&mut cx, &bufs)
+                .is_pending()
+        );
+        assert!(matches!(
+            Pin::new(&mut hook).poll_write_vectored(&mut cx, &bufs),
+            Poll::Ready(Err(e)) if e.kind() == IoErrorKind::BrokenPipe
+        ));
+        assert!(post.lock().unwrap().is_empty());
+        assert_eq!(*pre.lock().unwrap(), [b"ab", b"cd", b"ab", b"cd"]);
+        assert_eq!(hook.io.offered.len(), 2);
+    }
+
+    #[test]
+    fn io_hook_vectored_pre_write_error_prevents_transport_write() {
+        let pre = Mutex::new(Vec::new());
+        let post = Mutex::new(Vec::new());
+        let mut hook = IOHook::new(ScriptedWriter::default());
+        hook.pre_write(|buf| {
+            pre.lock().unwrap().push(buf.to_vec());
+            if buf == b"reject" {
+                Err(IoErrorKind::PermissionDenied.into())
+            } else {
+                Ok(())
+            }
+        });
+        hook.post_write(|buf| post.lock().unwrap().push(buf.to_vec()));
+        let bufs = [
+            IoSlice::new(b"ok"),
+            IoSlice::new(b"reject"),
+            IoSlice::new(b"unreached"),
+        ];
+        let mut cx = Context::from_waker(futures::task::noop_waker_ref());
+
+        assert!(matches!(
+            Pin::new(&mut hook).poll_write_vectored(&mut cx, &bufs),
+            Poll::Ready(Err(e)) if e.kind() == IoErrorKind::PermissionDenied
+        ));
+        assert_eq!(*pre.lock().unwrap(), [b"ok".as_slice(), b"reject"]);
+        assert!(post.lock().unwrap().is_empty());
+        assert!(hook.io.offered.is_empty());
+    }
+
+    #[tokio::test]
+    async fn directory_helpers_exclude_source_path() {
+        let root = PathBuf::from(format!(
+            "/tmp/dir-copy-test-{}-{}",
+            std::process::id(),
+            rand::random::<u64>()
+        ));
+        let src = root.join("src");
+        let dst = root.join("dst");
+        let excluded = src.join("tmp");
+        tokio::fs::create_dir_all(&excluded).await.unwrap();
+        tokio::fs::write(src.join("keep"), b"keep").await.unwrap();
+        tokio::fs::write(excluded.join("skip"), b"skip")
+            .await
+            .unwrap();
+
+        let size = Counter::new(0, std::sync::atomic::Ordering::Relaxed);
+        assert_eq!(
+            dir_size_excluding(&src, &excluded, Some(&size))
+                .await
+                .unwrap(),
+            4
+        );
+        assert_eq!(size.load(), 4);
+
+        let copied = Counter::new(0, std::sync::atomic::Ordering::Relaxed);
+        dir_copy_excluding(&src, &dst, &excluded, Some(&copied))
+            .await
+            .unwrap();
+        assert_eq!(tokio::fs::read(dst.join("keep")).await.unwrap(), b"keep");
+        assert_eq!(copied.load(), 4);
+        assert_eq!(
+            tokio::fs::metadata(dst.join("tmp"))
+                .await
+                .unwrap_err()
+                .kind(),
+            std::io::ErrorKind::NotFound
+        );
+
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn dir_copy_preserves_file_modes() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let root = PathBuf::from(format!(
+            "/tmp/dir-copy-mode-test-{}-{}",
+            std::process::id(),
+            rand::random::<u64>()
+        ));
+        let src = root.join("src");
+        let dst = root.join("dst");
+        let modes = [
+            ("secret", 0o600),
+            ("script", 0o755),
+            ("plain", 0o644),
+            ("umask", 0o666),
+            ("special", 0o6755),
+        ];
+        tokio::fs::create_dir_all(&src).await.unwrap();
+        for (name, mode) in modes {
+            let path = src.join(name);
+            tokio::fs::write(&path, name).await.unwrap();
+            tokio::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode))
+                .await
+                .unwrap();
+        }
+
+        dir_copy(&src, &dst, None).await.unwrap();
+
+        for (name, mode) in modes {
+            let copied = tokio::fs::metadata(dst.join(name)).await.unwrap();
+            assert_eq!(copied.permissions().mode() & 0o7777, mode, "{name}");
+        }
+
+        tokio::fs::remove_dir_all(root).await.unwrap();
+    }
 
     #[tokio::test]
     async fn canonicalize_folds_parent_components_in_missing_tails() {
