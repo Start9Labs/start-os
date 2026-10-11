@@ -117,6 +117,8 @@ export const current = VersionInfo.of({
 })
 ```
 
+Write `version` as a quoted string literal — never a template literal or an expression built from a constant such as an upstream-version pin. The release workflow reads it from the file's text to name the git tag, and fails on anything else.
+
 ### index.ts
 
 ```typescript
