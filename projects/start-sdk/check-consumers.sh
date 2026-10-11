@@ -8,8 +8,7 @@
 # <previous-version> defaults to the latest version on npm.
 set -euo pipefail
 
-cd "$(dirname "$0")"
-dist=$PWD/dist
+dist=$(cd "$(dirname "$0")" && pwd)/dist
 [ -f "$dist/package.json" ] || { echo "dist/ is missing; run make bundle" >&2; exit 2; }
 
 previous=
@@ -21,8 +20,8 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 (cd "$work" && npm pack -q "@start9labs/start-sdk@$previous" >/dev/null && tar xzf ./*.tgz)
 
-check() { # <label> <sdk-dir> <package-dir>
-  local label=$1 sdk=$2 pkg=$3 name cfg
+check() {
+  local label=$1 sdk=$2 pkg=$3 name cfg log
   name=$(echo "$pkg" | tr / _)
   cfg=$work/$label/$name.tsconfig.json
   mkdir -p "$work/$label"
@@ -32,7 +31,15 @@ check() { # <label> <sdk-dir> <package-dir>
     "paths": { "@start9labs/start-sdk": ["$sdk/lib/index.d.ts"], "@start9labs/start-sdk/*": ["$sdk/*"] } },
   "include": ["$pkg/startos/**/*.ts"] }
 EOF
-  "$pkg/node_modules/.bin/tsc" -p "$cfg" 2>&1 | grep 'error TS' |
+  log=$work/$label/$name.log
+  if ! "$pkg/node_modules/.bin/tsc" -p "$cfg" >"$log" 2>&1; then
+    if ! grep -q 'error TS' "$log"; then
+      echo "ERROR $label $pkg: type-check did not complete" >&2
+      cat "$log" >&2
+      return 2
+    fi
+  fi
+  grep 'error TS' "$log" |
     sed -E 's|^.*/startos/|startos/|; s|\(([0-9]+),[0-9]+\)||; s|"[^"]*/(lib/[^"]*)"|"\1"|g' |
     sort -u >"$work/$label/$name.txt" || true
 }
@@ -45,8 +52,13 @@ for pkg in "$@"; do
     continue
   fi
   check previous "$work/package" "$pkg" &
+  previous_pid=$!
   check candidate "$dist" "$pkg" &
-  wait
+  candidate_pid=$!
+  status=0
+  wait "$previous_pid" || status=2
+  wait "$candidate_pid" || status=2
+  [ "$status" -eq 0 ] || exit "$status"
   name=$(echo "$pkg" | tr / _)
   introduced=$(comm -13 "$work/previous/$name.txt" "$work/candidate/$name.txt")
   if [ -n "$introduced" ]; then

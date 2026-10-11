@@ -4,10 +4,10 @@ import { Watchable } from './Watchable'
 
 /** The calling service's own container always has an IP; another package's may not. */
 export type ContainerIp<Opts extends { packageId?: PackageId }> = Opts extends {
-  packageId: PackageId
+  packageId?: undefined
 }
-  ? string | null
-  : string
+  ? string
+  : string | null
 
 export class GetContainerIp<
   Opts extends { packageId?: PackageId } = {},
