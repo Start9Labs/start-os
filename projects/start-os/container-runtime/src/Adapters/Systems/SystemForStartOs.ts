@@ -61,7 +61,7 @@ export class SystemForStartOs implements System {
     input: unknown,
     caller: T.PackageId | null,
     timeoutMs: number | null,
-  ): Promise<T.ActionResultInput | null> {
+  ): Promise<T.ActionResult | null> {
     const action = this.abi.actions.get(id)
     if (!action) throw new Error(`Action ${id} not found`)
     return action.run({ effects, input, caller })

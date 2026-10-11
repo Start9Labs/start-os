@@ -482,6 +482,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
                 copyable: true,
                 qr: true,
                 masked: true,
+                launchable: false,
               },
             }),
           )

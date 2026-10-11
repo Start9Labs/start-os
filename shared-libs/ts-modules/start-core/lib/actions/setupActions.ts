@@ -17,9 +17,7 @@ export type Run<A extends Record<string, any>> = (options: {
   input: A
   spec: T.inputSpecTypes.InputSpec
   caller: ActionCaller
-}) => Promise<
-  (T.ActionResultInput & { version: '1' }) | null | void | undefined
->
+}) => Promise<(T.ActionResult & { version: '1' }) | null | void | undefined>
 export type GetInput<A extends Record<string, any>> = (options: {
   effects: T.Effects
   prefill: T.DeepPartial<A> | null
@@ -74,7 +72,7 @@ export interface Action<
     effects: T.Effects
     input: Type
     caller?: ActionCaller
-  }): Promise<T.ActionResultInput | null>
+  }): Promise<T.ActionResult | null>
 }
 
 class ActionImpl<
@@ -145,7 +143,7 @@ class ActionImpl<
     effects: T.Effects
     input: Type
     caller?: ActionCaller
-  }): Promise<T.ActionResultInput | null> {
+  }): Promise<T.ActionResult | null> {
     let spec = {}
     if (this.inputSpec) {
       const prevInputSpec = this.prevInputSpec[options.effects.eventId!]

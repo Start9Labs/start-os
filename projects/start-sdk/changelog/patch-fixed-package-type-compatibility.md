@@ -1,1 +1,2 @@
-- **Package code written for 3.0.4 type-checks.** Action results may omit `launchable`, Dockerfile images may omit `workdir`, device filters and notifications may omit their optional fields, and `getContainerIp` for the service's own container returns a string.
+- **Manifests, notifications and `getContainerIp` type-check as written for 3.0.4.** Dockerfile images may omit `workdir`, device filters and notifications may omit their optional fields, and `getContainerIp` for the service's own container returns a string.
+- **Action result values require every field**, including `launchable`; set it to `false` where a value has no link to open.
