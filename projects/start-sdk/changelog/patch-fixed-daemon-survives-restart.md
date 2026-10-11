@@ -1,0 +1,1 @@
+- Fixed a service restart during startup leaving a daemon from the previous run running alongside the new one.
