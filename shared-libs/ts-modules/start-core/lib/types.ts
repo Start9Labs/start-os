@@ -1,5 +1,13 @@
 export * as inputSpecTypes from './actions/input/inputSpecTypes'
 export * from './osBindings'
+// Names package code builds values with take the input form.
+export type {
+  ActionResultInput as ActionResult,
+  ActionResultMemberInput as ActionResultMember,
+  ActionResultV1Input as ActionResultV1,
+  ActionResultValueInput as ActionResultValue,
+  DeviceFilterInput as DeviceFilter,
+} from './osBindings'
 export { SDKManifest } from './types/ManifestTypes'
 export { Effects }
 import { InputSpec as InputSpecClass } from './actions/input/builder/inputSpec'

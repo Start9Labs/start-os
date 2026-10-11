@@ -30,7 +30,7 @@ export type System = {
     input: unknown,
     caller: T.PackageId | null,
     timeoutMs: number | null,
-  ): Promise<T.ActionResult | null>
+  ): Promise<T.ActionResultInput | null>
   getActionInput(
     effects: Effects,
     actionId: string,

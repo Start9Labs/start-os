@@ -278,8 +278,10 @@ export class StartSdk<Manifest extends T.SDKManifest> {
          *   })
          * ```
          */
-        create: (effects: T.Effects, options: T.CreateNotificationParams) =>
-          effects.notification.create(options),
+        create: (
+          effects: T.Effects,
+          options: T.CreateNotificationParamsInput,
+        ) => effects.notification.create(options),
       },
       host: {
         /**
@@ -340,12 +342,9 @@ export class StartSdk<Manifest extends T.SDKManifest> {
        * @param effects - The effects context
        * @param options - Optional filtering options (e.g. `containerId`)
        */
-      getContainerIp: (
+      getContainerIp: <Opts extends { packageId?: T.PackageId } = {}>(
         effects: T.Effects,
-        options: Omit<
-          Parameters<T.Effects['getContainerIp']>[0],
-          'callback'
-        > = {},
+        options: Opts = {} as Opts,
       ) => new GetContainerIp(effects, options),
 
       /**

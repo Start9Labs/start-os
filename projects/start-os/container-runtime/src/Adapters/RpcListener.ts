@@ -426,7 +426,7 @@ export class RpcListener {
     input: any,
   ) {
     const ensureResultTypeShape = (
-      result: void | T.ActionInput | T.ActionResult | null,
+      result: void | T.ActionInput | T.ActionResultInput | null,
     ): { result: any } => {
       return { result }
     }
