@@ -51,6 +51,7 @@ export const setAdminPassword = sdk.Action.withoutInput(
             masked: false,
             copyable: true,
             qr: false,
+            launchable: false,
           },
           {
             type: 'single',
@@ -60,6 +61,7 @@ export const setAdminPassword = sdk.Action.withoutInput(
             masked: true,
             copyable: true,
             qr: false,
+            launchable: false,
           },
         ],
       },
@@ -159,13 +161,13 @@ Restart the service once the rebuild finishes.`,
 
 `result` holds the values the user acts on — copies, scans, or saves. It takes one of three types:
 
-| `type`      | Renders as                                                         | Takes                                                           |
-| ----------- | ------------------------------------------------------------------ | --------------------------------------------------------------- |
-| `single`    | a one-line field                                                   | `value`, plus optional `copyable`, `qr`, `masked`, `launchable` |
-| `multiline` | a read-only monospace box that keeps its line breaks               | `value`, plus optional `copyable`, `qr`, `masked`, `filename`   |
-| `group`     | an accordion of named members, each of which is any of these three | `value`, the array of members                                   |
+| `type`      | Renders as                                                         | Takes                                             |
+| ----------- | ------------------------------------------------------------------ | ------------------------------------------------- |
+| `single`    | a one-line field                                                   | `value`, `copyable`, `qr`, `masked`, `launchable` |
+| `multiline` | a read-only monospace box that keeps its line breaks               | `value`, `copyable`, `qr`, `masked`, `filename`   |
+| `group`     | an accordion of named members, each of which is any of these three | `value`, the array of members                     |
 
-A newline in a `single` value is not rendered — the browser strips it from the field — so anything with its own line structure is a `multiline` value. `filename` is what separates "here is some text" from "here is a file": set it and the value is also offered as a download under that name; omit it for no download button.
+A newline in a `single` value is not rendered — the browser strips it from the field — so anything with its own line structure is a `multiline` value. `filename` is what separates "here is some text" from "here is a file": set it and the value is also offered as a download under that name; set it to `null` for no download button.
 
 ### Single Value
 
@@ -176,11 +178,12 @@ result: {
   masked: true,
   copyable: true,
   qr: false,
+  launchable: false,
 }
 ```
 
-`copyable`, `qr`, `masked` and `launchable` are all optional and default to
-`false`. `launchable` puts an open-in-new-tab button beside the value, so a
+Every field is required: set `copyable`, `qr`, `masked` and `launchable` to
+`true` or `false`. `launchable` puts an open-in-new-tab button beside the value, so a
 result that hands the user a link — an authorization URL, an admin panel — can
 be clicked straight through:
 
@@ -189,6 +192,8 @@ result: {
   type: 'single',
   value: 'https://btcpay.example.com/api-keys/authorize?permissions=btcpay.store.cancreateinvoice',
   copyable: true,
+  qr: false,
+  masked: false,
   launchable: true,
 }
 ```
@@ -202,20 +207,22 @@ result: {
   type: 'multiline',
   value: report,
   copyable: true,
+  qr: false,
+  masked: false,
   filename: 'vikunja-doctor.txt',
 }
 ```
 
 ### Group of Values
 
-A member carries a `name`, and an optional `description`, on top of whatever its own type takes:
+A member carries a `name` and a `description` (`null` for none) on top of whatever its own type takes:
 
 ```typescript
 result: {
   type: 'group',
   value: [
-    { type: 'single', name: 'Username', description: null, value: 'admin', masked: false, copyable: true, qr: false },
-    { type: 'single', name: 'Password', description: null, value: 'secret', masked: true, copyable: true, qr: false },
+    { type: 'single', name: 'Username', description: null, value: 'admin', masked: false, copyable: true, qr: false, launchable: false },
+    { type: 'single', name: 'Password', description: null, value: 'secret', masked: true, copyable: true, qr: false, launchable: false },
     { type: 'multiline', name: 'Device Config', description: null, value: config, masked: true, copyable: true, qr: true, filename: 'start-tunnel.conf' },
   ],
 }
