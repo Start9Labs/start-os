@@ -1,7 +1,14 @@
 import { inject, Service } from '@angular/core'
 import { FALLBACK_ICON, registryIconUrl } from '@start9labs/marketplace'
 import { PatchDB } from 'patch-db-client'
-import { catchError, from, Observable, of, shareReplay, switchMap } from 'rxjs'
+import {
+  catchError,
+  defer,
+  Observable,
+  of,
+  shareReplay,
+  switchMap,
+} from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   DataModel,
@@ -19,6 +26,18 @@ export class PackageIconService {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly cache = new Map<string, Observable<string>>()
 
+  getRegistry$(
+    registry: string,
+    id: string,
+    version: string,
+    dependency?: string,
+  ): Observable<string> {
+    const url = `/registry/icons/${encodeURIComponent(
+      registryIconUrl(registry, id, version, dependency),
+    )}`
+    return this.load(url, url)
+  }
+
   get(pkg: PackageDataEntry | string, dependency?: string): Observable<string> {
     if (typeof pkg === 'string') {
       return this.patch
@@ -33,24 +52,26 @@ export class PackageIconService {
     const { id, version } = getManifest(pkg)
 
     if (isInstalling(pkg) || isRestoring(pkg)) {
-      return of(
-        pkg.registry
-          ? registryIconUrl(pkg.registry, id, version, dependency)
-          : FALLBACK_ICON,
-      )
+      return pkg.registry
+        ? this.getRegistry$(pkg.registry, id, version, dependency)
+        : of(FALLBACK_ICON)
     }
 
     const path = dependency ? `dependencies/${dependency}/icon` : 'icon'
-    const key = `${pkg.s9pk}/${path}`
+    return this.load(
+      `${pkg.s9pk}/${path}`,
+      `/s9pk/installed/${id}.s9pk/${path}`,
+    )
+  }
+
+  private load(key: string, url: string): Observable<string> {
     const cached = this.cache.get(key)
 
     if (cached) {
       return cached
     }
 
-    const icon$ = from(
-      this.api.getStaticObjectUrl(`/s9pk/installed/${id}.s9pk/${path}`),
-    ).pipe(
+    const icon$ = defer(() => this.api.getStaticObjectUrl(url)).pipe(
       catchError(() => {
         this.cache.delete(key)
         return of(FALLBACK_ICON)
