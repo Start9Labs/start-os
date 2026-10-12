@@ -8,17 +8,6 @@ This file tracks notable changes since the move to the monorepo, and is what eac
 [GitHub release](https://github.com/Start9Labs/start-technologies/releases) links to
 for the detail behind its highlights.
 
-## [0.4.0.3]
-
-### Changed
-
-- **NVIDIA images include driver 580.178.04**, with Linux 7.2 compatibility.
-
-### Fixed
-
-- **`s9pk pack` produces readable JavaScript even under a restrictive umask**, preserving
-  executable bits and leaving source permissions unchanged.
-
 ## [0.4.0.2]
 
 ### Security

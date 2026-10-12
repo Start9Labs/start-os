@@ -284,3 +284,42 @@ describe('HealthDaemon dependency-driven restart cycle', () => {
     expect(daemon.term).not.toHaveBeenCalled()
   })
 })
+
+describe('HealthDaemon.term', () => {
+  it('does not start the daemon from a status update still in flight', async () => {
+    let releaseSetHealth = () => {}
+    const effects = {
+      ...fakeEffects(),
+      setHealth: () =>
+        new Promise<null>(resolve => (releaseSetHealth = () => resolve(null))),
+    } as any
+    const sub = new FakeSub()
+    const releaseSibling = sub.hold()
+    const daemon = Daemon.of<Manifest>()(
+      effects,
+      sub as any,
+      blockUntilAborted as any,
+    )
+    const hd = new HealthDaemon<Manifest>(
+      daemon,
+      [],
+      'db',
+      {
+        display: 'Database',
+        fn: () => ({ result: 'success', message: null }),
+      },
+      effects,
+    )
+
+    const update = hd.updateStatus()
+    await tick()
+    await hd.term()
+    releaseSetHealth()
+    await update
+    await tick()
+
+    expect(sub.holdCount).toBe(1)
+    await releaseSibling()
+    expect(sub.destroyed).toBe(true)
+  })
+})

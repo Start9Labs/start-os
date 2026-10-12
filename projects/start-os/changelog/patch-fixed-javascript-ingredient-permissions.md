@@ -1,0 +1,1 @@
+- **`s9pk pack` produces readable JavaScript even under a restrictive umask**, preserving executable bits and leaving source permissions unchanged.

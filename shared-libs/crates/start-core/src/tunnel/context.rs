@@ -29,7 +29,7 @@ use crate::middleware::auth::Auth;
 use crate::middleware::auth::local::{LocalAuthContext, dial_addr, local_auth_header};
 use crate::middleware::auth::signature::{NonceCache, url_host_str};
 use crate::middleware::cors::Cors;
-use crate::net::dns_update::rfc2136::{DnsInjector, InjectedRecord};
+use crate::net::dns_update::rfc2136::{DnsInjector, InjectedRecord, UpdateAuth};
 use crate::net::forward::{PortForwardController, nft_comments_with_prefix, nft_rule, nft_rule_v6};
 use crate::net::static_server::{EMPTY_DIR, UiContext};
 use crate::prelude::*;
@@ -306,6 +306,14 @@ impl TunnelContext {
                             .result
                             .log_err();
                     });
+                },
+                // Every tunnel client holds a PSK; an unsigned UPDATE is refused.
+                |_, _, auth: UpdateAuth| async move {
+                    if auth.tsig {
+                        hickory_server::proto::op::ResponseCode::NoError
+                    } else {
+                        hickory_server::proto::op::ResponseCode::Refused
+                    }
                 },
             )
         };
@@ -871,12 +879,14 @@ impl CallRemote<TunnelContext> for CliContext {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Parser)]
+#[derive(Debug, Deserialize, Serialize, VisitFields, Parser)]
 #[group(skip)]
 pub struct TunnelUrlParams {
     #[arg(help = "help.arg.tunnel-url")]
     pub tunnel: Url,
 }
+
+rpc_toolkit::reflect_ts!(TunnelUrlParams);
 
 impl CallRemote<TunnelContext, TunnelUrlParams> for RpcContext {
     async fn call_remote(
