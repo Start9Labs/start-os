@@ -940,12 +940,10 @@ export type CurrentDependenciesInput = {
 }
 export type CurrentDependencyInfo = {
   title: LocaleString | null
-  icon: DataUrl | null
   versionRange: string
 } & CurrentDependencyKind
 export type CurrentDependencyInfoInput = {
   title?: LocaleStringInput | null
-  icon?: DataUrlInput | null
   versionRange: string
 } & CurrentDependencyKindInput
 export type CurrentDependencyKind =
@@ -974,7 +972,7 @@ export type Dependencies = { [key: string]: DepInfo }
 export type DependenciesInput = { [key: string]: DepInfoInput }
 export type DependencyMetadata = {
   title: LocaleString | null
-  icon: DataUrl | null
+  icon?: DataUrl | null
   description: LocaleString | null
   optional: boolean
   versionRange: string | null
@@ -2097,7 +2095,6 @@ export type PackageDataEntry = {
   statusInfo: StatusInfo
   registry: string | null
   developerKey: string
-  icon: DataUrl
   lastBackup: string | null
   currentDependencies: CurrentDependencies
   actions: { [key: string]: ActionMetadata }
@@ -2113,7 +2110,6 @@ export type PackageDataEntryInput = {
   statusInfo: StatusInfoInput
   registry?: string | null
   developerKey: string
-  icon: DataUrlInput
   lastBackup?: string | null
   currentDependencies: CurrentDependenciesInput
   actions: { [key: string]: ActionMetadataInput }
@@ -2260,13 +2256,19 @@ export type PackageVersionCountInput = {
   count: number
 }
 export type PackageVersionInfo = {
-  icon: DataUrl
+  /**
+   * Absent for clients that load icons from the registry's `/icons/` route.
+   */
+  icon?: DataUrl | null
   dependencyMetadata: { [key: string]: DependencyMetadata }
   sourceVersion: string | null
   s9pks: [HardwareRequirements, RegistryAsset<MerkleArchiveCommitment>][]
 } & PackageMetadata
 export type PackageVersionInfoInput = {
-  icon: DataUrlInput
+  /**
+   * Absent for clients that load icons from the registry's `/icons/` route.
+   */
+  icon?: DataUrlInput | null
   dependencyMetadata: { [key: string]: DependencyMetadataInput }
   sourceVersion?: string | null
   s9pks: [
