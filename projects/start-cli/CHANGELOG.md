@@ -9,16 +9,25 @@ Because `start-cli` is a thin client over `start-core`, most user-visible CLI ch
 in `start-core`; record here anything that changes this crate's entrypoint, features, packaging,
 or the CLI's externally observable behavior.
 
-## [2.2.1]
+## [2.3.0]
 
-### Changed
+### Added
 
-- **`s9pk pack` and `s9pk edit add-image` create SquashFS images natively**, without requiring `mksquashfs` or `tar2sqfs` on the packaging workstation. JavaScript files are readable and directories traversable by the service runtime without changing source permissions.
+- **`registry package get <ID> full --all-revisions` lists every revision of a package a registry
+  holds.** Without `--all-revisions`, a registry running start-registry 1.1.1 or later hides a
+  revision once a newer revision of the same upstream version runs on the same hardware.
+
+- **`registry info set-icon --clear` and `registry info set-description --clear` remove a
+  registry's icon and description.**
 
 ### Fixed
 
-- **Package manifest paths containing apostrophes work during packing and validation.**
-- **`s9pk edit add-image` re-signs edited packages with the workspace build key**, keeping their signatures valid.
+- **`s9pk pack` and `s9pk edit add-image` preserve the requested platform's image configuration**, including its default command, with Docker and Podman. Docker packaging requires Docker 28.1+ (API 1.49+).
+
+- **`s9pk edit add-image` signs the updated archive**, keeping the edited package readable and valid.
+
+- **`package install` reports a package missing from the registry it asked**, naming that
+  registry, instead of prompting to choose from an empty list of flavors.
 
 ## [2.2.0]
 

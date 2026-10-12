@@ -248,6 +248,120 @@ async fn export_validates_exit_status_and_drains_large_trailing_padding() {
 }
 
 #[tokio::test]
+async fn docker_tag_load_pairs_target_platform_config_with_native_squashfs() {
+    const CHILD_ENV: &str = "STARTOS_NATIVE_PACK_DOCKER_CHILD";
+    const TEST: &str = "s9pk::v2::pack::packaging_tests::docker_tag_load_pairs_target_platform_config_with_native_squashfs";
+    let workspace = Arc::new(TmpDir::new().await.unwrap());
+    if std::env::var_os(CHILD_ENV).is_none() {
+        tokio::fs::write(workspace.join("export.tar"), asset_tar())
+            .await
+            .unwrap();
+        let docker = workspace.join("docker");
+        tokio::fs::write(
+            &docker,
+            r#"#!/bin/sh
+set -eu
+case "$*" in
+  'create --platform=linux/arm64 multiarch:test /startos-pack-placeholder')
+    printf 'container-id\n' ;;
+  'container inspect --format {{.Image}} container-id')
+    printf 'sha256:index\n' ;;
+  'image inspect --platform=linux/arm64 --format {{json .Config}} sha256:index')
+    printf '%s\n' '{"Cmd":["serve","--arm64"],"Entrypoint":["/app/start"],"Env":["ARCH=arm64","EMPTY="],"WorkingDir":"/arm64","User":"1000:1000"}' ;;
+  'image inspect --format {{json .Config}} sha256:index')
+    printf '%s\n' '{"Cmd":["serve","--amd64"],"Env":["ARCH=amd64"],"WorkingDir":"/amd64","User":"root"}' ;;
+  'export container-id')
+    cat "$STARTOS_NATIVE_PACK_DOCKER_CHILD/export.tar" ;;
+  'rm container-id')
+    touch "$STARTOS_NATIVE_PACK_DOCKER_CHILD/removed" ;;
+  *) printf 'unexpected docker arguments: %s\n' "$*" >&2; exit 1 ;;
+esac
+"#,
+        )
+        .await
+        .unwrap();
+        tokio::fs::set_permissions(&docker, std::fs::Permissions::from_mode(0o755))
+            .await
+            .unwrap();
+        let mut paths = vec![workspace.to_path_buf()];
+        paths.extend(std::env::split_paths(&std::env::var_os("PATH").unwrap()));
+        Command::new(std::env::current_exe().unwrap())
+            .arg(TEST)
+            .arg("--exact")
+            .arg("--nocapture")
+            .env(CHILD_ENV, &**workspace)
+            .env("PATH", std::env::join_paths(paths).unwrap())
+            .invoke(ErrorKind::Filesystem)
+            .await
+            .unwrap();
+        assert!(workspace.join("removed").exists());
+        workspace.gc().await.unwrap();
+        return;
+    }
+    PREFER_DOCKER.set(true).unwrap();
+    assert_eq!(*CONTAINER_TOOL, "docker");
+    let mut files = DirectoryContents::<TmpSource<PackSource>>::new();
+    ImageSource::DockerTag("multiarch:test".into())
+        .load(
+            workspace.clone(),
+            &"test".parse().unwrap(),
+            &"1.0.0:0".parse().unwrap(),
+            &"main".parse().unwrap(),
+            "aarch64",
+            &mut files,
+        )
+        .await
+        .unwrap();
+    let metadata: ImageMetadata = serde_json::from_slice(
+        &files
+            .get_path("images/aarch64/main.json")
+            .unwrap()
+            .expect_file()
+            .unwrap()
+            .to_vec(None)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(metadata.cmd.unwrap(), ["serve", "--arm64"]);
+    assert_eq!(metadata.entrypoint.unwrap(), ["/app/start"]);
+    assert_eq!(metadata.workdir, Path::new("/arm64"));
+    assert_eq!(&*metadata.user, "1000:1000");
+    assert_eq!(
+        files
+            .get_path("images/aarch64/main.env")
+            .unwrap()
+            .expect_file()
+            .unwrap()
+            .to_vec(None)
+            .await
+            .unwrap(),
+        b"ARCH=arm64\nEMPTY="
+    );
+    let source = files
+        .get_path("images/aarch64/main.squashfs")
+        .unwrap()
+        .expect_file()
+        .unwrap();
+    let bytes: Arc<[u8]> = source.to_vec(None).await.unwrap().into();
+    let filesystem = Squashfs::deserialize(bytes).await.unwrap();
+    let node = filesystem
+        .contents()
+        .get("file")
+        .unwrap()
+        .as_node()
+        .unwrap();
+    assert_eq!(node.metadata.mode, 0o640);
+    let NodeContents::File(file) = &node.contents else {
+        panic!("not a file");
+    };
+    assert_eq!(file.to_vec(None).await.unwrap(), b"tar\0bytes\n");
+    drop(filesystem);
+    drop(files);
+    workspace.gc().await.unwrap();
+}
+
+#[tokio::test]
 async fn both_manifest_callers_accept_apostrophes_in_bundle_paths() {
     let workspace = TmpDir::new().await.unwrap();
     let package = workspace.join("package's-path");

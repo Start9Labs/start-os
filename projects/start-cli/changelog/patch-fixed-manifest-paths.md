@@ -1,0 +1,1 @@
+- **Package manifest paths containing apostrophes work during packing and validation.**

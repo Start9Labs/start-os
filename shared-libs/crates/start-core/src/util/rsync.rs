@@ -190,9 +190,9 @@ fn test_parse() {
 async fn test_rsync() {
     use futures::StreamExt;
     use tokio::fs;
-    let workspace = tempfile::tempdir().unwrap();
-    let src = workspace.path().join("a");
-    let dst = workspace.path().join("b");
+    let temp = tempfile::tempdir().unwrap();
+    let src = temp.path().join("a");
+    let dst = temp.path().join("b");
     fs::create_dir_all(&src).await.unwrap();
     fs::create_dir_all(&dst).await.unwrap();
     for i in 0..100 {
@@ -205,21 +205,21 @@ async fn test_rsync() {
         .await
         .unwrap();
     }
-    let mut rsync = Rsync::new(src.join(""), dst.join(""), Default::default())
+    let mut rsync = Rsync::new(format!("{}/", src.display()), &dst, Default::default())
         .await
         .unwrap();
-    let mut latest = None;
+    let mut final_progress = None;
     while let Some(progress) = rsync.progress.next().await {
         assert!((0.0..=1.0).contains(&progress));
-        latest = Some(progress);
+        final_progress = Some(progress);
     }
     rsync.wait().await.unwrap();
-    assert_eq!(latest, Some(1.0));
+    assert_eq!(final_progress, Some(1.0));
     for i in 0..100 {
-        let name = format!("sample.{i}.bin");
+        let filename = format!("sample.{i}.bin");
         assert_eq!(
-            fs::read(src.join(&name)).await.unwrap(),
-            fs::read(dst.join(&name)).await.unwrap()
+            fs::read(dst.join(&filename)).await.unwrap(),
+            fs::read(src.join(&filename)).await.unwrap(),
         );
     }
 }
