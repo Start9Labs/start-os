@@ -544,4 +544,7 @@ export default {
   566: 'Nombres que este dispositivo ha publicado en el router. Caducan por sí solos cuando el dispositivo deja de publicarlos; al desactivar el permiso se eliminan de inmediato.',
   567: 'Tipo',
   568: 'Resuelve a',
+  569: 'Ancho de canal',
+  570: 'Ancho de 2,4 GHz',
+  571: 'Ancho de 5 GHz',
 } satisfies i18n
