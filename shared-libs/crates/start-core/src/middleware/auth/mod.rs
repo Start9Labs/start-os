@@ -40,6 +40,7 @@ fn strip_auth_params(request: &mut RpcRequest) {
     }
 }
 
+/// Accepts a request once any middleware does, in the order added. A rejection reports the first middleware's error.
 pub struct Auth<C: Context>(Vec<DynMiddleware<C>>);
 impl<C: Context> Clone for Auth<C> {
     fn clone(&self) -> Self {
@@ -90,7 +91,7 @@ impl<C: Context> Middleware<C> for Auth<C> {
                 .process_rpc_request(context, metadata.clone(), request)
                 .await
             {
-                if m.authenticated {
+                if m.authenticated && err.is_none() {
                     err = Some(e);
                 }
             } else {
@@ -120,6 +121,46 @@ mod tests {
     use rpc_toolkit::yajrc::GenericRpcMethod;
 
     use super::*;
+
+    #[derive(Clone)]
+    struct Ctx;
+    impl Context for Ctx {}
+
+    #[derive(Clone)]
+    struct Reject(&'static str);
+    impl Middleware<Ctx> for Reject {
+        type Metadata = Value;
+        async fn process_rpc_request(
+            &mut self,
+            _: &Ctx,
+            _: Self::Metadata,
+            _: &mut RpcRequest,
+        ) -> Result<(), RpcResponse> {
+            Err(RpcResponse::from_result(Err(Error::new(
+                eyre!("{}", self.0),
+                ErrorKind::Authorization,
+            ))))
+        }
+    }
+
+    #[tokio::test]
+    async fn rejection_reports_first_middleware_error() {
+        let mut auth = Auth::<Ctx>(vec![
+            DynMiddleware::new(Reject("first")),
+            DynMiddleware::new(Reject("second")),
+        ]);
+        let mut request = RpcRequest {
+            id: None,
+            method: GenericRpcMethod::new("package.get".into()),
+            params: imbl_value::json!({}),
+        };
+        let res = auth
+            .process_rpc_request(&Ctx, imbl_value::json!({}), &mut request)
+            .await
+            .unwrap_err();
+        let message = serde_json::to_string(&res.result.unwrap_err()).unwrap();
+        assert!(message.contains("first"), "{message}");
+    }
 
     #[test]
     fn caller_supplied_auth_params_are_dropped() {
