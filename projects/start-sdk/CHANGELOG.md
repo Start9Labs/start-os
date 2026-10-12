@@ -1,5 +1,24 @@
 # Changelog
 
+## [3.0.6]
+
+### Fixed
+
+- **Manifests, notifications and `getContainerIp` type-check as written for 3.0.4.** Dockerfile images may omit `workdir`, device filters and notifications may omit their optional fields, and `getContainerIp` for the service's own container returns a string.
+- **Action result values require every field**, including `launchable`; set it to `false` where a value has no link to open.
+
+## [3.0.5]
+
+### Changed
+
+- **Shared types distinguish serde inputs from outputs.** `T.FooInput` describes accepted requests and constructor values; `T.Foo` describes serialized values, including required nullable fields. Action and network builders use input types. `RPC` exposes generated method, parameter and result inference. Rust documentation is available in editor hovers, and `RecoverySource<Password>` and `RegistryAsset<Commitment>` retain their caller-selected field types.
+
+- **Effects types describe their actual wire results.** `getContainerIp` may return `null` for an unavailable dependency, `getSslCertificate` returns a variable-length string array, and `mount` resolves to `null`, not a path.
+
+### Fixed
+
+- Fixed a service restart during startup leaving a daemon from the previous run running alongside the new one.
+
 ## [3.0.4]
 
 ### Fixed

@@ -13,6 +13,7 @@ Node.js v22+ (nvm recommended), npm, and GNU Make.
 - `lib/` — `@start9labs/start-sdk`: developer-facing facade (`StartSdk`), daemons, health checks, backups, file helpers, subcontainers, i18n, triggers. Imports core types, OS bindings, ABI, `Effects`, ExVer parser, actions/input builders, interfaces, dependencies, s9pk reader from `@start9labs/start-core` (`shared-libs/ts-modules/start-core/`).
 - `dist/` — build output (generated; what publishes to npm). **`@start9labs/start-core` is the only `bundleDependencies` entry**, because it is a `file:` dependency that is never published and so nothing downstream could resolve it. Keep it that way: anything else added to that array reaches consuming packages as an `inBundle` entry that neither `overrides` nor `npm audit fix` can touch, which makes an SDK release the only way to clear an advisory against it. The package toolchain — `typescript`, `prettier`, `eslint`, `typescript-eslint`, `@vercel/ncc`, `@types/node` — ships as ordinary `dependencies` that hoist into each package's own `node_modules`, which is what lets a packager override one and what puts `tsc`/`tsserver` where an editor looks for them. **Container-runtime consumes the built `dist/`, not the source.**
 - `Makefile` — build orchestration for the SDK itself.
+- `check-consumers.sh` — type-checks service packages against the built `dist/` and the last published version, and fails on any error the build introduces.
 - `s9pk.mk`, `tsconfig.base.json` — build plumbing shipped _inside_ the published package for service packages to `include`/`extends`. Marked DO NOT EDIT in the consuming-package contract; edits here change the contract for every package.
 - `docs/` — the "Service Packaging" mdbook (`book.toml`), published at docs.start9.com/packaging. Also carries `package-template/` and the workspace agent context. See [Docs](#the-docs-mdbook).
 - `changelog/` — pending release fragments; `CHANGELOG.md` — generated release history.
@@ -23,14 +24,16 @@ Node.js v22+ (nvm recommended), npm, and GNU Make.
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `make node_modules`           | `npm ci`                                                                                                                                            |
 | `make bundle`                 | build only: build `@start9labs/start-core` (prerequisite), compile SDK → `dist/`. Deliberately does **not** run `test` or `check-fmt` — see Gotchas |
-| `make test`                   | jest                                                                                                                                                |
+| `make test`                   | consumer-check script tests + jest                                                                                                                  |
 | `make check`                  | `tsc --noEmit`                                                                                                                                      |
 | `make fmt` / `make check-fmt` | Prettier write / check on all `.ts`                                                                                                                 |
 | `make link`                   | build + `npm link` from `dist/` for local package testing                                                                                           |
 | `make clean`                  | remove `dist/`, `node_modules`, generated test output                                                                                               |
 | `make publish`                | the raw npm step only — **not** how you cut a release (see Gotchas)                                                                                 |
 
-Tests are jest + ts-jest, Node only (no browser). Test files use `.test.ts` and are excluded from compilation via `tsconfig.json`. Run one with `npx jest --testPathPatterns=host`. The bundled `@start9labs/start-core` has its own suite and build: `cd ../../shared-libs/ts-modules/start-core && make test` (or `make dist`). The ExVer parser is generated from that lib's `lib/exver/exver.pegjs` via Peggy (`make` runs this for you).
+SDK tests are jest + ts-jest, Node only (no browser). Test files use `.test.ts` and are excluded from compilation via `tsconfig.json`. `make test` also runs the consumer-check script fixtures with Node's native test runner (`node --test tests/check-consumers.test.mjs`). Run one with `npx jest --testPathPatterns=host`. The bundled `@start9labs/start-core` has its own suite and build: `cd ../../shared-libs/ts-modules/start-core && make test` (or `make dist`). The ExVer parser is generated from that lib's `lib/exver/exver.pegjs` via Peggy (`make` runs this for you).
+
+Root `make start-sdk-test` also builds the SDK and checks editor documentation through generated core types and bundled SDK declarations.
 
 Both packages are strict TypeScript, ES2021 target, CommonJS output. [`ARCHITECTURE.md`](ARCHITECTURE.md#build-pipeline) covers what the build actually does.
 
@@ -50,7 +53,16 @@ This symlinks the built `dist/` into your global `node_modules`, so the package 
 The SDK is a first-class project of the monorepo-wide release tool, [`scripts/manage-release.sh`](../../scripts/manage-release.sh) (the `npm` kind). The version is read from `package.json`; the git tag / GitHub release is `start-sdk/v<version>`. Only `dist/` ships to npm (compiled JavaScript, declarations, bundled dependencies, package metadata).
 
 1. Bump `package.json`, add the matching changelog fragment, write `release-notes/<version>.md` (lede, `## Highlights`, optional `## Important`), and run `make sync-template` to move the [package template](docs/package-template)'s `@start9labs/start-sdk` pin to the same version. Land them together on `master`. `pre-check` enforces the match, so a stale pin fails the release before anything is tagged or published. Packaging workspaces track `live-docs`, so changing `master` does not update their template; the SDK tag advances it.
-2. Cut the release from the repo root (needs `gh` and an npm login with publish rights):
+2. Type-check every package you have checked out against the build:
+
+   ```bash
+   make bundle
+   ./check-consumers.sh ~/path/to/workspace/*-startos   # each a checkout with node_modules installed
+   ```
+
+   Every error it reports is package code the release breaks. Fix the SDK, unless the stricter type is a decision: then the release notes' `## Important` says what packages must change, and the packaging guide documents the new shape. The SDK's own `tsc` and tests cannot catch this, because nothing inside the SDK calls its public API.
+
+3. Cut the release from the repo root (needs `gh` and an npm login with publish rights):
 
    ```bash
    ./scripts/manage-release.sh release start-sdk
@@ -78,7 +90,7 @@ If that commit never landed on `master` (e.g. the publish was cut from an unmerg
 - **Releasing is `./scripts/manage-release.sh release start-sdk`, not `make publish`.** The pipeline is pre-check → tag → GitHub release → `npm publish`, in that order because npm publish is the one step that can never be redone. `make publish` is _only_ that last step: run it on its own and the version lands on npm with no git tag and no GitHub release, and the normal flow can't recover (pre-check then refuses the version, and npm won't republish it). 2.0.4 and 2.0.5 shipped this way and had to be backfilled. See [Cutting a release](#cutting-a-release) above, which also documents the backfill.
 - **Version bumps pair with fragments and `release-notes/<version>.md`.** Follow the root changelog rules; `package.json` owns the SDK version. `pre-check` fails without the curated notes.
 - **`make bundle` verifies nothing.** It builds `dist/` and stops — `test` and `check-fmt` are deliberately not prerequisites (consumers like the OS build would otherwise re-run jest every build). Run `make test` and `make check-fmt` explicitly. And `check-fmt` is `npx prettier "**/*.ts" --check` — TypeScript only. The CI gate is repo-root `prettier --check .` across every file type, so a CHANGELOG or docs edit that passes here still breaks master.
-- **Typecheck a consumer before publishing, not just the SDK.** `tsc` here cannot exercise the SDK's own public API — nothing internal calls it. Use the [`make link` + `npm link`](#testing-sdk-changes-against-a-service-package) flow from a service package and run that package's `tsc`. 2.0.8 shipped `sdk.host.getBridgeAddress` missing its `fallbackPort` overload this way: the SDK compiled clean, and twelve packages then couldn't.
+- **Whether package code spells out every field is decided per type, never by regeneration.** Where packages fill a type in — an action handler's return, a manifest field, a builder or effect argument, a `T.*` name they annotate values with — `FooInput` accepts omitted defaults and `Foo` requires every field. Action results take `Foo`, as `docs/src/actions.md` documents; manifests and notifications take `FooInput`, and `lib/types.ts` in start-core maps `T.DeviceFilter` to its input form. A Rust field that gains a default changes `Foo` without any SDK file changing, so run `check-consumers.sh` after every binding regeneration, not only before a release.
 - **Consumers read the built output.** After editing the SDK or `@start9labs/start-core`, run `make bundle` before checking container-runtime.
 - **SDK vs start-core:** types/ABI/OS-bindings/low-level → `@start9labs/start-core` (`shared-libs/ts-modules/start-core/`); developer-facing wrappers/runtime helpers → the SDK's `lib/`. A new start-core export must be re-exported from `lib/index.ts` or exposed via `StartSdk.build()`.
 - **OS bindings** (`shared-libs/ts-modules/start-core/lib/osBindings/`) mirror Rust types in `shared-libs/crates/start-core`; regenerate/update them when the Rust side changes.
