@@ -18,6 +18,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   private _health: HealthCheckResult = { result: 'waiting', message: null }
   private healthWatchers: Array<() => unknown> = []
   private running = false
+  private terminated = false
   private transition: Promise<void> = Promise.resolve()
   private started?: number
   private resolveReady: (() => void) | undefined
@@ -46,7 +47,9 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     signal?: NodeJS.Signals | undefined
     timeout?: number | undefined
   }) {
+    this.terminated = true
     this.healthWatchers = []
+    await this.transition.catch(() => {})
     this.running = false
     await this.stopSession()
 
@@ -81,7 +84,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   }
 
   private async applyRunning(newStatus: boolean) {
-    if (this.running === newStatus) return
+    if (this.terminated || this.running === newStatus) return
 
     this.running = newStatus
 
@@ -239,6 +242,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   }
 
   async updateStatus() {
+    if (this.terminated) return
     const healths = this.dependencies.map(d => ({
       health: d.running && d._health,
       id: d.id,
