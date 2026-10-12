@@ -18,6 +18,7 @@ $(START_CORE_DIST)/package.json: $(START_CORE_SRC)
 	touch $(START_CORE_DIST)/package.json
 
 test: node_modules
+	node --test tests/check-consumers.test.mjs
 	npm test
 
 clean:
