@@ -1,14 +1,7 @@
 import { inject, Service } from '@angular/core'
 import { FALLBACK_ICON, registryIconUrl } from '@start9labs/marketplace'
 import { PatchDB } from 'patch-db-client'
-import {
-  catchError,
-  defer,
-  Observable,
-  of,
-  shareReplay,
-  switchMap,
-} from 'rxjs'
+import { catchError, defer, Observable, of, shareReplay, switchMap } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import {
   DataModel,
