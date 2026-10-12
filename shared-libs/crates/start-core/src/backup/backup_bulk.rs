@@ -9,7 +9,6 @@ use imbl::OrdSet;
 use imbl_value::InternedString;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use ts_rs::TS;
 
 use super::PackageBackupReport;
 use super::target::{BackupTargetId, PackageBackupInfo};
@@ -32,9 +31,8 @@ use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::dir_size;
 use crate::version::VersionT;
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct BackupParams {
@@ -47,6 +45,9 @@ pub struct BackupParams {
     #[arg(help = "help.arg.backup-password")]
     password: crate::auth::PasswordType,
 }
+
+rpc_toolkit::reflect_ts!(BackupParams);
+rpc_toolkit::ts_export!(BackupParams, namespaces = [""]);
 
 struct BackupStatusGuard {
     db: Option<TypedPatchDb<Database>>,

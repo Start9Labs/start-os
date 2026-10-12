@@ -1,3 +1,4 @@
+import { AsyncPipe } from '@angular/common'
 import {
   Component,
   computed,
@@ -40,6 +41,7 @@ import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom } from 'rxjs'
 
+import { PkgIconPipe } from 'src/app/routes/portal/pipes/pkg-icon'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
@@ -74,7 +76,6 @@ import { BackupLocationPicker } from './location-picker'
 interface ServiceChoice {
   id: string
   title: string
-  icon: string
   selected: FormControl<boolean>
   system: boolean
 }
@@ -324,7 +325,7 @@ class AutomaticEditor
                       @if (service.system) {
                         <tui-icon icon="@tui.settings" />
                       } @else {
-                        <img alt="" [src]="service.icon" />
+                        <img alt="" [src]="service.id | pkgIcon | async" />
                       }
                       <span tuiTitle>
                         <b>{{ service.title }}</b>
@@ -821,6 +822,8 @@ class AutomaticEditor
   `,
   host: { class: 'g-wrap-content' },
   imports: [
+    AsyncPipe,
+    PkgIconPipe,
     FormsModule,
     ReactiveFormsModule,
     RouterLink,
@@ -967,7 +970,6 @@ export default class AutomaticBackups {
       {
         id: SYSTEM_PACKAGE_ID,
         title: this.i18n.transform('System'),
-        icon: '',
         selected: this.formBuilder.control(true),
         system: true,
       },
@@ -979,7 +981,6 @@ export default class AutomaticBackups {
                 {
                   id,
                   title: manifest.title,
-                  icon: entry.icon,
                   selected: this.formBuilder.control(true),
                   system: false,
                 },

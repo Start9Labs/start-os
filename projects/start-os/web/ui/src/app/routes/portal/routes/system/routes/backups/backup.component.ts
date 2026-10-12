@@ -1,3 +1,4 @@
+import { AsyncPipe } from '@angular/common'
 import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
@@ -14,7 +15,7 @@ import { TuiBlock } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { filter, map, switchMap, take } from 'rxjs'
-
+import { PkgIconPipe } from 'src/app/routes/portal/pipes/pkg-icon'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
@@ -23,7 +24,6 @@ import { BackupContext } from './backup.types'
 interface Package {
   id: string
   title: string
-  icon: string
   disabled: boolean
   checked: boolean
 }
@@ -51,6 +51,8 @@ interface Package {
       @if (pkgs(); as pkgs) {
         @for (pkg of pkgs; track pkg.id) {
           <label tuiBlock="m">
+            <img alt="" [src]="pkg.id | pkgIcon | async" />
+            <span tuiTitle>{{ pkg.title }}</span>
             <input
               type="checkbox"
               tuiCheckbox
@@ -58,8 +60,6 @@ interface Package {
               [(ngModel)]="pkg.checked"
               (ngModelChange)="handleChange()"
             />
-            <img alt="" [src]="pkg.icon" />
-            <span tuiTitle>{{ pkg.title }}</span>
           </label>
         } @empty {
           {{ 'No services installed' | i18n }}
@@ -113,6 +113,8 @@ interface Package {
     TuiCheckbox,
     TuiTitle,
     i18nPipe,
+    AsyncPipe,
+    PkgIconPipe,
   ],
 })
 export class BackupsBackupComponent {
@@ -134,7 +136,6 @@ export class BackupsBackupComponent {
             return {
               id,
               title,
-              icon: pkg.icon,
               disabled: pkg.stateInfo.state !== 'installed',
               checked: false,
             }

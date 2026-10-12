@@ -3,12 +3,11 @@ use std::collections::{BTreeMap, BTreeSet};
 use chrono::{DateTime, Utc};
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use super::{RetentionPolicy, Schedule};
 use crate::backup::PackageBackupReport;
 use crate::backup::target::BackupTargetId;
-use crate::prelude::Model;
+use crate::prelude::{Model, VisitFields, VisitVariants};
 use crate::rpc_continuations::Guid;
 use crate::{PackageId, SYSTEM_PACKAGE_ID};
 
@@ -19,29 +18,28 @@ pub type ServiceSnapshotId = Guid;
 
 pub(crate) const MAX_COMPLETED_HISTORY_ITEMS: usize = 1_000;
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, VisitVariants)]
 #[serde(rename_all = "camelCase", tag = "type")]
-#[ts(export)]
 pub enum BackupServiceScope {
     All,
     AllExcept {
         #[serde(rename = "excludedPackageIds")]
-        #[ts(rename = "excludedPackageIds")]
         excluded_package_ids: BTreeSet<PackageId>,
     },
     Selected {
         #[serde(rename = "packageIds")]
-        #[ts(rename = "packageIds")]
         package_ids: BTreeSet<PackageId>,
         #[serde(
             rename = "includeSystem",
             default,
             skip_serializing_if = "Option::is_none"
         )]
-        #[ts(rename = "includeSystem", optional)]
         include_system: Option<bool>,
     },
 }
+
+rpc_toolkit::reflect_ts!(BackupServiceScope);
+rpc_toolkit::ts_export!(BackupServiceScope, namespaces = [""]);
 
 impl BackupServiceScope {
     pub fn includes(&self, package_id: &PackageId) -> bool {
@@ -99,9 +97,8 @@ impl BackupServiceScope {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, VisitVariants)]
 #[serde(rename_all = "camelCase", tag = "reason")]
-#[ts(export)]
 pub enum BackupJobPause {
     User,
     TargetUnavailable { failures: u8 },
@@ -110,23 +107,24 @@ pub enum BackupJobPause {
     ReauthenticationRequired,
 }
 
+rpc_toolkit::reflect_ts!(BackupJobPause);
+rpc_toolkit::ts_export!(BackupJobPause, namespaces = [""]);
+
 impl BackupJobPause {
     pub(crate) fn requires_target_retry(&self) -> bool {
         !matches!(self, Self::User)
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct BackupJobStatus {
-    #[ts(type = "string | null")]
     pub last_scheduled_at: Option<DateTime<Utc>>,
-    #[ts(type = "string | null")]
+
     pub last_attempted_at: Option<DateTime<Utc>>,
-    #[ts(type = "string | null")]
+
     pub last_succeeded_at: Option<DateTime<Utc>>,
-    #[ts(type = "string | null")]
+
     pub next_run_at: Option<DateTime<Utc>>,
     /// A durable one-shot request consumed once the backup coordinator is free.
     #[serde(default)]
@@ -135,9 +133,11 @@ pub struct BackupJobStatus {
     pub last_result: Option<BackupRunState>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
+rpc_toolkit::reflect_ts!(BackupJobStatus);
+rpc_toolkit::ts_export!(BackupJobStatus, namespaces = [""]);
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct BackupJob {
     pub id: BackupJobId,
     pub name: String,
@@ -150,24 +150,28 @@ pub struct BackupJob {
     pub default_retention: RetentionPolicy,
     pub retention_overrides: BTreeMap<PackageId, RetentionPolicy>,
     pub status: BackupJobStatus,
-    #[ts(type = "string")]
+
     pub created_at: DateTime<Utc>,
-    #[ts(type = "string")]
+
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
+rpc_toolkit::reflect_ts!(BackupJob);
+rpc_toolkit::ts_export!(BackupJob, namespaces = [""]);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, VisitVariants)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub enum BackupRunTrigger {
     Scheduled,
     CatchUp,
     RunNow,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
+rpc_toolkit::reflect_ts!(BackupRunTrigger);
+rpc_toolkit::ts_export!(BackupRunTrigger, namespaces = [""]);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, VisitVariants)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub enum BackupRunState {
     Running,
     Succeeded,
@@ -175,9 +179,11 @@ pub enum BackupRunState {
     Failed,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
+rpc_toolkit::reflect_ts!(BackupRunState);
+rpc_toolkit::ts_export!(BackupRunState, namespaces = [""]);
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct BackupRun {
     pub id: BackupRunId,
     pub job_id: BackupJobId,
@@ -185,28 +191,32 @@ pub struct BackupRun {
     pub target_id: BackupTargetId,
     pub trigger: BackupRunTrigger,
     pub state: BackupRunState,
-    #[ts(type = "string")]
+
     pub started_at: DateTime<Utc>,
-    #[ts(type = "string | null")]
+
     pub completed_at: Option<DateTime<Utc>>,
     pub intended_services: BTreeSet<PackageId>,
     pub services: BTreeMap<PackageId, PackageBackupReport>,
     pub error: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
+rpc_toolkit::reflect_ts!(BackupRun);
+rpc_toolkit::ts_export!(BackupRun, namespaces = [""]);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, VisitVariants)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub enum BackupActivityKind {
     Manual,
     Automatic,
     Restore,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, HasModel, TS)]
+rpc_toolkit::reflect_ts!(BackupActivityKind);
+rpc_toolkit::ts_export!(BackupActivityKind, namespaces = [""]);
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, HasModel, VisitFields)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct BackupActivity {
     pub id: BackupActivityId,
     pub kind: BackupActivityKind,
@@ -216,26 +226,30 @@ pub struct BackupActivity {
     pub job_id: Option<BackupJobId>,
     pub job_name: Option<String>,
     pub trigger: Option<BackupRunTrigger>,
-    #[ts(type = "string")]
+
     pub started_at: DateTime<Utc>,
-    #[ts(type = "string | null")]
+
     pub completed_at: Option<DateTime<Utc>>,
     pub intended_services: BTreeSet<PackageId>,
     pub services: BTreeMap<PackageId, PackageBackupReport>,
     pub error: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
+rpc_toolkit::reflect_ts!(BackupActivity);
+rpc_toolkit::ts_export!(BackupActivity, namespaces = [""]);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, VisitVariants)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub enum BackupSource {
     Manual,
     Scheduled,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
+rpc_toolkit::reflect_ts!(BackupSource);
+rpc_toolkit::ts_export!(BackupSource, namespaces = [""]);
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct ServiceSnapshot {
     pub id: ServiceSnapshotId,
     pub package_id: PackageId,
@@ -244,22 +258,24 @@ pub struct ServiceSnapshot {
     pub job_id: BackupJobId,
     pub job_name: String,
     pub run_id: BackupRunId,
-    #[ts(type = "string")]
+
     pub completed_at: DateTime<Utc>,
-    #[ts(type = "number")]
+
     pub logical_size: u64,
-    #[ts(type = "number | null")]
+
     pub physical_size: Option<u64>,
-    #[ts(type = "number | null")]
+
     pub changed_bytes: Option<u64>,
-    #[ts(type = "string")]
+
     pub measured_at: DateTime<Utc>,
     pub archived: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
+rpc_toolkit::reflect_ts!(ServiceSnapshot);
+rpc_toolkit::ts_export!(ServiceSnapshot, namespaces = [""]);
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct ServiceTargetRetentionPolicy {
     pub target_id: BackupTargetId,
     pub package_id: PackageId,
@@ -270,10 +286,12 @@ pub struct ServiceTargetRetentionPolicy {
     pub archived: bool,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, HasModel, TS)]
+rpc_toolkit::reflect_ts!(ServiceTargetRetentionPolicy);
+rpc_toolkit::ts_export!(ServiceTargetRetentionPolicy, namespaces = [""]);
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, HasModel, VisitFields)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct ScheduledBackupState {
     pub jobs: BTreeMap<BackupJobId, BackupJob>,
     pub histories: BTreeMap<String, ServiceTargetHistory>,
@@ -283,6 +301,9 @@ pub struct ScheduledBackupState {
     pub target_failures: BTreeMap<String, BackupTargetFailureState>,
     pub pending_service_reviews: BTreeMap<PackageId, NewServiceBackupReview>,
 }
+
+rpc_toolkit::reflect_ts!(ScheduledBackupState);
+rpc_toolkit::ts_export!(ScheduledBackupState, namespaces = [""]);
 
 impl ScheduledBackupState {
     pub(crate) fn prune_completed_history(&mut self) -> usize {
@@ -331,10 +352,9 @@ fn completed_history_overflow(
         .collect()
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, HasModel, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, HasModel, VisitFields)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct ServiceTargetHistory {
     pub target_id: BackupTargetId,
     pub target_instance_id: String,
@@ -346,15 +366,20 @@ pub struct ServiceTargetHistory {
     pub archived: bool,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, HasModel, TS)]
+rpc_toolkit::reflect_ts!(ServiceTargetHistory);
+rpc_toolkit::ts_export!(ServiceTargetHistory, namespaces = [""]);
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, HasModel, VisitFields)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct BackupTargetFailureState {
     pub consecutive_connectivity_failures: u8,
     pub jobs_paused: BTreeSet<BackupJobId>,
     pub notification_sent: bool,
 }
+
+rpc_toolkit::reflect_ts!(BackupTargetFailureState);
+rpc_toolkit::ts_export!(BackupTargetFailureState, namespaces = [""]);
 
 impl BackupTargetFailureState {
     /// Returns true when this failure first requires intervention.
@@ -380,26 +405,30 @@ impl BackupTargetFailureState {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, HasModel, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, HasModel, VisitFields)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct NewServiceBackupReview {
     pub package_id: PackageId,
     pub affected_jobs: BTreeSet<BackupJobId>,
-    #[ts(type = "string")]
+
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
+rpc_toolkit::reflect_ts!(NewServiceBackupReview);
+rpc_toolkit::ts_export!(NewServiceBackupReview, namespaces = [""]);
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct RetentionPolicyChangePreview {
     pub removed: Vec<ServiceSnapshot>,
-    #[ts(type = "number")]
+
     pub estimated_reclaimed_bytes: u64,
     pub affected_jobs: Vec<String>,
 }
+
+rpc_toolkit::reflect_ts!(RetentionPolicyChangePreview);
+rpc_toolkit::ts_export!(RetentionPolicyChangePreview, namespaces = [""]);
 
 /// Device-sealed target encryption key.
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]

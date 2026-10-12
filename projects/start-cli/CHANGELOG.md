@@ -9,6 +9,26 @@ Because `start-cli` is a thin client over `start-core`, most user-visible CLI ch
 in `start-core`; record here anything that changes this crate's entrypoint, features, packaging,
 or the CLI's externally observable behavior.
 
+## [2.3.0]
+
+### Added
+
+- **`registry package get <ID> full --all-revisions` lists every revision of a package a registry
+  holds.** Without `--all-revisions`, a registry running start-registry 1.1.1 or later hides a
+  revision once a newer revision of the same upstream version runs on the same hardware.
+
+- **`registry info set-icon --clear` and `registry info set-description --clear` remove a
+  registry's icon and description.**
+
+### Fixed
+
+- **`s9pk pack` and `s9pk edit add-image` preserve the requested platform's image configuration**, including its default command, with Docker and Podman. Docker packaging requires Docker 28.1+ (API 1.49+).
+
+- **`s9pk edit add-image` signs the updated archive**, keeping the edited package readable and valid.
+
+- **`package install` reports a package missing from the registry it asked**, naming that
+  registry, instead of prompting to choose from an empty list of flavors.
+
 ## [2.2.0]
 
 ### Security
@@ -20,25 +40,6 @@ or the CLI's externally observable behavior.
 - **`server trust-ca --cert <PEM>` adds a CA root to the server's host trust store.** Pass
   the PEM certificate text directly or use shell substitution to read a file. The command
   prints its subject and SHA-256 fingerprint.
-
-- **Complete automatic-backup administration.** Create, edit, enable, disable,
-  delete, and immediately run automatic jobs; reconnect or reassign their
-  targets; inspect activity and checkpoint history; delete archived checkpoints;
-  estimate capacity for proposed retention rules; resolve new-service reviews;
-  and restore selected checkpoints.
-  Replacement locations use separate entries to preserve the original history.
-  Unreadable service archives appear in restore history while other selected
-  services continue restoring.
-  Schedule edits and resumes preserve completed daylight-saving occurrences.
-  Capacity checks reserve full copies for the complete run before stopping services.
-  Immediate runs continue safely if the client disconnects.
-  Service selection includes System data and future services independently.
-  Use `--old-password` when an existing backup location uses a password different
-  from the current server password.
-- **Safe version-history commands.** Preview rule-based or latest-only retention
-  changes and apply the exact previewed checkpoint removals for services and
-  System data, including per-item overrides and histories awaiting their first
-  checkpoint. Interrupted deletion keeps recovery choices consistent.
 
 - **`s9pk edit add-image` enables CPU emulation by default** when the server uses
   another architecture. Use `--no-emulation` for images that require a native architecture.

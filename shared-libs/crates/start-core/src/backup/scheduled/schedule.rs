@@ -5,15 +5,14 @@ use chrono::{DateTime, Datelike, Duration, NaiveDate, NaiveDateTime, Timelike, U
 use chrono_tz::Tz;
 use color_eyre::eyre::eyre;
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use crate::prelude::*;
 
 const SEARCH_LIMIT_MINUTES: i64 = 60 * 24 * 366 * 5;
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
+
 /// A validated five-field cron schedule tied to an IANA timezone.
 pub struct Schedule {
     /// Validated five-field cron expression.
@@ -21,6 +20,9 @@ pub struct Schedule {
     /// Selected IANA timezone.
     pub timezone: String,
 }
+
+rpc_toolkit::reflect_ts!(Schedule);
+rpc_toolkit::ts_export!(Schedule, namespaces = [""]);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LocalOccurrence {

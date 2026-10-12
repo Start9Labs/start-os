@@ -4,7 +4,6 @@ use chrono::Utc;
 use clap::{Parser, ValueEnum};
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use super::retention::CAPACITY_MARGIN_PERCENT;
 use super::{
@@ -37,6 +36,7 @@ pub fn job<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "add",
             from_fn_async(add_cli)
+                .no_ts()
                 .with_display_serializable()
                 .with_about("about.add-automatic-backup-job")
                 .with_call_remote::<crate::context::CliContext>(),
@@ -44,6 +44,7 @@ pub fn job<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "edit",
             from_fn_async(edit_cli)
+                .no_ts()
                 .with_display_serializable()
                 .with_about("about.edit-automatic-backup-job")
                 .with_call_remote::<crate::context::CliContext>(),
@@ -60,6 +61,7 @@ pub fn job<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "enable",
             from_fn_async(enable_cli)
+                .no_ts()
                 .with_display_serializable()
                 .with_about("about.enable-automatic-backup-job")
                 .with_call_remote::<crate::context::CliContext>(),
@@ -67,6 +69,7 @@ pub fn job<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "disable",
             from_fn_async(disable_cli)
+                .no_ts()
                 .with_display_serializable()
                 .with_about("about.disable-automatic-backup-job")
                 .with_call_remote::<crate::context::CliContext>(),
@@ -129,6 +132,7 @@ pub fn history<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "delete-archived",
             from_fn_async(delete_archived_snapshots_cli)
+                .no_ts()
                 .with_display_serializable()
                 .with_about("about.delete-archived-backup-checkpoints")
                 .with_call_remote::<crate::context::CliContext>(),
@@ -143,6 +147,7 @@ pub fn policy<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "preview-change",
             from_fn_async(preview_policy_change_cli)
+                .no_ts()
                 .with_display_serializable()
                 .with_about("about.preview-backup-retention-change")
                 .with_call_remote::<crate::context::CliContext>(),
@@ -150,6 +155,7 @@ pub fn policy<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "apply",
             from_fn_async(apply_retention_policy_cli)
+                .no_ts()
                 .with_display_serializable()
                 .with_about("about.apply-backup-retention-policy")
                 .with_call_remote::<crate::context::CliContext>(),
@@ -219,8 +225,7 @@ fn with_system_data_selection(
     }
 }
 
-#[derive(Deserialize, Serialize, TS)]
-#[ts(export)]
+#[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct EstimateBackupCapacityParams {
     pub target_id: BackupTargetId,
@@ -231,6 +236,9 @@ pub struct EstimateBackupCapacityParams {
     #[serde(default)]
     pub preserve_existing_policies: bool,
 }
+
+rpc_toolkit::reflect_ts!(EstimateBackupCapacityParams);
+rpc_toolkit::ts_export!(EstimateBackupCapacityParams, namespaces = [""]);
 
 #[derive(Deserialize, Serialize, Parser)]
 #[group(skip)]
@@ -281,29 +289,31 @@ pub struct EstimateBackupCapacityCliParams {
     pub latest_only_overrides: Vec<PackageId>,
 }
 
-#[derive(Deserialize, Serialize, TS)]
-#[ts(export)]
+#[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct BackupServiceCapacityEstimate {
     pub package_id: PackageId,
-    #[ts(type = "number")]
+
     pub live_logical_bytes: u64,
     pub retained_snapshot_count: usize,
-    #[ts(type = "number")]
+
     pub maximum_projected_snapshot_count: u64,
-    #[ts(type = "number")]
+
     pub scheduled_retained_bytes: u64,
-    #[ts(type = "number | null")]
+
     pub manual_checkpoint_bytes: Option<u64>,
-    #[ts(type = "number")]
+
     pub archived_bytes: u64,
-    #[ts(type = "number")]
+
     pub staging_headroom_bytes: u64,
-    #[ts(type = "number | null")]
+
     pub last_changed_bytes: Option<u64>,
-    #[ts(type = "number")]
+
     pub conservative_peak_excluding_manual_bytes: u64,
 }
+
+rpc_toolkit::reflect_ts!(BackupServiceCapacityEstimate);
+rpc_toolkit::ts_export!(BackupServiceCapacityEstimate, namespaces = [""]);
 
 pub async fn estimate_capacity(
     ctx: RpcContext,
@@ -441,11 +451,13 @@ pub async fn list_histories(ctx: RpcContext) -> Result<Vec<ServiceTargetHistory>
         .collect()
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 struct RefreshScheduledBackupHistoriesParams {
     target_id: BackupTargetId,
 }
+
+rpc_toolkit::reflect_ts!(RefreshScheduledBackupHistoriesParams);
 
 async fn refresh_histories(
     ctx: RpcContext,
@@ -538,9 +550,8 @@ async fn refresh_histories(
     Ok(histories)
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct DiscoverScheduledBackupsParams {
@@ -551,6 +562,9 @@ pub struct DiscoverScheduledBackupsParams {
     #[arg(help = "help.arg.backup-password")]
     pub password: String,
 }
+
+rpc_toolkit::reflect_ts!(DiscoverScheduledBackupsParams);
+rpc_toolkit::ts_export!(DiscoverScheduledBackupsParams, namespaces = [""]);
 
 pub async fn discover_histories(
     ctx: RpcContext,
@@ -787,8 +801,7 @@ fn import_target_histories(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, TS)]
-#[ts(export)]
+#[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct DeleteArchivedSnapshotsParams {
     pub target_id: BackupTargetId,
@@ -797,20 +810,23 @@ pub struct DeleteArchivedSnapshotsParams {
     pub password: String,
     /// Password that encrypted the existing backup location.
     #[serde(default)]
-    #[ts(optional)]
     pub old_password: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, TS)]
-#[ts(export)]
+rpc_toolkit::reflect_ts!(DeleteArchivedSnapshotsParams);
+rpc_toolkit::ts_export!(DeleteArchivedSnapshotsParams, namespaces = [""]);
+
+#[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct ArchivedSnapshotSelection {
     pub package_id: PackageId,
     pub snapshot_ids: BTreeSet<ServiceSnapshotId>,
 }
 
-#[derive(Deserialize, Serialize, TS)]
-#[ts(export)]
+rpc_toolkit::reflect_ts!(ArchivedSnapshotSelection);
+rpc_toolkit::ts_export!(ArchivedSnapshotSelection, namespaces = [""]);
+
+#[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct DeleteArchivedSnapshotsBulkParams {
     pub target_id: BackupTargetId,
@@ -818,9 +834,11 @@ pub struct DeleteArchivedSnapshotsBulkParams {
     pub password: String,
     /// Password that encrypted the existing backup location.
     #[serde(default)]
-    #[ts(optional)]
     pub old_password: Option<String>,
 }
+
+rpc_toolkit::reflect_ts!(DeleteArchivedSnapshotsBulkParams);
+rpc_toolkit::ts_export!(DeleteArchivedSnapshotsBulkParams, namespaces = [""]);
 
 #[derive(Deserialize, Serialize, Parser)]
 #[group(skip)]
@@ -1085,9 +1103,8 @@ fn one_target_instance_id(
         .clone())
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct RetryBackupTargetParams {
@@ -1097,9 +1114,11 @@ pub struct RetryBackupTargetParams {
     pub password: PasswordType,
     #[arg(long, help = "help.arg.old-backup-password")]
     #[serde(default)]
-    #[ts(optional)]
     pub old_password: Option<PasswordType>,
 }
+
+rpc_toolkit::reflect_ts!(RetryBackupTargetParams);
+rpc_toolkit::ts_export!(RetryBackupTargetParams, namespaces = [""]);
 
 /// Reconnects a failed automatic backup target and resumes affected jobs.
 pub async fn retry_target(
@@ -1264,9 +1283,8 @@ fn update_job_schedule(
     reschedule_job(job, now)
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ReassignBackupTargetParams {
@@ -1278,12 +1296,14 @@ pub struct ReassignBackupTargetParams {
     pub password: PasswordType,
     #[arg(long, help = "help.arg.old-backup-password")]
     #[serde(default)]
-    #[ts(optional)]
     pub old_password: Option<PasswordType>,
     #[arg(long, help = "help.arg.automatic-backup-wait-for-schedule")]
     #[serde(default)]
     pub wait_for_schedule: bool,
 }
+
+rpc_toolkit::reflect_ts!(ReassignBackupTargetParams);
+rpc_toolkit::ts_export!(ReassignBackupTargetParams, namespaces = [""]);
 
 pub async fn reassign_target(
     ctx: RpcContext,
@@ -1371,14 +1391,16 @@ pub async fn reassign_target(
     Ok(job)
 }
 
-#[derive(Deserialize, Serialize, TS)]
-#[ts(export)]
+#[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct PreviewRetentionPolicyParams {
     pub target_id: BackupTargetId,
     pub package_id: PackageId,
     pub policy: RetentionPolicy,
 }
+
+rpc_toolkit::reflect_ts!(PreviewRetentionPolicyParams);
+rpc_toolkit::ts_export!(PreviewRetentionPolicyParams, namespaces = [""]);
 
 pub async fn preview_policy_change(
     ctx: RpcContext,
@@ -1435,8 +1457,7 @@ pub async fn preview_policy_change_cli(
     .await
 }
 
-#[derive(Deserialize, Serialize, TS)]
-#[ts(export)]
+#[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateRetentionPolicyParams {
     pub target_id: BackupTargetId,
@@ -1444,6 +1465,9 @@ pub struct UpdateRetentionPolicyParams {
     pub policy: RetentionPolicy,
     pub confirmed_removals: BTreeSet<ServiceSnapshotId>,
 }
+
+rpc_toolkit::reflect_ts!(UpdateRetentionPolicyParams);
+rpc_toolkit::ts_export!(UpdateRetentionPolicyParams, namespaces = [""]);
 
 #[derive(Deserialize, Serialize, Parser)]
 #[group(skip)]
@@ -1624,8 +1648,7 @@ fn policy_preview(
     })
 }
 
-#[derive(Deserialize, Serialize, TS)]
-#[ts(export)]
+#[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateBackupJobParams {
     pub name: String,
@@ -1637,7 +1660,6 @@ pub struct CreateBackupJobParams {
     pub password: PasswordType,
     /// Password that encrypted the existing backup location.
     #[serde(default)]
-    #[ts(optional)]
     pub old_password: Option<PasswordType>,
     #[serde(default = "default_true")]
     pub enabled: bool,
@@ -1646,8 +1668,10 @@ pub struct CreateBackupJobParams {
     pub run_now: bool,
 }
 
-#[derive(Deserialize, Serialize, TS)]
-#[ts(export)]
+rpc_toolkit::reflect_ts!(CreateBackupJobParams);
+rpc_toolkit::ts_export!(CreateBackupJobParams, namespaces = [""]);
+
+#[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct ValidateBackupJobParams {
     /// Existing job being replaced, or `None` for a new job.
@@ -1657,6 +1681,9 @@ pub struct ValidateBackupJobParams {
     pub default_retention: RetentionPolicy,
     pub retention_overrides: BTreeMap<PackageId, RetentionPolicy>,
 }
+
+rpc_toolkit::reflect_ts!(ValidateBackupJobParams);
+rpc_toolkit::ts_export!(ValidateBackupJobParams, namespaces = [""]);
 
 #[derive(Deserialize, Serialize, Parser)]
 #[group(skip)]
@@ -2262,8 +2289,7 @@ pub async fn create(
     Ok(job)
 }
 
-#[derive(Deserialize, Serialize, TS)]
-#[ts(export)]
+#[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateBackupJobParams {
     pub id: BackupJobId,
@@ -2273,6 +2299,9 @@ pub struct UpdateBackupJobParams {
     pub default_retention: RetentionPolicy,
     pub retention_overrides: BTreeMap<PackageId, RetentionPolicy>,
 }
+
+rpc_toolkit::reflect_ts!(UpdateBackupJobParams);
+rpc_toolkit::ts_export!(UpdateBackupJobParams, namespaces = [""]);
 
 pub async fn update(
     ctx: RpcContext,
@@ -2340,21 +2369,25 @@ pub async fn update(
     Ok(job)
 }
 
-#[derive(Deserialize, Serialize, TS)]
-#[ts(export)]
+#[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct SetBackupJobEnabledParams {
     pub id: BackupJobId,
     pub enabled: bool,
 }
 
-#[derive(Deserialize, Serialize, TS)]
-#[ts(export)]
+rpc_toolkit::reflect_ts!(SetBackupJobEnabledParams);
+rpc_toolkit::ts_export!(SetBackupJobEnabledParams, namespaces = [""]);
+
+#[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct SetBackupJobsEnabledParams {
     pub ids: Vec<BackupJobId>,
     pub enabled: bool,
 }
+
+rpc_toolkit::reflect_ts!(SetBackupJobsEnabledParams);
+rpc_toolkit::ts_export!(SetBackupJobsEnabledParams, namespaces = [""]);
 
 pub async fn set_enabled(
     ctx: RpcContext,
@@ -2442,9 +2475,8 @@ pub async fn set_enabled_bulk(
     Ok(jobs)
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct DeleteBackupJobParams {
@@ -2452,16 +2484,20 @@ pub struct DeleteBackupJobParams {
     pub id: BackupJobId,
 }
 
-#[derive(Deserialize, Serialize, TS)]
-#[ts(export)]
+rpc_toolkit::reflect_ts!(DeleteBackupJobParams);
+rpc_toolkit::ts_export!(DeleteBackupJobParams, namespaces = [""]);
+
+#[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct DeleteBackupJobWithBackupsParams {
     pub id: BackupJobId,
     pub password: String,
     #[serde(default)]
-    #[ts(optional)]
     pub old_password: Option<String>,
 }
+
+rpc_toolkit::reflect_ts!(DeleteBackupJobWithBackupsParams);
+rpc_toolkit::ts_export!(DeleteBackupJobWithBackupsParams, namespaces = [""]);
 
 pub async fn delete_with_backups(
     ctx: RpcContext,
@@ -2542,15 +2578,17 @@ pub async fn delete_with_backups(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct RunBackupJobNowParams {
     #[arg(help = "help.arg.automatic-backup-job-id")]
     pub id: BackupJobId,
 }
+
+rpc_toolkit::reflect_ts!(RunBackupJobNowParams);
+rpc_toolkit::ts_export!(RunBackupJobNowParams, namespaces = [""]);
 
 #[derive(Deserialize, Serialize, Parser)]
 #[group(skip)]

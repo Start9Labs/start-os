@@ -4,7 +4,6 @@ use chrono::Duration;
 use chrono_tz::Tz;
 use color_eyre::eyre::eyre;
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use super::{ServiceSnapshot, ServiceSnapshotId};
 use crate::prelude::*;
@@ -13,35 +12,39 @@ const MAX_RETENTION_SECONDS: u64 = 10 * 366 * 24 * 60 * 60;
 const MAX_PROJECTED_SNAPSHOTS: u64 = 10_000;
 pub(super) const CAPACITY_MARGIN_PERCENT: u8 = 10;
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct RetentionTier {
     /// Width of one local-time retention bucket.
-    #[ts(type = "number")]
     pub interval_seconds: u64,
     /// How far back from the newest successful snapshot this tier covers.
-    #[ts(type = "number")]
     pub coverage_seconds: u64,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, TS)]
+rpc_toolkit::reflect_ts!(RetentionTier);
+rpc_toolkit::ts_export!(RetentionTier, namespaces = [""]);
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct RetentionPolicy {
     /// An empty tier list is the latest-only policy.
     pub tiers: Vec<RetentionTier>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
+rpc_toolkit::reflect_ts!(RetentionPolicy);
+rpc_toolkit::ts_export!(RetentionPolicy, namespaces = [""]);
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct RetentionPreview {
     pub retained: BTreeSet<ServiceSnapshotId>,
     pub removed: Vec<ServiceSnapshot>,
-    #[ts(type = "number")]
+
     pub estimated_reclaimed_bytes: u64,
 }
+
+rpc_toolkit::reflect_ts!(RetentionPreview);
+rpc_toolkit::ts_export!(RetentionPreview, namespaces = [""]);
 
 impl RetentionPolicy {
     pub fn latest_only() -> Self {
@@ -157,26 +160,28 @@ impl RetentionPolicy {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct CapacityEstimate {
     pub retained_snapshot_count: usize,
-    #[ts(type = "number")]
+
     pub maximum_projected_snapshot_count: u64,
-    #[ts(type = "number")]
+
     pub scheduled_retained_bytes: u64,
-    #[ts(type = "number")]
+
     pub manual_checkpoint_bytes: u64,
-    #[ts(type = "number")]
+
     pub archived_bytes: u64,
-    #[ts(type = "number")]
+
     pub staging_headroom_bytes: u64,
-    #[ts(type = "number | null")]
+
     pub last_changed_bytes: Option<u64>,
-    #[ts(type = "number")]
+
     pub conservative_peak_bytes: u64,
 }
+
+rpc_toolkit::reflect_ts!(CapacityEstimate);
+rpc_toolkit::ts_export!(CapacityEstimate, namespaces = [""]);
 
 impl CapacityEstimate {
     pub fn calculate(

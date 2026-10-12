@@ -3,7 +3,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use chrono::Utc;
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use super::{BackupJob, BackupJobId, BackupServiceScope, NewServiceBackupReview};
 use crate::context::RpcContext;
@@ -31,6 +30,7 @@ pub fn review<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "decide",
             from_fn_async(super::rpc::resolve_review_cli)
+                .no_ts()
                 .no_display()
                 .with_about("about.resolve-backup-service-review")
                 .with_call_remote::<crate::context::CliContext>(),
@@ -55,15 +55,18 @@ pub async fn list(ctx: RpcContext) -> Result<Vec<NewServiceBackupReview>, Error>
         .collect()
 }
 
-#[derive(Deserialize, Serialize, TS)]
+#[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
+
 /// Complete inclusion decisions for one newly installed service.
 pub struct ResolveNewServiceBackupReviewParams {
     pub package_id: PackageId,
     /// Every current job requires an inclusion decision.
     pub decisions: BTreeMap<BackupJobId, bool>,
 }
+
+rpc_toolkit::reflect_ts!(ResolveNewServiceBackupReviewParams);
+rpc_toolkit::ts_export!(ResolveNewServiceBackupReviewParams, namespaces = [""]);
 
 /// Applies a new-service review atomically across the current schedules.
 pub async fn resolve(

@@ -1,5 +1,87 @@
 # Changelog
 
+## [3.0.6]
+
+### Fixed
+
+- **Manifests, notifications and `getContainerIp` type-check as written for 3.0.4.** Dockerfile images may omit `workdir`, device filters and notifications may omit their optional fields, and `getContainerIp` for the service's own container returns a string.
+- **Action result values require every field**, including `launchable`; set it to `false` where a value has no link to open.
+
+## [3.0.5]
+
+### Changed
+
+- **Shared types distinguish serde inputs from outputs.** `T.FooInput` describes accepted requests and constructor values; `T.Foo` describes serialized values, including required nullable fields. Action and network builders use input types. `RPC` exposes generated method, parameter and result inference. Rust documentation is available in editor hovers, and `RecoverySource<Password>` and `RegistryAsset<Commitment>` retain their caller-selected field types.
+
+- **Effects types describe their actual wire results.** `getContainerIp` may return `null` for an unavailable dependency, `getSslCertificate` returns a variable-length string array, and `mount` resolves to `null`, not a path.
+
+### Fixed
+
+- Fixed a service restart during startup leaving a daemon from the previous run running alongside the new one.
+
+## [3.0.4]
+
+### Fixed
+
+- **`sdk.action.run` can run actions with input from init, dependency init handlers, and main**, as well as action handlers.
+
+- **`sdk.getServiceManifest` reads `null` for a package that is not installed**, instead of failing, and a `.const()` read re-runs once it is installed.
+
+## 3.0.3 — StartOS 0.4.0.2
+
+### Added
+
+- **`setupPrimaryUrl` takes `filter`, `ssl` and `fallback`.** `filter` and
+  `ssl` narrow the addresses offered. `fallback: false` starts the form and
+  the task with nothing selected, and makes `bestUsable` `null` while nothing
+  is stored or the stored hostname is gone
+
+### Changed
+
+- **`setupPrimaryUrl` prefers a public domain.** With nothing stored, or the
+  stored hostname gone, the form, the task and `bestUsable` use a public
+  domain, HTTPS first, ahead of the `.local` address
+- **`setupPrimaryUrl`'s task is raised even when the interface offers no
+  address**, and stays active until one is offered and chosen
+
+### Fixed
+
+- **A file model built on an `InputSpec`'s `partialValidator` keeps keys the
+  spec does not declare**, at every level the spec builds with
+  `z.looseObject`, and a `z.discriminatedUnion` in a hidden field keeps the
+  variant its discriminator names. Drop a `z.deepLoose()` wrapped around it
+- **`setupPrimaryUrl`'s task exists only while the URL is unresolved**, so
+  updating a running service to a release that adds a critical one leaves it
+  running
+- **A YAML file model keeps custom tags that parse to class instances**, such
+  as `!include` and `!secret`, when it writes
+- **`setupPrimaryUrl` treats an empty stored URL as unset**
+- **`i18n()` inserts a parameter value verbatim, at every occurrence.** A
+  value containing `$&`, `` $` `` or `$'` was rewritten, and a placeholder
+  used twice was filled only once
+
+## 3.0.2 — StartOS 0.4.0.2
+
+### Fixed
+
+- **A flavor switch records the exact version installed as the service's
+  data version**, so the receiving package's later migrations run. A range
+  recorded by an earlier switch is replaced by the current version at the
+  next initialization; the migrations it skipped are not replayed, so a
+  package that needs one of them on such an install has to do that work
+  outside a migration
+
+## 3.0.1 — StartOS 0.4.0.2
+
+### Changed
+
+- **Breaking — file models parse with their shape exactly as written.** A
+  `z.object` shape deletes every key it doesn't declare on the next `merge()`,
+  `write()` or `update()`. Build every file model with `z.looseObject` at every
+  nesting level; use `z.object` only for a file you have fully modeled and will
+  always keep fully modeled. A `z.discriminatedUnion` keeps the variant its
+  discriminator names
+
 ## 3.0.0 — StartOS 0.4.0.2
 
 ### Security
@@ -128,10 +210,6 @@
 
 - **An `env` variable set to `undefined` is removed from the process**,
   including one the image or StartOS would otherwise supply, such as `LANG`.
-
-- **Backup reports include rsync transfer size when it can be measured.**
-  StartOS uses the measurement alongside automatic-backup capacity estimates.
-  Custom backup functions can omit it; unavailable measurements remain unknown.
 
 - **An action learns who is running it.** The `run` handler, the prefill
   function and a function-valued input spec each receive `caller`: the id of

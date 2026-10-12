@@ -81,44 +81,5 @@ fn no_shadowed_args_start_cli() {
 
 #[test]
 fn export_manpage_start_cli() {
-    // Pages live with the start-cli product; anchored to start-core's crate dir.
-    let dir = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../../projects/start-cli/man"
-    );
-    std::fs::create_dir_all(dir).unwrap();
-    let existing = std::fs::read_dir(dir)
-        .unwrap()
-        .filter_map(|entry| {
-            let path = entry.ok()?.path();
-            (path.extension().and_then(|extension| extension.to_str()) == Some("1")).then(|| {
-                let contents = std::fs::read_to_string(&path).unwrap();
-                (path, contents)
-            })
-        })
-        .collect::<std::collections::BTreeMap<_, _>>();
-    clap_mangen::generate_to(app().into_command(), dir).unwrap();
-    let normalize = |contents: &str| {
-        format!(
-            "{}\n",
-            contents
-                .lines()
-                .map(str::trim_end)
-                .collect::<Vec<_>>()
-                .join("\n")
-        )
-    };
-    for entry in std::fs::read_dir(dir).unwrap() {
-        let path = entry.unwrap().path();
-        if path.extension().and_then(|extension| extension.to_str()) != Some("1") {
-            continue;
-        }
-        let contents = std::fs::read_to_string(&path).unwrap();
-        let normalized = normalize(&contents);
-        let contents = match existing.get(&path) {
-            Some(previous) if normalize(previous) == normalized => previous.clone(),
-            _ => normalized,
-        };
-        std::fs::write(path, contents).unwrap();
-    }
+    super::export_manpages(app().into_command(), "start-cli", super::cli_version());
 }

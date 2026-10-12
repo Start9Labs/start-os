@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use crate::PackageId;
 use crate::context::CliContext;
@@ -17,43 +16,48 @@ pub mod scheduled;
 pub mod target;
 pub mod trash;
 
-#[derive(Debug, Deserialize, Serialize, TS)]
-#[ts(export)]
+#[derive(Debug, Deserialize, Serialize, VisitFields)]
 pub struct BackupReport {
     server: ServerBackupReport,
     packages: BTreeMap<PackageId, PackageBackupReport>,
 }
 
-#[derive(Debug, Deserialize, Serialize, TS)]
-#[ts(export)]
+rpc_toolkit::reflect_ts!(BackupReport);
+rpc_toolkit::ts_export!(BackupReport, namespaces = [""]);
+
+#[derive(Debug, Deserialize, Serialize, VisitFields)]
 pub struct ServerBackupReport {
     attempted: bool,
     error: Option<String>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
-#[ts(export)]
+rpc_toolkit::reflect_ts!(ServerBackupReport);
+rpc_toolkit::ts_export!(ServerBackupReport, namespaces = [""]);
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, VisitFields)]
 pub struct PackageBackupReport {
     pub error: Option<String>,
-    #[ts(type = "number")]
+    #[visit(ts(type = "number"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(opaque, type_attributes(visit::wire))]
     pub duration_ms: u64,
-    #[ts(type = "number | null")]
+
     pub logical_size: Option<u64>,
-    #[ts(type = "number | null")]
+
     pub physical_size: Option<u64>,
-    #[ts(type = "number | null")]
+
     pub changed_bytes: Option<u64>,
-    #[ts(type = "string | null")]
+
     pub measured_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct PackageBackupOutput {
-    #[ts(type = "number | null")]
     pub changed_bytes: Option<u64>,
 }
+
+rpc_toolkit::reflect_ts!(PackageBackupOutput);
+rpc_toolkit::ts_export!(PackageBackupOutput, namespaces = [""]);
 
 pub(crate) fn try_backup_coordinator(
     coordinator: std::sync::Arc<tokio::sync::Mutex<()>>,
@@ -70,6 +74,9 @@ pub(crate) fn backup_in_progress_error() -> Error {
     )
 }
 
+rpc_toolkit::reflect_ts!(PackageBackupReport);
+rpc_toolkit::ts_export!(PackageBackupReport, namespaces = [""]);
+
 // #[command(subcommands(backup_bulk::backup_all, target::target))]
 pub fn backup<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -83,6 +90,7 @@ pub fn backup<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "estimate-capacity",
             from_fn_async(scheduled::estimate_capacity_cli)
+                .no_ts()
                 .with_display_serializable()
                 .with_about("about.estimate-backup-capacity")
                 .with_call_remote::<CliContext>(),
@@ -132,6 +140,7 @@ pub fn package_backup<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "restore-checkpoint",
             from_fn_async(scheduled::restore_automatic_checkpoint_cli)
+                .no_ts()
                 .no_display()
                 .with_about("about.restore-automatic-backup-checkpoints")
                 .with_call_remote::<CliContext>(),
@@ -139,6 +148,7 @@ pub fn package_backup<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "restore-mixed",
             from_fn_async(restore::restore_selection_cli)
+                .no_ts()
                 .no_display()
                 .with_about("about.restore-mixed-backup-checkpoints")
                 .with_call_remote::<CliContext>(),

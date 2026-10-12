@@ -1,3 +1,4 @@
+import { AsyncPipe } from '@angular/common'
 import { DatePipe } from '@angular/common'
 import {
   afterNextRender,
@@ -62,6 +63,7 @@ import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { filter, firstValueFrom, from, map, race } from 'rxjs'
 
+import { PkgIconPipe } from 'src/app/routes/portal/pipes/pkg-icon'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
@@ -534,7 +536,7 @@ class JobEditor
                         @if (pkg.id === systemPackageId) {
                           <tui-icon icon="@tui.settings" />
                         } @else {
-                          <img alt="" [src]="pkg.icon" />
+                          <img alt="" [src]="pkg.id | pkgIcon | async" />
                         }
                         <span tuiTitle>
                           <b>{{ pkg.name }}</b>
@@ -1288,6 +1290,8 @@ class JobEditor
     '(window:beforeunload)': 'confirmBrowserExit($event)',
   },
   imports: [
+    AsyncPipe,
+    PkgIconPipe,
     BackupJobName,
     DatePipe,
     FormsModule,
@@ -1400,11 +1404,10 @@ export class ScheduledBackups {
     {
       id: SYSTEM_PACKAGE_ID,
       name: this.i18n.transform('System'),
-      icon: '',
     },
     ...Object.entries(this.packageData() || {}).flatMap(([id, entry]) => {
       const manifest = getManifest(entry)
-      return manifest ? [{ id, name: manifest.title, icon: entry.icon }] : []
+      return manifest ? [{ id, name: manifest.title }] : []
     }),
   ])
   protected readonly packageIds = computed(() =>

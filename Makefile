@@ -6,6 +6,7 @@
 
 include build/common.mk
 include shared-libs/crates/start-core/build.mk
+include shared-libs/crates/rpc-toolkit/build.mk
 include shared-libs/ts-modules/build.mk
 include projects/start-sdk/build.mk
 include projects/start-cli/build.mk
@@ -49,6 +50,6 @@ format-check:
 
 .PHONY: release-notes-test
 release-notes-test:
-	python3 scripts/tests/release-notes-test.py
+	node --test scripts/tests/*-test.mjs
 
-test: | start-core-test start-sdk-test backup-fs-test container-runtime-test start-os-scripts-test start-wrt-test release-notes-test
+test: | start-core-test start-sdk-test backup-fs-test container-runtime-test start-os-scripts-test start-wrt-test release-notes-test rpc-toolkit-test

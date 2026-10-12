@@ -6,7 +6,6 @@ use color_eyre::eyre::eyre;
 use imbl_value::InternedString;
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use super::{BackupTarget, BackupTargetId};
 use crate::backup::scheduled::BackupJob;
@@ -37,19 +36,22 @@ impl Map for CifsTargets {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, TS)]
-#[ts(export)]
+#[derive(Debug, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct CifsBackupTarget {
     hostname: String,
     path: PathBuf,
     username: String,
     mountable: bool,
-    #[ts(type = "number | null")]
+    #[visit(ts(type = "number | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(opaque, type_attributes(visit::wire))]
     available: Option<u64>,
     start_os: BTreeMap<String, StartOsRecoveryInfo>,
     legacy_backup: bool,
 }
+
+rpc_toolkit::reflect_ts!(CifsBackupTarget);
+rpc_toolkit::ts_export!(CifsBackupTarget, namespaces = [""]);
 
 pub fn cifs<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -76,9 +78,8 @@ pub fn cifs<C: Context>() -> ParentHandler<C> {
         )
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CifsAddParams {
@@ -91,6 +92,9 @@ pub struct CifsAddParams {
     #[arg(help = "help.arg.cifs-password")]
     pub password: Option<String>,
 }
+
+rpc_toolkit::reflect_ts!(CifsAddParams);
+rpc_toolkit::ts_export!(CifsAddParams, namespaces = [""]);
 
 pub async fn add(
     ctx: RpcContext,
@@ -149,9 +153,8 @@ pub async fn add(
     })
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CifsUpdateParams {
@@ -166,6 +169,9 @@ pub struct CifsUpdateParams {
     #[arg(help = "help.arg.cifs-password")]
     pub password: Option<String>,
 }
+
+rpc_toolkit::reflect_ts!(CifsUpdateParams);
+rpc_toolkit::ts_export!(CifsUpdateParams, namespaces = [""]);
 
 pub async fn update(
     ctx: RpcContext,
@@ -239,15 +245,17 @@ pub async fn update(
     })
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CifsRemoveParams {
     #[arg(help = "help.arg.backup-target-id")]
     pub id: BackupTargetId,
 }
+
+rpc_toolkit::reflect_ts!(CifsRemoveParams);
+rpc_toolkit::ts_export!(CifsRemoveParams, namespaces = [""]);
 
 pub async fn remove(
     ctx: RpcContext,

@@ -1,16 +1,10 @@
 import { Injectable } from '@angular/core'
-import {
-  DiskInfo,
-  FullKeyboard,
-  pauseFor,
-  SetLanguageParams,
-  StartOSDiskInfo,
-} from '@start9labs/shared'
+import { DiskInfo, pauseFor, StartOSDiskInfo } from '@start9labs/shared'
 import { T } from '@start9labs/start-core'
 import * as jose from 'node-jose'
 import { interval, map, Observable } from 'rxjs'
 import { InstallOsParams, InstallOsRes } from '../types'
-import { ApiService } from './api.service'
+import { ApiService, Params } from './api.service'
 
 @Injectable({
   providedIn: 'root',
@@ -24,6 +18,9 @@ export class MockApiService extends ApiService {
       return interval(500).pipe(
         map(() => ({
           timestamp: new Date().toISOString(),
+          scheduled: false,
+          serverId: null,
+          hasSystemBackup: null,
           message: 'fake log entry',
           bootId: 'boot-id',
         })),
@@ -44,7 +41,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async echo(params: T.EchoParams, url: string): Promise<string> {
+  async echo(params: Params<'echo'>, url: string): Promise<string> {
     if (url) {
       const num = Math.floor(Math.random() * 10) + 1
       if (num > 8) return params.message
@@ -61,11 +58,6 @@ export class MockApiService extends ApiService {
 
     if (this.statusIndex === 1) {
       return { status: 'needs-install' }
-      // return {
-      //   status: 'incomplete',
-      //   attach: false,
-      //   guid: 'mock-data-guid',
-      // }
     }
 
     if (this.statusIndex > 3) {
@@ -94,12 +86,12 @@ export class MockApiService extends ApiService {
     })
   }
 
-  async setKeyboard(_params: FullKeyboard): Promise<null> {
+  async setKeyboard(_params: Params<'setup.set-keyboard'>): Promise<null> {
     await pauseFor(300)
     return null
   }
 
-  async setLanguage(params: SetLanguageParams): Promise<null> {
+  async setLanguage(params: Params<'setup.set-language'>): Promise<null> {
     await pauseFor(300)
     return null
   }
@@ -113,14 +105,15 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
     this.installCompleted = true
     return {
-      guid: 'mock-data-guid',
-      attach: !params.dataDrive.wipe,
+      guid: params.dataDrive ? 'mock-data-guid' : null,
+      osDrive: params.osDrive ?? null,
+      attach: !!params.dataDrive && !params.dataDrive.wipe,
       mokEnrolled: true,
     }
   }
 
   async verifyCifs(
-    params: T.VerifyCifsParams,
+    params: Params<'setup.cifs.verify'>,
   ): Promise<Record<string, StartOSDiskInfo>> {
     await pauseFor(1000)
     return {
@@ -128,27 +121,33 @@ export class MockApiService extends ApiService {
         hostname: 'server-name',
         version: '0.4.0',
         timestamp: new Date().toISOString(),
+        scheduled: false,
+        serverId: null,
+        hasSystemBackup: null,
       },
       '9876-5432-1234-5671': {
         hostname: 'server-name',
         version: '0.4.0',
         timestamp: new Date().toISOString(),
+        scheduled: false,
+        serverId: null,
+        hasSystemBackup: null,
       },
     }
   }
 
-  async attach(params: T.AttachParams): Promise<T.SetupProgress> {
+  async attach(params: Params<'setup.attach'>): Promise<T.SetupProgress> {
     await pauseFor(1000)
-    this.statusIndex = 1 // Jump to running state
+    this.statusIndex = 1
     return {
       progress: PROGRESS,
       guid: 'progress-guid',
     }
   }
 
-  async execute(params: T.SetupExecuteParams): Promise<T.SetupProgress> {
+  async execute(params: Params<'setup.execute'>): Promise<T.SetupProgress> {
     await pauseFor(1000)
-    this.statusIndex = 1 // Jump to running state
+    this.statusIndex = 1
     return {
       progress: PROGRESS,
       guid: 'progress-guid',
@@ -192,6 +191,7 @@ const MOCK_DISKS: DiskInfo[] = [
   {
     logicalname: '/dev/sdd',
     stablePath: '/dev/disk/by-path/mock-sdd',
+    partitionTable: null,
     vendor: 'Generic',
     model: 'Card Reader',
     partitions: [],
@@ -203,12 +203,15 @@ const MOCK_DISKS: DiskInfo[] = [
   {
     logicalname: '/dev/sde',
     stablePath: '/dev/disk/by-path/mock-sde',
+    partitionTable: null,
     vendor: null,
     model: null,
     partitions: [
       {
         logicalname: '/dev/sde1',
         stablePath: '/dev/disk/by-path/mock-sde-part1',
+        available: null,
+        legacyBackup: false,
         label: null,
         capacity: 10 * GiB,
         used: null,
@@ -225,12 +228,15 @@ const MOCK_DISKS: DiskInfo[] = [
   {
     logicalname: '/dev/sdf',
     stablePath: '/dev/disk/by-path/mock-sdf',
+    partitionTable: null,
     vendor: null,
     model: 'SATA Flash Drive',
     partitions: [
       {
         logicalname: '/dev/sdf1',
         stablePath: '/dev/disk/by-path/mock-sdf-part1',
+        available: null,
+        legacyBackup: false,
         label: null,
         capacity: 18 * GiB,
         used: null,
@@ -247,12 +253,15 @@ const MOCK_DISKS: DiskInfo[] = [
   {
     logicalname: '/dev/sdg',
     stablePath: '/dev/disk/by-path/mock-sdg',
+    partitionTable: null,
     vendor: 'PNY',
     model: null,
     partitions: [
       {
         logicalname: '/dev/sdg1',
         stablePath: '/dev/disk/by-path/mock-sdg-part1',
+        available: null,
+        legacyBackup: false,
         label: null,
         capacity: 20 * GiB,
         used: null,
@@ -269,12 +278,15 @@ const MOCK_DISKS: DiskInfo[] = [
   {
     logicalname: '/dev/sdh',
     stablePath: '/dev/disk/by-path/mock-sdh',
+    partitionTable: null,
     vendor: 'SanDisk',
     model: 'Ultra',
     partitions: [
       {
         logicalname: '/dev/sdh1',
         stablePath: '/dev/disk/by-path/mock-sdh-part1',
+        available: null,
+        legacyBackup: false,
         label: null,
         capacity: 30 * GiB,
         used: null,
@@ -292,12 +304,15 @@ const MOCK_DISKS: DiskInfo[] = [
   {
     logicalname: '/dev/sdi',
     stablePath: '/dev/disk/by-path/mock-sdi',
+    partitionTable: null,
     vendor: 'Kingston',
     model: 'A400',
     partitions: [
       {
         logicalname: '/dev/sdi1',
         stablePath: '/dev/disk/by-path/mock-sdi-part1',
+        available: null,
+        legacyBackup: false,
         label: null,
         capacity: 30 * GiB,
         used: null,
@@ -306,6 +321,9 @@ const MOCK_DISKS: DiskInfo[] = [
             hostname: 'small-server',
             version: '0.4.0',
             timestamp: new Date().toISOString(),
+            scheduled: false,
+            serverId: null,
+            hasSystemBackup: null,
           },
         },
         guid: null,
@@ -320,12 +338,15 @@ const MOCK_DISKS: DiskInfo[] = [
   {
     logicalname: '/dev/sda',
     stablePath: '/dev/disk/by-path/mock-sda',
+    partitionTable: null,
     vendor: 'Samsung',
     model: 'SSD 970 EVO Plus',
     partitions: [
       {
         logicalname: '/dev/sda1',
         stablePath: '/dev/disk/by-path/mock-sda-part1',
+        available: null,
+        legacyBackup: false,
         label: null,
         capacity: 500000000000,
         used: null,
@@ -343,12 +364,15 @@ const MOCK_DISKS: DiskInfo[] = [
   {
     logicalname: '/dev/sdb',
     stablePath: '/dev/disk/by-path/mock-sdb',
+    partitionTable: null,
     vendor: 'Crucial',
     model: 'MX500',
     partitions: [
       {
         logicalname: '/dev/sdb1',
         stablePath: '/dev/disk/by-path/mock-sdb-part1',
+        available: null,
+        legacyBackup: false,
         label: null,
         capacity: 1000000000000,
         used: null,
@@ -357,6 +381,9 @@ const MOCK_DISKS: DiskInfo[] = [
             hostname: 'existing-server',
             version: '0.4.0',
             timestamp: new Date().toISOString(),
+            scheduled: false,
+            serverId: null,
+            hasSystemBackup: null,
           },
         },
         guid: 'EMBASSY_BIGPOOL000000000000000000000000000000000000000000000',
@@ -372,12 +399,15 @@ const MOCK_DISKS: DiskInfo[] = [
   {
     logicalname: '/dev/sdc',
     stablePath: '/dev/disk/by-path/mock-sdc',
+    partitionTable: null,
     vendor: 'WD',
     model: 'Blue SN570',
     partitions: [
       {
         logicalname: '/dev/sdc1',
         stablePath: '/dev/disk/by-path/mock-sdc-part1',
+        available: 1500000000000,
+        legacyBackup: false,
         label: 'Backup',
         capacity: 2000000000000,
         used: 500000000000,
@@ -386,6 +416,9 @@ const MOCK_DISKS: DiskInfo[] = [
             hostname: 'backup-server',
             version: '0.3.5',
             timestamp: new Date(Date.now() - 86400000).toISOString(),
+            scheduled: false,
+            serverId: null,
+            hasSystemBackup: null,
           },
         },
         guid: 'UBUNTU_VG0000000000000000000000000000000000000000000000000',

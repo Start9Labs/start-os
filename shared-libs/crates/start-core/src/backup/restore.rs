@@ -8,7 +8,6 @@ use patch_db::json_ptr::ROOT;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, OwnedMutexGuard};
 use tracing::instrument;
-use ts_rs::TS;
 
 use super::PackageBackupReport;
 use super::scheduled::{
@@ -35,11 +34,10 @@ use crate::system::{save_language, sync_kiosk};
 use crate::util::serde::{IoFormat, Pem};
 use crate::{PackageId, SYSTEM_PACKAGE_ID};
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct RestorePackageParams {
     #[arg(help = "help.arg.backup-target-id")]
     pub target_id: BackupTargetId,
@@ -51,6 +49,10 @@ pub struct RestorePackageParams {
     pub server_id: Option<String>,
 }
 
+rpc_toolkit::reflect_ts!(RestorePackageParams);
+rpc_toolkit::ts_export!(RestorePackageParams, namespaces = [""]);
+
+// #[command(rename = "restore", display(display_none))]
 #[instrument(skip(ctx, password))]
 pub async fn restore_packages_rpc(
     ctx: RpcContext,
@@ -74,9 +76,8 @@ pub async fn restore_packages_rpc(
     .await
 }
 
-#[derive(Deserialize, Serialize, TS)]
+#[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct RestoreSelectionParams {
     pub target_id: BackupTargetId,
     #[serde(default)]
@@ -84,12 +85,13 @@ pub struct RestoreSelectionParams {
     #[serde(default)]
     pub snapshots: BTreeMap<PackageId, ServiceSnapshotId>,
     #[serde(default)]
-    #[ts(optional)]
     pub server_id: Option<String>,
     #[serde(default)]
-    #[ts(optional)]
     pub password: Option<String>,
 }
+
+rpc_toolkit::reflect_ts!(RestoreSelectionParams);
+rpc_toolkit::ts_export!(RestoreSelectionParams, namespaces = [""]);
 
 #[derive(Deserialize, Serialize, Parser)]
 #[group(skip)]
@@ -318,19 +320,19 @@ pub async fn restore_selection_rpc(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, TS)]
+#[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct RestoreScheduledPackagesParams {
     pub target_id: BackupTargetId,
     pub snapshots: BTreeMap<PackageId, ServiceSnapshotId>,
     #[serde(default)]
-    #[ts(optional)]
     pub server_id: Option<String>,
     #[serde(default)]
-    #[ts(optional)]
     pub password: Option<String>,
 }
+
+rpc_toolkit::reflect_ts!(RestoreScheduledPackagesParams);
+rpc_toolkit::ts_export!(RestoreScheduledPackagesParams, namespaces = [""]);
 
 pub async fn restore_scheduled_packages_rpc(
     ctx: RpcContext,

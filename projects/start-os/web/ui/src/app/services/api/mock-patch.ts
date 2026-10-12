@@ -25,7 +25,6 @@ function mockService(
       },
     },
     s9pk: `/media/startos/data/package-data/archive/installed/${id}.s9pk`,
-    icon: '/assets/img/service-icons/fallback.png',
     lastBackup: null,
     statusInfo,
     actions: {},
@@ -195,6 +194,7 @@ export const mockPatchData: DataModel = {
             options: {
               preferredExternalPort: 80,
               addSsl: {
+                upstreamCertValidation: null,
                 preferredExternalPort: 443,
                 alpn: ['http/1.1', 'h2'],
                 addXForwardedHeaders: false,
@@ -367,7 +367,6 @@ export const mockPatchData: DataModel = {
         },
       },
       s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
-      icon: '/assets/img/service-icons/lnd.png',
       lastBackup: null,
       statusInfo: {
         desired: { main: 'stopped' },
@@ -377,6 +376,7 @@ export const mockPatchData: DataModel = {
       },
       actions: {
         config: {
+          access: null,
           name: 'Config',
           description: 'LND needs configuration before starting',
           warning: null,
@@ -386,6 +386,7 @@ export const mockPatchData: DataModel = {
           group: null,
         },
         connect: {
+          access: null,
           name: 'Connect',
           description: 'View LND connection details',
           warning: null,
@@ -398,14 +399,12 @@ export const mockPatchData: DataModel = {
       currentDependencies: {
         bitcoind: {
           title: Mock.BitcoinDep.title,
-          icon: Mock.BitcoinDep.icon,
           kind: 'running',
           versionRange: '>=26.0.0',
           healthChecks: [],
         },
         'btc-rpc-proxy': {
           title: Mock.ProxyDep.title,
-          icon: Mock.ProxyDep.icon,
           kind: 'running',
           versionRange: '<0.4.0',
           healthChecks: [],
@@ -421,6 +420,8 @@ export const mockPatchData: DataModel = {
         config: {
           active: true,
           task: {
+            when: null,
+            input: null,
             packageId: 'lnd',
             actionId: 'config',
             severity: 'critical',
@@ -430,6 +431,8 @@ export const mockPatchData: DataModel = {
         connect: {
           active: true,
           task: {
+            when: null,
+            input: null,
             packageId: 'lnd',
             actionId: 'connect',
             severity: 'important',
@@ -439,6 +442,7 @@ export const mockPatchData: DataModel = {
         'bitcoind/config': {
           active: true,
           task: {
+            when: null,
             packageId: 'bitcoind',
             actionId: 'config',
             severity: 'critical',
@@ -461,6 +465,7 @@ export const mockPatchData: DataModel = {
         'bitcoind/rpc': {
           active: true,
           task: {
+            when: null,
             packageId: 'bitcoind',
             actionId: 'rpc',
             severity: 'important',
@@ -493,7 +498,6 @@ export const mockPatchData: DataModel = {
         },
       },
       s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
-      icon: '/assets/img/service-icons/bitcoin-core.svg',
       lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
       statusInfo: {
         desired: { main: 'stopped' },
@@ -509,6 +513,7 @@ export const mockPatchData: DataModel = {
       // },
       actions: {
         config: {
+          access: null,
           name: 'Set Config',
           description: 'edit bitcoin.conf, <b>soo cool!</b>',
           warning: null,
@@ -518,6 +523,7 @@ export const mockPatchData: DataModel = {
           group: null,
         },
         rpc: {
+          access: null,
           name: 'Set RPC',
           description: 'Create RPC Credentials',
           warning: null,
@@ -527,6 +533,7 @@ export const mockPatchData: DataModel = {
           group: null,
         },
         properties: {
+          access: null,
           name: 'View Properties',
           description: 'view important information about Bitcoin',
           warning: null,
@@ -536,6 +543,7 @@ export const mockPatchData: DataModel = {
           group: null,
         },
         'big-qr': {
+          access: null,
           name: 'Show Large QR',
           description:
             'Returns a QR payload too long for correction level M, the size a hardware-wallet code reaches',
@@ -546,6 +554,7 @@ export const mockPatchData: DataModel = {
           group: null,
         },
         'unencodable-qr': {
+          access: null,
           name: 'Show Unencodable QR',
           description:
             'Returns a QR payload past correction level L, which no QR code can hold',
@@ -556,6 +565,7 @@ export const mockPatchData: DataModel = {
           group: null,
         },
         multiline: {
+          access: null,
           name: 'Show Report',
           description:
             'Returns a multi-line value with a copy button and a download',
@@ -566,6 +576,7 @@ export const mockPatchData: DataModel = {
           group: null,
         },
         'multiline-secret': {
+          access: null,
           name: 'Show Device Config',
           description:
             'Returns a masked multi-line value that can also be shown as a QR code',
@@ -576,6 +587,7 @@ export const mockPatchData: DataModel = {
           group: null,
         },
         'multiline-group': {
+          access: null,
           name: 'Show Mixed Group',
           description:
             'Returns a group whose members mix single-line and multi-line values',
@@ -586,6 +598,7 @@ export const mockPatchData: DataModel = {
           group: null,
         },
         test: {
+          access: null,
           name: 'Do Another Thing',
           description:
             'An example of an action that shows a warning and takes no input',
@@ -714,6 +727,7 @@ export const mockPatchData: DataModel = {
               options: {
                 preferredExternalPort: 42443,
                 addSsl: {
+                  upstreamCertValidation: null,
                   preferredExternalPort: 42443,
                   alpn: ['http/1.1', 'h2'],
                   addXForwardedHeaders: false,
@@ -740,6 +754,7 @@ export const mockPatchData: DataModel = {
                   },
                 },
                 connect: {
+                  preferredLauncherAddress: null,
                   id: 'connect',
                   masked: true,
                   name: 'gRPC Connect',
@@ -756,6 +771,7 @@ export const mockPatchData: DataModel = {
                   },
                 },
                 'admin-ui': {
+                  preferredLauncherAddress: null,
                   id: 'admin-ui',
                   masked: false,
                   name: 'Admin UI',
@@ -927,6 +943,7 @@ export const mockPatchData: DataModel = {
               },
               interfaces: {
                 rpc: {
+                  preferredLauncherAddress: null,
                   id: 'rpc',
                   masked: true,
                   name: 'RPC',
@@ -972,6 +989,7 @@ export const mockPatchData: DataModel = {
               },
               interfaces: {
                 p2p: {
+                  preferredLauncherAddress: null,
                   id: 'p2p',
                   masked: false,
                   name: 'P2P',
@@ -1014,6 +1032,8 @@ export const mockPatchData: DataModel = {
         // },
         'bitcoind-properties': {
           task: {
+            when: null,
+            input: null,
             packageId: 'bitcoind',
             actionId: 'properties',
             severity: 'important',
@@ -1032,7 +1052,6 @@ export const mockPatchData: DataModel = {
         },
       },
       s9pk: '/media/startos/data/package-data/archive/installed/tor.s9pk',
-      icon: '/assets/img/service-icons/fallback.png',
       lastBackup: null,
       statusInfo: {
         desired: { main: 'running' },
@@ -1042,6 +1061,7 @@ export const mockPatchData: DataModel = {
       },
       actions: {
         'create-onion-service': {
+          access: null,
           name: 'Create Onion Service',
           description: 'Register a new .onion address for a service interface',
           warning: null,
@@ -1051,6 +1071,7 @@ export const mockPatchData: DataModel = {
           group: null,
         },
         'delete-onion-service': {
+          access: null,
           name: 'Delete Onion Service',
           description: 'Remove an existing .onion address',
           warning: 'This will permanently remove the .onion address.',
@@ -1060,6 +1081,7 @@ export const mockPatchData: DataModel = {
           group: null,
         },
         'regenerate-key': {
+          access: null,
           name: 'Regenerate Key',
           description: 'Generate a new key pair and .onion address',
           warning:
