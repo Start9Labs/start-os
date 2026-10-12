@@ -75,7 +75,7 @@ fn flatten<S>(root: &Node<S>) -> std::io::Result<Vec<FlatNode<'_, S>>> {
     }
     u32::try_from(nodes.len() + 1).map_err(|_| invalid("too many SquashFS inodes"))?;
     for (parent, name, path, mut target) in links {
-        let mut visited = BTreeSet::from([path]);
+        let mut visited = BTreeSet::from([path.clone()]);
         let index = loop {
             if !visited.insert(target.clone()) {
                 return Err(invalid("cyclic archive hardlink"));
@@ -98,12 +98,31 @@ fn flatten<S>(root: &Node<S>) -> std::io::Result<Vec<FlatNode<'_, S>>> {
             .links
             .checked_add(1)
             .ok_or_else(|| invalid("too many inode links"))?;
+        if path < nodes[index].path {
+            nodes[index].path = path;
+            nodes[index].parent = parent;
+        }
         nodes[parent].children.push((name, index));
     }
     for node in &mut nodes {
         node.children.sort_by(|a, b| a.0.cmp(&b.0));
     }
-    Ok(nodes)
+    let mut ordered: Vec<_> = nodes.into_iter().enumerate().collect();
+    ordered.sort_by(|(_, a), (_, b)| a.path.cmp(&b.path));
+    let mut indices = vec![0; ordered.len()];
+    for (new, (old, _)) in ordered.iter().enumerate() {
+        indices[*old] = new;
+    }
+    Ok(ordered
+        .into_iter()
+        .map(|(_, mut node)| {
+            node.parent = indices[node.parent];
+            for (_, child) in &mut node.children {
+                *child = indices[*child];
+            }
+            node
+        })
+        .collect())
 }
 
 #[derive(Clone)]
@@ -509,6 +528,8 @@ async fn indexed_table<W: AsyncWrite + Unpin>(
 
 impl<S: FileSource> Squashfs<S> {
     /// Writes an image at the current position and leaves the output after its 4 KiB padding.
+    /// Identical contents, inode attributes, options, and Zstd version produce identical bytes,
+    /// independent of insertion order and which hardlink carries the file source.
     /// Rejects symlink targets above 4095 bytes for lossless reads on 4 KiB-page kernels.
     pub async fn serialize<W: AsyncWrite + AsyncSeek + Unpin + Send>(
         &self,

@@ -43,6 +43,104 @@ pub(super) fn append(tar: &mut Vec<u8>, path: &[u8], ty: u8, payload: &[u8], lin
     tar.resize(tar.len().next_multiple_of(512), 0);
 }
 
+#[tokio::test]
+async fn directory_imports_are_byte_reproducible_across_creation_orders_and_inode_numbers() {
+    let temp = TmpDir::new().await.unwrap();
+    let mut expected = None;
+    for reverse in [false, true] {
+        let root = temp.join(if reverse { "reverse" } else { "forward" });
+        tokio::fs::create_dir(&root).await.unwrap();
+        let mut directories = ["a-dir", "z-dir"];
+        if reverse {
+            directories.reverse();
+        }
+        for directory in directories {
+            tokio::fs::create_dir(root.join(directory)).await.unwrap();
+        }
+        let (owner, alias) = if reverse {
+            ("z-dir/file", "a-dir/file")
+        } else {
+            ("a-dir/file", "z-dir/file")
+        };
+        tokio::fs::write(root.join(owner), vec![b'x'; 131073])
+            .await
+            .unwrap();
+        tokio::fs::hard_link(root.join(owner), root.join(alias))
+            .await
+            .unwrap();
+        tokio::fs::write(root.join("z-dir/other"), b"different file")
+            .await
+            .unwrap();
+        for (path, mode) in [
+            ("", 0o755),
+            ("a-dir", 0o755),
+            ("z-dir", 0o755),
+            (owner, 0o640),
+            ("z-dir/other", 0o640),
+        ] {
+            let path = root.join(path);
+            tokio::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode))
+                .await
+                .unwrap();
+            std::fs::File::open(&path)
+                .unwrap()
+                .set_times(
+                    std::fs::FileTimes::new()
+                        .set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_secs(42)),
+                )
+                .unwrap();
+        }
+        let image = Squashfs::from_directory(&root).await.unwrap();
+        let mut output = std::io::Cursor::new(Vec::new());
+        image.serialize(&mut output).await.unwrap();
+        let actual = output.into_inner();
+        if let Some(expected) = &expected {
+            assert_eq!(&actual, expected);
+        } else {
+            expected = Some(actual);
+        }
+    }
+    temp.delete().await.unwrap();
+}
+
+#[tokio::test]
+async fn tar_imports_are_byte_reproducible_across_entry_orders_and_hardlink_owners() {
+    let mut expected = None;
+    for reverse in [false, true] {
+        let (owner, alias) = if reverse {
+            (&b"z-dir/file"[..], &b"a-dir/file"[..])
+        } else {
+            (&b"a-dir/file"[..], &b"z-dir/file"[..])
+        };
+        let payload = vec![b'x'; 131073];
+        let mut records = vec![
+            (owner, b'0', payload.as_slice(), None),
+            (alias, b'1', &b""[..], Some(owner)),
+            (&b"a-dir"[..], b'5', &b""[..], None),
+            (&b"z-dir"[..], b'5', &b""[..], None),
+            (&b"raw\xff"[..], b'0', &b"raw data"[..], None),
+            (&b"z-dir/other"[..], b'0', &b"different file"[..], None),
+        ];
+        if reverse {
+            records.reverse();
+        }
+        let mut archive = Vec::new();
+        for (path, kind, bytes, link) in records {
+            append(&mut archive, path, kind, bytes, link);
+        }
+        finish(&mut archive);
+        let image = Squashfs::from_tar(archive.as_slice()).await.unwrap();
+        let mut output = std::io::Cursor::new(Vec::new());
+        image.serialize(&mut output).await.unwrap();
+        let actual = output.into_inner();
+        if let Some(expected) = &expected {
+            assert_eq!(&actual, expected);
+        } else {
+            expected = Some(actual);
+        }
+    }
+}
+
 pub(super) fn pax(records: &[(&[u8], &[u8])]) -> Vec<u8> {
     let mut bytes = Vec::new();
     for (key, value) in records {

@@ -400,6 +400,142 @@ async fn external_reader_preserves_binary_and_block_spanning_xattrs() {
     temp.close().unwrap();
 }
 
+fn reproducibility_fixture(reverse: bool) -> Squashfs<Bytes> {
+    let mut metadata = Metadata::new(0o4751);
+    metadata.uid = 123;
+    metadata.gid = 456;
+    metadata.modification_time = 946684800;
+    let mut attributes = vec![
+        (OsString::from("user.binary"), b"before\0after".to_vec()),
+        (OsString::from("user.large"), random_bytes(20000)),
+        (OsString::from_vec(b"user.raw\xff".to_vec()), vec![0; 9000]),
+    ];
+    if reverse {
+        attributes.reverse();
+    }
+    metadata.xattrs.extend(attributes);
+    let payload = random_bytes(300001);
+    let (owner, alias) = if reverse {
+        ("z-dir/owner", "a-dir/alias")
+    } else {
+        ("a-dir/alias", "z-dir/owner")
+    };
+    let mut entries = vec![
+        (
+            PathBuf::from(owner),
+            Entry::file(metadata.clone(), Arc::from(payload.clone())),
+        ),
+        (PathBuf::from(alias), Entry::Hardlink(owner.into())),
+        (PathBuf::from("chain"), Entry::Hardlink(alias.into())),
+        (PathBuf::from("duplicate"), file(0o640, &payload)),
+        (PathBuf::from("sparse"), file(0o600, &vec![0; 262145])),
+        (
+            PathBuf::from("compressed"),
+            file(0o644, &vec![b'x'; 262145]),
+        ),
+        (PathBuf::from("empty"), file(0o644, b"")),
+        (
+            PathBuf::from("symlink"),
+            Entry::new(
+                metadata.clone(),
+                NodeContents::Symlink("a-dir/alias".into()),
+            ),
+        ),
+        (
+            PathBuf::from("device"),
+            Entry::new(
+                metadata.clone(),
+                NodeContents::CharacterDevice(Device { major: 1, minor: 3 }),
+            ),
+        ),
+        (
+            PathBuf::from("fifo"),
+            Entry::new(metadata.clone(), NodeContents::Fifo),
+        ),
+        (
+            PathBuf::from("socket"),
+            Entry::new(metadata.clone(), NodeContents::Socket),
+        ),
+        (
+            PathBuf::from(OsString::from_vec(b"raw\xff".to_vec())),
+            file(0o640, b"raw-name data"),
+        ),
+    ];
+    for index in 0u32..300 {
+        entries.push((
+            PathBuf::from(format!("directory/{index:04}-{}", "n".repeat(100))),
+            file(0o644, &index.to_le_bytes()),
+        ));
+    }
+    if reverse {
+        entries.reverse();
+    }
+    let mut contents = DirectoryContents::new();
+    for (path, entry) in entries {
+        contents.insert_path(path, entry).unwrap();
+    }
+    Squashfs::new(metadata, contents)
+}
+
+#[tokio::test]
+async fn reproducible_bytes_across_processes_insertion_orders_and_hardlink_owners() {
+    const CHILD_ENV: &str = "STARTOS_SQUASHFS_REPRODUCIBILITY_CHILD";
+    const TEST: &str = "util::squashfs::write::tests::reproducible_bytes_across_processes_insertion_orders_and_hardlink_owners";
+    if let Some(destination) = std::env::var_os(CHILD_ENV) {
+        let reverse = std::env::var("STARTOS_SQUASHFS_REPRODUCIBILITY_REVERSE").unwrap() == "1";
+        let mut small_blocks = Options::new(4096, 1).unwrap();
+        small_blocks.deduplicate = false;
+        for (index, options) in [Options::default(), small_blocks].into_iter().enumerate() {
+            let mut image = reproducibility_fixture(reverse);
+            image.options = options;
+            let mut output = Cursor::new(Vec::new());
+            image.serialize(&mut output).await.unwrap();
+            let header = Superblock::deserialize(&mut output.get_ref().as_slice()).unwrap();
+            assert_eq!(header.modification_time, 0);
+            tokio::fs::write(
+                Path::new(&destination).join(format!("{index}.sqfs")),
+                output.into_inner(),
+            )
+            .await
+            .unwrap();
+        }
+        return;
+    }
+    let temp = TmpDir::new().await.unwrap();
+    let mut expected = None;
+    for (round, reverse) in [false, true, false].into_iter().enumerate() {
+        let destination = temp.join(round.to_string());
+        tokio::fs::create_dir(&destination).await.unwrap();
+        Command::new(std::env::current_exe().unwrap())
+            .args([TEST, "--exact", "--nocapture"])
+            .env(CHILD_ENV, &destination)
+            .env(
+                "STARTOS_SQUASHFS_REPRODUCIBILITY_REVERSE",
+                if reverse { "1" } else { "0" },
+            )
+            .invoke(ErrorKind::Filesystem)
+            .await
+            .unwrap();
+        let mut actual = Vec::new();
+        for index in 0..2 {
+            actual.push(
+                tokio::fs::read(destination.join(format!("{index}.sqfs")))
+                    .await
+                    .unwrap(),
+            );
+        }
+        if let Some(expected) = &expected {
+            assert_eq!(
+                &actual, expected,
+                "image bytes differ in independent process {round}"
+            );
+        } else {
+            expected = Some(actual);
+        }
+    }
+    temp.delete().await.unwrap();
+}
+
 struct FixtureSource {
     size: u64,
     bytes: [&'static [u8]; 2],
