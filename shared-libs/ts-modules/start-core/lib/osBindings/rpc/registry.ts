@@ -494,7 +494,7 @@ export type PackageInfo = {
   versions: { [key: string]: PackageVersionInfo }
   categories: string[]
   /**
-   * Hides the package from every read request not signed by one of `readers`.
+   * Hides the package from every read request not signed by an admin, an authorized signer, or one of `readers`.
    */
   private: boolean
   readers: Guid[]

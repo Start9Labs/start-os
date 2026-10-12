@@ -16,8 +16,7 @@ use crate::prelude::*;
 use crate::progress::{FullProgressTracker, ProgressUnits};
 use crate::registry::context::RegistryContext;
 use crate::registry::device_info::DeviceInfo;
-use crate::registry::package::index::{PackageIndex, PackageVersionInfo, ReaderParams};
-use crate::rpc_continuations::Guid;
+use crate::registry::package::index::{PackageIndex, PackageVersionInfo, Reader, ReaderParams};
 use crate::s9pk::manifest::{HardwareRequirements, LocaleString};
 use crate::s9pk::merkle_archive::source::ArchiveSource;
 use crate::s9pk::v2::SIG_CONTEXT;
@@ -187,7 +186,7 @@ rpc_toolkit::reflect_ts!(GetPackageResult);
 
 fn get_matching_models(
     db: &Model<PackageIndex>,
-    reader: Option<&Guid>,
+    reader: Option<&Reader>,
     GetPackageParams {
         id,
         source_version,
@@ -700,8 +699,16 @@ pub async fn cli_download(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::rpc_continuations::Guid;
 
-    fn private_index(reader: &Guid, versions: Value) -> Model<PackageIndex> {
+    fn signer(signer: &Guid, admin: bool) -> Reader {
+        Reader {
+            signer: signer.clone(),
+            admin,
+        }
+    }
+
+    fn private_index(reader: &Guid, publisher: &Guid, versions: Value) -> Model<PackageIndex> {
         json!({
             "categories": {},
             "packages": {
@@ -713,7 +720,7 @@ mod tests {
                     "readers": [],
                 },
                 "secret": {
-                    "authorized": {},
+                    "authorized": { publisher.as_ref(): "*" },
                     "categories": ["hidden"],
                     "versions": versions,
                     "private": true,
@@ -726,7 +733,7 @@ mod tests {
 
     fn matching_ids(
         db: &Model<PackageIndex>,
-        reader: Option<&Guid>,
+        reader: Option<&Reader>,
         id: Option<&str>,
     ) -> BTreeSet<String> {
         let params = GetPackageParams {
@@ -746,29 +753,41 @@ mod tests {
     }
 
     #[test]
-    fn private_package_matches_only_its_readers() {
+    fn private_package_matches_only_readers_publishers_and_admins() {
         let reader = Guid::new();
-        let db = private_index(&reader, json!({ "1.0.0:0": {} }));
+        let publisher = Guid::new();
+        let db = private_index(&reader, &publisher, json!({ "1.0.0:0": {} }));
         let all = BTreeSet::from(["public".to_owned(), "secret".to_owned()]);
         let public = BTreeSet::from(["public".to_owned()]);
         assert_eq!(matching_ids(&db, None, None), public);
-        assert_eq!(matching_ids(&db, Some(&Guid::new()), None), public);
-        assert_eq!(matching_ids(&db, Some(&reader), None), all);
+        assert_eq!(
+            matching_ids(&db, Some(&signer(&Guid::new(), false)), None),
+            public
+        );
+        assert_eq!(matching_ids(&db, Some(&signer(&reader, false)), None), all);
+        assert_eq!(
+            matching_ids(&db, Some(&signer(&publisher, false)), None),
+            all
+        );
+        assert_eq!(
+            matching_ids(&db, Some(&signer(&Guid::new(), true)), None),
+            all
+        );
         assert!(matching_ids(&db, None, Some("secret")).is_empty());
         assert_eq!(
-            matching_ids(&db, Some(&reader), Some("secret")),
+            matching_ids(&db, Some(&signer(&reader, false)), Some("secret")),
             BTreeSet::from(["secret".to_owned()])
         );
     }
 
     #[test]
     fn private_package_is_absent_from_index_for_others() {
-        let reader = Guid::new();
-        let db = private_index(&reader, json!({}));
+        let reader = signer(&Guid::new(), false);
+        let db = private_index(&reader.signer, &Guid::new(), json!({}));
         let id = "secret".parse().unwrap();
         assert!(db.visible_package(&id, None).unwrap().is_none());
         assert!(db.visible_package(&id, Some(&reader)).unwrap().is_some());
-        let ids = |reader: Option<&Guid>| {
+        let ids = |reader: Option<&Reader>| {
             db.de_visible_to(reader)
                 .unwrap()
                 .packages
@@ -776,8 +795,7 @@ mod tests {
                 .map(|id| id.to_string())
                 .collect::<Vec<_>>()
         };
-        let stranger = Guid::new();
-        assert_eq!(ids(Some(&stranger)), ["public"]);
+        assert_eq!(ids(Some(&signer(&Guid::new(), false))), ["public"]);
         assert_eq!(ids(Some(&reader)), ["public", "secret"]);
     }
 

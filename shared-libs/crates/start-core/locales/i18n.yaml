@@ -4067,11 +4067,11 @@ help.arg.package-ids-to-backup:
   pl_PL: "Identyfikatory pakietów do uwzględnienia w kopii zapasowej"
 
 help.arg.package-private:
-  en_US: "Whether only the package's readers can see it"
-  de_DE: "Ob nur die Leser des Pakets es sehen können"
-  es_ES: "Si solo los lectores del paquete pueden verlo"
-  fr_FR: "Si seuls les lecteurs du paquet peuvent le voir"
-  pl_PL: "Czy tylko czytelnicy pakietu mogą go widzieć"
+  en_US: "Whether only admins, the package's signers, and its readers can see it"
+  de_DE: "Ob nur Administratoren, die Unterzeichner des Pakets und seine Leser es sehen können"
+  es_ES: "Si solo los administradores, los firmantes del paquete y sus lectores pueden verlo"
+  fr_FR: "Si seuls les administrateurs, les signataires du paquet et ses lecteurs peuvent le voir"
+  pl_PL: "Czy tylko administratorzy, sygnatariusze pakietu i jego czytelnicy mogą go widzieć"
 
 help.arg.package-url:
   en_US: "URL of the package"

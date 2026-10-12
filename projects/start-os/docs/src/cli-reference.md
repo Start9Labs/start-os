@@ -1029,7 +1029,7 @@ List authorized signers for a package.
 
 ### Registry Package Access
 
-Hide a package from everyone except the signers allowed to read it. A private package is left out of `package get`, `package index`, `index`, and `package signer list` unless the request is signed by one of its readers.
+Hide a package from everyone except the signers allowed to read it. A private package is left out of `package get`, `package index`, `index`, and `package signer list` unless the request is signed by an admin, a signer authorized for the package, or one of its readers.
 
 ### `start-cli registry package access set-private <ID> <PRIVATE>`
 

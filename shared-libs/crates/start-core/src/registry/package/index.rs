@@ -48,7 +48,7 @@ pub struct PackageInfo {
     #[visit(ts(type = "string[]"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub categories: BTreeSet<InternedString>,
-    /// Hides the package from every read request not signed by one of `readers`.
+    /// Hides the package from every read request not signed by an admin, an authorized signer, or one of `readers`.
     #[serde(default)]
     pub private: bool,
     #[serde(default)]
@@ -58,15 +58,24 @@ pub struct PackageInfo {
 rpc_toolkit::reflect_ts!(PackageInfo);
 rpc_toolkit::ts_export!(PackageInfo, namespaces = [""]);
 
+/// The registered signer of a read request.
+#[derive(Clone, Debug)]
+pub struct Reader {
+    pub signer: Guid,
+    pub admin: bool,
+}
+
 impl Model<PackageInfo> {
-    pub fn is_visible_to(&self, reader: Option<&Guid>) -> Result<bool, Error> {
+    pub fn is_visible_to(&self, reader: Option<&Reader>) -> Result<bool, Error> {
         if !self.as_private().de()? {
             return Ok(true);
         }
-        match reader {
-            Some(reader) => Ok(self.as_readers().de()?.contains(reader)),
-            None => Ok(false),
-        }
+        let Some(reader) = reader else {
+            return Ok(false);
+        };
+        Ok(reader.admin
+            || self.as_authorized().contains_key(&reader.signer)?
+            || self.as_readers().de()?.contains(&reader.signer))
     }
 }
 
@@ -75,7 +84,7 @@ impl Model<PackageIndex> {
     pub fn visible_package(
         &self,
         id: &PackageId,
-        reader: Option<&Guid>,
+        reader: Option<&Reader>,
     ) -> Result<Option<&Model<PackageInfo>>, Error> {
         match self.as_packages().as_idx(id) {
             Some(info) if info.is_visible_to(reader)? => Ok(Some(info)),
@@ -84,7 +93,7 @@ impl Model<PackageIndex> {
     }
 
     /// Omits the packages hidden from the reader.
-    pub fn de_visible_to(&self, reader: Option<&Guid>) -> Result<PackageIndex, Error> {
+    pub fn de_visible_to(&self, reader: Option<&Reader>) -> Result<PackageIndex, Error> {
         let mut packages = BTreeMap::new();
         for (id, info) in self.as_packages().as_entries()? {
             if info.is_visible_to(reader)? {
@@ -112,12 +121,18 @@ pub struct ReaderParams {
 rpc_toolkit::reflect_ts!(ReaderParams);
 
 impl ReaderParams {
-    /// The registered signer of the request. None for an unsigned request or an unregistered key.
-    pub fn reader(&self, db: &Model<RegistryDatabase>) -> Result<Option<Guid>, Error> {
-        match &self.signer {
-            Some(key) => db.as_index().as_signers().find_signer(key),
-            None => Ok(None),
-        }
+    /// None for an unsigned request or an unregistered key.
+    pub fn reader(&self, db: &Model<RegistryDatabase>) -> Result<Option<Reader>, Error> {
+        let Some(key) = &self.signer else {
+            return Ok(None);
+        };
+        let Some(signer) = db.as_index().as_signers().find_signer(key)? else {
+            return Ok(None);
+        };
+        Ok(Some(Reader {
+            admin: db.as_admins().de()?.contains(&signer),
+            signer,
+        }))
     }
 }
 

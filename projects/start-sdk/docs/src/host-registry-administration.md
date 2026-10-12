@@ -36,7 +36,7 @@ start-cli registry package signer add <PACKAGE_ID> <SIGNER_ID> \
 
 ### Private packages
 
-A private package is hidden from every request not signed by one of its readers. Readers are registered signers:
+A private package is hidden from every request not signed by an admin, a signer authorized for the package, or one of its readers. Readers are registered signers:
 
 ```sh
 start-cli registry package access set-private <PACKAGE_ID> true
