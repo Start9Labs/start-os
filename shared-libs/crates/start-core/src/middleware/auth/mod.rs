@@ -30,6 +30,16 @@ pub struct Metadata {
     authenticated: bool,
 }
 
+/// Prefix of the params the auth middlewares inject on a verified request.
+const AUTH_PARAM_PREFIX: &str = "__Auth_";
+
+/// Drops caller-supplied auth params, so a handler never reads one an auth middleware did not set.
+fn strip_auth_params(request: &mut RpcRequest) {
+    if let Some(params) = request.params.as_object_mut() {
+        params.retain(|k, _| !k.starts_with(AUTH_PARAM_PREFIX));
+    }
+}
+
 pub struct Auth<C: Context>(Vec<DynMiddleware<C>>);
 impl<C: Context> Clone for Auth<C> {
     fn clone(&self) -> Self {
@@ -73,6 +83,7 @@ impl<C: Context> Middleware<C> for Auth<C> {
     ) -> Result<(), RpcResponse> {
         let m: Metadata =
             from_value(metadata.clone()).map_err(|e| RpcResponse::from_result(Err(e)))?;
+        strip_auth_params(request);
         let mut err = None;
         for middleware in self.0.iter_mut() {
             if let Err(e) = middleware
@@ -101,5 +112,31 @@ impl<C: Context> Middleware<C> for Auth<C> {
         for middleware in self.0.iter_mut() {
             middleware.process_http_response(context, response).await;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use rpc_toolkit::yajrc::GenericRpcMethod;
+
+    use super::*;
+
+    #[test]
+    fn caller_supplied_auth_params_are_dropped() {
+        let mut request = RpcRequest {
+            id: None,
+            method: GenericRpcMethod::new("package.get".into()),
+            params: imbl_value::json!({
+                "id": "hello-world",
+                "__Auth_signer": "forged",
+                "__Auth_userAgent": "forged",
+                "__DeviceInfo_device_info": "kept",
+            }),
+        };
+        strip_auth_params(&mut request);
+        assert_eq!(
+            request.params,
+            imbl_value::json!({ "id": "hello-world", "__DeviceInfo_device_info": "kept" })
+        );
     }
 }
