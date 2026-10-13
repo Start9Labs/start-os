@@ -1,13 +1,29 @@
 use std::fs;
+use std::net::IpAddr;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+use axum::extract::Request;
+use axum::middleware::Next;
+use axum::response::{IntoResponse, Response};
+use axum::Router;
+use startos::net::http::request_authority;
 
 use crate::prelude::*;
+use crate::ssl::ROUTER_HOSTNAME;
 
 const CAPTIVE_CONF_NAME: &str = "captive-portal.conf";
 const CAPTIVE_CONTENT: &str = "\
     address=/#/192.168.0.1\n\
     address=/#/::\n\
     dhcp-option=114,http://192.168.0.1/\n";
+
+/// Mirrors the presence of the dnsmasq drop-in.
+static ACTIVE: AtomicBool = AtomicBool::new(false);
+
+pub fn is_active() -> bool {
+    ACTIVE.load(Ordering::Relaxed)
+}
 
 /// Find the dnsmasq instance conf-dir from the generated config.
 ///
@@ -68,6 +84,7 @@ pub async fn enable_captive_portal() -> Result<(), Error> {
             ErrorKind::Filesystem,
         )
     })?;
+    ACTIVE.store(true, Ordering::Relaxed);
 
     restart_dnsmasq().await
 }
@@ -87,6 +104,7 @@ pub async fn disable_captive_portal() -> Result<(), Error> {
             )
         })?;
     }
+    ACTIVE.store(false, Ordering::Relaxed);
 
     restart_dnsmasq().await
 }
@@ -125,20 +143,56 @@ pub fn is_admin_password_set() -> Result<bool, Error> {
 /// This is an async wrapper for use from the daemon's boot sequence.
 pub async fn ensure_captive_portal_state() -> Result<(), Error> {
     let password_set = is_admin_password_set()?;
+    let active = is_captive_portal_active();
 
-    if password_set {
-        if is_captive_portal_active() {
-            tracing::info!("admin password set, disabling captive portal");
-            disable_captive_portal().await?;
-        }
+    if password_set && active {
+        tracing::info!("admin password set, disabling captive portal");
+        disable_captive_portal().await?;
+    } else if !password_set && !active {
+        tracing::info!("no admin password set, enabling captive portal");
+        enable_captive_portal().await?;
     } else {
-        if !is_captive_portal_active() {
-            tracing::info!("no admin password set, enabling captive portal");
-            enable_captive_portal().await?;
-        }
+        ACTIVE.store(active, Ordering::Relaxed);
     }
 
     Ok(())
+}
+
+/// `router.lan` and address literals name the router.
+pub(crate) fn serves(host: &str) -> bool {
+    host.eq_ignore_ascii_case(ROUTER_HOSTNAME)
+        || host
+            .strip_prefix('[')
+            .and_then(|host| host.strip_suffix(']'))
+            .unwrap_or(host)
+            .parse::<IpAddr>()
+            .is_ok()
+}
+
+/// Sends a request for any name but the router's own to `router.lan` while the
+/// portal is active.
+pub fn redirect_to_router(router: Router) -> Router {
+    router.layer(axum::middleware::from_fn(
+        |req: Request, next: Next| async move {
+            match respond(is_active(), &req) {
+                Some(response) => response,
+                None => next.run(req).await,
+            }
+        },
+    ))
+}
+
+fn respond(active: bool, req: &Request) -> Option<Response> {
+    if !active || request_authority(req).is_some_and(|authority| serves(authority.host())) {
+        return None;
+    }
+    Some(
+        (
+            http::StatusCode::FOUND,
+            [(http::header::LOCATION, format!("http://{ROUTER_HOSTNAME}/"))],
+        )
+            .into_response(),
+    )
 }
 
 async fn restart_dnsmasq() -> Result<(), Error> {
@@ -157,4 +211,75 @@ async fn restart_dnsmasq() -> Result<(), Error> {
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::body::Body;
+
+    use super::*;
+
+    fn request(uri: &str, host: Option<&str>) -> Request {
+        let mut req = Request::builder().uri(uri).body(Body::empty()).unwrap();
+        if let Some(host) = host {
+            req.headers_mut()
+                .insert(http::header::HOST, host.parse().unwrap());
+        }
+        req
+    }
+
+    #[test]
+    fn the_router_is_served_by_name_and_by_address() {
+        for host in [
+            "router.lan",
+            "ROUTER.LAN",
+            "router.lan:80",
+            "192.168.0.1",
+            "192.168.0.1:443",
+            "[fd12:3456:789a::1]",
+            "[fd12:3456:789a::1]:443",
+        ] {
+            assert!(respond(true, &request("/", Some(host))).is_none(), "{host}");
+        }
+    }
+
+    #[test]
+    fn every_other_name_is_sent_to_the_router() {
+        for host in [
+            "apple.com",
+            "captive.apple.com",
+            "connectivitycheck.gstatic.com:80",
+            "www.msftconnecttest.com",
+        ] {
+            let response = respond(true, &request("/hotspot-detect.html?x=1", Some(host))).unwrap();
+            assert_eq!(response.status(), http::StatusCode::FOUND, "{host}");
+            assert_eq!(
+                response.headers()[http::header::LOCATION],
+                "http://router.lan/",
+                "{host}"
+            );
+        }
+        assert!(respond(true, &request("/", None)).is_some());
+    }
+
+    #[test]
+    fn an_absolute_uri_outranks_the_host_header() {
+        assert!(respond(true, &request("http://router.lan/rpc/v1", None)).is_none());
+        assert!(respond(true, &request("http://apple.com/", Some("router.lan"))).is_some());
+    }
+
+    #[test]
+    fn an_inactive_portal_serves_every_name() {
+        assert!(respond(false, &request("/", Some("apple.com"))).is_none());
+        assert!(respond(false, &request("/", None)).is_none());
+    }
+
+    #[test]
+    fn sni_follows_the_same_rule() {
+        assert!(serves("router.lan"));
+        assert!(serves("192.168.0.1"));
+        assert!(!serves("apple.com"));
+        assert!(!serves("lan"));
+        assert!(!serves(""));
+    }
 }
