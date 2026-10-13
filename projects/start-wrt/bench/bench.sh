@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Live-bench driver for a StartWRT test router. See projects/start-wrt/AGENTS.md "Live bench".
 
 set -euo pipefail
 
@@ -87,13 +86,17 @@ cmd_preflight() {
 	"") ;;
 	*) die "unknown preflight option: $1" ;;
 	esac
+	local os_bad=bad alias_bad
+	[ "$need_os" = 1 ] || os_bad=note
 	PREFLIGHT_FAILED=0
 	echo "local"
-	for tool in ssh tmux stty awk; do
+	for tool in ssh tmux stty awk node; do
 		command -v "$tool" >/dev/null && ok "$tool" || bad "$tool not installed"
 	done
 	for host in "$WRT_HOST" "$OS_HOST"; do
-		ssh_alias_configured "$host" && ok "ssh alias $host" || bad "ssh alias $host has no HostName in ~/.ssh/config"
+		alias_bad=bad
+		[ "$host" != "$OS_HOST" ] || alias_bad=$os_bad
+		ssh_alias_configured "$host" && ok "ssh alias $host" || $alias_bad "ssh alias $host has no HostName in ~/.ssh/config"
 	done
 
 	if [ "$(ssh_option "$WRT_HOST" port)" = "$MGMT_PORT" ]; then
@@ -105,7 +108,7 @@ cmd_preflight() {
 	echo "router ($WRT_HOST)"
 	if wrt true 2>/dev/null; then
 		ok "ssh"
-		wrt 'sh -s' <<'EOF' | sed 's/^/  /'
+		if ! wrt 'sh -s' <<'EOF' | sed 's/^/  /'; then
 . /etc/openwrt_release 2>/dev/null
 printf 'ok    board %s, %s\n' "$(cat /tmp/sysinfo/board_name 2>/dev/null)" "$DISTRIB_DESCRIPTION"
 printf 'ok    startwrt sha256 %s\n' "$(sha256sum /usr/bin/startwrt | cut -c1-16)"
@@ -115,18 +118,19 @@ if ip link add bench-probe0 type veth peer name bench-probe1 2>/dev/null; then
 	echo 'ok    veth (lan-client available)'
 else
 	echo 'FAIL  no veth support (kmod-veth): lan-client unavailable'
+	exit 1
 fi
 for t in udhcpc nslookup nc curl tcpdump; do
 	if command -v $t >/dev/null; then echo "ok    $t"; else echo "--    $t not installed"; fi
 done
 EOF
+			bad "router capability check failed"
+		fi
 	else
 		bad "ssh $WRT_HOST unreachable (is Remote Access on? recover over the console)"
 	fi
 
 	echo "LAN client ($OS_HOST)"
-	local os_bad=bad
-	[ "$need_os" = 1 ] || os_bad=note
 	if os true 2>/dev/null; then
 		ok "ssh (via $(ssh_option "$OS_HOST" proxyjump))"
 		note "default route: $(os 'ip route show default' | head -1)"
@@ -193,7 +197,6 @@ console_size() { stat -c %s "$CONSOLE_LOG" 2>/dev/null || echo 0; }
 
 console_since() { tail -c +"$(($1 + 1))" "$CONSOLE_LOG" | tr -d '\r'; }
 
-# Prints the output since the given log offset; fails when the regex has not matched in time.
 console_expect() {
 	local from=$1 regex=$2 timeout=$3 out start=$SECONDS
 	until out=$(console_since "$from") && grep -Eq -- "$regex" <<<"$out"; do
@@ -322,7 +325,6 @@ cmd_snapshot() {
 	esac
 }
 
-# Runs on the router (BusyBox ash) with the subcommand and its arguments.
 LAN_CLIENT_REMOTE=$(
 	cat <<'EOF'
 set -e
@@ -494,8 +496,7 @@ uci commit firewall
 	esac
 }
 
-# Runs on the router: logs in against its LAN address, where the daemon's auth applies
-# (loopback bypasses it). Reads the login request, then the call, from stdin.
+# Loopback bypasses daemon authentication.
 UI_REMOTE=$(
 	cat <<'EOF'
 read -r login
@@ -520,11 +521,12 @@ EOF
 
 ui_rpc() {
 	local method=$1 params=${2:-'{}'} login req
-	login=$(router_password | python3 -c 'import json, sys
-print(json.dumps({"jsonrpc": "2.0", "id": 0, "method": "auth.login",
-                  "params": {"password": sys.stdin.readline().rstrip("\n")}}))')
-	req=$(python3 -c 'import json, sys
-print(json.dumps({"jsonrpc": "2.0", "id": 1, "method": sys.argv[1], "params": json.loads(sys.argv[2])}))' \
+	login=$(router_password | node -e '
+const fs = require("node:fs")
+const password = fs.readFileSync(0, "utf8").replace(/\n$/, "")
+console.log(JSON.stringify({jsonrpc: "2.0", id: 0, method: "auth.login", params: {password}}))')
+	req=$(node -e '
+console.log(JSON.stringify({jsonrpc: "2.0", id: 1, method: process.argv[1], params: JSON.parse(process.argv[2])}))' \
 		"$method" "$params") || die "params must be JSON"
 	printf '%s\n%s\n' "$login" "$req" | wrt "sh -c $(sq "$UI_REMOTE")"
 }
@@ -561,7 +563,7 @@ cmd_smoke() {
 	local name=smoke gw wan
 	echo "LAN (synthetic client)"
 	cmd_lan_client down "$name" >/dev/null
-	if cmd_lan_client up "$name" >/dev/null 2>&1; then
+	if cmd_lan_client up "$name" --vid 1 >/dev/null 2>&1; then
 		ok "DHCP lease $(cmd_lan_client exec "$name" ip -4 -br addr show dev eth0 | awk '{print $3}')"
 		gw=$(cmd_lan_client exec "$name" ip route show default | awk '{print $3; exit}')
 		cmd_lan_client exec "$name" nslookup start9.com >/dev/null 2>&1 && ok "DNS" || bad "DNS lookup failed"

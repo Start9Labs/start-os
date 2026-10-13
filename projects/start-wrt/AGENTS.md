@@ -57,6 +57,8 @@ have tested and stop.
   Both work whatever Remote Access is set to.
 
 [`bench/bench.sh`](bench/bench.sh) drives all of it; `bench.sh --help` lists the commands.
+Run `bash projects/start-wrt/bench/bench.test.sh` from the repo root for the harness's
+host-mocked regression tests; they need Bash and Node.js, not a physical bench.
 Its state — the console log and config snapshots — lives in
 `~/.local/state/startwrt-bench/`, outside the repo. A snapshot is a `sysupgrade` backup:
 it holds the router's password hash and private keys, so it never leaves that directory.
