@@ -8,10 +8,10 @@ Every router Start9 has sold, newest first. Each entry lists the specifications 
 - **Base hardware:** BananaPi BPI-F3
 - **CPU:** SpaceMiT K1, 8-core RISC-V
 - **RAM:** 4 GB LPDDR4
-- **Storage:** 16 GB eMMC, plus a microSD slot for flashing
+- **Storage:** 16 GB eMMC
 - **Ethernet:** 1× Gigabit WAN, 1× Gigabit LAN
 - **Wi-Fi:** AsiaRF AW7916-NPD mini-PCIe module (MediaTek MT7916), Wi-Fi 6E (802.11ax) — 2T2R on 2.4 GHz, 2T3R on 5/6 GHz, up to 2402 Mbps; StartWRT runs it on 2.4 GHz and 5 GHz concurrently. Sold separately to US customers, as FCC regulations require
-- **Ports:** 2× USB 3.0 Type-A
+- **Ports:** 2× USB 3.0 Type-A, 1× USB-C (USB 2.0), and a microSD slot for flashing
 - **Power:** 12 V / 3 A DC; shipped with a C13/C14 mains cord
 - **How to identify it:** Start9 wordmark on top, a small DeepComputing logo on the back, and a Wi-Fi password sticker on the bottom
 - **Known issues:** none
@@ -41,7 +41,7 @@ A schematic is a design document, not a parts list for the unit on your desk. Tw
 | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | Memory densities up to 16 GB                                      | 4 GB LPDDR4                                                                                                                 | Same package and ballout, so the density is a drop-in substitution.               |
 | An onboard 2T2R Wi-Fi and Bluetooth radio on SDIO                 | No onboard radio. Wi-Fi comes from an AsiaRF AW7916-NPD Wi-Fi 6E module in the mini PCIe slot the schematic also documents. | A removable module carries a far stronger radio, and can be replaced or upgraded. |
-| A USB 3.0 hub, a USB 2.0 Type-C port, and a barrel jack for power | 2 × USB 3.0 Type-A                                                                                                          | The reference design's port arrangement is not the one the enclosure exposes.     |
+| A USB 3.0 hub, a USB 2.0 Type-C port, and a barrel jack for power | 2 × USB 3.0 Type-A, the USB 2.0 Type-C port, and a 12 V barrel jack                                                         | Only the ports the enclosure exposes are fitted.                                  |
 
 ### What the Schematic Does Not Cover
 
