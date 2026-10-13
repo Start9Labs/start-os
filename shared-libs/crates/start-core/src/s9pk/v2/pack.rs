@@ -719,7 +719,6 @@ impl ImageSource {
                     let config = save_squashfs(
                         &mut image_save_command(*CONTAINER_TOOL, &resolved_image, &docker_platform),
                         &dest,
-                        &resolved_image,
                         &docker_platform,
                     )
                     .await?;
@@ -764,7 +763,6 @@ impl ImageSource {
 async fn save_squashfs(
     command: &mut Command,
     dest: &Path,
-    image_id: &str,
     platform: &str,
 ) -> Result<DockerImageConfig, Error> {
     let (mut output, input) = tokio::io::duplex(crate::CAP_1_MiB);
@@ -776,10 +774,8 @@ async fn save_squashfs(
         drop(output);
         result
     };
-    let (_, (filesystem, config)) = tokio::try_join!(
-        producer,
-        super::image::from_image_archive(input, image_id, platform),
-    )?;
+    let (_, (filesystem, config)) =
+        tokio::try_join!(producer, super::image::from_image_archive(input, platform))?;
     filesystem.serialize(&mut create_file(dest).await?).await?;
     Ok(config)
 }

@@ -92,8 +92,8 @@ fn image_layer() -> Vec<u8> {
 
 #[tokio::test]
 async fn image_files_and_metadata_survive_without_docker_initialization() {
-    let (archive, id) = save_archive(&[image_layer()], "amd64");
-    let (image, _) = from_image_archive(archive.as_slice(), &id, "--platform=linux/amd64")
+    let (archive, _) = save_archive(&[image_layer()], "amd64");
+    let (image, _) = from_image_archive(archive.as_slice(), "--platform=linux/amd64")
         .await
         .unwrap();
     assert_eq!(image.root_metadata().modification_time, 42);
@@ -151,8 +151,8 @@ async fn compressed_layers_have_identical_filesystem_bytes_and_validate_uncompre
     let zstd = zstd::encode_all(layer.as_slice(), 3).unwrap();
     let mut expected = None;
     for layer in [layer, gzip.into_inner(), zstd] {
-        let (archive, id) = archive_with_config(&[layer], &config);
-        let (image, _) = from_image_archive(archive.as_slice(), &id, "--platform=linux/amd64")
+        let (archive, _) = archive_with_config(&[layer], &config);
+        let (image, _) = from_image_archive(archive.as_slice(), "--platform=linux/amd64")
             .await
             .unwrap();
         let mut bytes = Cursor::new(Vec::new());
@@ -168,12 +168,10 @@ async fn compressed_layers_have_identical_filesystem_bytes_and_validate_uncompre
 async fn archive_paths_order_and_timestamps_do_not_affect_bytes_across_processes() {
     const INPUT: &str = "STARTOS_IMAGE_ARCHIVE_REPRO_INPUT";
     const OUTPUT: &str = "STARTOS_IMAGE_ARCHIVE_REPRO_OUTPUT";
-    const ID: &str = "STARTOS_IMAGE_ARCHIVE_REPRO_ID";
     const TEST: &str = "s9pk::v2::image::tests::archive_paths_order_and_timestamps_do_not_affect_bytes_across_processes";
     if let Some(input) = std::env::var_os(INPUT) {
         let (image, _) = from_image_archive(
             crate::util::io::open_file(Path::new(&input)).await.unwrap(),
-            &std::env::var(ID).unwrap(),
             "--platform=linux/amd64",
         )
         .await
@@ -190,7 +188,7 @@ async fn archive_paths_order_and_timestamps_do_not_affect_bytes_across_processes
     }
     let workspace = crate::util::io::TmpDir::new().await.unwrap();
     let layer = image_layer();
-    let (original, id) = save_archive(&[layer.clone()], "amd64");
+    let (original, _) = save_archive(&[layer.clone()], "amd64");
     let config = {
         use std::io::Read;
         let mut archive = tar::Archive::new(original.as_slice());
@@ -204,6 +202,7 @@ async fn archive_paths_order_and_timestamps_do_not_affect_bytes_across_processes
         }
         config
     };
+    const DECOY: &[u8] = br#"{"architecture":"arm64","os":"linux","rootfs":{"type":"layers"}}"#;
     let mut expected = None;
     for (index, (config_path, layer_path)) in [
         ("config.json", "legacy/layer.tar"),
@@ -222,7 +221,7 @@ async fn archive_paths_order_and_timestamps_do_not_affect_bytes_across_processes
             (config_path, config.as_slice()),
             (layer_path, layer.as_slice()),
             ("manifest.json", manifest.as_slice()),
-            ("decoy.json", b"unselected configuration".as_slice()),
+            ("decoy.json", DECOY),
         ];
         if index % 2 == 1 {
             entries.reverse();
@@ -248,7 +247,6 @@ async fn archive_paths_order_and_timestamps_do_not_affect_bytes_across_processes
             .arg("--nocapture")
             .env(INPUT, &input)
             .env(OUTPUT, &output)
-            .env(ID, &id)
             .invoke(ErrorKind::Filesystem)
             .await
             .unwrap();
@@ -281,7 +279,7 @@ async fn layer_digests_cover_transport_padding_and_gzip_trailers_are_checked() {
     let (archive, unchanged_id) = archive_with_config(&[layer], &config);
     assert_eq!(id, unchanged_id);
     assert!(
-        from_image_archive(archive.as_slice(), &id, "--platform=linux/amd64")
+        from_image_archive(archive.as_slice(), "--platform=linux/amd64")
             .await
             .is_err()
     );
@@ -295,31 +293,22 @@ async fn layer_digests_cover_transport_padding_and_gzip_trailers_are_checked() {
     let mut gzip = gzip.into_inner();
     let crc = gzip.len() - 8;
     gzip[crc] ^= 1;
-    let (archive, id) = archive_with_config(&[gzip], &config);
+    let (archive, _) = archive_with_config(&[gzip], &config);
     assert!(
-        from_image_archive(archive.as_slice(), &id, "--platform=linux/amd64")
+        from_image_archive(archive.as_slice(), "--platform=linux/amd64")
             .await
             .is_err()
     );
 }
 
 #[tokio::test]
-async fn wrong_platform_configuration_and_layer_digests_are_rejected() {
+async fn wrong_platform_and_layer_digests_are_rejected() {
     let layer = image_layer();
-    let (archive, id) = save_archive(&[layer.clone()], "amd64");
+    let (archive, _) = save_archive(&[layer.clone()], "amd64");
     assert!(
-        from_image_archive(archive.as_slice(), &id, "--platform=linux/arm64")
+        from_image_archive(archive.as_slice(), "--platform=linux/arm64")
             .await
             .is_err()
-    );
-    assert!(
-        from_image_archive(
-            archive.as_slice(),
-            &format!("sha256:{}", "0".repeat(64)),
-            "--platform=linux/amd64"
-        )
-        .await
-        .is_err()
     );
     for rootfs in [
         serde_json::json!({"type": "layers", "diff_ids": [format!("sha256:{}", "0".repeat(64))]}),
@@ -327,9 +316,9 @@ async fn wrong_platform_configuration_and_layer_digests_are_rejected() {
         serde_json::json!({"type": "unknown", "diff_ids": []}),
     ] {
         let config = serde_json::json!({"architecture": "amd64", "os": "linux", "rootfs": rootfs});
-        let (archive, id) = archive_with_config(&[layer.clone()], &config);
+        let (archive, _) = archive_with_config(&[layer.clone()], &config);
         assert!(
-            from_image_archive(archive.as_slice(), &id, "--platform=linux/amd64")
+            from_image_archive(archive.as_slice(), "--platform=linux/amd64")
                 .await
                 .is_err()
         );
@@ -340,8 +329,8 @@ async fn wrong_platform_configuration_and_layer_digests_are_rejected() {
 async fn scratch_images_do_not_require_a_container_command_or_any_layers() {
     let config =
         serde_json::json!({"architecture": "amd64", "os": "linux", "rootfs": {"type": "layers"}});
-    let (archive, id) = archive_with_config(&[], &config);
-    let (image, config) = from_image_archive(archive.as_slice(), &id, "--platform=linux/amd64")
+    let (archive, _) = archive_with_config(&[], &config);
+    let (image, config) = from_image_archive(archive.as_slice(), "--platform=linux/amd64")
         .await
         .unwrap();
     assert!(image.contents().is_empty());
@@ -349,4 +338,33 @@ async fn scratch_images_do_not_require_a_container_command_or_any_layers() {
     assert!(metadata.cmd.is_none());
     assert!(metadata.entrypoint.is_none());
     assert!(env.is_empty());
+}
+
+#[tokio::test]
+async fn archives_with_several_images_for_the_platform_are_rejected() {
+    let config = serde_json::to_vec(
+        &serde_json::json!({"architecture": "amd64", "os": "linux", "rootfs": {"type": "layers"}}),
+    )
+    .unwrap();
+    let mut archive = Vec::new();
+    append(&mut archive, b"a.json", b'0', &config, None);
+    append(&mut archive, b"b.json", b'0', &config, None);
+    append(
+        &mut archive,
+        b"manifest.json",
+        b'0',
+        br#"[{"Config":"a.json"},{"Config":"b.json"}]"#,
+        None,
+    );
+    archive.extend_from_slice(&[0; 1024]);
+    assert!(
+        from_image_archive(archive.as_slice(), "--platform=linux/amd64")
+            .await
+            .is_err()
+    );
+    assert!(
+        from_image_archive(archive.as_slice(), "--platform=linux/arm64")
+            .await
+            .is_err()
+    );
 }

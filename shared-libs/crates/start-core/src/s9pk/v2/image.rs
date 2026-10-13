@@ -121,7 +121,6 @@ async fn layer_reader(
 
 pub(super) async fn from_image_archive<R: AsyncRead + Unpin + Send>(
     reader: R,
-    image_id: &str,
     platform: &str,
 ) -> Result<(Squashfs<DynFileSource>, DockerImageConfig), Error> {
     let archive = Squashfs::from_tar(reader).await?;
@@ -131,45 +130,48 @@ pub(super) async fn from_image_archive<R: AsyncRead + Unpin + Send>(
             .await?,
     )
     .with_kind(ErrorKind::Deserialization)?;
+    let mut selected = None;
     for manifest in manifests {
-        let config = archive_file(&archive, &manifest.config)?
-            .to_vec(None)
-            .await?;
-        if !digest_matches(image_id, Sha256::digest(&config)) {
+        let config: ArchiveConfig = serde_json::from_slice(
+            &archive_file(&archive, &manifest.config)?
+                .to_vec(None)
+                .await?,
+        )
+        .with_kind(ErrorKind::Deserialization)?;
+        if !config.platform.matches(platform) {
             continue;
         }
-        let config: ArchiveConfig =
-            serde_json::from_slice(&config).with_kind(ErrorKind::Deserialization)?;
-        if !config.platform.matches(platform) {
-            return Err(invalid("image archive does not match the requested platform").into());
-        }
-        if config.rootfs.kind != "layers" {
-            return Err(invalid("unsupported image rootfs type").into());
-        }
-        let paths = manifest.layers.unwrap_or_default();
-        let diff_ids = config.rootfs.diff_ids.unwrap_or_default();
-        if paths.len() != diff_ids.len() {
+        if selected.replace((manifest, config)).is_some() {
             return Err(
-                invalid("image archive layer count does not match its configuration").into(),
+                invalid("image archive has several images for the requested platform").into(),
             );
         }
-        let mut filesystem = LayerFilesystem::new();
-        for (path, diff_id) in paths.iter().zip(diff_ids) {
-            let mut reader = DigestReader {
-                reader: layer_reader(archive_file(&archive, path)?).await?,
-                hash: Sha256::new(),
-            };
-            filesystem.apply_tar(&mut reader).await?;
-            if !digest_matches(&diff_id, reader.hash.finalize()) {
-                return Err(invalid("image layer does not match its configured digest").into());
-            }
-        }
-        return Ok((
-            filesystem.into_squashfs()?,
-            config.config.unwrap_or_default(),
-        ));
     }
-    Err(invalid("image archive does not contain the resolved image configuration").into())
+    let (manifest, config) =
+        selected.ok_or_else(|| invalid("image archive has no image for the requested platform"))?;
+    if config.rootfs.kind != "layers" {
+        return Err(invalid("unsupported image rootfs type").into());
+    }
+    let paths = manifest.layers.unwrap_or_default();
+    let diff_ids = config.rootfs.diff_ids.unwrap_or_default();
+    if paths.len() != diff_ids.len() {
+        return Err(invalid("image archive layer count does not match its configuration").into());
+    }
+    let mut filesystem = LayerFilesystem::new();
+    for (path, diff_id) in paths.iter().zip(diff_ids) {
+        let mut reader = DigestReader {
+            reader: layer_reader(archive_file(&archive, path)?).await?,
+            hash: Sha256::new(),
+        };
+        filesystem.apply_tar(&mut reader).await?;
+        if !digest_matches(&diff_id, reader.hash.finalize()) {
+            return Err(invalid("image layer does not match its configured digest").into());
+        }
+    }
+    Ok((
+        filesystem.into_squashfs()?,
+        config.config.unwrap_or_default(),
+    ))
 }
 
 #[cfg(test)]

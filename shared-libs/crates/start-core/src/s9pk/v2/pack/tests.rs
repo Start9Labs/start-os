@@ -268,7 +268,7 @@ async fn javascript_and_asset_images_ignore_source_timestamps_without_mutating_s
 async fn image_save_validates_exit_status_and_drains_large_trailing_padding() {
     let workspace = TmpDir::new().await.unwrap();
     let archive = workspace.join("save.tar");
-    let (mut bytes, id) = super::super::image::tests::save_archive(&[asset_tar()], "amd64");
+    let (mut bytes, _) = super::super::image::tests::save_archive(&[asset_tar()], "amd64");
     bytes.resize(bytes.len() + 2 * crate::CAP_1_MiB, 0);
     tokio::fs::write(&archive, bytes).await.unwrap();
     let dest = workspace.join("export.squashfs");
@@ -277,7 +277,6 @@ async fn image_save_validates_exit_status_and_drains_large_trailing_padding() {
         save_squashfs(
             Command::new("cat").arg(&archive),
             &dest,
-            &id,
             "--platform=linux/amd64",
         ),
     )
@@ -291,7 +290,6 @@ async fn image_save_validates_exit_status_and_drains_large_trailing_padding() {
             .arg("sh")
             .arg(&archive),
         &workspace.join("failed.squashfs"),
-        &id,
         "--platform=linux/amd64",
     )
     .await;
@@ -302,7 +300,6 @@ async fn image_save_validates_exit_status_and_drains_large_trailing_padding() {
         save_squashfs(
             Command::new("cat").arg(&archive),
             &workspace.join("bad.squashfs"),
-            &id,
             "--platform=linux/amd64",
         )
         .await
@@ -317,13 +314,16 @@ async fn docker_tag_load_pairs_target_platform_config_with_native_squashfs() {
     const TEST: &str = "s9pk::v2::pack::packaging_tests::docker_tag_load_pairs_target_platform_config_with_native_squashfs";
     let workspace = Arc::new(TmpDir::new().await.unwrap());
     if std::env::var_os(CHILD_ENV).is_none() {
-        let (archive, id) = super::super::image::tests::save_archive(&[asset_tar()], "arm64");
+        let (archive, _) = super::super::image::tests::save_archive(&[asset_tar()], "arm64");
         tokio::fs::write(workspace.join("save.tar"), archive)
             .await
             .unwrap();
-        tokio::fs::write(workspace.join("image-id"), id)
-            .await
-            .unwrap();
+        tokio::fs::write(
+            workspace.join("image-id"),
+            format!("sha256:{}", "1".repeat(64)),
+        )
+        .await
+        .unwrap();
         let docker = workspace.join("docker");
         tokio::fs::write(
             &docker,
