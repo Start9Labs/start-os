@@ -285,7 +285,7 @@ User-facing instructions packed into the `.s9pk` and rendered on the **Instructi
 
 ### LICENSE
 
-The package's software license, which should always match the upstream service's license. If your package contains multiple upstream services with different licenses, select the more restrictive license.
+The package's software license, which should always match the upstream service's license. It carries upstream's license text alone, with no separate notice for the packaging code. If your package contains multiple upstream services with different licenses, select the more restrictive license.
 
 If you have a git submodule, symlink to its license:
 
