@@ -19,12 +19,12 @@ use url::Url;
 use crate::auth::AuthKeys;
 use crate::context::{CliContext, RpcContext};
 use crate::middleware::auth::DbContext;
+use crate::net::http::request_authority;
 use crate::prelude::*;
 use crate::rpc_continuations::OpenAuthedContinuations;
 use crate::sign::commitment::Commitment;
 use crate::sign::commitment::request::RequestCommitment;
 use crate::sign::{AnySignature, AnySigningKey, AnyVerifyingKey};
-use crate::util::iter::TransposeResultIterExt;
 use crate::util::serde::Base64;
 use crate::util::sync::SyncMutex;
 
@@ -143,8 +143,10 @@ pub trait SignatureAuthContext: DbContext {
 /// and ephemeral signer stores with any continuations they opened killed.
 /// Obtained via [`SignatureAuthContext::unenroll`], or [`Self::unenroll`]
 /// from inside a db transaction.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, VisitFields)]
 pub struct HasUnenrolledKeys(());
+
+rpc_toolkit::reflect_ts!(HasUnenrolledKeys);
 impl HasUnenrolledKeys {
     /// For call sites already inside a db transaction. Taking the
     /// continuations map as a parameter is the point: unenrollment cannot be
@@ -289,6 +291,17 @@ pub(crate) fn url_host_str(ip: IpAddr) -> InternedString {
     }
 }
 
+/// The loopback IP a request was addressed to, formatted as a signing identity.
+fn loopback_identity(request: &Request) -> Option<InternedString> {
+    let ip: IpAddr = request_authority(request)?
+        .host()
+        .trim_start_matches('[')
+        .trim_end_matches(']')
+        .parse()
+        .ok()?;
+    ip.is_loopback().then(|| url_host_str(ip))
+}
+
 pub trait SigningContext {
     fn signing_key(&self) -> Result<AnySigningKey, Error>;
 }
@@ -397,9 +410,11 @@ pub async fn verify_request_signature<C: SignatureAuthContext>(
         .await
         .into_iter()
         .collect::<Result<Vec<_>, _>>()?;
-    let verified = sig_contexts.iter().any(|sig_context| {
-        verify_request(&signer, &commitment, sig_context.as_ref(), &signature).is_ok()
-    });
+    let loopback = loopback_identity(request);
+    let verify =
+        |sig_context: &str| verify_request(&signer, &commitment, sig_context, &signature).is_ok();
+    let verified =
+        sig_contexts.iter().any(|c| verify(c.as_ref())) || loopback.as_deref().is_some_and(verify);
     if !verified {
         tracing::debug!(
             ?signer,
@@ -592,6 +607,27 @@ pub async fn call_remote<Ctx: SigningContext + AsRef<Client>>(
     method: &str,
     params: Value,
 ) -> Result<Value, RpcError> {
+    call_remote_with_client(
+        ctx,
+        ctx.as_ref().clone(),
+        url,
+        headers,
+        sig_context,
+        method,
+        params,
+    )
+    .await
+}
+
+pub(crate) async fn call_remote_with_client<Ctx: SigningContext>(
+    ctx: &Ctx,
+    client: Client,
+    url: Url,
+    headers: HeaderMap,
+    sig_context: Option<&str>,
+    method: &str,
+    params: Value,
+) -> Result<Value, RpcError> {
     use reqwest::Method;
     use reqwest::header::{ACCEPT, CONTENT_LENGTH, CONTENT_TYPE};
     use rpc_toolkit::RpcResponse;
@@ -603,8 +639,7 @@ pub async fn call_remote<Ctx: SigningContext + AsRef<Client>>(
         params,
     };
     let body = serde_json::to_vec(&rpc_req)?;
-    let mut req = ctx
-        .as_ref()
+    let mut req = client
         .request(Method::POST, url)
         .header(CONTENT_TYPE, "application/json")
         .header(ACCEPT, "application/json")
@@ -682,6 +717,25 @@ mod tests {
             &header.signature,
         )
         .expect_err("signature does not verify under a different context");
+    }
+
+    #[test]
+    fn loopback_identity_is_the_addressed_loopback_ip() {
+        let addressed_to = |host: &str| {
+            loopback_identity(
+                &http::Request::builder()
+                    .header(http::header::HOST, host)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+        };
+        assert_eq!(
+            addressed_to("127.1.1.19:8989").as_deref(),
+            Some("127.1.1.19")
+        );
+        assert_eq!(addressed_to("[::1]:8080").as_deref(), Some("[::1]"));
+        assert_eq!(addressed_to("192.168.1.50:8989"), None);
+        assert_eq!(addressed_to("localhost:8989"), None);
     }
 
     /// The compact wire form (bare base64 DER, no PEM armor) round-trips and

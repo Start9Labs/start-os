@@ -13,7 +13,7 @@ You must have a computer running StartOS to test your packages. Follow the [inst
 
 [Docker](https://docs.docker.com/get-docker/) is essential for building and managing container images that will be used for the final `.s9pk` build. It handles pulling base images and building custom container images from Dockerfiles.
 
-Follow the [official Docker installation guide](https://docs.docker.com/engine/install/) for your platform.
+Install Docker 28.1 or newer with Engine API 1.49 or newer; packaging uses platform-specific image inspection. Follow the [official Docker installation guide](https://docs.docker.com/engine/install/) for your platform.
 
 Docker must be **running** when you build a package, and your user must be able to use it:
 
@@ -239,7 +239,7 @@ You get the **whole** monorepo, not just the guide. That's deliberate: when the 
 
 The checkout tracks **`live-docs`**, not `master`. That branch is what every product has published: each release moves it to the tagged tree for the product being released, so the guide you read, the template `init-package` scaffolds from, and the SDK source all describe the `@start9labs/start-sdk` that `npm install` resolves. `master` carries what hasn't shipped, where a page can document a call your package cannot import. It is also the branch docs.start9.com serves, and corrections to published pages land there first — so your local copy and the site are the same thing, and you get a fix the moment it goes live.
 
-The context lives once, at the workspace root — it is never copied into your package repos. Open the workspace in your AI tool and it picks up `AGENTS.md` / `CLAUDE.md` automatically. You can read exactly what it contains on the [Agent Context](./agent-context.md) page.
+The context lives once, at the workspace root — it is never copied into your package repos. **Start every AI session from the workspace root, never from inside a package repo.** From the root, your assistant picks up `AGENTS.md` / `CLAUDE.md` automatically; a session started in a package directory can miss them and work without the guide. You can read exactly what it contains on the [Agent Context](./agent-context.md) page.
 
 ### Skills
 
@@ -295,7 +295,7 @@ host:
 ```
 
 > [!TIP]
-> Setting `host.default` lets you install with `make install` — the recommended way to work on a package, since it builds and pushes to your device in one repeatable command. It also requires logging in once with `start-cli auth login` (it prompts for your StartOS master password). If you'd rather not set up the CLI yet, you can sideload the `.s9pk` through the web interface instead — see [Quick Start](./quick-start.md#install-to-startos).
+> Setting `host.default` lets you upload an already-built package with `make install`. Build for your device first (`make x86`, `make arm`, or `make riscv`); `make install` does not build or refresh the artifact. It also requires logging in once with `start-cli auth login` (it prompts for your StartOS master password). If you'd rather not set up the CLI yet, you can sideload the `.s9pk` through the web interface instead — see [Quick Start](./quick-start.md#install-to-startos).
 
 Any `start-cli` command takes `-H`/`--host` and `-r`/`--registry`. Pass a **profile name** to use one of these entries, or a **URL** to target something directly:
 

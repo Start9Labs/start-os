@@ -36,7 +36,6 @@ pub fn published_ports<C: CtrlContext>() -> ParentHandler<C> {
             // snapshot, stale by up to PERSIST_MIN_INTERVAL_SECS or absent on
             // first boot, and reconcile against a fiction.
             from_fn_async_local(reconcile)
-                .with_metadata("no_auth", Value::Bool(true))
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
@@ -50,7 +49,6 @@ pub fn published_ports<C: CtrlContext>() -> ParentHandler<C> {
             "wan-changed",
             // Live SNI routes exist only in daemon memory.
             from_fn_async_local(crate::port_control::wan_changed)
-                .with_metadata("no_auth", Value::Bool(true))
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
@@ -84,7 +82,7 @@ pub(crate) fn may_affect_v6_rules(mac: &str) -> bool {
 
 // ── Types ──────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, visit_rs::VisitVariants)]
 #[serde(rename_all = "lowercase")]
 pub enum Protocol {
     Tcp,
@@ -92,8 +90,9 @@ pub enum Protocol {
     #[serde(rename = "tcp+udp")]
     TcpUdp,
 }
+rpc_toolkit::reflect_ts!(Protocol);
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, visit_rs::VisitVariants)]
 #[serde(rename_all = "lowercase")]
 pub enum PublishedPortStatus {
     Active,
@@ -102,8 +101,9 @@ pub enum PublishedPortStatus {
     Error,
     Disabled,
 }
+rpc_toolkit::reflect_ts!(PublishedPortStatus);
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct PublishedPort {
     pub id: String,
     pub enabled: bool,
@@ -123,8 +123,9 @@ pub struct PublishedPort {
     pub device_ipv4: Option<String>,
     pub device_ipv6: Option<String>,
 }
+rpc_toolkit::reflect_ts!(PublishedPort);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct PublishedPortInput {
     pub id: String,
     pub enabled: bool,
@@ -140,47 +141,53 @@ pub struct PublishedPortInput {
     #[serde(default)]
     pub override_wan_ports: bool,
 }
+rpc_toolkit::reflect_ts!(PublishedPortInput);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct PublishedPortsSetRequest {
     pub ports: Vec<PublishedPortInput>,
 }
+rpc_toolkit::reflect_ts!(PublishedPortsSetRequest);
 
 /// An enabled IPv4 forward overlapping a router- or SNI-owned WAN port.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct WanPortCollision {
     pub id: String,
     pub label: String,
     pub router_service_ports: Vec<String>,
     pub hostname_route_ports: Vec<SniPortUse>,
 }
+rpc_toolkit::reflect_ts!(WanPortCollision);
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct SniPortUse {
     pub ports: String,
     pub hostnames: Vec<String>,
     pub devices: Vec<String>,
 }
+rpc_toolkit::reflect_ts!(SniPortUse);
 
 /// [`set`] response. A non-empty collision list means nothing was applied —
 /// the caller confirms and re-saves; empty means the request was applied.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct PublishedPortsSetResult {
     pub pending_wan_port_collisions: Vec<WanPortCollision>,
 }
+rpc_toolkit::reflect_ts!(PublishedPortsSetResult);
 
 /// A published port that will be removed because the device it forwards to can
 /// no longer be reached at its current address — its security profile is changing
 /// (ethernet-port or WiFi-password reassignment) or its WiFi password is being
 /// deleted (disconnecting it) — so its DNAT rule, bound to the device's old
 /// subnet, would otherwise break. Surfaced to the UI to confirm the deletion.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct AffectedPublishedPort {
     pub id: String,
     pub label: String,
     pub device_mac: String,
     pub device_name: Option<String>,
 }
+rpc_toolkit::reflect_ts!(AffectedPublishedPort);
 
 /// List the published ports whose target device MAC is in `macs` (compared
 /// case-insensitively), enriched with the device name from `device_names`
@@ -1245,6 +1252,8 @@ pub async fn set<C: CtrlContext>(
                     port_control
                         .displace_sni_routes(&sni_displacement_ranges)
                         .await;
+                    // The reload below applies the port-80 admission rule.
+                    port_control.sync_sni_rules_before_reload().await;
                 }
                 if !displaced_auto.is_empty() {
                     tracing::info!(
@@ -2531,6 +2540,7 @@ config rule 'pp_a_v6'
             ipv6: ipv6.map(str::to_string),
             ipv4_static: false,
             allow_auto_port_forward: false,
+            allow_dns_injection: false,
             security_profile: None,
             speed: None,
             data_usage: None,

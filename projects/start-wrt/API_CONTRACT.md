@@ -271,7 +271,8 @@ struct SetPreferencesRequest {
 
 ### `system.apply-remote-access`
 
-Internal endpoint (`no_auth`), **not called from the frontend**. Fired by the
+Internal endpoint, **not called from the frontend**; its `startwrt-cli` caller
+authenticates with the local auth cookie. Fired by the
 `/etc/hotplug.d/iface/99-startwrt-remote-access` hook (in `backend/hotplug/`)
 when a WAN interface comes up.
 
@@ -285,7 +286,8 @@ when a WAN interface comes up.
 
 ### `system.set-timezone`
 
-No auth required — called during initial setup before login.
+Auth required. The setup wizard calls it right after
+`auth.set-initial-password`, whose response sets the session cookie.
 
 ```rust
 #[derive(Deserialize)]
@@ -794,6 +796,10 @@ struct Device {
     /// (default off; toggled via `devices.set-auto-forward`). Always false for
     /// VPN peers (no MAC to authorize).
     allow_auto_port_forward: bool,
+    /// Whether this device may publish DNS records into the router's resolver
+    /// (`devices.set-dns-injection`). Always false for a VPN peer, which is
+    /// admitted on its TSIG signature.
+    allow_dns_injection: bool,
     security_profile: Option<String>,
     /// Live throughput (MB/s, 1 decimal), computed from conntrack byte deltas
     /// between polls. Only set for online devices with a previous sample.
@@ -859,6 +865,21 @@ struct SetAutoForwardRequest {
 // never create forwards via PCP/UPnP. Setting `allow: false` also closes the
 // forwards the device already holds, rather than leaving them open until their
 // leases lapse (up to a week).
+```
+
+### `devices.set-dns-injection`
+
+```rust
+#[derive(Deserialize)]
+struct SetDnsInjectionRequest {
+    mac: String,
+    allow: bool,
+}
+// Response: null
+// Backend: stores `_allow_dns_inject` on the device's DHCP host section,
+// creating one if needed, rewrites the per-profile dnsmasq instances, and
+// applies the change immediately. `allow: false` also drops the records the
+// device has published.
 ```
 
 ### `devices.forget`
@@ -1129,7 +1150,8 @@ struct AutomaticPortUse {
 // Response: null
 ```
 
-Internal endpoint (`no_auth`), **not called from the frontend**. Fired by the
+Internal endpoint, **not called from the frontend**; its `startwrt-cli` caller
+authenticates with the local auth cookie. Fired by the
 `/etc/hotplug.d/iface/99-startwrt-port-control` hook on `wan` `ifup`/
 `ifupdate`: forwards to the daemon, which re-keys live SNI hostname routes
 onto the (possibly changed) WAN IPv4 — their listeners bind the WAN address
@@ -1143,7 +1165,8 @@ configs-only mode or when no routes exist.
 // Response: null
 ```
 
-Internal endpoint (`no_auth`), **not called from the frontend**. Fired two
+Internal endpoint, **not called from the frontend**; its `startwrt-cli` caller
+authenticates with the local auth cookie. Fired two
 ways: by the `/etc/hotplug.d/iface/99-startwrt-published-ports` hook on `wan6`
 `ifup`/`ifupdate` (i.e. when the ISP-delegated IPv6 prefix changes) — the CLI
 forwards the call to the daemon (`with_call_remote`), where the `ipv6_tracker`'s
@@ -1208,6 +1231,9 @@ struct OutboundVpn {
     supports_ipv6: bool,
     /// Interface MTU if explicitly set, else null (kernel default ~1420).
     mtu: Option<u16>,
+    /// True when the peer Endpoint is a hostname. Such a VPN can only target
+    /// "Internet"; the web UI offers no other target for it.
+    hostname_endpoint: bool,
 }
 // Response: Vec<OutboundVpn>
 ```
@@ -1247,6 +1273,25 @@ struct OutboundVpnCreateResponse {
 // traffic silently falls back to the WAN. `vpn-client.set-enabled` holds the
 // other half of that invariant, refusing to disable a VPN that something
 // already chains through.
+//
+// A chained VPN (target ≠ "Internet") additionally needs (InvalidValue):
+//   * an IP-literal Endpoint — only an address can be routed through the target.
+//     At boot, a chained VPN with a hostname Endpoint is retargeted to
+//     "Internet" and the change logged to activity (`vpn-client.unchained`);
+//   * a target tunnel with an address of the endpoint's family whose peer
+//     AllowedIPs cover the endpoint;
+//   * an endpoint address no other VPN shares (checked for every VPN, since a
+//     chain route captures all router traffic to that address).
+// A bracketed IPv6 Endpoint is stored without its brackets.
+//
+// Routing: each chained VPN gets `vcr_<iface>` (endpoint /32 or /128 → target
+// tunnel, main table) plus `vcrb_<iface>`, an `unreachable` route on loopback
+// at metric 2048, so the endpoint is unreachable rather than reached over the
+// WAN while the target is down. A routed chained VPN's interface also gets
+// `nohostroute '1'`: netifd's endpoint host route would otherwise copy the
+// fallback as a unicast route over it. With no MTU in the .conf, a chained
+// VPN gets the chain MTU: the target's MTU (default 1420) less 60 (IPv4
+// endpoint) or 80 (IPv6), floored at 1280.
 ```
 
 ### `vpn-client.update`
@@ -1257,9 +1302,10 @@ struct OutboundVpnUpdateRequest {
     id: String,
     label: String,
     target: String,
-    /// Desired interface MTU (1280–1500). null/absent clears it (inherit the
-    /// kernel default). UCI is the single source of truth — there is no stored
-    /// .conf; the web edit form always submits the field's current value.
+    /// Desired interface MTU (1280–1500). null/absent restores the default:
+    /// the chain MTU for a chained VPN, else the kernel's. UCI is the single
+    /// source of truth — there is no stored .conf; the web edit form always
+    /// submits the field's current value.
     #[serde(default)]
     mtu: Option<u16>,
 }
@@ -1268,9 +1314,10 @@ struct OutboundVpnUpdateRequest {
 // Bounces the WG interface only when the MTU actually changed.
 //
 // Validation: same `target` rules as vpn-client.create, except the disabled
-// check runs ONLY when `target` differs from the stored one — mirroring
-// guard_subnet_collision, so an unrelated edit (label, MTU) isn't blocked by a
-// broken chain already present in the config.
+// and chained-endpoint checks run ONLY when `target` differs from the stored
+// one — mirroring guard_subnet_collision, so an unrelated edit (label, MTU)
+// isn't blocked by a broken chain already present in the config. The cycle
+// check runs after a rename is carried into dependents' targets.
 ```
 
 ### `vpn-client.delete`
@@ -1419,6 +1466,9 @@ struct VpnServerPeerDeleteRequest {
 struct WifiRadio {
     band: String,       // "2g", "5g"
     channel: String,    // "auto", "1", "36", etc.
+    /// Channel width in MHz, from the radio's htmode. Null when the mode sets
+    /// none (NOHT); null on `set` keeps the current width.
+    width: Option<u32>,
     enabled: bool,
     broadcast: bool,
 }
@@ -1477,6 +1527,11 @@ struct WifiSetResult {
 // `InvalidValue` before anything is written; codes are upper-case, as in the
 // database, so `us` is rejected. `null` clears it and returns the radios to the
 // world domain.
+// A radio whose channel or width changes, or that is being enabled, is rejected
+// with `InvalidValue` unless `wifi.regulatory` lists that width for the channel
+// (`autoWidths` for "auto"), or when the radio's PHY mode cannot express the
+// width (HT stops at 40 MHz).
+// A call that changes `country` instead rejects any width above 80 MHz.
 ```
 
 ### `wifi.blackout-get`
@@ -1544,12 +1599,32 @@ struct WifiRegulatory {
     /// ISO 3166-1 alpha-2 codes the firmware's regulatory database defines —
     /// the values `wifi.set` accepts for `country`.
     countries: Vec<String>,
-    /// Channels an access point may use under the country currently in force,
+    /// What an access point may use under the country currently in force,
     /// keyed by band ("2g", "5g"). Re-read after a `wifi.set` that changes
-    /// `country`; a channel outside this list leaves that radio down.
-    channels: HashMap<String, Vec<u32>>,
+    /// `country`; a channel or width outside it leaves that radio down.
+    bands: HashMap<String, BandChannels>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BandChannels {
+    channels: Vec<ApChannel>,
+    /// Widths automatic channel selection can serve without radar-detection
+    /// channels.
+    auto_widths: Vec<u32>,  // `autoWidths`
+}
+
+#[derive(Serialize)]
+struct ApChannel {
+    channel: u32,
+    /// Widths in MHz (20, 40, 80, 160) whose every bonded 20 MHz channel is
+    /// usable, using OpenWrt's bonding for the primary channel.
+    widths: Vec<u32>,
 }
 // Response: WifiRegulatory
+// Backend: reads `iw phy <phy> channels` for every radio. A channel is usable
+// unless disabled or No IR; a width also needs the kernel's width flag on its
+// channels.
 ```
 
 ---
@@ -1901,21 +1976,59 @@ struct DiagnosticsCreateRes {
 
 ---
 
+## 17. DNS Injection
+
+### `dns.injected-list`
+
+The DNS records permitted devices have published into the router's resolver
+(see `devices.set-dns-injection`). Read-only: the device re-asserts or
+withdraws its own records, and the router drops a record whose owner loses the
+address it published from.
+
+```rust
+// Request: {}
+
+#[derive(Serialize)]
+struct InjectedDnsRecord {
+    name: String,
+    /// "A", "AAAA", "CNAME", or "TXT".
+    rtype: String,
+    value: String,
+    ttl: u32,
+    /// The injecting device's address, when known.
+    source: Option<String>,
+    /// Owning LAN device MAC (uppercase); absent for a WireGuard peer.
+    owner_mac: Option<String>,
+    /// Owning inbound-VPN peer public key; absent for a LAN device.
+    owner_peer: Option<String>,
+    /// Display name of the owning LAN device, when one is known.
+    device_name: Option<String>,
+    /// Profile interface whose subnet the record was injected from.
+    profile: Option<String>,
+}
+// Response: Vec<InjectedDnsRecord>
+// Backend: the daemon's in-memory record store. Empty after a restart until
+// devices re-assert.
+```
+
+---
+
 ## HTTP Routes
 
 Every RPC method above is a JSON-RPC 2.0 call to a single endpoint: **`POST /rpc/v1`**.
 The daemon (`backend/ctrl/src/bins/daemon.rs`) also serves:
 
-| Route                                              | Method    | Auth                       | Purpose                                                                                      |
-| -------------------------------------------------- | --------- | -------------------------- | -------------------------------------------------------------------------------------------- |
-| `/rpc/v1`                                          | POST      | Session (unless `no_auth`) | JSON-RPC 2.0 endpoint for all RPC methods                                                    |
-| `/rest/rpc/{guid}`                                 | GET/POST  | GUID capability (one-shot) | RPC continuation: binary download (backup, diagnostics) / upload (restore); 10 MB body limit |
-| `/ws/rpc/{guid}`                                   | WebSocket | GUID capability            | Progress streaming (`system.update`)                                                         |
-| `/api/logs`                                        | WebSocket | Session or local cookie    | Live log streaming (see § 2)                                                                 |
-| `/api/setup/flash`                                 | POST      | None (setup wizard)        | Streams NDJSON `SetupEvent` progress while flashing the eMMC; one flash at a time            |
-| `/static/root-ca.crt`                              | GET       | None                       | Root CA certificate download                                                                 |
-| `/cgi-bin/*`, `/luci-static/*`, `/ubus`, `/ubus/*` | any       | LuCI's own                 | Reverse proxy to uhttpd (LuCI) on localhost:8080; `/luci` redirects to `/cgi-bin/luci`       |
-| everything else                                    | any       | None                       | Embedded web UI                                                                              |
+| Route                                              | Method    | Auth                                       | Purpose                                                                                      |
+| -------------------------------------------------- | --------- | ------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| `/rpc/v1`                                          | POST      | Session or local cookie (unless `no_auth`) | JSON-RPC 2.0 endpoint for all RPC methods                                                    |
+| `/rest/rpc/{guid}`                                 | GET/POST  | GUID capability (one-shot)                 | RPC continuation: binary download (backup, diagnostics) / upload (restore); 10 MB body limit |
+| `/ws/rpc/{guid}`                                   | WebSocket | GUID capability                            | Progress streaming (`system.update`)                                                         |
+| `/api/logs`                                        | WebSocket | Session or local cookie                    | Live log streaming (see § 2)                                                                 |
+| `/api/setup/flash`                                 | POST      | None (setup wizard)                        | Streams NDJSON `SetupEvent` progress while flashing the eMMC; one flash at a time            |
+| `/static/local-root-ca.crt`                        | GET       | None                                       | Root CA certificate download                                                                 |
+| `/static/local-root-ca.mobileconfig`               | GET       | None                                       | Root CA as an Apple configuration profile                                                    |
+| `/cgi-bin/*`, `/luci-static/*`, `/ubus`, `/ubus/*` | any       | LuCI's own                                 | Reverse proxy to uhttpd (LuCI) on localhost:8080; `/luci` redirects to `/cgi-bin/luci`       |
+| everything else                                    | any       | None                                       | Embedded web UI                                                                              |
 
 ---
 
@@ -1935,8 +2048,8 @@ The daemon (`backend/ctrl/src/bins/daemon.rs`) also serves:
 | `system.restart`               | System          |                             |
 | `system.factory-reset`         | System          |                             |
 | `system.set-preferences`       | System          |                             |
-| `system.apply-remote-access`   | System          | No auth; internal, hotplug  |
-| `system.set-timezone`          | System          | No auth                     |
+| `system.apply-remote-access`   | System          | Internal, hotplug           |
+| `system.set-timezone`          | System          |                             |
 | `system.get-timezones`         | System          | No auth                     |
 | `system.logs`                  | System          |                             |
 | `setup.status`                 | Setup           | No auth                     |
@@ -1960,13 +2073,14 @@ The daemon (`backend/ctrl/src/bins/daemon.rs`) also serves:
 | `devices.list`                 | Devices         |                             |
 | `devices.update`               | Devices         |                             |
 | `devices.set-auto-forward`     | Devices         |                             |
+| `devices.set-dns-injection`    | Devices         |                             |
 | `devices.forget`               | Devices         |                             |
 | `devices.data-usage`           | Devices         |                             |
 | `published-ports.list`         | Published Ports |                             |
 | `published-ports.set`          | Published Ports |                             |
 | `published-ports.auto-list`    | Published Ports | Automatic PCP/UPnP forwards |
-| `published-ports.reconcile`    | Published Ports | No auth; internal, hotplug  |
-| `published-ports.wan-changed`  | Published Ports | No auth; internal, hotplug  |
+| `published-ports.reconcile`    | Published Ports | Internal, hotplug           |
+| `published-ports.wan-changed`  | Published Ports | Internal, hotplug           |
 | `published-ports.sync-hairpin` | Published Ports | Internal, WAN-schedule cron |
 | `vpn-client.list`              | Outbound VPN    |                             |
 | `vpn-client.create`            | Outbound VPN    |                             |
@@ -2002,8 +2116,9 @@ The daemon (`backend/ctrl/src/bins/daemon.rs`) also serves:
 | `backup.create`                | Backup          |                             |
 | `backup.restore`               | Backup          |                             |
 | `diagnostics.create`           | Diagnostics     |                             |
+| `dns.injected-list`            | DNS Injection   |                             |
 
-**Totals:** 77 RPC methods across 16 categories, plus the HTTP/WebSocket routes
+**Totals:** 79 RPC methods across 17 categories, plus the HTTP/WebSocket routes
 table above and the deprecated generic endpoints below.
 
 ---

@@ -10,12 +10,62 @@ for the detail behind its highlights.
 
 ## [0.4.0.2]
 
+### Security
+
+- **Update dependencies with security fixes**, including Angular, DOMPurify, networking libraries, and the service runtime. Replace the unmaintained YAML library while preserving configuration formats.
+
 ### Fixed
+
+- **Large packages sideload successfully in the UI over slow connections.** A failed upload shows an error message.
+
+- **Restart requests during service startup take effect after startup completes.**
+
+- **Starting a StartOS update from the UI installs the release whose notes it shows.** It previously installed whatever version the registry listed last.
+
+- **Forwarded IPv4 UDP ports retain their outbound mapping.** UDP traffic a
+  service starts from a forwarded port leaves through that forward's gateway
+  with its external address and port, keeping peer-to-peer services such as
+  HyperDHT directly reachable under load.
+
+- **Required service dependencies appear from the package manifest during initialization.** StartOS shows their base version and health requirements even if the service has not reported runtime dependencies; active runtime requirements can tighten the base, including for optional dependencies. While a service is not using an optional dependency, its tasks for that dependency are hidden and do not prevent it from starting.
+
+- **Freshly generated Root CAs carry an Authority Key Identifier conforming to RFC 5280 and the CA/Browser Forum Baseline Requirements.** Existing servers retain their trusted Root CA when updated.
+
+- **Timed-out or aborted service commands stop running inside their subcontainer.**
+  StartOS kills the command when its exec wrapper dies, including during health
+  checks.
+
+- **Services start from images without `/etc/passwd` or `/etc/group`.**
+
+- **A service command set to run as a user or group its image does not define
+  fails instead of running as root.**
+
+- **Upgrades from 0.3.5.1 succeed on nearly full data drives.** StartOS skips
+  the optional filesystem optimization when a drive lacks room for it.
+
+- **Services log at the level their package sets.** A service process no
+  longer inherits the container runtime's environment, including its
+  `RUST_LOG`, when its package passes no environment variables. Every service
+  process receives the server's language as `LANG` unless its package sets
+  one.
 
 - **IPv4 public domains work on servers with IPv6 disabled.** StartOS sets up
   the IPv4 reply path for source-preserving TLS routing on those servers.
 
+- **An update's loading indicator stays on the service being updated** when you
+  switch registries in the Updates tab.
+
+- **A service installed again after a failed install is reachable without
+  restarting the server.**
+
 ### Added
+
+- **Administrators can add a custom CA root to the host trust store with
+  `start-cli server trust-ca`.** The root takes effect immediately and persists
+  across reboots and OS updates. Services keep the trust store their package
+  provides.
+
+- **Packages can show a localized pre-download alert before an update.** A matching installed version prompts for confirmation in the Marketplace and Updates tab before StartOS fetches the package. The alert supports Markdown formatting.
 
 - **UEFI installations carry a standard fallback bootloader.** StartOS remains
   bootable if firmware loses its saved boot entry while retaining the normal
@@ -95,8 +145,8 @@ for the detail behind its highlights.
   grid.
 
 - **A notification welcomes you to a new version after your server restarts.**
-  It names the version you landed on and carries that release's notes, so what
-  you read before updating is there afterwards too.
+  It names the version you landed on and carries that release's highlights and
+  important follow-up instructions. Pre-update warnings appear before updating.
 
 - **An action can return a multi-line value** — a diagnostic report, a
   generated config file, an exported key block. It appears as a read-only
@@ -165,6 +215,9 @@ for the detail behind its highlights.
   the server instead of the service, and the service's own connections to that
   peer could leave from a different port. Services on raw UDP ports were the
   most affected.
+
+- **You can sign in to the StartOS UI at any loopback address**, such as
+  `http://127.1.1.19:8989` through a Holesail tunnel.
 
 - **Switching off a service's LAN IP address closes it.** The address kept
   answering for as long as the service's `.local` address was on. On an

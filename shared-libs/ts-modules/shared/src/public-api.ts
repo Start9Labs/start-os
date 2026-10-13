@@ -5,6 +5,7 @@
 export * from './classes/http-error'
 export * from './classes/rpc-error'
 
+export * from './components/ca-wizard'
 export * from './components/initializing/logs-window.component'
 export * from './components/initializing/initializing.component'
 export * from './components/markdown.component'
@@ -21,7 +22,6 @@ export * from './i18n/localize.pipe'
 
 export * from './pipes/exver-compares.pipe'
 export * from './pipes/empty.pipe'
-export * from './pipes/trust.pipe'
 export * from './pipes/convert-bytes.pipe'
 export * from './pipes/markdown.pipe'
 export * from './pipes/leaf-progress.pipe'
