@@ -7,7 +7,6 @@ use reqwest::header::RANGE;
 use reqwest::{Client, Response};
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWrite;
-use ts_rs::TS;
 use url::Url;
 
 use crate::prelude::*;
@@ -24,17 +23,22 @@ use crate::util::future::NonDetachingJoinHandle;
 #[cfg(test)]
 use crate::util::io::TmpDir;
 
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+/// A registry asset with a caller-selected commitment representation.
+#[derive(Clone, Debug, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct RegistryAsset<Commitment> {
-    #[ts(type = "string")]
+    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(opaque, type_attributes(visit::wire))]
     pub published_at: DateTime<Utc>,
-    #[ts(type = "string[]")]
+    #[visit(ts(type = "string[]"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(opaque, type_attributes(visit::wire))]
     pub urls: Vec<Url>,
     pub commitment: Commitment,
     pub signatures: HashMap<AnyVerifyingKey, AnySignature>,
 }
+
+rpc_toolkit::reflect_ts!(generic RegistryAsset<Commitment>);
+rpc_toolkit::ts_export!(generic RegistryAsset<Commitment>, namespaces = [""]);
 impl<Commitment> RegistryAsset<Commitment> {
     pub fn all_signers(&self) -> AcceptSigners {
         AcceptSigners::All(

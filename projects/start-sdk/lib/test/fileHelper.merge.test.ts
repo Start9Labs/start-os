@@ -91,4 +91,67 @@ describe('FileHelper.merge', () => {
 
     expect(readFileSync(path, 'utf-8')).toBe('A=keep')
   })
+
+  test('drops an undeclared key under z.object, keeps it under z.looseObject', async () => {
+    const path = seeded('unknown.json', '{"A":"keep","X":"extra"}')
+
+    await FileHelper.json(path, z.object({ A: z.string() })).merge(effects, {})
+    expect(JSON.parse(readFileSync(path, 'utf-8'))).toEqual({ A: 'keep' })
+
+    writeFileSync(path, '{"A":"keep","X":"extra"}')
+    await FileHelper.json(path, shape).merge(effects, {})
+    expect(JSON.parse(readFileSync(path, 'utf-8'))).toEqual({
+      A: 'keep',
+      X: 'extra',
+    })
+  })
+
+  test('merges a discriminated union as the variant it names', async () => {
+    const path = seeded('union.json', '{}')
+    const file = FileHelper.json(
+      path,
+      z.looseObject({
+        backend: z
+          .discriminatedUnion('type', [
+            z.looseObject({
+              type: z.literal('a').catch('a'),
+              x: z.string().catch(''),
+            }),
+            z.looseObject({ type: z.literal('b').catch('b') }),
+          ])
+          .optional(),
+      }),
+    )
+
+    await file.merge(effects, { backend: { type: 'b' } })
+
+    expect(JSON.parse(readFileSync(path, 'utf-8'))).toEqual({
+      backend: { type: 'b' },
+    })
+  })
+
+  test('yaml keeps a custom tag that parses to a class instance', async () => {
+    class Include {
+      constructor(public value: string) {}
+    }
+    const include = {
+      tag: '!include',
+      identify: (v: unknown) => v instanceof Include,
+      resolve: (v: string) => new Include(v),
+      stringify: ({ value }: { value: unknown }) => (value as Include).value,
+    }
+    const path = seeded(
+      'tags.yaml',
+      'automation: !include automations.yaml\nhttp:\n  port: 1\n',
+    )
+    const file = FileHelper.yaml(path, z.looseObject({ http: z.any() }), {
+      customTags: [include],
+    })
+
+    await file.merge(effects, { http: undefined })
+
+    expect(readFileSync(path, 'utf-8').trim()).toBe(
+      'automation: !include automations.yaml',
+    )
+  })
 })

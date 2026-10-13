@@ -473,7 +473,7 @@ Steuert, worauf das verbundene Gerät im Netzwerk zugreifen kann. Weisen Sie ein
 
 ### Land
 
-Das Land, dessen WLAN-Vorschriften der Router befolgt. Es bestimmt, welche Kanäle jedes Band nutzen darf und wie viel Sendeleistung erlaubt ist. Solange kein Land ausgewählt ist, verwendet der Router eine konservative weltweite Teilmenge: die 2,4-GHz-Kanäle 1–11 und die 5-GHz-Kanäle 36–48 mit reduzierter Leistung. Ein Wechsel des Landes setzt die Kanalauswahl auf Auto zurück. Wählen Sie das Land, in dem sich der Router physisch befindet.
+Das Land, dessen WLAN-Vorschriften der Router befolgt. Es bestimmt, welche Kanäle jedes Band nutzen darf und wie viel Sendeleistung erlaubt ist. Solange kein Land ausgewählt ist, verwendet der Router eine konservative weltweite Teilmenge: die 2,4-GHz-Kanäle 1–11 und die 5-GHz-Kanäle 36–48 mit reduzierter Leistung. Ein Wechsel des Landes setzt die Kanalauswahl auf Auto zurück und verringert eine Kanalbreite über 80 MHz auf 80 MHz. Wählen Sie das Land, in dem sich der Router physisch befindet.
 
 ### Wi-Fi aktivieren
 
@@ -497,7 +497,11 @@ Bei Verwendung beider Frequenzbänder erstellt diese Option separate SSIDs für 
 
 ### Kanäle
 
-Bestimmte Kanäle innerhalb jedes Frequenzbands. Wählen Sie „Auto“, damit der Router den besten Kanal auswählt, oder wählen Sie einen bestimmten Kanal, um Störungen durch benachbarte Netzwerke zu vermeiden. „Auto“ überspringt Kanäle mit Radarerkennung (DFS). Sie können einen solchen Kanal manuell wählen, doch das 5-GHz-Netz erscheint dann bei jedem Start des Routers erst nach einer Minute oder länger, während er auf Radar horcht.`,
+Bestimmte Kanäle innerhalb jedes Frequenzbands. Wählen Sie „Auto“, damit der Router den besten Kanal auswählt, oder wählen Sie einen bestimmten Kanal, um Störungen durch benachbarte Netzwerke zu vermeiden. „Auto“ überspringt Kanäle mit Radarerkennung (DFS). Sie können einen solchen Kanal manuell wählen, doch das 5-GHz-Netz erscheint dann bei jedem Start des Routers erst nach einer Minute oder länger, während er auf Radar horcht.
+
+### Kanalbreite
+
+Wie viel des Bands jedes Netz belegt. Breitere Kanäle sind schneller, überlappen aber mehr benachbarte Netze und reichen etwas weniger weit. Jede Auswahlliste zeigt die Breiten, die der gewählte Kanal im gewählten Land nutzen kann. Im 2,4-GHz-Band startet ein 40-MHz-Netz stattdessen mit 20 MHz, wenn ein benachbartes Netz es überlappt.`,
 }
 
 export default HELP_DE

@@ -37,7 +37,7 @@ struct AppState {
     flash_in_progress: Arc<AtomicBool>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 struct FlashParams {
     mode: FlashMode,
@@ -48,6 +48,8 @@ struct FlashParams {
     #[serde(default)]
     timezone: Option<String>,
 }
+rpc_toolkit::reflect_ts!(FlashParams);
+rpc_toolkit::ts_export!(FlashParams, namespaces = ["events"]);
 
 fn ndjson_error(message: &str) -> Response<Body> {
     let event = SetupEvent::Error {
@@ -258,10 +260,13 @@ async fn inner_main() -> Result<(), Error> {
         if let Err(e) = crate::init::restore_wifi_if_needed().await {
             tracing::error!("WiFi auto-restore failed: {e}");
         }
+        if let Err(e) = crate::wifi::heal_channel_widths("/etc/config").await {
+            tracing::error!("WiFi channel width repair failed: {e}");
+        }
 
         // Reassert WiFi blackout if we rebooted inside an active window. Runs
-        // *after* restore_wifi_if_needed (whose job is to restore missing AP
-        // config, applying it via `wifi reload`) so our `wifi down` is the final
+        // *after* restore_wifi_if_needed and heal_channel_widths (which apply
+        // their config via `wifi reload`) so our `wifi down` is the final
         // word and the radio ends down. Nothing after this point brings the radio
         // back up — bootstrap_admin_profile, apply_remote_access, the WAN-schedule
         // and captive-portal steps touch firewall/dnsmasq, not the wifi radios —
@@ -386,6 +391,10 @@ async fn inner_main() -> Result<(), Error> {
         let pc = crate::port_control::PortControl::new("/etc/config".into());
         if crate::port_control::PORT_CONTROL.set(pc.clone()).is_ok() {
             tokio::spawn(crate::port_control::run(pc));
+        }
+        let di = crate::dns_inject::DnsInject::new("/etc/config".into());
+        if crate::dns_inject::DNS_INJECT.set(di.clone()).is_ok() {
+            tokio::spawn(crate::dns_inject::run(di));
         }
     }
 

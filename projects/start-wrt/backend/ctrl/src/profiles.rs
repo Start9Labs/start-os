@@ -7,7 +7,7 @@ use clap::Parser;
 use rpc_toolkit::{from_fn_async_local, HandlerExt as _, ParentHandler};
 use serde::{Deserialize, Serialize};
 use uciedit::openwrt::{
-    DeviceType, Dhcp, FirewallForwarding, FirewallRedirect, FirewallRule, FirewallTarget,
+    DeviceType, Dhcp, DhcpHost, FirewallForwarding, FirewallRedirect, FirewallRule, FirewallTarget,
     FirewallZone, InterfaceProto, NetworkBridgeVlan, NetworkDevice, NetworkInterface, NetworkRoute,
     NetworkRoute6, NetworkRule, NetworkRule6, NetworkVlanPort, NetworkVlanPortTagging,
     ProfileDnsmasq, WifiStation, WifiVlan,
@@ -32,7 +32,7 @@ pub const DEFAULT_WAN_ZONE: &str = "wan";
 /// Do NOT raise this without re-checking every interface-derived netdev name.
 pub const INTERFACE_NAME_LIMIT: usize = 5;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitVariants)]
 pub enum LanAccess<Id: Ord> {
     #[serde(rename = "ALL")]
     All,
@@ -41,8 +41,9 @@ pub enum LanAccess<Id: Ord> {
     #[serde(rename = "other_profiles")]
     OtherProfiles(BTreeSet<Id>),
 }
+rpc_toolkit::reflect_ts!(impl [Id: Ord] for LanAccess<Id> where [BTreeSet<Id>: rpc_toolkit::ts::TS]);
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, visit_rs::VisitVariants)]
 pub enum WanAccess {
     #[serde(rename = "ALL")]
     All,
@@ -53,22 +54,25 @@ pub enum WanAccess {
     #[serde(rename = "blacklist")]
     Blacklist(Vec<String>), // List of blocked destination IPs/CIDRs
 }
+rpc_toolkit::reflect_ts!(WanAccess);
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct ScheduleWindow {
     pub start_time: String,
     pub end_time: String,
     pub days: [bool; 7],
 }
+rpc_toolkit::reflect_ts!(ScheduleWindow);
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, visit_rs::VisitFields)]
 pub struct ScheduleWindows {
     pub interface: String,
     pub windows: Vec<ScheduleWindow>,
 }
+rpc_toolkit::reflect_ts!(ScheduleWindows);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct Profile<Id: Ord = ProfileId> {
     #[serde(flatten)]
     pub id: Id,
@@ -83,14 +87,16 @@ pub struct Profile<Id: Ord = ProfileId> {
     pub access_to_new_profiles: bool,
     pub owns_lan: bool,
 }
+rpc_toolkit::reflect_ts!(impl [Id: Ord] for Profile<Id> where [Id: rpc_toolkit::ts::TS, LanAccess<Id>: rpc_toolkit::ts::TS]);
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, visit_rs::VisitFields)]
 pub struct ProfileSetRequest {
     #[serde(flatten)]
     pub profile: Profile<ProfileIdOpt>,
     #[serde(default)]
     pub force: bool,
 }
+rpc_toolkit::reflect_ts!(ProfileSetRequest);
 
 pub fn profiles<C: CtrlContext>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -125,14 +131,38 @@ pub fn profiles<C: CtrlContext>() -> ParentHandler<C> {
         )
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Debug,
+    Deserialize,
+    Serialize,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    visit_rs::VisitFields,
+)]
 pub struct ProfileId {
     pub fullname: String,
     pub interface: String,
     pub vlan_tag: u16,
 }
+rpc_toolkit::reflect_ts!(ProfileId);
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Parser)]
+#[derive(
+    Debug,
+    Deserialize,
+    Serialize,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Parser,
+    visit_rs::VisitFields,
+)]
 pub struct ProfileIdOpt {
     #[clap(short, long)]
     pub fullname: Option<String>,
@@ -141,6 +171,7 @@ pub struct ProfileIdOpt {
     #[clap(short, long)]
     pub vlan_tag: Option<u16>,
 }
+rpc_toolkit::reflect_ts!(ProfileIdOpt);
 
 impl From<ProfileId> for ProfileIdOpt {
     fn from(id: ProfileId) -> Self {
@@ -250,6 +281,16 @@ fn compute_dns_source(cfgs: &Configs, profile: &Profile) -> String {
 fn has_effective_dns(cfgs: &Configs, profile: &Profile) -> bool {
     !profile.dns_override.is_empty()
         || (profile.outbound != "wan" && !get_vpn_dns(cfgs, &profile.outbound).is_empty())
+}
+
+/// Whether any device may inject DNS records. Box-wide: a device's profile is
+/// a runtime fact. Separate from `has_effective_dns`, which also gates the
+/// `DNS-Override` redirect.
+fn has_dns_injection(cfgs: &Configs) -> bool {
+    cfgs["dhcp"].sections.iter().any(|s| {
+        s.get::<DhcpHost>()
+            .is_ok_and(|h| h._allow_dns_inject.as_deref() == Some("1"))
+    })
 }
 
 /// Rewrite DNS forwarding (dnsmasq sections) for ALL profiles.
@@ -396,12 +437,21 @@ pub(crate) fn rewrite_dns_forwarding(cfgs: &mut Configs, profile: &Profile) -> R
         }
     };
 
-    if !servers.is_empty() {
+    // Injection needs an instance even in ISP mode; with no `server` list and
+    // `noresolv` unset it forwards to resolv.conf.auto like the main one.
+    let inject = has_dns_injection(cfgs);
+    if !servers.is_empty() || inject {
+        let noresolv = (!servers.is_empty()).then(|| "1".to_string());
+        let mut server = servers;
+        // Firefox's DoH canary: an NXDOMAIN here turns off its default-enabled
+        // DNS-over-HTTPS on this network.
+        server.push("/use-application-dns.net/".to_string());
         cfgs["dhcp"].append(
             &ProfileDnsmasq {
-                server: servers,
-                noresolv: Some("1".to_string()),
-                interface: vec![],
+                noresolv,
+                server,
+                // An unscoped instance serves every profile's DHCP pool.
+                interface: vec![profile.id.interface.clone()],
                 localservice: Some("1".to_string()),
                 nonwildcard: Some("1".to_string()),
                 listen_address: vec![profile.gateway_ip.to_string()],
@@ -415,6 +465,11 @@ pub(crate) fn rewrite_dns_forwarding(cfgs: &mut Configs, profile: &Profile) -> R
                 boguspriv: Some("0".to_string()),
                 local: Some("/lan/".to_string()),
                 dhcpscript: Some(crate::device_ident::FINGERPRINT_SCRIPT_PATH.to_string()),
+                addnhosts: if inject {
+                    vec![crate::dns_inject::inject_hosts_path(&profile.id.interface)]
+                } else {
+                    vec![]
+                },
             },
             Some(&section_name),
         )?;
@@ -3124,13 +3179,14 @@ fn heal_ipv6_state_in_cfgs(cfgs: &mut Configs) -> Result<Vec<String>, Error> {
     Ok(repaired)
 }
 
-#[derive(Debug, Parser, Serialize, Deserialize)]
+#[derive(Debug, Parser, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct EditArgs {
     #[clap(flatten)]
     pub get: ProfileIdOpt,
     #[clap(long)]
     pub create: bool,
 }
+rpc_toolkit::reflect_ts!(EditArgs);
 
 #[instrument(skip_all)]
 pub async fn edit<C: CtrlContext>(ctx: C, args: EditArgs) -> Result<ProfileId, Error> {
@@ -3261,10 +3317,11 @@ fn parse_schedule_windows(raw: &[String]) -> Vec<ScheduleWindow> {
         .collect()
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, visit_rs::VisitFields)]
 pub struct ScheduleGetParams {
     interface: String,
 }
+rpc_toolkit::reflect_ts!(ScheduleGetParams);
 
 /// Read schedule data for a single profile from UCI.
 #[instrument(skip_all)]
@@ -6600,6 +6657,170 @@ config zone
             .any(|s| s.name().as_deref() == Some("dns_guest"));
         assert!(dns_lan, "Admin profile should get per-profile dnsmasq");
         assert!(dns_guest, "Guest profile should get per-profile dnsmasq");
+
+        // The instance serves exactly its own bridge: an unscoped instance
+        // picks up every profile's `config dhcp` pool.
+        let section = cfgs["dhcp"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("dns_lan"))
+            .unwrap()
+            .get::<ProfileDnsmasq>()
+            .unwrap();
+        assert_eq!(section.interface, vec!["lan".to_string()]);
+        assert_eq!(section.noresolv.as_deref(), Some("1"));
+        assert!(section.addnhosts.is_empty(), "no injection, no hosts file");
+    }
+
+    /// Write the ISP-mode base fixture (no system DNS, no overrides), with a
+    /// DHCP host section carrying `_allow_dns_inject` when asked — the case
+    /// where DNS injection alone must create the per-profile instances.
+    fn setup_isp_mode_configs(dir: &std::path::Path, inject: bool) {
+        std::fs::write(
+            dir.join("startwrt"),
+            "\
+config profile lan
+\toption fullname 'Admin'
+\toption interface 'lan'
+\toption vlan_tag '1'
+
+config profile guest
+\toption fullname 'Guest'
+\toption interface 'guest'
+\toption vlan_tag '101'
+",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("network"),
+            "\
+config interface 'lan'
+\toption proto 'static'
+\toption ipaddr '192.168.1.1'
+\toption device 'br-lan.1'
+
+config interface 'guest'
+\toption proto 'static'
+\toption ipaddr '192.168.101.1'
+\toption device 'br-lan.101'
+",
+        )
+        .unwrap();
+        let host = if inject {
+            "\n\
+config host host_001a2b3c4d5e
+\toption mac '00:1A:2B:3C:4D:5E'
+\toption dns '1'
+\toption _allow_dns_inject '1'
+"
+        } else {
+            ""
+        };
+        std::fs::write(
+            dir.join("dhcp"),
+            format!("config dnsmasq\n\toption domainneeded '1'\n{host}"),
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("firewall"),
+            "\
+config zone
+\toption name 'lan'
+\tlist network 'lan'
+
+config zone
+\toption name 'vlan_guest'
+\tlist network 'guest'
+",
+        )
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn dns_injection_creates_isp_mode_instances() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_isp_mode_configs(dir.path(), true);
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            dir.path(),
+            &arena,
+            &["startwrt", "network", "dhcp", "firewall"],
+        )
+        .await
+        .unwrap();
+        rewrite_all_dns_forwarding(&mut cfgs).unwrap();
+
+        for (name, iface) in [("dns_lan", "lan"), ("dns_guest", "guest")] {
+            let section = cfgs["dhcp"]
+                .sections
+                .iter()
+                .find(|s| s.name().as_deref() == Some(name))
+                .unwrap_or_else(|| panic!("{name} instance created by injection alone"))
+                .get::<ProfileDnsmasq>()
+                .unwrap();
+            assert_eq!(
+                section.addnhosts,
+                vec![crate::dns_inject::inject_hosts_path(iface)]
+            );
+            assert_eq!(section.interface, vec![iface.to_string()]);
+            assert_eq!(
+                section.server,
+                vec!["/use-application-dns.net/".to_string()],
+                "ISP mode: no upstream override, only the Firefox DoH canary"
+            );
+            assert_eq!(
+                section.noresolv, None,
+                "falls back to resolv.conf.auto like the main instance"
+            );
+        }
+        // The main instance stays off the profile bridges.
+        let main = cfgs["dhcp"]
+            .sections
+            .iter()
+            .find(|s| s.ty() == "dnsmasq" && s.name().is_none())
+            .unwrap();
+        let notinterface: Vec<_> = main
+            .lines
+            .iter()
+            .filter_map(|line| match line {
+                Line::List { list, item, .. } if list.as_str() == "notinterface" => {
+                    Some(item.as_str().to_string())
+                }
+                _ => None,
+            })
+            .collect();
+        assert!(notinterface.contains(&"lan".to_string()));
+        assert!(notinterface.contains(&"guest".to_string()));
+
+        // Injection alone must not start hijacking port-53 traffic.
+        assert!(
+            !cfgs["firewall"].sections.iter().any(|s| s
+                .get::<FirewallRedirect>()
+                .is_ok_and(|r| r.name.contains("DNS-Override"))),
+            "no DNS-Override redirect from the inject flag"
+        );
+    }
+
+    #[tokio::test]
+    async fn no_injection_means_no_isp_mode_instances() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_isp_mode_configs(dir.path(), false);
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            dir.path(),
+            &arena,
+            &["startwrt", "network", "dhcp", "firewall"],
+        )
+        .await
+        .unwrap();
+        rewrite_all_dns_forwarding(&mut cfgs).unwrap();
+        assert!(
+            !cfgs["dhcp"]
+                .sections
+                .iter()
+                .any(|s| s.name().is_some_and(|n| n.starts_with("dns_"))),
+            "ISP mode without injection keeps the single main instance"
+        );
     }
 
     // === IPv6 routing tests ===

@@ -1,7 +1,9 @@
-TS_FILES := $(shell git ls-files lib)
+include ../../build/source-files.mk
+
+TS_FILES := $(call ls-files, lib)
 START_CORE := ../../shared-libs/ts-modules/start-core
 START_CORE_DIST := $(START_CORE)/dist
-START_CORE_SRC := $(shell git ls-files $(START_CORE)/lib) $(START_CORE)/package.json
+START_CORE_SRC := $(call ls-files, $(START_CORE)/lib) $(START_CORE)/package.json
 
 .DELETE_ON_ERROR:
 
@@ -16,6 +18,7 @@ $(START_CORE_DIST)/package.json: $(START_CORE_SRC)
 	touch $(START_CORE_DIST)/package.json
 
 test: node_modules
+	node --test tests/check-consumers.test.mjs
 	npm test
 
 clean:
@@ -56,10 +59,10 @@ check: node_modules
 	npm run check
 
 fmt: node_modules
-	npx prettier "**/*.ts" --write
+	npx prettier --config ../../.prettierrc.json "**/*.ts" --write
 
 check-fmt: node_modules
-	npx prettier "**/*.ts" --check
+	npx prettier --config ../../.prettierrc.json "**/*.ts" --check
 
 # Touch after install: npm may leave these no newer than their prereqs, so without
 # it make reruns npm every build (node_modules was also .PHONY, forcing npm ci always).

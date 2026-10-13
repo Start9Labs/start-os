@@ -95,11 +95,14 @@ function fileMerge(...args: any[]): any {
   return res
 }
 
+function isPlainObject(a: object) {
+  const proto = Object.getPrototypeOf(a)
+  return proto === Object.prototype || proto === null
+}
+
 function filterUndefined<A>(a: A): A {
-  if (a && typeof a === 'object') {
-    if (Array.isArray(a)) {
-      return a.map(filterUndefined) as A
-    }
+  if (Array.isArray(a)) return a.map(filterUndefined) as A
+  if (a && typeof a === 'object' && isPlainObject(a)) {
     return Object.entries(a).reduce<Record<string, any>>((acc, [k, v]) => {
       if (v !== undefined) {
         acc[k] = filterUndefined(v)
@@ -163,7 +166,9 @@ type ReadType<A> = {
  *
  * The schema mirrors the file: a value the upstream service does not require is
  * optional, even where the package always sets it. Give every key a `.catch()`
- * default, so a hand-edited value of the wrong type falls back to it.
+ * default, so a hand-edited value of the wrong type falls back to it. Build it
+ * with `z.looseObject` at every level: `z.object` deletes every key it does not
+ * declare on the next write.
  *
  * @example
  * ```ts
@@ -171,7 +176,7 @@ type ReadType<A> = {
  *
  * export const configToml = FileHelper.toml(
  *   { base: sdk.volumes.main, subpath: 'config.toml' },
- *   z.object({
+ *   z.looseObject({
  *     port: z.number().catch(8080),
  *     allow_registration: z.boolean().catch(false),
  *   }),
@@ -504,11 +509,6 @@ function rawTransformed<A extends Transformed, Raw, Transformed>(
   )
 }
 
-function deepLooseParse<A>(shape: z.ZodType<A>): (data: unknown) => A {
-  const loose = z.deepLoose(shape)
-  return data => loose.parse(data)
-}
-
 interface FileHelperStatic {
   /** Creates a FileHelper for a custom format. */
   raw<A>(
@@ -651,7 +651,7 @@ export const FileHelper: FileHelperStatic = {
       path,
       inData => JSON.stringify(inData, null, 2),
       inString => JSON.parse(inString),
-      deepLooseParse(shape),
+      data => shape.parse(data),
       transformers,
     )
   },
@@ -671,7 +671,7 @@ export const FileHelper: FileHelperStatic = {
       path,
       inData => YAML.stringify(inData, null, { indent: 2, ...options }),
       inString => YAML.parse(inString, options),
-      deepLooseParse(shape),
+      data => shape.parse(data),
       transformers,
     )
   },
@@ -685,7 +685,7 @@ export const FileHelper: FileHelperStatic = {
       path,
       inData => TOML.stringify(inData as TOML.JsonMap),
       inString => TOML.parse(inString),
-      deepLooseParse(shape),
+      data => shape.parse(data),
       transformers,
     )
   },
@@ -700,7 +700,7 @@ export const FileHelper: FileHelperStatic = {
       path,
       inData => INI.stringify(inData, options),
       inString => INI.parse(inString, options),
-      deepLooseParse(shape),
+      data => shape.parse(data),
       transformers,
     )
   },
@@ -727,7 +727,7 @@ export const FileHelper: FileHelperStatic = {
               return [line.slice(0, pos), line.slice(pos + 1)]
             }),
         ),
-      deepLooseParse(shape),
+      data => shape.parse(data),
       transformers,
     )
   },
@@ -744,7 +744,7 @@ export const FileHelper: FileHelperStatic = {
       path,
       inData => builder.build(inData),
       inString => parser.parse(inString),
-      deepLooseParse(shape),
+      data => shape.parse(data),
       transformers,
     )
   },
