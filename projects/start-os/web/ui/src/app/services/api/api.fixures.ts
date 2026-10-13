@@ -2424,7 +2424,6 @@ PersistentKeepalive = 25`
       manifest: MockManifestBitcoind,
     },
     s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
-    icon: '/assets/img/service-icons/bitcoin-core.svg',
     lastBackup: null,
     statusInfo: {
       error: null,
@@ -2700,7 +2699,6 @@ PersistentKeepalive = 25`
       manifest: MockManifestBitcoinProxy,
     },
     s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
-    icon: '/assets/img/service-icons/btc-rpc-proxy.png',
     lastBackup: null,
     statusInfo: {
       desired: { main: 'stopped' },
@@ -2712,7 +2710,6 @@ PersistentKeepalive = 25`
     currentDependencies: {
       bitcoind: {
         title: BitcoinDep.title,
-        icon: BitcoinDep.icon,
         kind: 'running',
         versionRange: '>=26.0.0',
         healthChecks: [],
@@ -2733,7 +2730,6 @@ PersistentKeepalive = 25`
       manifest: MockManifestLnd,
     },
     s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
-    icon: '/assets/img/service-icons/lnd.png',
     lastBackup: null,
     statusInfo: {
       desired: { main: 'stopped' },
@@ -2766,14 +2762,12 @@ PersistentKeepalive = 25`
     currentDependencies: {
       bitcoind: {
         title: BitcoinDep.title,
-        icon: BitcoinDep.icon,
         kind: 'running',
         versionRange: '>=26.0.0',
         healthChecks: [],
       },
       'btc-rpc-proxy': {
         title: Mock.MockManifestBitcoinProxy.title,
-        icon: 'assets/img/service-icons/btc-rpc-proxy.png',
         kind: 'exists',
         versionRange: '>2.0.0',
       },

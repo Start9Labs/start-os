@@ -318,7 +318,7 @@ export type DataUrl = string
 export type DataUrlInput = string
 export type DependencyMetadata = {
   title: LocaleString | null
-  icon: DataUrl | null
+  icon?: DataUrl | null
   description: LocaleString | null
   optional: boolean
   versionRange: string | null
@@ -504,7 +504,10 @@ export type PackageVersionCount = {
   count: number
 }
 export type PackageVersionInfo = {
-  icon: DataUrl
+  /**
+   * Absent for clients that load icons from the registry's `/icons/` route.
+   */
+  icon?: DataUrl | null
   dependencyMetadata: { [key: string]: DependencyMetadata }
   sourceVersion: string | null
   s9pks: [HardwareRequirements, RegistryAsset<MerkleArchiveCommitment>][]

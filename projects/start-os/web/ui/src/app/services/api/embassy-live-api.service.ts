@@ -92,6 +92,18 @@ export class LiveApiService extends ApiService {
     throw new Error('Could not fetch static file')
   }
 
+  async getStaticObjectUrl(url: string): Promise<string> {
+    const { body, headers } = await this.httpResponse<ArrayBuffer>({
+      method: 'GET',
+      url,
+      responseType: 'arrayBuffer',
+    })
+
+    return URL.createObjectURL(
+      new Blob([body], { type: headers.get('content-type') || '' }),
+    )
+  }
+
   // websocket
 
   openWebsocket$<T>(
@@ -841,9 +853,15 @@ export class LiveApiService extends ApiService {
   }
 
   private async httpRequest<T>(opts: HttpOptions): Promise<T> {
-    // Static package assets are authorized; continuation endpoints (uploads,
-    // websockets) authenticate by capability URL and need no signature.
-    if (opts.url.startsWith('/s9pk')) {
+    return (await this.httpResponse<T>(opts)).body
+  }
+
+  private async httpResponse<T>(opts: HttpOptions) {
+    // Static asset routes require a signature.
+    if (
+      opts.url.startsWith('/s9pk') ||
+      opts.url.startsWith('/registry/icons/')
+    ) {
       opts = {
         ...opts,
         headers: {
@@ -868,7 +886,7 @@ export class LiveApiService extends ApiService {
             opts.responseType || 'json'
           }`,
         )
-        return res.body
+        return res
       }
       const [alg, hash] = digest.split('=', 2)
       if (alg === 'blake3') {
@@ -883,6 +901,6 @@ export class LiveApiService extends ApiService {
         console.warn(`Unknown File-Digest algorithm ${alg}`)
       }
     }
-    return res.body
+    return res
   }
 }

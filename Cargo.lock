@@ -7758,7 +7758,7 @@ dependencies = [
 
 [[package]]
 name = "start-registry"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "start-core",
 ]
