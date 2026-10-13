@@ -1,0 +1,1 @@
+- The WAN IPv4 summary reads **Not connected** when nothing is plugged into the WAN port or the WAN has no IPv4 address, instead of leaving the row out.

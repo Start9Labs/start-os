@@ -54,22 +54,28 @@ pub fn find_ap_interface_names(cfgs: &Configs) -> Result<Vec<String>, Error> {
     Ok(names)
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, visit_rs::VisitFields)]
 pub struct Password<Id: Ord> {
     pub label: String,
     pub profile: Option<Id>,
     pub password: String,
 }
+rpc_toolkit::reflect_ts!(impl [Id: Ord] for Password<Id> where [Option<Id>: rpc_toolkit::ts::TS]);
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, visit_rs::VisitFields)]
 pub struct WifiRadio {
     pub band: String,
     pub channel: String,
+    /// Channel width in MHz. Null when the radio's mode sets none; null on
+    /// `set` keeps the current width.
+    #[serde(default)]
+    pub width: Option<u32>,
     pub enabled: bool,
     pub broadcast: bool,
 }
+rpc_toolkit::reflect_ts!(WifiRadio);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct Wifi<Id: Ord = ProfileId> {
     pub ssid: String,
@@ -79,6 +85,7 @@ pub struct Wifi<Id: Ord = ProfileId> {
     pub radios: BTreeMap<String, WifiRadio>,
     pub passwords: BTreeSet<Password<Id>>,
 }
+rpc_toolkit::reflect_ts!(impl [Id: Ord] for Wifi<Id> where [BTreeSet<Password<Id>>: rpc_toolkit::ts::TS]);
 
 /// `wifi.set` request: the desired WiFi config plus a confirmation flag.
 /// When a profile loses its last WiFi password its devices can no longer reach
@@ -87,7 +94,7 @@ pub struct Wifi<Id: Ord = ProfileId> {
 /// them. When the flag is false and such ports exist, `set` applies nothing and
 /// returns them in `WifiSetResult` for a confirmation dialog; with the flag true
 /// it deletes those published ports as part of the change.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct WifiSetRequest {
     #[serde(flatten)]
@@ -95,36 +102,58 @@ pub struct WifiSetRequest {
     #[serde(default)]
     pub confirm_published_port_deletion: bool,
 }
+rpc_toolkit::reflect_ts!(WifiSetRequest);
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct WifiSetResult {
     /// Non-empty (and nothing applied) when published ports would be deleted and
     /// the caller hasn't confirmed yet. Empty once the change is applied.
     pub pending_published_port_deletions: Vec<crate::published_ports::AffectedPublishedPort>,
 }
+rpc_toolkit::reflect_ts!(WifiSetResult);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct WifiRegulatory {
     /// ISO 3166-1 alpha-2 codes the regulatory database defines.
     pub countries: Vec<String>,
-    /// Channels an access point may use under the current country, by band.
-    pub channels: BTreeMap<String, Vec<u32>>,
+    /// What an access point may use under the current country, by band.
+    pub bands: BTreeMap<String, BandChannels>,
 }
+rpc_toolkit::reflect_ts!(WifiRegulatory);
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Default, PartialEq, Eq, visit_rs::VisitFields)]
+#[serde(rename_all = "camelCase")]
+pub struct BandChannels {
+    pub channels: Vec<ApChannel>,
+    /// Widths automatic channel selection can serve without radar-detection channels.
+    pub auto_widths: Vec<u32>,
+}
+rpc_toolkit::reflect_ts!(BandChannels);
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, visit_rs::VisitFields)]
+pub struct ApChannel {
+    pub channel: u32,
+    /// Widths in MHz whose every bonded channel is usable.
+    pub widths: Vec<u32>,
+}
+rpc_toolkit::reflect_ts!(ApChannel);
+
+#[derive(Debug, Serialize, Deserialize, Clone, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct BlackoutWindow {
     pub start_time: String,
     pub end_time: String,
     pub days: [bool; 7],
 }
+rpc_toolkit::reflect_ts!(BlackoutWindow);
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, visit_rs::VisitFields)]
 pub struct BlackoutWindows {
     pub windows: Vec<BlackoutWindow>,
 }
+rpc_toolkit::reflect_ts!(BlackoutWindows);
 
 /// Canonical UCI store for WiFi blackout windows (singleton section
 /// `config wifi_blackout 'blackout'` in the `startwrt` config). The crontab is a
@@ -173,18 +202,34 @@ pub fn wifi<C: CtrlContext + Clone>() -> ParentHandler<C> {
 #[instrument(skip_all)]
 pub async fn regulatory<C: CtrlContext>(_ctx: C) -> Result<WifiRegulatory, Error> {
     let db = tokio::fs::read(REGULATORY_DB).await?;
-    let phys = tokio::process::Command::new("iw")
-        .arg("phy")
-        .output()
-        .await?;
     Ok(WifiRegulatory {
         countries: regdb_countries(&db)?,
-        channels: ap_channels(&String::from_utf8_lossy(&phys.stdout)),
+        bands: band_channels(&iw_channels().await?),
     })
 }
 
-/// netifd applies the domain asynchronously.
-async fn await_regdomain(country: &str) {
+/// Concatenated `iw phy <phy> channels` output for every radio.
+async fn iw_channels() -> Result<String, Error> {
+    let mut out = String::new();
+    let mut phys = match tokio::fs::read_dir("/sys/class/ieee80211").await {
+        Ok(phys) => phys,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(out),
+        Err(e) => return Err(e.into()),
+    };
+    while let Some(phy) = phys.next_entry().await? {
+        let channels = tokio::process::Command::new("iw")
+            .arg("phy")
+            .arg(phy.file_name())
+            .arg("channels")
+            .output()
+            .await?;
+        out.push_str(&String::from_utf8_lossy(&channels.stdout));
+    }
+    Ok(out)
+}
+
+/// netifd applies the domain asynchronously. False once 5 s pass without it.
+async fn await_regdomain(country: &str) -> bool {
     let wanted = format!("country {country}:");
     for _ in 0..20 {
         if let Ok(out) = tokio::process::Command::new("iw")
@@ -193,12 +238,13 @@ async fn await_regdomain(country: &str) {
             .await
         {
             if String::from_utf8_lossy(&out.stdout).contains(&wanted) {
-                return;
+                return true;
             }
         }
         tokio::time::sleep(std::time::Duration::from_millis(250)).await;
     }
     tracing::warn!("regulatory domain {country} not applied within 5 s");
+    false
 }
 
 /// Country records follow the 8-byte header until an all-zero one.
@@ -217,38 +263,340 @@ fn regdb_countries(db: &[u8]) -> Result<Vec<String>, Error> {
         .collect())
 }
 
-/// Reads the `* <MHz> MHz [<channel>] (<flags>)` lines of `iw phy`.
-fn ap_channels(iw_phy: &str) -> BTreeMap<String, Vec<u32>> {
-    let mut bands: BTreeMap<String, BTreeSet<u32>> = BTreeMap::new();
-    for line in iw_phy.lines() {
-        let Some(rest) = line.trim_start().strip_prefix("* ") else {
-            continue;
-        };
-        let Some((mhz, rest)) = rest.split_once(" MHz [") else {
-            continue;
-        };
-        let Some((channel, flags)) = rest.split_once(']') else {
-            continue;
-        };
-        if flags.contains("disabled") || flags.contains("no IR") {
-            continue;
+const WIDTHS: [u32; 4] = [20, 40, 80, 160];
+
+/// Widest channel width a save that changes the country may carry.
+const COUNTRY_CHANGE_MAX_WIDTH: u32 = 80;
+
+#[derive(Debug, Default)]
+struct IwChannel {
+    usable: bool,
+    radar: bool,
+    widths: Vec<String>,
+}
+
+/// Reads the per-channel entries of `iw phy <phy> channels`, keyed by band.
+fn parse_iw_channels(iw: &str) -> BTreeMap<&'static str, BTreeMap<u32, IwChannel>> {
+    let mut bands: BTreeMap<&'static str, BTreeMap<u32, IwChannel>> = BTreeMap::new();
+    let mut current = None;
+    for line in iw.lines().map(str::trim) {
+        if let Some(rest) = line.strip_prefix("* ") {
+            current = None;
+            let Some((mhz, rest)) = rest.split_once(" MHz [") else {
+                continue;
+            };
+            let Some((channel, flags)) = rest.split_once(']') else {
+                continue;
+            };
+            let mhz = mhz.split_once('.').map_or(mhz, |(whole, _)| whole);
+            let (Ok(mhz), Ok(channel)) = (mhz.parse::<u32>(), channel.parse::<u32>()) else {
+                continue;
+            };
+            let band = match mhz {
+                2400..=2499 => "2g",
+                5000..=5924 => "5g",
+                5925..=7199 => "6g",
+                _ => continue,
+            };
+            let usable = !flags.contains("disabled");
+            bands.entry(band).or_default().insert(
+                channel,
+                IwChannel {
+                    usable,
+                    ..Default::default()
+                },
+            );
+            current = usable.then_some((band, channel));
+        } else if let Some((band, channel)) = current {
+            let Some(entry) = bands.get_mut(band).and_then(|b| b.get_mut(&channel)) else {
+                continue;
+            };
+            match line {
+                "No IR" | "Passive scan" => entry.usable = false,
+                "Radar detection" => entry.radar = true,
+                _ => {
+                    if let Some(widths) = line.strip_prefix("Channel widths:") {
+                        entry.widths = widths.split_whitespace().map(String::from).collect();
+                    }
+                }
+            }
         }
-        let mhz = mhz.split_once('.').map_or(mhz, |(whole, _)| whole);
-        let (Ok(mhz), Ok(channel)) = (mhz.parse::<u32>(), channel.parse::<u32>()) else {
-            continue;
-        };
-        let band = match mhz {
-            2400..=2499 => "2g",
-            5000..=5924 => "5g",
-            5925..=7199 => "6g",
-            _ => continue,
-        };
-        bands.entry(band.to_string()).or_default().insert(channel);
     }
     bands
+}
+
+/// The 20 MHz channels OpenWrt bonds with a primary channel at a width.
+fn bonded_channels(band: &str, primary: u32, width: u32) -> Option<Vec<u32>> {
+    match (band, width) {
+        (_, 20) => Some(vec![primary]),
+        ("2g", 40) if primary < 7 => Some(vec![primary, primary + 4]),
+        ("2g", 40) => Some(vec![primary.checked_sub(4)?, primary]),
+        ("5g", 40 | 80 | 160) => {
+            let base = if primary >= 149 { 149 } else { 36 };
+            let offset = primary.checked_sub(base)?;
+            if offset % 4 != 0 {
+                return None;
+            }
+            let span = width / 20;
+            let start = base + offset / 4 / span * span * 4;
+            Some((0..span).map(|i| start + i * 4).collect())
+        }
+        _ => None,
+    }
+}
+
+/// The bonded channels when every one of them is usable at the width.
+fn usable_block(
+    channels: &BTreeMap<u32, IwChannel>,
+    band: &str,
+    primary: u32,
+    width: u32,
+) -> Option<Vec<u32>> {
+    let block = bonded_channels(band, primary, width)?;
+    let flag = match width {
+        20 => "20MHz",
+        40 if block[0] == primary => "HT40+",
+        40 => "HT40-",
+        80 => "VHT80",
+        _ => "VHT160",
+    };
+    let primary_ok = channels
+        .get(&primary)
+        .is_some_and(|c| c.widths.iter().any(|w| w == flag));
+    let all_ok = block.iter().all(|ch| {
+        channels
+            .get(ch)
+            .is_some_and(|c| c.usable && (width == 40 || c.widths.iter().any(|w| w == flag)))
+    });
+    (primary_ok && all_ok).then_some(block)
+}
+
+fn band_channels(iw: &str) -> BTreeMap<String, BandChannels> {
+    parse_iw_channels(iw)
         .into_iter()
-        .map(|(band, channels)| (band, channels.into_iter().collect()))
+        .map(|(band, channels)| {
+            let mut result = BandChannels::default();
+            for &channel in channels.keys() {
+                let widths: Vec<u32> = WIDTHS
+                    .into_iter()
+                    .filter(|&w| usable_block(&channels, band, channel, w).is_some())
+                    .collect();
+                if !widths.is_empty() {
+                    result.channels.push(ApChannel { channel, widths });
+                }
+            }
+            result.auto_widths = WIDTHS
+                .into_iter()
+                .filter(|&w| {
+                    channels.keys().any(|&ch| {
+                        usable_block(&channels, band, ch, w)
+                            .is_some_and(|block| block.iter().all(|b| !channels[b].radar))
+                    })
+                })
+                .collect();
+            (band.to_string(), result)
+        })
         .collect()
+}
+
+/// Splits an htmode into its PHY prefix and width: `HT40+` is (`HT`, 40).
+fn split_htmode(htmode: &str) -> Option<(&str, u32)> {
+    let (prefix, width) = htmode.split_at(htmode.find(|c: char| c.is_ascii_digit())?);
+    let width = width.trim_end_matches(['+', '-']).parse().ok()?;
+    matches!(prefix, "HT" | "VHT" | "HE" | "EHT").then_some((prefix, width))
+}
+
+fn device_width(device: &WifiDevice) -> Option<u32> {
+    device
+        .htmode
+        .as_deref()
+        .and_then(split_htmode)
+        .map(|(_, width)| width)
+}
+
+fn max_width(prefix: &str) -> u32 {
+    match prefix {
+        "HT" => 40,
+        "EHT" => 320,
+        _ => 160,
+    }
+}
+
+fn parse_channel(channel: &str) -> WifiChannel {
+    channel
+        .parse::<u32>()
+        .map(WifiChannel::Int)
+        .unwrap_or(WifiChannel::Auto)
+}
+
+/// The htmode carrying a width in the radio's PHY mode. No width keeps the current one.
+fn htmode_for_width(device: &WifiDevice, width: Option<u32>) -> Result<Option<String>, Error> {
+    let Some(width) = width else {
+        return Ok(device.htmode.clone());
+    };
+    match device.htmode.as_deref().and_then(split_htmode) {
+        Some((_, current)) if current == width => Ok(device.htmode.clone()),
+        Some((prefix, _)) if WIDTHS.contains(&width) && width <= max_width(prefix) => {
+            Ok(Some(format!("{prefix}{width}")))
+        }
+        _ => Err(Error::new(
+            eyre!("this radio cannot use a channel width of {width} MHz"),
+            ErrorKind::InvalidValue,
+        )),
+    }
+}
+
+/// Rejects a width the new country may not serve with automatic channel selection.
+fn check_country_change_widths(
+    cfgs: &Configs,
+    radios: &BTreeMap<String, WifiRadio>,
+) -> Result<(), Error> {
+    for (name, _, device) in find_relevant(cfgs)? {
+        let Some(radio) = radios.get(&name).filter(|r| r.enabled) else {
+            continue;
+        };
+        if radio.width.or(device_width(&device)) > Some(COUNTRY_CHANGE_MAX_WIDTH) {
+            return Err(Error::new(
+                eyre!(
+                    "a country change cannot keep a channel width above \
+                     {COUNTRY_CHANGE_MAX_WIDTH} MHz"
+                ),
+                ErrorKind::InvalidValue,
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Widths the band serves on a channel.
+fn usable_widths(band: Option<&BandChannels>, channel: WifiChannel) -> Option<&[u32]> {
+    let band = band?;
+    match channel {
+        WifiChannel::Auto => Some(band.auto_widths.as_slice()),
+        WifiChannel::Int(ch) => band
+            .channels
+            .iter()
+            .find(|c| c.channel == ch)
+            .map(|c| c.widths.as_slice()),
+    }
+}
+
+/// Rejects a changed or newly enabled radio whose channel cannot carry its width.
+fn check_channel_widths(
+    cfgs: &Configs,
+    radios: &BTreeMap<String, WifiRadio>,
+    bands: &BTreeMap<String, BandChannels>,
+) -> Result<(), Error> {
+    for (name, _, device) in find_relevant(cfgs)? {
+        let Some(radio) = radios.get(&name).filter(|r| r.enabled) else {
+            continue;
+        };
+        let current = device_width(&device);
+        let Some(width) = radio.width.or(current) else {
+            continue;
+        };
+        let channel = parse_channel(&radio.channel);
+        if !device.disabled
+            && channel == device.channel
+            && Some(width) == current
+            && radio.band == device.band
+        {
+            continue;
+        }
+        let allowed = usable_widths(bands.get(&radio.band), channel)
+            .is_some_and(|widths| widths.contains(&width));
+        if !allowed {
+            let what = match channel {
+                WifiChannel::Auto => "automatic channel selection".to_string(),
+                WifiChannel::Int(ch) => format!("channel {ch}"),
+            };
+            return Err(Error::new(
+                eyre!("{what} cannot use a channel width of {width} MHz under the current country"),
+                ErrorKind::InvalidValue,
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Narrows an enabled radio's width to the widest its channel carries under
+/// the current country. A no-op, with no reload, when every width is usable.
+pub async fn heal_channel_widths(uci_root: impl AsRef<std::path::Path>) -> Result<(), Error> {
+    let arena = Arena::new();
+    let mut cfgs = parse_all(uci_root.as_ref(), &arena, &["wireless"]).await?;
+    let mut country = None;
+    cfgs["wireless"].try_each(|_, device: WifiDevice| {
+        if !device.disabled {
+            country = Some(device.country.unwrap_or_else(|| "00".into()));
+        }
+        Ok::<_, Error>(())
+    })?;
+    let Some(country) = country else {
+        return Ok(());
+    };
+    if !await_regdomain(&country).await {
+        return Ok(());
+    }
+    let bands = band_channels(&iw_channels().await?);
+    let narrowed = narrow_unusable_widths(&mut cfgs, &bands)?;
+    if narrowed.is_empty() {
+        return Ok(());
+    }
+
+    dump_all(uci_root.as_ref(), cfgs).await?;
+    drop(arena);
+
+    crate::activity::log(
+        "wifi",
+        "width-narrowed",
+        true,
+        &format!(
+            "Narrowed a Wi-Fi channel width the channel cannot carry under the current country: {}",
+            narrowed.join(", ")
+        ),
+        None,
+    );
+    crate::run_quiet_async(tokio::process::Command::new("wifi").arg("reload"))
+        .await
+        .map_err(|e| Error::new(eyre!("wifi reload: {e}"), ErrorKind::Network))?;
+    Ok(())
+}
+
+/// The config half of [`heal_channel_widths`]. Returns what it narrowed, as
+/// `<radio> channel <n> from <old> MHz to <new> MHz`.
+fn narrow_unusable_widths(
+    cfgs: &mut Configs,
+    bands: &BTreeMap<String, BandChannels>,
+) -> Result<Vec<String>, Error> {
+    let mut narrowed = Vec::new();
+    for s in &mut cfgs["wireless"].sections {
+        let Some(mut device) = s.get_typed::<WifiDevice>()? else {
+            continue;
+        };
+        if device.disabled {
+            continue;
+        }
+        let Some(width) = device_width(&device) else {
+            continue;
+        };
+        let Some(widths) = usable_widths(bands.get(&device.band), device.channel) else {
+            continue;
+        };
+        if widths.contains(&width) {
+            continue;
+        }
+        let Some(&widest) = widths.iter().max() else {
+            continue;
+        };
+        device.htmode = htmode_for_width(&device, Some(widest))?;
+        narrowed.push(format!(
+            "{} channel {} from {width} MHz to {widest} MHz",
+            s.name().as_deref().unwrap_or("radio"),
+            device.channel
+        ));
+        s.set(&device)?;
+    }
+    Ok(narrowed)
 }
 
 fn generate_password<C: CtrlContext>(_ctx: C) -> Result<String, Error> {
@@ -388,6 +736,7 @@ fn get_config(ctx: impl CtrlContext, cfgs: &Configs) -> Result<Wifi, Error> {
             WifiRadio {
                 band: device.band.clone(),
                 channel: device.channel.to_string(),
+                width: device_width(device),
                 enabled: !device.disabled,
                 broadcast: !device.disabled && !iface.hidden,
             },
@@ -489,15 +838,11 @@ fn set_config(
             for (_, rel_iface, _, rel_radio) in &relevant_interfaces {
                 if rel_iface.device == name {
                     let new_disabled = !rel_radio.enabled;
-                    let new_channel = match rel_radio.channel.as_str() {
-                        "auto" | "Auto" => WifiChannel::Auto,
-                        n => n
-                            .parse::<u32>()
-                            .map(WifiChannel::Int)
-                            .unwrap_or(WifiChannel::Auto),
-                    };
+                    let new_channel = parse_channel(&rel_radio.channel);
+                    let new_htmode = htmode_for_width(&device, rel_radio.width)?;
                     if device.disabled != new_disabled
                         || device.channel != new_channel
+                        || device.htmode != new_htmode
                         || device.band != rel_radio.band
                         || device.country != wifi.country
                         || device.acs_exclude_dfs != Some(true)
@@ -507,6 +852,7 @@ fn set_config(
                     device.disabled = new_disabled;
                     device.band = rel_radio.band.clone();
                     device.channel = new_channel;
+                    device.htmode = new_htmode;
                     device.country = wifi.country.clone();
                     device.acs_exclude_dfs = Some(true);
                     s.set(&device)?;
@@ -766,6 +1112,12 @@ pub async fn set<C: CtrlContext>(
         });
     }
 
+    let bands = if ctx.effectful() {
+        Some(band_channels(&iw_channels().await?))
+    } else {
+        None
+    };
+
     let mut retries = 4;
     loop {
         let arena = Arena::new();
@@ -863,6 +1215,23 @@ pub async fn set<C: CtrlContext>(
                 "Auto-enabled radios for first admin password",
                 None,
             );
+        }
+        let width_check = if country_changed {
+            check_country_change_widths(&cfgs, &wifi.radios)
+        } else if let Some(bands) = &bands {
+            check_channel_widths(&cfgs, &wifi.radios, bands)
+        } else {
+            Ok(())
+        };
+        if let Err(err) = width_check {
+            crate::activity::log(
+                "wifi",
+                "updated",
+                false,
+                "Failed to update WiFi: channel width unavailable",
+                Some("InvalidValue"),
+            );
+            return Err(err);
         }
         let restart = match set_config(&ctx, &mut cfgs, &wifi, &lookup) {
             Err(Error {
@@ -1713,6 +2082,7 @@ config wifi-iface 'default_radio0'
             WifiRadio {
                 band: "2g".into(),
                 channel: "1".into(),
+                width: None,
                 enabled: true,
                 broadcast: true,
             },
@@ -1769,6 +2139,7 @@ config wifi-iface 'default_radio1'
             WifiRadio {
                 band: "2g".into(),
                 channel: "1".into(),
+                width: None,
                 enabled: true,
                 broadcast: true,
             },
@@ -1778,6 +2149,7 @@ config wifi-iface 'default_radio1'
             WifiRadio {
                 band: "5g".into(),
                 channel: "36".into(),
+                width: None,
                 enabled: true,
                 broadcast: true,
             },
@@ -2942,32 +3314,393 @@ config wifi-iface 'default_radio1'
         assert!(regdb_countries(b"not a db").is_err());
     }
 
-    #[test]
-    fn test_ap_channels_drops_disabled_and_no_ir() {
-        let iw = "\
-Wiphy phy0
-\tBand 1:
-\t\tFrequencies:
-\t\t\t* 2412 MHz [1] (20.0 dBm)
-\t\t\t* 2467 MHz [12] (20.0 dBm) (no IR)
-\t\t\t* 2484 MHz [14] (disabled)
-\t\tBitrates (non-HT):
-\t\t\t* 1.0 Mbps
-Wiphy phy1
-\tBand 2:
-\t\tFrequencies:
-\t\t\t* 5180 MHz [36] (20.0 dBm)
-\t\t\t* 5260 MHz [52] (20.0 dBm) (no IR, radar detection)
-\t\t\t* 5500 MHz [100] (24.0 dBm) (radar detection)
-\t\t\t  DFS state: usable (for 1234 sec)
-\t\t\t* 5745 MHz [149] (30.0 dBm)
-\tBand 4:
-\t\tFrequencies:
-\t\t\t* 5955 MHz [1] (20.0 dBm)
+    /// `iw phy <phy> channels` on the K1 bench's MT7916 under US rules, trimmed.
+    const IW_CHANNELS_US: &str = "\
+Band 1:
+\t* 2412 MHz [1] 
+\t  Maximum TX power: 17.0 dBm
+\t  Channel widths: 20MHz HT40+
+\t* 2422 MHz [3] 
+\t  Maximum TX power: 17.0 dBm
+\t  Channel widths: 20MHz HT40- HT40+
+\t* 2432 MHz [5] 
+\t  Maximum TX power: 17.0 dBm
+\t  Channel widths: 20MHz HT40- HT40+
+\t* 2442 MHz [7] 
+\t  Maximum TX power: 17.0 dBm
+\t  Channel widths: 20MHz HT40- HT40+
+\t* 2462 MHz [11] 
+\t  Maximum TX power: 17.0 dBm
+\t  Channel widths: 20MHz HT40-
+\t* 2467 MHz [12] (disabled)
+Band 2:
+\t* 5180 MHz [36] 
+\t  Maximum TX power: 23.0 dBm
+\t  Channel widths: 20MHz HT40+ VHT80 VHT160
+\t* 5200 MHz [40] 
+\t  Maximum TX power: 23.0 dBm
+\t  Channel widths: 20MHz HT40- HT40+ VHT80 VHT160
+\t* 5220 MHz [44] 
+\t  Maximum TX power: 23.0 dBm
+\t  Channel widths: 20MHz HT40- HT40+ VHT80 VHT160
+\t* 5240 MHz [48] 
+\t  Maximum TX power: 23.0 dBm
+\t  Channel widths: 20MHz HT40- HT40+ VHT80 VHT160
+\t* 5260 MHz [52] 
+\t  Maximum TX power: 24.0 dBm
+\t  Radar detection
+\t  Channel widths: 20MHz HT40- HT40+ VHT80 VHT160
+\t  DFS state: usable (for 7304 sec)
+\t  DFS CAC time: 60000 ms
+\t* 5280 MHz [56] 
+\t  Maximum TX power: 24.0 dBm
+\t  Radar detection
+\t  Channel widths: 20MHz HT40- HT40+ VHT80 VHT160
+\t  DFS state: usable (for 7304 sec)
+\t  DFS CAC time: 60000 ms
+\t* 5300 MHz [60] 
+\t  Maximum TX power: 24.0 dBm
+\t  Radar detection
+\t  Channel widths: 20MHz HT40- HT40+ VHT80 VHT160
+\t  DFS state: usable (for 7304 sec)
+\t  DFS CAC time: 60000 ms
+\t* 5320 MHz [64] 
+\t  Maximum TX power: 24.0 dBm
+\t  Radar detection
+\t  Channel widths: 20MHz HT40- VHT80 VHT160
+\t  DFS state: usable (for 7304 sec)
+\t  DFS CAC time: 60000 ms
+\t* 5745 MHz [149] 
+\t  Maximum TX power: 30.0 dBm
+\t  Channel widths: 20MHz HT40+ VHT80 VHT160
+\t* 5765 MHz [153] 
+\t  Maximum TX power: 30.0 dBm
+\t  Channel widths: 20MHz HT40- HT40+ VHT80 VHT160
+\t* 5785 MHz [157] 
+\t  Maximum TX power: 30.0 dBm
+\t  Channel widths: 20MHz HT40- HT40+ VHT80 VHT160
+\t* 5805 MHz [161] 
+\t  Maximum TX power: 30.0 dBm
+\t  Channel widths: 20MHz HT40- HT40+ VHT80 VHT160
+\t* 5825 MHz [165] 
+\t  Maximum TX power: 30.0 dBm
+\t  Channel widths: 20MHz HT40- HT40+ VHT80 VHT160
+\t* 5845 MHz [169] 
+\t  Maximum TX power: 27.0 dBm
+\t  No IR
+\t  Channel widths: 20MHz HT40- HT40+ VHT80 VHT160
 ";
-        let channels = ap_channels(iw);
-        assert_eq!(channels["2g"], [1]);
-        assert_eq!(channels["5g"], [36, 100, 149]);
-        assert_eq!(channels["6g"], [1]);
+
+    fn widths_of(band: &BandChannels) -> Vec<(u32, Vec<u32>)> {
+        band.channels
+            .iter()
+            .map(|c| (c.channel, c.widths.clone()))
+            .collect()
+    }
+
+    #[test]
+    fn test_band_channels_require_every_bonded_channel() {
+        let bands = band_channels(IW_CHANNELS_US);
+        assert_eq!(
+            widths_of(&bands["2g"]),
+            [
+                (1, vec![20, 40]),
+                (3, vec![20, 40]),
+                (5, vec![20]),
+                (7, vec![20, 40]),
+                (11, vec![20, 40]),
+            ]
+        );
+        assert_eq!(bands["2g"].auto_widths, [20, 40]);
+        let five = widths_of(&bands["5g"]);
+        assert_eq!(five[0], (36, vec![20, 40, 80, 160]));
+        assert_eq!(five[4], (52, vec![20, 40, 80, 160]));
+        assert_eq!(five[8], (149, vec![20, 40, 80]));
+        assert_eq!(five[12], (165, vec![20]));
+        assert_eq!(five.len(), 13);
+        assert_eq!(bands["5g"].auto_widths, [20, 40, 80]);
+    }
+
+    #[test]
+    fn test_bonded_channels_follow_openwrt_blocks() {
+        assert_eq!(bonded_channels("2g", 6, 40), Some(vec![6, 10]));
+        assert_eq!(bonded_channels("2g", 7, 40), Some(vec![3, 7]));
+        assert_eq!(bonded_channels("5g", 40, 40), Some(vec![36, 40]));
+        assert_eq!(bonded_channels("5g", 144, 40), Some(vec![140, 144]));
+        assert_eq!(bonded_channels("5g", 44, 80), Some(vec![36, 40, 44, 48]));
+        assert_eq!(
+            bonded_channels("5g", 157, 80),
+            Some(vec![149, 153, 157, 161])
+        );
+        assert_eq!(
+            bonded_channels("5g", 165, 80),
+            Some(vec![165, 169, 173, 177])
+        );
+        assert_eq!(
+            bonded_channels("5g", 112, 160),
+            Some(vec![100, 104, 108, 112, 116, 120, 124, 128])
+        );
+        assert_eq!(bonded_channels("5g", 34, 40), None);
+        assert_eq!(bonded_channels("2g", 1, 80), None);
+    }
+
+    #[test]
+    fn test_split_htmode() {
+        assert_eq!(split_htmode("HT40+"), Some(("HT", 40)));
+        assert_eq!(split_htmode("HE80"), Some(("HE", 80)));
+        assert_eq!(split_htmode("VHT160"), Some(("VHT", 160)));
+        assert_eq!(split_htmode("NOHT"), None);
+        assert_eq!(split_htmode("NONE"), None);
+    }
+
+    fn write_wireless_config_with_htmode(dir: &std::path::Path, htmode_2g: &str, htmode_5g: &str) {
+        write_wireless_config_dual_radio(dir, "TestNet", "TestNet", "");
+        let path = dir.join("wireless");
+        let config = std::fs::read_to_string(&path)
+            .unwrap()
+            .replace(
+                "\toption channel '1'\n",
+                &format!("\toption channel '1'\n\toption htmode '{htmode_2g}'\n"),
+            )
+            .replace(
+                "\toption channel '36'\n",
+                &format!("\toption channel '36'\n\toption htmode '{htmode_5g}'\n"),
+            );
+        std::fs::write(path, config).unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_width_round_trips_through_htmode() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        write_wireless_config_with_htmode(dir.path(), "HT40+", "HE80");
+
+        let wifi = get(ctx.clone()).await.unwrap();
+        assert_eq!(wifi.radios["default_radio0"].width, Some(40));
+        assert_eq!(wifi.radios["default_radio1"].width, Some(80));
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .await
+        .unwrap();
+        let lookup = profiles::Lookup::parse(ctx.clone(), &cfgs).unwrap();
+        let mut radios = make_dual_radios();
+        radios.get_mut("default_radio0").unwrap().width = Some(40);
+        radios.get_mut("default_radio1").unwrap().width = Some(160);
+        let wifi = Wifi { radios, ..wifi };
+        assert_eq!(
+            set_config(&ctx, &mut cfgs, &wifi, &lookup).unwrap(),
+            WifiRestart::Full
+        );
+        dump_all(ctx.uci_root(), cfgs).await.unwrap();
+
+        let written = std::fs::read_to_string(dir.path().join("wireless")).unwrap();
+        assert!(written.contains("option htmode 'HT40+'"), "{written}");
+        assert!(written.contains("option htmode 'HE160'"), "{written}");
+    }
+
+    #[tokio::test]
+    async fn test_set_config_rejects_width_beyond_phy_mode() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        write_wireless_config_with_htmode(dir.path(), "HT20", "NOHT");
+
+        let wifi = get(ctx.clone()).await.unwrap();
+        assert_eq!(wifi.radios["default_radio1"].width, None);
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["wireless", "startwrt", "network", "firewall"],
+        )
+        .await
+        .unwrap();
+        let lookup = profiles::Lookup::parse(ctx.clone(), &cfgs).unwrap();
+        for (radio, width) in [("default_radio0", 80), ("default_radio1", 40)] {
+            let mut radios = make_dual_radios();
+            radios.get_mut(radio).unwrap().width = Some(width);
+            let wifi = Wifi {
+                radios,
+                ssid: wifi.ssid.clone(),
+                broadcast_separately: false,
+                country: None,
+                passwords: BTreeSet::new(),
+            };
+            let err = set_config(&ctx, &mut cfgs, &wifi, &lookup).unwrap_err();
+            assert_eq!(err.kind, ErrorKind::InvalidValue);
+        }
+    }
+
+    #[tokio::test]
+    async fn test_check_channel_widths_rejects_unusable_blocks() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_test_configs(dir.path());
+        write_wireless_config_with_htmode(dir.path(), "HE20", "HE80");
+        let arena = Arena::new();
+        let cfgs = parse_all(dir.path(), &arena, &["wireless"]).await.unwrap();
+        let bands = band_channels(IW_CHANNELS_US);
+
+        let with_5g = |channel: &str, width: Option<u32>| {
+            let mut radios = make_dual_radios();
+            let radio = radios.get_mut("default_radio1").unwrap();
+            radio.channel = channel.into();
+            radio.width = width;
+            radios
+        };
+
+        assert!(check_channel_widths(&cfgs, &with_5g("165", None), &bands).is_err());
+        assert!(check_channel_widths(&cfgs, &with_5g("165", Some(20)), &bands).is_ok());
+        assert!(check_channel_widths(&cfgs, &with_5g("149", Some(160)), &bands).is_err());
+        assert!(check_channel_widths(&cfgs, &with_5g("36", Some(160)), &bands).is_ok());
+        assert!(check_channel_widths(&cfgs, &with_5g("auto", Some(160)), &bands).is_err());
+        assert!(check_channel_widths(&cfgs, &with_5g("auto", Some(80)), &bands).is_ok());
+        // An unchanged radio is left alone even when its block is unusable.
+        let empty = BTreeMap::new();
+        assert!(check_channel_widths(&cfgs, &with_5g("36", Some(80)), &empty).is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_check_channel_widths_covers_a_radio_being_enabled() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_test_configs(dir.path());
+        write_wireless_config_with_htmode(dir.path(), "HE20", "HE80");
+        let path = dir.path().join("wireless");
+        let config = std::fs::read_to_string(&path).unwrap().replace(
+            "\toption channel '36'\n",
+            "\toption channel '165'\n\toption disabled '1'\n",
+        );
+        std::fs::write(path, config).unwrap();
+        let arena = Arena::new();
+        let cfgs = parse_all(dir.path(), &arena, &["wireless"]).await.unwrap();
+        let bands = band_channels(IW_CHANNELS_US);
+
+        let mut radios = make_dual_radios();
+        radios.get_mut("default_radio1").unwrap().channel = "165".into();
+        let err = check_channel_widths(&cfgs, &radios, &bands).unwrap_err();
+        assert_eq!(err.kind, ErrorKind::InvalidValue);
+        radios.get_mut("default_radio1").unwrap().width = Some(20);
+        check_channel_widths(&cfgs, &radios, &bands).unwrap();
+        let mut radios = make_dual_radios_disabled();
+        radios.get_mut("default_radio1").unwrap().channel = "165".into();
+        check_channel_widths(&cfgs, &radios, &bands).unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_narrow_unusable_widths() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_test_configs(dir.path());
+        let bands = band_channels(IW_CHANNELS_US);
+        let (dir, bands) = (&dir, &bands);
+        let narrow = |channel: &str, htmode: &str, disabled: bool| {
+            let path = dir.path().join("wireless");
+            write_wireless_config_with_htmode(dir.path(), "HE20", htmode);
+            let config = std::fs::read_to_string(&path).unwrap().replace(
+                "\toption channel '36'\n",
+                &format!(
+                    "\toption channel '{channel}'\n{}",
+                    if disabled {
+                        "\toption disabled '1'\n"
+                    } else {
+                        ""
+                    }
+                ),
+            );
+            std::fs::write(path, config).unwrap();
+            async move {
+                let arena = Arena::new();
+                let mut cfgs = parse_all(dir.path(), &arena, &["wireless"]).await.unwrap();
+                let narrowed = narrow_unusable_widths(&mut cfgs, bands).unwrap();
+                let htmode = cfgs["wireless"]
+                    .sections
+                    .iter()
+                    .find(|s| s.name().as_deref() == Some("radio1"))
+                    .unwrap()
+                    .get::<WifiDevice>()
+                    .unwrap()
+                    .htmode;
+                (narrowed, htmode)
+            }
+        };
+
+        assert_eq!(
+            narrow("165", "HE80", false).await,
+            (
+                vec!["radio1 channel 165 from 80 MHz to 20 MHz".into()],
+                Some("HE20".into())
+            )
+        );
+        assert_eq!(
+            narrow("auto", "HE160", false).await,
+            (
+                vec!["radio1 channel auto from 160 MHz to 80 MHz".into()],
+                Some("HE80".into())
+            )
+        );
+        assert_eq!(
+            narrow("36", "HE160", false).await,
+            (vec![], Some("HE160".into()))
+        );
+        assert_eq!(
+            narrow("165", "HE80", true).await,
+            (vec![], Some("HE80".into()))
+        );
+        assert_eq!(
+            narrow("165", "NOHT", false).await,
+            (vec![], Some("NOHT".into()))
+        );
+        let no_bands = {
+            let arena = Arena::new();
+            write_wireless_config_with_htmode(dir.path(), "HE20", "HE80");
+            let mut cfgs = parse_all(dir.path(), &arena, &["wireless"]).await.unwrap();
+            narrow_unusable_widths(&mut cfgs, &BTreeMap::new()).unwrap()
+        };
+        assert!(no_bands.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_country_change_caps_width() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_test_configs(dir.path());
+        write_wireless_config_with_htmode(dir.path(), "HE40", "HE160");
+
+        let request = |width_5g: Option<u32>| {
+            let mut radios = make_dual_radios();
+            radios.get_mut("default_radio0").unwrap().width = Some(40);
+            radios.get_mut("default_radio1").unwrap().width = width_5g;
+            let mut passwords = BTreeSet::<Password<ProfileIdOpt>>::new();
+            passwords.insert(Password {
+                label: "Admin".into(),
+                profile: None,
+                password: "adminpass1".into(),
+            });
+            Wifi {
+                ssid: "TestNet".into(),
+                broadcast_separately: false,
+                country: Some("US".into()),
+                radios,
+                passwords,
+            }
+        };
+
+        for width in [None, Some(160)] {
+            let err = set(ctx.clone(), DeserializeStdin(request(width)))
+                .await
+                .unwrap_err();
+            assert_eq!(err.kind, ErrorKind::InvalidValue);
+        }
+        set(ctx.clone(), DeserializeStdin(request(Some(80))))
+            .await
+            .unwrap();
+        let written = std::fs::read_to_string(dir.path().join("wireless")).unwrap();
+        assert!(written.contains("option htmode 'HE40'"), "{written}");
+        assert!(written.contains("option htmode 'HE80'"), "{written}");
+        assert!(written.contains("option country 'US'"), "{written}");
     }
 }

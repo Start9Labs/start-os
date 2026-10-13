@@ -251,7 +251,7 @@ List every base branch the package maintains under `branches:`, and note this is
 
 `AGENTS.md` is the package's agent-context file. Generic packaging knowledge — SDK patterns, the disciplines on the [Development Workflow](./workflow.md) page, the rules throughout this guide — lives in one canonical place: the packaging guide, **not** copied into each package repo where duplicates would drift out of sync. `AGENTS.md` carries only what's specific to _this_ repo.
 
-Keep it short and repo-specific: state that this is a StartOS service package, give the doc-sync rule (keep `README.md` and `instructions.md` in step with every change), and capture any package-specific gotchas — in short, how to work in _this_ repo. Do **not** restate generic guide content or turn it into a web-fetch driver (don't instruct the agent to pull guide pages over the web up front).
+Keep it short and repo-specific: state that this is a StartOS service package and capture any package-specific gotchas — in short, how to work in _this_ repo. Do **not** restate generic guide content or turn it into a web-fetch driver (don't instruct the agent to pull guide pages over the web up front).
 
 It is also the one package document with a single reader, so it must not restate `README.md` or `instructions.md` either — anyone changing the package has both. That leaves it carrying only what has no home in them:
 
@@ -285,7 +285,7 @@ User-facing instructions packed into the `.s9pk` and rendered on the **Instructi
 
 ### LICENSE
 
-The package's software license, which should always match the upstream service's license. If your package contains multiple upstream services with different licenses, select the more restrictive license.
+The package's software license, which should always match the upstream service's license. It carries upstream's license text alone, with no separate notice for the packaging code. If your package contains multiple upstream services with different licenses, select the more restrictive license.
 
 If you have a git submodule, symlink to its license:
 
@@ -338,7 +338,7 @@ The `startos/` directory is where you take advantage of the StartOS SDK and APIs
 
 #### dependencies.ts
 
-`setupDependencies()` is where you define any dependencies of this package, including their versions, whether or not they need to be running or simply installed, and which health checks, if any, need to be passing for this package to be satisfied.
+Define each dependency with `sdk.Dependency.required()` or `.optional()` and add it to `sdk.Dependencies.of()`. The builder supplies both the published manifest requirements and reactive runtime requirements. See [Dependencies](dependencies.md).
 
 #### index.ts
 
@@ -362,7 +362,7 @@ This file is plumbing, used to imbue the generic Start SDK with package-specific
 
 #### utils.ts
 
-This file is for defining constants and functions specific to your package that are used throughout the code base. Many packages will not make use of this file.
+This file holds the package's own constants and helper functions. **A constant or function that doesn't belong in one of the files above goes here, not in a new file of its own.** A new top-level file under `startos/` is warranted only for a large, self-contained unit — a subsystem of several cooperating functions, or a long generated table — never for a single function or constant. Many packages will not make use of this file.
 
 ### Subdirectories
 
@@ -432,7 +432,7 @@ Container initialization takes place under the following circumstances:
 `setupInit()` is where you define the specific order in which functions will be executed when your container initializes.
 
 - `restoreInit` and `versionGraph` must remain first and second. Do not move them.
-- `setInterfaces`, `setDependencies`, `actions` are recommended to remain in this order, but could be rearranged if necessary.
+- Put `actions` before `dependencies` so dependency init handlers can create tasks for registered actions; `setInterfaces` precedes both.
 - Any custom init functions can be appended to the list of built-in functions, or even inserted between them. Most custom init functions are simply appended to the list.
 
 It is possible to limit the execution of custom init functions to specific _kinds_ of initialization. For example, if you only wanted to run a particular init function on fresh install and ignore it for updates and restores, `setupOnInit()` provides a `kind` variable (one of `install`, `update`, `restore`) that you can use for conditional logic. `kind` can also be null, which means the container is being initialized due to a server restart or manual container rebuild, rather than installation.

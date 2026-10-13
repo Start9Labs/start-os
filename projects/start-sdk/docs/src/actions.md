@@ -51,6 +51,7 @@ export const setAdminPassword = sdk.Action.withoutInput(
             masked: false,
             copyable: true,
             qr: false,
+            launchable: false,
           },
           {
             type: 'single',
@@ -60,6 +61,7 @@ export const setAdminPassword = sdk.Action.withoutInput(
             masked: true,
             copyable: true,
             qr: false,
+            launchable: false,
           },
         ],
       },
@@ -72,7 +74,7 @@ The action is paired with a `setupOnInit` watcher that surfaces a critical task 
 
 ### Controlling Access
 
-The optional **`access`** field on the metadata controls who may invoke the action **directly** via `effects.action.run({ packageId, actionId, input })`:
+The optional **`access`** field on the metadata controls who may invoke the action **directly**, with `sdk.action.run` (see [Running Another Service's Action](#running-another-services-action)):
 
 - `'user'` (default) — only the user; another service must request it through a task (`effects.action.createTask(...)`).
 - `'dependent'` — only services that declare this package as a current dependency.
@@ -111,6 +113,21 @@ export const registerEndpoint = sdk.Action.withInput(
 )
 ```
 
+### Running Another Service's Action
+
+`sdk.action.run` runs one of this service's own actions, or another service's that its `access` admits. An action that takes input is run the way the user runs it: its form is opened first, and the input is checked against that form. So `input` is a function. It receives the opened form — its `spec`, and the `value` the action's prefill function supplied — and returns the input to submit. `prefill` seeds the form, including the values its dynamic fields are computed from.
+
+```typescript
+await sdk.action.run({
+  effects,
+  packageId: 'directory',
+  actionId: 'register-endpoint',
+  input: ({ value }) => ({ ...value, hostId: 'api' }),
+})
+```
+
+An action without input takes no `input`, and runs without a form. The target pairs a form with its submission by event ID. `sdk.action.run` reuses the caller's event ID when present, so run one input action at a time from an action handler. Without a caller event ID, each call gets its own ID. Use `sdk.action.run` to pair an input action's form and submission from init or main.
+
 ## Registering Actions
 
 All actions must be registered in `actions/index.ts`:
@@ -144,13 +161,13 @@ Restart the service once the rebuild finishes.`,
 
 `result` holds the values the user acts on — copies, scans, or saves. It takes one of three types:
 
-| `type`      | Renders as                                                         | Takes                                                           |
-| ----------- | ------------------------------------------------------------------ | --------------------------------------------------------------- |
-| `single`    | a one-line field                                                   | `value`, plus optional `copyable`, `qr`, `masked`, `launchable` |
-| `multiline` | a read-only monospace box that keeps its line breaks               | `value`, plus optional `copyable`, `qr`, `masked`, `filename`   |
-| `group`     | an accordion of named members, each of which is any of these three | `value`, the array of members                                   |
+| `type`      | Renders as                                                         | Takes                                             |
+| ----------- | ------------------------------------------------------------------ | ------------------------------------------------- |
+| `single`    | a one-line field                                                   | `value`, `copyable`, `qr`, `masked`, `launchable` |
+| `multiline` | a read-only monospace box that keeps its line breaks               | `value`, `copyable`, `qr`, `masked`, `filename`   |
+| `group`     | an accordion of named members, each of which is any of these three | `value`, the array of members                     |
 
-A newline in a `single` value is not rendered — the browser strips it from the field — so anything with its own line structure is a `multiline` value. `filename` is what separates "here is some text" from "here is a file": set it and the value is also offered as a download under that name; omit it for no download button.
+A newline in a `single` value is not rendered — the browser strips it from the field — so anything with its own line structure is a `multiline` value. `filename` is what separates "here is some text" from "here is a file": set it and the value is also offered as a download under that name; set it to `null` for no download button.
 
 ### Single Value
 
@@ -161,11 +178,12 @@ result: {
   masked: true,
   copyable: true,
   qr: false,
+  launchable: false,
 }
 ```
 
-`copyable`, `qr`, `masked` and `launchable` are all optional and default to
-`false`. `launchable` puts an open-in-new-tab button beside the value, so a
+Every field is required: set `copyable`, `qr`, `masked` and `launchable` to
+`true` or `false`. `launchable` puts an open-in-new-tab button beside the value, so a
 result that hands the user a link — an authorization URL, an admin panel — can
 be clicked straight through:
 
@@ -174,6 +192,8 @@ result: {
   type: 'single',
   value: 'https://btcpay.example.com/api-keys/authorize?permissions=btcpay.store.cancreateinvoice',
   copyable: true,
+  qr: false,
+  masked: false,
   launchable: true,
 }
 ```
@@ -187,20 +207,22 @@ result: {
   type: 'multiline',
   value: report,
   copyable: true,
+  qr: false,
+  masked: false,
   filename: 'vikunja-doctor.txt',
 }
 ```
 
 ### Group of Values
 
-A member carries a `name`, and an optional `description`, on top of whatever its own type takes:
+A member carries a `name` and a `description` (`null` for none) on top of whatever its own type takes:
 
 ```typescript
 result: {
   type: 'group',
   value: [
-    { type: 'single', name: 'Username', description: null, value: 'admin', masked: false, copyable: true, qr: false },
-    { type: 'single', name: 'Password', description: null, value: 'secret', masked: true, copyable: true, qr: false },
+    { type: 'single', name: 'Username', description: null, value: 'admin', masked: false, copyable: true, qr: false, launchable: false },
+    { type: 'single', name: 'Password', description: null, value: 'secret', masked: true, copyable: true, qr: false, launchable: false },
     { type: 'multiline', name: 'Device Config', description: null, value: config, masked: true, copyable: true, qr: true, filename: 'start-tunnel.conf' },
   ],
 }
@@ -245,7 +267,7 @@ export const toggleRegistrations = sdk.Action.withoutInput(
     return {
       name: allowed ? i18n('Disable Registrations') : i18n('Enable Registrations'),
       description: allowed ? i18n('Registrations are currently enabled. Run this action to disable them.') : i18n('Registrations are currently disabled. Run this action to enable them.'),
-      warning: allowed ? null : i18n('Anyone with your URL will be able to create an account.'),
+      warning: allowed ? i18n('New accounts can no longer be created. Existing accounts are unaffected.') : i18n('Anyone with your URL will be able to create an account.'),
       allowedStatuses: 'any',
       group: null,
       visibility: 'enabled',
@@ -352,6 +374,12 @@ password: Value.text({
 `default` also takes a plain string when you want a fixed literal. The same `RandomString` shape is what [`utils.getDefaultString`](recipe-admin-credentials.md#never-roll-your-own-password-rng) resolves in a `withoutInput` handler — between the two, package code never needs its own random-string generator.
 
 ## Conventions
+
+### Confirm Before a No-Input Action Changes State
+
+A no-input action runs on click, so one that changes state sets `warning`, and the UI asks the user to confirm first. That holds for a reversible toggle too: the point is to prevent unexpected execution, not only damage. The warning names what changes — what is replaced, stops working, restarts or becomes exposed — never just "Are you sure?". An action with input needs no warning, since the form is the confirmation, and an action that only reports (credentials, node info) needs neither.
+
+A create-or-update action, such as setting an admin password or token, warns only when it replaces an existing value and sets `warning: null` on first creation, as [Action Without Input](#action-without-input) shows.
 
 ### Wrap User-Facing Strings in `i18n()`
 

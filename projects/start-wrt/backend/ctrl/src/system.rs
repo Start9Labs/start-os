@@ -31,7 +31,7 @@ pub(crate) struct UciPreferences {
     pub remote_access: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 struct SystemInfoResponse {
     version: String,
@@ -42,21 +42,24 @@ struct SystemInfoResponse {
     remote_access: String,
     timezone: String,
 }
+rpc_toolkit::reflect_ts!(SystemInfoResponse);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 struct VersionInfo {
     version: String,
     release_notes: String,
 }
+rpc_toolkit::reflect_ts!(VersionInfo);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 struct SetPreferencesReq {
     language: Option<String>,
     theme: Option<String>,
     remote_access: Option<String>,
 }
+rpc_toolkit::reflect_ts!(SetPreferencesReq);
 
 /// The `startwrt.preferences` section, defaulted when absent.
 pub(crate) fn preferences(cfg: &uciedit::Config<'_>) -> Result<UciPreferences, Error> {
@@ -258,26 +261,29 @@ pub(crate) async fn get_wan_ipv4() -> Result<Option<Ipv4Addr>, Error> {
 /// Every IPv4 address on the `wan` interface, in ubus order. Empty when the
 /// interface is down or ubus is unavailable.
 pub(crate) fn wan_ipv4_addrs() -> Vec<Ipv4Addr> {
-    let Ok(out) = StdCommand::new("ubus")
+    read_wan_ipv4_addrs().unwrap_or_default()
+}
+
+/// `None` when ubus is unavailable; empty when the interface is down.
+pub(crate) fn read_wan_ipv4_addrs() -> Option<Vec<Ipv4Addr>> {
+    let out = StdCommand::new("ubus")
         .args(["call", "network.interface.wan", "status"])
         .output()
-    else {
-        return Vec::new();
-    };
+        .ok()?;
     if !out.status.success() {
-        return Vec::new();
+        return None;
     }
-    let Ok(json) = serde_json::from_slice::<serde_json::Value>(&out.stdout) else {
-        return Vec::new();
-    };
-    json.get("ipv4-address")
-        .and_then(|v| v.as_array())
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|e| e.get("address")?.as_str()?.parse().ok())
-                .collect()
-        })
-        .unwrap_or_default()
+    let json = serde_json::from_slice::<serde_json::Value>(&out.stdout).ok()?;
+    Some(
+        json.get("ipv4-address")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|e| e.get("address")?.as_str()?.parse().ok())
+                    .collect()
+            })
+            .unwrap_or_default(),
+    )
 }
 
 pub async fn get_wan_ipv6s() -> Result<Vec<Ipv6Addr>, Error> {
@@ -794,12 +800,13 @@ async fn restart(_ctx: ServerContext) -> Result<(), Error> {
     Ok(())
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 struct SetTimezoneParams {
     /// IANA timezone name, e.g. "America/New_York"
     timezone: String,
 }
+rpc_toolkit::reflect_ts!(SetTimezoneParams);
 
 /// Resolve a POSIX TZ string for an IANA name using the on-device LuCI
 /// zoneinfo table — the same authoritative source LuCI itself uses. The table
@@ -970,9 +977,7 @@ pub fn system<C: CtrlContext>() -> ParentHandler<C> {
         )
         .subcommand(
             "apply-remote-access",
-            from_fn_async_local(apply_remote_access::<C>)
-                .with_metadata("no_auth", Value::Bool(true))
-                .no_display(),
+            from_fn_async_local(apply_remote_access::<C>).no_display(),
         )
         .subcommand(
             "restart",
@@ -990,9 +995,7 @@ pub fn system<C: CtrlContext>() -> ParentHandler<C> {
         )
         .subcommand(
             "set-timezone",
-            from_fn_async(set_timezone::<C>)
-                .with_metadata("no_auth", Value::Bool(true))
-                .no_display(),
+            from_fn_async(set_timezone::<C>).no_display(),
         )
         .subcommand(
             "get-timezones",

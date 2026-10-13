@@ -1,6 +1,6 @@
 # Architecture — start-registry
 
-`start-registry` is one of the product wrappers in the `start-os` monorepo. The wrapper itself is tiny; nearly all logic lives in the shared backend crate `start-core` (`shared-libs/crates/start-core`, package `start-core`, lib name `start_core`).
+`start-registry` is one of the product wrappers in the `start-technologies` monorepo. The wrapper itself is tiny; nearly all logic lives in the shared backend crate `start-core` (`shared-libs/crates/start-core`, package `start-core`, lib name `start_core`).
 
 ## Place in the monorepo
 
@@ -38,6 +38,7 @@ Defined in `shared-libs/crates/start-core/src/registry/mod.rs`:
 - `POST /rpc/{*path}` — JSON-RPC, wrapped in `Cors`, `Auth` (local + signature auth), and `DeviceInfoMiddleware`.
 - `GET /ws/rpc/{*path}` — WebSocket RPC continuations, keyed by a `Guid`.
 - `/rest/rpc/{*path}` — REST continuation channel (e.g. large asset streams), keyed by a `Guid`.
+- `GET /icons/{id}/{version}` and `GET /icons/{id}/{version}/dependencies/{dependency}` — a package version's icon, or its icon for a dependency, unauthenticated. `package.get` omits icons for StartOS 0.4.0.3 and later, which load them here.
 
 ## RPC API surface (`registry_api`)
 
@@ -85,5 +86,4 @@ The registry has no bundled UI of its own; the browsing/search/download UI is th
 ## Further reading
 
 - [README.md](./README.md) — what the registry is and how to run it.
-- [CONTRIBUTING.md](./CONTRIBUTING.md) — build, test, and contribution workflow.
-- [AGENTS.md](./AGENTS.md) — rules for agents working in this dir.
+- [AGENTS.md](./AGENTS.md) — build, test, and contribution workflow.
