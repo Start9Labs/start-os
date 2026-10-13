@@ -1,195 +1,276 @@
 import { z } from 'zod'
 const wire = <A extends z.ZodType, B extends z.ZodType>(input: A, output: B) =>
   z.codec(input, output, { decode: v => v as never, encode: v => v as never })
-export const AddVersionParams = z
-  .object({
-    version: z.string(),
-    headline: z.string(),
-    releaseNotes: z.string(),
-    sourceVersion: z.string(),
-  })
-  .meta({
-    id: 'AddVersionParams',
-  })
-export const AnySignature = z.string().meta({
+const object = <Shape extends z.core.$ZodLooseShape>(shape: Shape) =>
+  z.object(shape).meta({ additionalProperties: true })
+const literal_0 = z.string()
+const literal_1 = z.string().nullable()
+const literal_2 = z.union([z.string(), z.record(z.string(), z.string())])
+const literal_3 = z.array(z.string())
+const literal_4 = z.enum(['processor', 'display'])
+const literal_5 = z.number().nullable()
+const literal_6 = z.array(z.string()).nullable()
+const literal_7 = z.number()
+export const AddVersionParams: z.ZodObject<{
+  version: typeof literal_0
+  headline: z.ZodString
+  releaseNotes: z.ZodString
+  sourceVersion: typeof literal_0
+}> = object({
+  version: literal_0,
+  headline: z.string(),
+  releaseNotes: z.string(),
+  sourceVersion: literal_0,
+}).meta({
+  id: 'AddVersionParams',
+})
+export const AnySignature: typeof literal_0 = literal_0.meta({
   id: 'AnySignature',
 })
-export const AnyVerifyingKey = z.string().meta({
+export const AnyVerifyingKey: typeof literal_0 = literal_0.meta({
   id: 'AnyVerifyingKey',
 })
-export const ApplyParams = z.object({ expr: z.string() }).meta({
+export const ApplyParams: z.ZodObject<{ expr: z.ZodString }> = object({
+  expr: z.string(),
+}).meta({
   id: 'ApplyParams',
 })
-export const Blake3Commitment = z
-  .object({ hash: z.string(), size: z.number() })
-  .meta({
-    id: 'Blake3Commitment',
-  })
-export const ContactInfo = z
+export const Blake3Commitment: z.ZodObject<{
+  hash: typeof literal_0
+  size: typeof literal_7
+}> = object({ hash: literal_0, size: literal_7 }).meta({
+  id: 'Blake3Commitment',
+})
+export const ContactInfo: z.ZodUnion<
+  readonly [
+    z.ZodObject<{ email: z.ZodString }>,
+    z.ZodObject<{ matrix: z.ZodString }>,
+    z.ZodObject<{ website: typeof literal_0 }>,
+  ]
+> = z
   .union([
-    z.object({ email: z.string() }),
-    z.object({ matrix: z.string() }),
-    z.object({ website: z.string() }),
+    object({ email: z.string() }),
+    object({ matrix: z.string() }),
+    object({ website: literal_0 }),
   ])
   .meta({
     id: 'ContactInfo',
   })
-export const CountEntry = z.object({ label: z.string(), count: z.int() }).meta({
-  id: 'CountEntry',
-})
-export const CurrentDependencyKind = z
+export const CountEntry: z.ZodObject<{ label: z.ZodString; count: z.ZodInt }> =
+  object({ label: z.string(), count: z.int() }).meta({
+    id: 'CountEntry',
+  })
+export const CurrentDependencyKind: z.ZodUnion<
+  readonly [
+    z.ZodObject<{ kind: z.ZodLiteral<'exists'> }>,
+    z.ZodIntersection<
+      z.ZodObject<{ kind: z.ZodLiteral<'running'> }>,
+      z.ZodObject<{
+        healthChecks: z.ZodCodec<
+          z.ZodOptional<typeof literal_3>,
+          typeof literal_3
+        >
+      }>
+    >,
+  ]
+> = z
   .union([
-    z.object({ kind: z.literal('exists') }),
+    object({ kind: z.literal('exists') }),
     z.intersection(
-      z.object({ kind: z.literal('running') }),
-      z.object({
-        healthChecks: wire(z.array(z.string()).optional(), z.array(z.string())),
-      }),
+      object({ kind: z.literal('running') }),
+      object({ healthChecks: wire(literal_3.optional(), literal_3) }),
     ),
   ])
   .meta({
     id: 'CurrentDependencyKind',
   })
-export const DataUrl = z.string().meta({
+export const DataUrl: typeof literal_0 = literal_0.meta({
   id: 'DataUrl',
 })
-export const DeviceFilter = z
-  .object({
-    description: z.string(),
-    class: z.enum(['processor', 'display']),
-    product: wire(z.string().nullable().optional(), z.string().nullable()),
-    vendor: wire(z.string().nullable().optional(), z.string().nullable()),
-    capabilities: wire(
-      z.array(z.string()).nullable().optional(),
-      z.array(z.string()).nullable(),
-    ),
-    driver: wire(z.string().nullable().optional(), z.string().nullable()),
-  })
-  .meta({
-    id: 'DeviceFilter',
-  })
-export const Dump = z.object({ id: z.int(), value: z.unknown() }).meta({
+export const DeviceFilter: z.ZodObject<{
+  description: z.ZodString
+  class: typeof literal_4
+  product: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
+  vendor: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
+  capabilities: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString>>>,
+    z.ZodNullable<z.ZodArray<z.ZodString>>
+  >
+  driver: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodString>>,
+    z.ZodNullable<z.ZodString>
+  >
+}> = object({
+  description: z.string(),
+  class: literal_4,
+  product: wire(literal_1.optional(), literal_1),
+  vendor: wire(literal_1.optional(), literal_1),
+  capabilities: wire(
+    z.array(z.string()).nullable().optional(),
+    z.array(z.string()).nullable(),
+  ),
+  driver: wire(z.string().nullable().optional(), z.string().nullable()),
+}).meta({
+  id: 'DeviceFilter',
+})
+export const Dump: z.ZodObject<{ id: z.ZodInt; value: z.ZodUnknown }> = object({
+  id: z.int(),
+  value: z.unknown(),
+}).meta({
   id: 'Dump',
 })
-export const DumpParams = z
-  .object({
-    pointer: wire(z.string().nullable().optional(), z.string().nullable()),
-  })
-  .meta({
-    id: 'DumpParams',
-  })
-export const GetDownloadsParams = z
-  .object({
-    /**
-     * Filter by package ID
-     */
-    pkgId: wire(z.string().nullable().optional(), z.string().nullable()).meta({
-      description: 'Filter by package ID',
-    }),
-    /**
-     * Filter by version
-     */
-    version: wire(z.string().nullable().optional(), z.string().nullable()).meta(
-      {
-        description: 'Filter by version',
-      },
-    ),
-    /**
-     * Start of time range (RFC 3339)
-     */
-    after: wire(z.string().nullable().optional(), z.string().nullable()).meta({
-      description: 'Start of time range (RFC 3339)',
-    }),
-    /**
-     * End of time range (RFC 3339)
-     */
-    before: wire(z.string().nullable().optional(), z.string().nullable()).meta({
-      description: 'End of time range (RFC 3339)',
-    }),
-  })
-  .meta({
-    id: 'GetDownloadsParams',
-  })
-export const GetOsAssetParams = z
-  .object({ version: z.string(), platform: z.string() })
-  .meta({
-    id: 'GetOsAssetParams',
-  })
-export const GetOsVersionParams = z
-  .object({
-    sourceVersion: wire(
-      z.string().nullable().optional(),
-      z.string().nullable(),
-    ),
-    targetVersion: wire(
-      z.string().nullable().optional(),
-      z.string().nullable(),
-    ),
-    serverId: wire(z.string().nullable().optional(), z.string().nullable()),
-    platform: wire(z.string().nullable().optional(), z.string().nullable()),
-  })
-  .meta({
-    id: 'GetOsVersionParams',
-  })
-export const GetUsersParams = z
-  .object({
-    /**
-     * Start of time range (RFC 3339)
-     */
-    after: wire(z.string().nullable().optional(), z.string().nullable()).meta({
-      description: 'Start of time range (RFC 3339)',
-    }),
-    /**
-     * End of time range (RFC 3339)
-     */
-    before: wire(z.string().nullable().optional(), z.string().nullable()).meta({
-      description: 'End of time range (RFC 3339)',
-    }),
-  })
-  .meta({
-    id: 'GetUsersParams',
-  })
-export const GitHash = z.string().meta({
+export const DumpParams: z.ZodObject<{
+  pointer: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
+}> = object({ pointer: wire(literal_1.optional(), literal_1) }).meta({
+  id: 'DumpParams',
+})
+export const GetDownloadsParams: z.ZodObject<{
+  /**
+   * Filter by package ID
+   */
+  pkgId: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
+  /**
+   * Filter by version
+   */
+  version: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
+  /**
+   * Start of time range (RFC 3339)
+   */
+  after: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
+  /**
+   * End of time range (RFC 3339)
+   */
+  before: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
+}> = object({
+  /**
+   * Filter by package ID
+   */
+  pkgId: wire(literal_1.optional(), literal_1).meta({
+    description: 'Filter by package ID',
+  }),
+  /**
+   * Filter by version
+   */
+  version: wire(literal_1.optional(), literal_1).meta({
+    description: 'Filter by version',
+  }),
+  /**
+   * Start of time range (RFC 3339)
+   */
+  after: wire(literal_1.optional(), literal_1).meta({
+    description: 'Start of time range (RFC 3339)',
+  }),
+  /**
+   * End of time range (RFC 3339)
+   */
+  before: wire(literal_1.optional(), literal_1).meta({
+    description: 'End of time range (RFC 3339)',
+  }),
+}).meta({
+  id: 'GetDownloadsParams',
+})
+export const GetOsAssetParams: z.ZodObject<{
+  version: z.ZodString
+  platform: z.ZodString
+}> = object({ version: z.string(), platform: z.string() }).meta({
+  id: 'GetOsAssetParams',
+})
+export const GetOsVersionParams: z.ZodObject<{
+  sourceVersion: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
+  targetVersion: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
+  serverId: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodString>>,
+    z.ZodNullable<z.ZodString>
+  >
+  platform: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
+}> = object({
+  sourceVersion: wire(literal_1.optional(), literal_1),
+  targetVersion: wire(literal_1.optional(), literal_1),
+  serverId: wire(z.string().nullable().optional(), z.string().nullable()),
+  platform: wire(literal_1.optional(), literal_1),
+}).meta({
+  id: 'GetOsVersionParams',
+})
+export const GetUsersParams: z.ZodObject<{
+  /**
+   * Start of time range (RFC 3339)
+   */
+  after: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
+  /**
+   * End of time range (RFC 3339)
+   */
+  before: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
+}> = object({
+  /**
+   * Start of time range (RFC 3339)
+   */
+  after: wire(literal_1.optional(), literal_1).meta({
+    description: 'Start of time range (RFC 3339)',
+  }),
+  /**
+   * End of time range (RFC 3339)
+   */
+  before: wire(literal_1.optional(), literal_1).meta({
+    description: 'End of time range (RFC 3339)',
+  }),
+}).meta({
+  id: 'GetUsersParams',
+})
+export const GitHash: typeof literal_0 = literal_0.meta({
   id: 'GitHash',
 })
-export const Guid = z.string().meta({
+export const Guid: typeof literal_0 = literal_0.meta({
   id: 'Guid',
 })
-export const IoFormat = z
+export const IoFormat: z.ZodEnum<{
+  json: 'json'
+  'json-pretty': 'json-pretty'
+  yaml: 'yaml'
+  cbor: 'cbor'
+  toml: 'toml'
+  'toml-pretty': 'toml-pretty'
+}> = z
   .enum(['json', 'json-pretty', 'yaml', 'cbor', 'toml', 'toml-pretty'])
   .meta({
     id: 'IoFormat',
   })
-export const ListVersionSignersParams = z.object({ version: z.string() }).meta({
-  id: 'ListVersionSignersParams',
+export const ListVersionSignersParams: z.ZodObject<{ version: z.ZodString }> =
+  object({ version: z.string() }).meta({
+    id: 'ListVersionSignersParams',
+  })
+export const LocaleString: typeof literal_2 = literal_2.meta({
+  id: 'LocaleString',
 })
-export const LocaleString = z
-  .union([z.string(), z.record(z.string(), z.string())])
-  .meta({
-    id: 'LocaleString',
-  })
-export const MerkleArchiveCommitment = z
-  .object({ rootSighash: z.string(), rootMaxsize: z.number() })
-  .meta({
-    id: 'MerkleArchiveCommitment',
-  })
-export const PackageDetailLevel = z.enum(['none', 'short', 'full']).meta({
+export const MerkleArchiveCommitment: z.ZodObject<{
+  rootSighash: typeof literal_0
+  rootMaxsize: typeof literal_7
+}> = object({ rootSighash: literal_0, rootMaxsize: literal_7 }).meta({
+  id: 'MerkleArchiveCommitment',
+})
+export const PackageDetailLevel: z.ZodEnum<{
+  none: 'none'
+  short: 'short'
+  full: 'full'
+}> = z.enum(['none', 'short', 'full']).meta({
   id: 'PackageDetailLevel',
 })
-export const PackageId = z.string().meta({
+export const PackageId: typeof literal_0 = literal_0.meta({
   id: 'PackageId',
 })
-export const PackageVersionCount = z
-  .object({ pkgId: z.string(), version: z.string(), count: z.int() })
-  .meta({
-    id: 'PackageVersionCount',
-  })
-export const PluginId = z.enum(['url-v0']).meta({
-  id: 'PluginId',
+export const PackageVersionCount: z.ZodObject<{
+  pkgId: z.ZodString
+  version: z.ZodString
+  count: z.ZodInt
+}> = object({ pkgId: z.string(), version: z.string(), count: z.int() }).meta({
+  id: 'PackageVersionCount',
 })
-export const PreDownloadAlertWhen = z
-  .object({ sourceVersion: z.string() })
+export const PluginId: z.ZodEnum<{ 'url-v0': 'url-v0' }> = z
+  .enum(['url-v0'])
   .meta({
+    id: 'PluginId',
+  })
+export const PreDownloadAlertWhen: z.ZodObject<{ sourceVersion: z.ZodString }> =
+  object({ sourceVersion: z.string() }).meta({
     id: 'PreDownloadAlertWhen',
   })
 
@@ -199,91 +280,121 @@ export const PreDownloadAlertWhen = z
 export const RegistryAsset = <Commitment extends z.ZodType>(
   Commitment: Commitment,
 ) => {
-  const self = z.object({
-    publishedAt: z.string(),
-    urls: z.array(z.string()),
+  const self = object({
+    publishedAt: literal_0,
+    urls: literal_3,
     commitment: Commitment,
     signatures: z.record(z.string(), AnySignature),
   })
   return self
 }
-export const RemoveAssetParams = z
-  .object({ version: z.string(), platform: z.string() })
-  .meta({
-    id: 'RemoveAssetParams',
-  })
-export const RemoveCategoryParams = z.object({ id: z.string() }).meta({
+export const RemoveAssetParams: z.ZodObject<{
+  version: typeof literal_0
+  platform: typeof literal_0
+}> = object({ version: literal_0, platform: literal_0 }).meta({
+  id: 'RemoveAssetParams',
+})
+export const RemoveCategoryParams: z.ZodObject<{ id: z.ZodString }> = object({
+  id: z.string(),
+}).meta({
   id: 'RemoveCategoryParams',
 })
-export const RemoveVersionParams = z.object({ version: z.string() }).meta({
-  id: 'RemoveVersionParams',
-})
-export const SetNameParams = z.object({ name: z.string() }).meta({
+export const RemoveVersionParams: z.ZodObject<{ version: typeof literal_0 }> =
+  object({ version: literal_0 }).meta({
+    id: 'RemoveVersionParams',
+  })
+export const SetNameParams: z.ZodObject<{ name: z.ZodString }> = object({
+  name: z.string(),
+}).meta({
   id: 'SetNameParams',
 })
-export const UsersResponse = z
-  .object({ uniqueServers: z.int(), totalCheckins: z.int() })
-  .meta({
-    id: 'UsersResponse',
-  })
-export const Version = z.string().meta({
+export const UsersResponse: z.ZodObject<{
+  uniqueServers: z.ZodInt
+  totalCheckins: z.ZodInt
+}> = object({ uniqueServers: z.int(), totalCheckins: z.int() }).meta({
+  id: 'UsersResponse',
+})
+export const Version: typeof literal_0 = literal_0.meta({
   id: 'Version',
 })
-export const AddAdminParams = z.object({ signer: Guid }).meta({
+export const AddAdminParams: z.ZodObject<{ signer: typeof Guid }> = object({
+  signer: Guid,
+}).meta({
   id: 'AddAdminParams',
 })
-export const AddAssetParams = z
-  .object({
-    version: z.string(),
-    platform: z.string(),
-    url: z.string(),
-    signature: AnySignature,
-    commitment: Blake3Commitment,
-  })
-  .meta({
-    id: 'AddAssetParams',
-  })
-export const AddCategoryParams = z
-  .object({ id: z.string(), name: LocaleString })
-  .meta({
-    id: 'AddCategoryParams',
-  })
-export const AddMirrorParams = z
-  .object({
-    url: z.string(),
-    commitment: MerkleArchiveCommitment,
-    signature: AnySignature,
-  })
-  .meta({
-    id: 'AddMirrorParams',
-  })
-export const AddPackageParams = z
-  .object({
-    urls: z.array(z.string()),
-    commitment: MerkleArchiveCommitment,
-    signature: AnySignature,
-  })
-  .meta({
-    id: 'AddPackageParams',
-  })
-export const AddPackageSignerParams = z
-  .object({
-    id: PackageId,
-    signer: Guid,
-    versions: wire(z.string().nullable().optional(), z.string().nullable()),
-    merge: z.boolean(),
-  })
-  .meta({
-    id: 'AddPackageSignerParams',
-  })
-export const AddPackageToCategoryParams = z
-  .object({ id: z.string(), package: PackageId })
-  .meta({
-    id: 'AddPackageToCategoryParams',
-  })
-export const ApplyWithPathParams = z
+export const AddAssetParams: z.ZodObject<{
+  version: z.ZodString
+  platform: z.ZodString
+  url: z.ZodString
+  signature: typeof AnySignature
+  commitment: typeof Blake3Commitment
+}> = object({
+  version: z.string(),
+  platform: z.string(),
+  url: z.string(),
+  signature: AnySignature,
+  commitment: Blake3Commitment,
+}).meta({
+  id: 'AddAssetParams',
+})
+export const AddCategoryParams: z.ZodObject<{
+  id: z.ZodString
+  name: typeof LocaleString
+}> = object({ id: z.string(), name: LocaleString }).meta({
+  id: 'AddCategoryParams',
+})
+export const AddMirrorParams: z.ZodObject<{
+  url: z.ZodString
+  commitment: typeof MerkleArchiveCommitment
+  signature: typeof AnySignature
+}> = object({
+  url: z.string(),
+  commitment: MerkleArchiveCommitment,
+  signature: AnySignature,
+}).meta({
+  id: 'AddMirrorParams',
+})
+export const AddPackageParams: z.ZodObject<{
+  urls: typeof literal_3
+  commitment: typeof MerkleArchiveCommitment
+  signature: typeof AnySignature
+}> = object({
+  urls: literal_3,
+  commitment: MerkleArchiveCommitment,
+  signature: AnySignature,
+}).meta({
+  id: 'AddPackageParams',
+})
+export const AddPackageSignerParams: z.ZodObject<{
+  id: typeof PackageId
+  signer: typeof Guid
+  versions: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
+  merge: z.ZodBoolean
+}> = object({
+  id: PackageId,
+  signer: Guid,
+  versions: wire(literal_1.optional(), literal_1),
+  merge: z.boolean(),
+}).meta({
+  id: 'AddPackageSignerParams',
+})
+export const AddPackageToCategoryParams: z.ZodObject<{
+  id: z.ZodString
+  package: typeof PackageId
+}> = object({ id: z.string(), package: PackageId }).meta({
+  id: 'AddPackageToCategoryParams',
+})
+export const ApplyWithPathParams: z.ZodIntersection<
+  z.ZodObject<{
+    path: z.ZodCodec<
+      z.ZodOptional<z.ZodNullable<z.ZodString>>,
+      z.ZodNullable<z.ZodString>
+    >
+  }>,
+  typeof ApplyParams
+> = z
   .intersection(
-    z.object({
+    object({
       path: wire(z.string().nullable().optional(), z.string().nullable()),
     }),
     ApplyParams,
@@ -291,12 +402,34 @@ export const ApplyWithPathParams = z
   .meta({
     id: 'ApplyWithPathParams',
   })
-export const Category = z.object({ name: LocaleString }).meta({
+export const Category: z.ZodObject<{ name: typeof LocaleString }> = object({
+  name: LocaleString,
+}).meta({
   id: 'Category',
 })
-export const DependencyMetadata = z
+export const DependencyMetadata: z.ZodIntersection<
+  z.ZodObject<{
+    title: z.ZodCodec<
+      z.ZodOptional<z.ZodNullable<typeof LocaleString>>,
+      z.ZodNullable<typeof LocaleString>
+    >
+    icon: z.ZodOptional<z.ZodNullable<typeof DataUrl>>
+    description: z.ZodCodec<
+      z.ZodOptional<z.ZodNullable<typeof LocaleString>>,
+      z.ZodNullable<typeof LocaleString>
+    >
+    optional: z.ZodBoolean
+    versionRange: z.ZodCodec<
+      z.ZodOptional<z.ZodNullable<z.ZodString>>,
+      z.ZodNullable<z.ZodString>
+    >
+  }>,
+  z.ZodUnion<
+    readonly [z.ZodNullable<typeof CurrentDependencyKind>, z.ZodType<{}, {}>]
+  >
+> = z
   .intersection(
-    z.object({
+    object({
       title: wire(LocaleString.nullable().optional(), LocaleString.nullable()),
       icon: DataUrl.nullable().optional(),
       description: wire(
@@ -311,234 +444,381 @@ export const DependencyMetadata = z
     }),
     z.union([
       CurrentDependencyKind.nullable(),
-      z.object({}) as z.ZodType<{}, {}>,
+      object({}) as z.ZodType<{}, {}>,
     ]),
   )
   .meta({
     id: 'DependencyMetadata',
   })
-export const Description = z
-  .object({ short: LocaleString, long: LocaleString })
-  .meta({
-    id: 'Description',
-  })
-export const DownloadsResponse = z
-  .object({
-    totalRequests: z.int(),
-    byPackage: z.array(CountEntry),
-    byPackageVersion: z.array(PackageVersionCount),
-  })
-  .meta({
-    id: 'DownloadsResponse',
-  })
-export const EditSignerParams = z
-  .object({
-    id: Guid,
-    setName: wire(z.string().nullable().optional(), z.string().nullable()),
-    addContact: z.array(ContactInfo),
-    addKey: z.array(AnyVerifyingKey),
-    removeContact: z.array(ContactInfo),
-    removeKey: z.array(AnyVerifyingKey),
-  })
-  .meta({
-    id: 'EditSignerParams',
-  })
-export const GetPackageParams = z
-  .object({
-    id: wire(PackageId.nullable().optional(), PackageId.nullable()),
-    targetVersion: wire(
-      z.string().nullable().optional(),
-      z.string().nullable(),
-    ),
-    sourceVersion: wire(Version.nullable().optional(), Version.nullable()),
-    otherVersions: wire(
-      PackageDetailLevel.nullable().optional(),
-      PackageDetailLevel.nullable(),
-    ),
-    allRevisions: wire(z.boolean().optional(), z.boolean()),
-  })
-  .meta({
-    id: 'GetPackageParams',
-  })
-export const HardwareRequirements = z
-  .object({
-    device: wire(z.array(DeviceFilter).optional(), z.array(DeviceFilter)),
-    ram: wire(z.number().nullable().optional(), z.number().nullable()),
-    arch: wire(
-      z.array(z.string()).nullable().optional(),
-      z.array(z.string()).nullable(),
-    ),
-  })
-  .meta({
-    id: 'HardwareRequirements',
-  })
-export const ListPackageSignersParams = z.object({ id: PackageId }).meta({
-  id: 'ListPackageSignersParams',
+export const Description: z.ZodObject<{
+  short: typeof LocaleString
+  long: typeof LocaleString
+}> = object({ short: LocaleString, long: LocaleString }).meta({
+  id: 'Description',
 })
-export const MetricsSummary = z
-  .object({
-    totalCheckins: z.int(),
-    uniqueServers: z.int(),
-    totalPackageRequests: z.int(),
-    byArch: z.array(CountEntry),
-    byOsVersion: z.array(CountEntry),
+export const DownloadsResponse: z.ZodObject<{
+  totalRequests: z.ZodInt
+  byPackage: z.ZodArray<typeof CountEntry>
+  byPackageVersion: z.ZodArray<typeof PackageVersionCount>
+}> = object({
+  totalRequests: z.int(),
+  byPackage: z.array(CountEntry),
+  byPackageVersion: z.array(PackageVersionCount),
+}).meta({
+  id: 'DownloadsResponse',
+})
+export const EditSignerParams: z.ZodObject<{
+  id: typeof Guid
+  setName: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodString>>,
+    z.ZodNullable<z.ZodString>
+  >
+  addContact: z.ZodArray<typeof ContactInfo>
+  addKey: z.ZodArray<typeof AnyVerifyingKey>
+  removeContact: z.ZodArray<typeof ContactInfo>
+  removeKey: z.ZodArray<typeof AnyVerifyingKey>
+}> = object({
+  id: Guid,
+  setName: wire(z.string().nullable().optional(), z.string().nullable()),
+  addContact: z.array(ContactInfo),
+  addKey: z.array(AnyVerifyingKey),
+  removeContact: z.array(ContactInfo),
+  removeKey: z.array(AnyVerifyingKey),
+}).meta({
+  id: 'EditSignerParams',
+})
+export const GetPackageParams: z.ZodObject<{
+  id: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<typeof PackageId>>,
+    z.ZodNullable<typeof PackageId>
+  >
+  targetVersion: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
+  sourceVersion: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<typeof Version>>,
+    z.ZodNullable<typeof Version>
+  >
+  otherVersions: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<typeof PackageDetailLevel>>,
+    z.ZodNullable<typeof PackageDetailLevel>
+  >
+  allRevisions: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
+}> = object({
+  id: wire(PackageId.nullable().optional(), PackageId.nullable()),
+  targetVersion: wire(literal_1.optional(), literal_1),
+  sourceVersion: wire(Version.nullable().optional(), Version.nullable()),
+  otherVersions: wire(
+    PackageDetailLevel.nullable().optional(),
+    PackageDetailLevel.nullable(),
+  ),
+  allRevisions: wire(z.boolean().optional(), z.boolean()),
+}).meta({
+  id: 'GetPackageParams',
+})
+export const HardwareRequirements: z.ZodObject<{
+  device: z.ZodCodec<
+    z.ZodOptional<z.ZodArray<typeof DeviceFilter>>,
+    z.ZodArray<typeof DeviceFilter>
+  >
+  ram: z.ZodCodec<z.ZodOptional<typeof literal_5>, typeof literal_5>
+  arch: z.ZodCodec<z.ZodOptional<typeof literal_6>, typeof literal_6>
+}> = object({
+  device: wire(z.array(DeviceFilter).optional(), z.array(DeviceFilter)),
+  ram: wire(literal_5.optional(), literal_5),
+  arch: wire(literal_6.optional(), literal_6),
+}).meta({
+  id: 'HardwareRequirements',
+})
+export const ListPackageSignersParams: z.ZodObject<{ id: typeof PackageId }> =
+  object({ id: PackageId }).meta({
+    id: 'ListPackageSignersParams',
   })
-  .meta({
-    id: 'MetricsSummary',
-  })
-export const OsVersionInfo = z
-  .object({
-    headline: z.string(),
-    releaseNotes: z.string(),
-    sourceVersion: z.string(),
-    authorized: z.array(Guid),
-    iso: z.record(z.string(), RegistryAsset(Blake3Commitment)),
-    squashfs: z.record(z.string(), RegistryAsset(Blake3Commitment)),
-    img: z.record(z.string(), RegistryAsset(Blake3Commitment)),
-  })
-  .meta({
-    id: 'OsVersionInfo',
-  })
-export const PackageInfoShort = z.object({ releaseNotes: LocaleString }).meta({
+export const MetricsSummary: z.ZodObject<{
+  totalCheckins: z.ZodInt
+  uniqueServers: z.ZodInt
+  totalPackageRequests: z.ZodInt
+  byArch: z.ZodArray<typeof CountEntry>
+  byOsVersion: z.ZodArray<typeof CountEntry>
+}> = object({
+  totalCheckins: z.int(),
+  uniqueServers: z.int(),
+  totalPackageRequests: z.int(),
+  byArch: z.array(CountEntry),
+  byOsVersion: z.array(CountEntry),
+}).meta({
+  id: 'MetricsSummary',
+})
+export const OsVersionInfo: z.ZodObject<{
+  headline: z.ZodString
+  releaseNotes: z.ZodString
+  sourceVersion: z.ZodString
+  authorized: z.ZodArray<typeof Guid>
+  iso: z.ZodRecord<
+    z.ZodString,
+    ReturnType<typeof RegistryAsset<typeof Blake3Commitment>>
+  >
+  squashfs: z.ZodRecord<
+    z.ZodString,
+    ReturnType<typeof RegistryAsset<typeof Blake3Commitment>>
+  >
+  img: z.ZodRecord<
+    z.ZodString,
+    ReturnType<typeof RegistryAsset<typeof Blake3Commitment>>
+  >
+}> = object({
+  headline: z.string(),
+  releaseNotes: z.string(),
+  sourceVersion: z.string(),
+  authorized: z.array(Guid),
+  iso: z.record(z.string(), RegistryAsset(Blake3Commitment)),
+  squashfs: z.record(z.string(), RegistryAsset(Blake3Commitment)),
+  img: z.record(z.string(), RegistryAsset(Blake3Commitment)),
+}).meta({
+  id: 'OsVersionInfo',
+})
+export const PackageInfoShort: z.ZodObject<{
+  releaseNotes: typeof LocaleString
+}> = object({ releaseNotes: LocaleString }).meta({
   id: 'PackageInfoShort',
 })
-export const PreDownloadAlert = z
-  .object({ message: LocaleString, when: PreDownloadAlertWhen })
-  .meta({
-    id: 'PreDownloadAlert',
-  })
-export const RemoveAdminParams = z.object({ signer: Guid }).meta({
+export const PreDownloadAlert: z.ZodObject<{
+  message: typeof LocaleString
+  when: typeof PreDownloadAlertWhen
+}> = object({ message: LocaleString, when: PreDownloadAlertWhen }).meta({
+  id: 'PreDownloadAlert',
+})
+export const RemoveAdminParams: z.ZodObject<{ signer: typeof Guid }> = object({
+  signer: Guid,
+}).meta({
   id: 'RemoveAdminParams',
 })
-export const RemoveMirrorParams = z
-  .object({ id: PackageId, version: Version, url: z.string() })
-  .meta({
-    id: 'RemoveMirrorParams',
-  })
-export const RemovePackageFromCategoryParams = z
-  .object({ id: z.string(), package: PackageId })
-  .meta({
-    id: 'RemovePackageFromCategoryParams',
-  })
-export const RemovePackageParams = z
-  .object({
-    id: PackageId,
-    version: wire(Version.nullable().optional(), Version.nullable()),
-    sighash: wire(z.string().nullable().optional(), z.string().nullable()),
-    force: wire(z.boolean().optional(), z.boolean()),
-  })
-  .meta({
-    id: 'RemovePackageParams',
-  })
-export const RemovePackageSignerParams = z
-  .object({ id: PackageId, signer: Guid })
-  .meta({
-    id: 'RemovePackageSignerParams',
-  })
-export const RemoveSignerParams = z.object({ id: Guid }).meta({
+export const RemoveMirrorParams: z.ZodObject<{
+  id: typeof PackageId
+  version: typeof Version
+  url: z.ZodString
+}> = object({ id: PackageId, version: Version, url: z.string() }).meta({
+  id: 'RemoveMirrorParams',
+})
+export const RemovePackageFromCategoryParams: z.ZodObject<{
+  id: z.ZodString
+  package: typeof PackageId
+}> = object({ id: z.string(), package: PackageId }).meta({
+  id: 'RemovePackageFromCategoryParams',
+})
+export const RemovePackageParams: z.ZodObject<{
+  id: typeof PackageId
+  version: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<typeof Version>>,
+    z.ZodNullable<typeof Version>
+  >
+  sighash: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<typeof literal_0>>,
+    z.ZodNullable<typeof literal_0>
+  >
+  force: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
+}> = object({
+  id: PackageId,
+  version: wire(Version.nullable().optional(), Version.nullable()),
+  sighash: wire(literal_0.nullable().optional(), literal_0.nullable()),
+  force: wire(z.boolean().optional(), z.boolean()),
+}).meta({
+  id: 'RemovePackageParams',
+})
+export const RemovePackageSignerParams: z.ZodObject<{
+  id: typeof PackageId
+  signer: typeof Guid
+}> = object({ id: PackageId, signer: Guid }).meta({
+  id: 'RemovePackageSignerParams',
+})
+export const RemoveSignerParams: z.ZodObject<{ id: typeof Guid }> = object({
+  id: Guid,
+}).meta({
   id: 'RemoveSignerParams',
 })
-export const SetDescriptionParams = z
-  .object({ description: LocaleString.nullable() })
-  .meta({
-    id: 'SetDescriptionParams',
-  })
-export const SetIconParams = z.object({ icon: DataUrl.nullable() }).meta({
+export const SetDescriptionParams: z.ZodObject<{
+  description: z.ZodNullable<typeof LocaleString>
+}> = object({ description: LocaleString.nullable() }).meta({
+  id: 'SetDescriptionParams',
+})
+export const SetIconParams: z.ZodObject<{
+  icon: z.ZodNullable<typeof DataUrl>
+}> = object({ icon: DataUrl.nullable() }).meta({
   id: 'SetIconParams',
 })
-export const SignAssetParams = z
-  .object({
-    version: z.string(),
-    platform: z.string(),
-    signature: AnySignature,
-  })
-  .meta({
-    id: 'SignAssetParams',
-  })
-export const SignerInfo = z
-  .object({
-    name: z.string(),
-    contact: z.array(ContactInfo),
-    keys: z.array(AnyVerifyingKey),
-  })
-  .meta({
-    id: 'SignerInfo',
-  })
-export const SubscribeRes = z.object({ dump: Dump, guid: Guid }).meta({
+export const SignAssetParams: z.ZodObject<{
+  version: z.ZodString
+  platform: z.ZodString
+  signature: typeof AnySignature
+}> = object({
+  version: z.string(),
+  platform: z.string(),
+  signature: AnySignature,
+}).meta({
+  id: 'SignAssetParams',
+})
+export const SignerInfo: z.ZodObject<{
+  name: z.ZodString
+  contact: z.ZodArray<typeof ContactInfo>
+  keys: z.ZodArray<typeof AnyVerifyingKey>
+}> = object({
+  name: z.string(),
+  contact: z.array(ContactInfo),
+  keys: z.array(AnyVerifyingKey),
+}).meta({
+  id: 'SignerInfo',
+})
+export const SubscribeRes: z.ZodObject<{
+  dump: typeof Dump
+  guid: typeof Guid
+}> = object({ dump: Dump, guid: Guid }).meta({
   id: 'SubscribeRes',
 })
-export const VersionSignerParams = z
-  .object({ version: z.string(), signer: Guid })
-  .meta({
-    id: 'VersionSignerParams',
-  })
-export const OsVersionInfoMap = z.record(z.string(), OsVersionInfo).meta({
-  id: 'OsVersionInfoMap',
+export const VersionSignerParams: z.ZodObject<{
+  version: z.ZodString
+  signer: typeof Guid
+}> = object({ version: z.string(), signer: Guid }).meta({
+  id: 'VersionSignerParams',
 })
-export const PackageMetadata = z
-  .object({
-    title: z.string(),
-    description: Description,
-    releaseNotes: LocaleString,
-    preDownloadAlert: PreDownloadAlert.nullable().optional(),
-    gitHash: wire(GitHash.nullable().optional(), GitHash.nullable()),
-    license: z.string(),
-    packageRepo: wire(z.string().optional(), z.string()),
-    upstreamRepo: z.string(),
-    marketingUrl: wire(z.string().nullable().optional(), z.string().nullable()),
-    donationUrl: wire(z.string().nullable().optional(), z.string().nullable()),
-    osVersion: wire(z.string().optional(), z.string()),
-    sdkVersion: wire(z.string().nullable().optional(), z.string().nullable()),
-    hardwareAcceleration: wire(z.boolean().optional(), z.boolean()),
-    /**
-     * Grants access to `/dev/fuse`.
-     */
-    userspaceFilesystems: wire(z.boolean().optional(), z.boolean()).meta({
-      description: 'Grants access to `/dev/fuse`.',
-    }),
-    /**
-     * Grants access to `/dev/net/tun`.
-     */
-    virtualNetworking: wire(z.boolean().optional(), z.boolean()).meta({
-      description: 'Grants access to `/dev/net/tun`.',
-    }),
-    /**
-     * Grants /dev/kvm when present. The opening process must run as container root.
-     */
-    hardwareVirtualization: wire(z.boolean().optional(), z.boolean()).meta({
-      description:
-        'Grants /dev/kvm when present. The opening process must run as container root.',
-    }),
-    plugins: wire(z.array(PluginId).optional(), z.array(PluginId)),
-    satisfies: wire(z.array(Version).optional(), z.array(Version)),
+export const OsVersionInfoMap: z.ZodRecord<z.ZodString, typeof OsVersionInfo> =
+  z.record(z.string(), OsVersionInfo).meta({
+    id: 'OsVersionInfoMap',
   })
-  .meta({
-    id: 'PackageMetadata',
-  })
-export const RegistryInfo = z
-  .object({
-    name: wire(z.string().nullable().optional(), z.string().nullable()),
-    icon: wire(DataUrl.nullable().optional(), DataUrl.nullable()),
-    /**
-     * Markdown, shown above the registry's services.
-     */
-    description: wire(
-      LocaleString.nullable().optional(),
-      LocaleString.nullable(),
-    ).meta({
-      description: "Markdown, shown above the registry's services.",
-    }),
-    categories: z.record(z.string(), Category),
-  })
-  .meta({
-    id: 'RegistryInfo',
-  })
-export const OsIndex = z.object({ versions: OsVersionInfoMap }).meta({
-  id: 'OsIndex',
+export const PackageMetadata: z.ZodObject<{
+  title: z.ZodString
+  description: typeof Description
+  releaseNotes: typeof LocaleString
+  preDownloadAlert: z.ZodOptional<z.ZodNullable<typeof PreDownloadAlert>>
+  gitHash: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<typeof GitHash>>,
+    z.ZodNullable<typeof GitHash>
+  >
+  license: z.ZodString
+  packageRepo: z.ZodCodec<z.ZodOptional<typeof literal_0>, typeof literal_0>
+  upstreamRepo: z.ZodString
+  marketingUrl: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodString>>,
+    z.ZodNullable<z.ZodString>
+  >
+  donationUrl: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
+  osVersion: z.ZodCodec<z.ZodOptional<z.ZodString>, z.ZodString>
+  sdkVersion: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
+  hardwareAcceleration: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
+  /**
+   * Grants access to `/dev/fuse`.
+   */
+  userspaceFilesystems: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
+  /**
+   * Grants access to `/dev/net/tun`.
+   */
+  virtualNetworking: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
+  /**
+   * Grants /dev/kvm when present. The opening process must run as container root.
+   */
+  hardwareVirtualization: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
+  plugins: z.ZodCodec<
+    z.ZodOptional<z.ZodArray<typeof PluginId>>,
+    z.ZodArray<typeof PluginId>
+  >
+  satisfies: z.ZodCodec<
+    z.ZodOptional<z.ZodArray<typeof Version>>,
+    z.ZodArray<typeof Version>
+  >
+}> = object({
+  title: z.string(),
+  description: Description,
+  releaseNotes: LocaleString,
+  preDownloadAlert: PreDownloadAlert.nullable().optional(),
+  gitHash: wire(GitHash.nullable().optional(), GitHash.nullable()),
+  license: z.string(),
+  packageRepo: wire(literal_0.optional(), literal_0),
+  upstreamRepo: z.string(),
+  marketingUrl: wire(z.string().nullable().optional(), z.string().nullable()),
+  donationUrl: wire(literal_1.optional(), literal_1),
+  osVersion: wire(z.string().optional(), z.string()),
+  sdkVersion: wire(literal_1.optional(), literal_1),
+  hardwareAcceleration: wire(z.boolean().optional(), z.boolean()),
+  /**
+   * Grants access to `/dev/fuse`.
+   */
+  userspaceFilesystems: wire(z.boolean().optional(), z.boolean()).meta({
+    description: 'Grants access to `/dev/fuse`.',
+  }),
+  /**
+   * Grants access to `/dev/net/tun`.
+   */
+  virtualNetworking: wire(z.boolean().optional(), z.boolean()).meta({
+    description: 'Grants access to `/dev/net/tun`.',
+  }),
+  /**
+   * Grants /dev/kvm when present. The opening process must run as container root.
+   */
+  hardwareVirtualization: wire(z.boolean().optional(), z.boolean()).meta({
+    description:
+      'Grants /dev/kvm when present. The opening process must run as container root.',
+  }),
+  plugins: wire(z.array(PluginId).optional(), z.array(PluginId)),
+  satisfies: wire(z.array(Version).optional(), z.array(Version)),
+}).meta({
+  id: 'PackageMetadata',
 })
-export const PackageVersionInfo = z
+export const RegistryInfo: z.ZodObject<{
+  name: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodString>>,
+    z.ZodNullable<z.ZodString>
+  >
+  icon: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<typeof DataUrl>>,
+    z.ZodNullable<typeof DataUrl>
+  >
+  /**
+   * Markdown, shown above the registry's services.
+   */
+  description: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<typeof LocaleString>>,
+    z.ZodNullable<typeof LocaleString>
+  >
+  categories: z.ZodRecord<z.ZodString, typeof Category>
+}> = object({
+  name: wire(z.string().nullable().optional(), z.string().nullable()),
+  icon: wire(DataUrl.nullable().optional(), DataUrl.nullable()),
+  /**
+   * Markdown, shown above the registry's services.
+   */
+  description: wire(
+    LocaleString.nullable().optional(),
+    LocaleString.nullable(),
+  ).meta({
+    description: "Markdown, shown above the registry's services.",
+  }),
+  categories: z.record(z.string(), Category),
+}).meta({
+  id: 'RegistryInfo',
+})
+export const OsIndex: z.ZodObject<{ versions: typeof OsVersionInfoMap }> =
+  object({ versions: OsVersionInfoMap }).meta({
+    id: 'OsIndex',
+  })
+export const PackageVersionInfo: z.ZodIntersection<
+  z.ZodObject<{
+    /**
+     * Absent for clients that load icons from the registry's `/icons/` route.
+     */
+    icon: z.ZodOptional<z.ZodNullable<typeof DataUrl>>
+    dependencyMetadata: z.ZodRecord<z.ZodString, typeof DependencyMetadata>
+    sourceVersion: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
+    s9pks: z.ZodArray<
+      z.ZodTuple<
+        [
+          typeof HardwareRequirements,
+          ReturnType<typeof RegistryAsset<typeof MerkleArchiveCommitment>>,
+        ],
+        null
+      >
+    >
+  }>,
+  typeof PackageMetadata
+> = z
   .intersection(
-    z.object({
+    object({
       /**
        * Absent for clients that load icons from the registry's `/icons/` route.
        */
@@ -547,10 +827,7 @@ export const PackageVersionInfo = z
           "Absent for clients that load icons from the registry's `/icons/` route.",
       }),
       dependencyMetadata: z.record(z.string(), DependencyMetadata),
-      sourceVersion: wire(
-        z.string().nullable().optional(),
-        z.string().nullable(),
-      ),
+      sourceVersion: wire(literal_1.optional(), literal_1),
       s9pks: z.array(
         z.tuple([HardwareRequirements, RegistryAsset(MerkleArchiveCommitment)]),
       ),
@@ -560,34 +837,49 @@ export const PackageVersionInfo = z
   .meta({
     id: 'PackageVersionInfo',
   })
-export const GetPackageResponse = z
-  .object({
-    categories: z.array(z.string()),
-    best: z.record(z.string(), PackageVersionInfo),
-    otherVersions: z.record(z.string(), PackageInfoShort).nullable().optional(),
-  })
-  .meta({
-    id: 'GetPackageResponse',
-  })
-export const GetPackageResponseFull = z
-  .object({
-    categories: z.array(z.string()),
-    best: z.record(z.string(), PackageVersionInfo),
-    otherVersions: z.record(z.string(), PackageVersionInfo),
-  })
-  .meta({
-    id: 'GetPackageResponseFull',
-  })
-export const PackageInfo = z
-  .object({
-    authorized: z.record(z.string(), z.string()),
-    versions: z.record(z.string(), PackageVersionInfo),
-    categories: z.array(z.string()),
-  })
-  .meta({
-    id: 'PackageInfo',
-  })
-export const GetPackageResult = z
+export const GetPackageResponse: z.ZodObject<{
+  categories: z.ZodArray<z.ZodString>
+  best: z.ZodRecord<z.ZodString, typeof PackageVersionInfo>
+  otherVersions: z.ZodOptional<
+    z.ZodNullable<z.ZodRecord<z.ZodString, typeof PackageInfoShort>>
+  >
+}> = object({
+  categories: z.array(z.string()),
+  best: z.record(z.string(), PackageVersionInfo),
+  otherVersions: z.record(z.string(), PackageInfoShort).nullable().optional(),
+}).meta({
+  id: 'GetPackageResponse',
+})
+export const GetPackageResponseFull: z.ZodObject<{
+  categories: z.ZodArray<z.ZodString>
+  best: z.ZodRecord<z.ZodString, typeof PackageVersionInfo>
+  otherVersions: z.ZodRecord<z.ZodString, typeof PackageVersionInfo>
+}> = object({
+  categories: z.array(z.string()),
+  best: z.record(z.string(), PackageVersionInfo),
+  otherVersions: z.record(z.string(), PackageVersionInfo),
+}).meta({
+  id: 'GetPackageResponseFull',
+})
+export const PackageInfo: z.ZodObject<{
+  authorized: z.ZodRecord<z.ZodString, z.ZodString>
+  versions: z.ZodRecord<z.ZodString, typeof PackageVersionInfo>
+  categories: typeof literal_3
+}> = object({
+  authorized: z.record(z.string(), z.string()),
+  versions: z.record(z.string(), PackageVersionInfo),
+  categories: literal_3,
+}).meta({
+  id: 'PackageInfo',
+})
+export const GetPackageResult: z.ZodUnion<
+  readonly [
+    typeof GetPackageResponseFull,
+    typeof GetPackageResponse,
+    z.ZodRecord<z.ZodString, typeof GetPackageResponseFull>,
+    z.ZodRecord<z.ZodString, typeof GetPackageResponse>,
+  ]
+> = z
   .union([
     GetPackageResponseFull,
     GetPackageResponse,
@@ -597,69 +889,84 @@ export const GetPackageResult = z
   .meta({
     id: 'GetPackageResult',
   })
-export const PackageIndex = z
-  .object({
-    categories: z.record(z.string(), Category),
-    packages: z.record(z.string(), PackageInfo),
-  })
-  .meta({
-    id: 'PackageIndex',
-  })
-export const FullIndex = z
-  .object({
-    name: wire(z.string().nullable().optional(), z.string().nullable()),
-    icon: wire(DataUrl.nullable().optional(), DataUrl.nullable()),
-    description: wire(
-      LocaleString.nullable().optional(),
-      LocaleString.nullable(),
-    ),
-    package: PackageIndex,
-    os: OsIndex,
-    signers: z.record(z.string(), SignerInfo),
-  })
-  .meta({
-    id: 'FullIndex',
-  })
+export const PackageIndex: z.ZodObject<{
+  categories: z.ZodRecord<z.ZodString, typeof Category>
+  packages: z.ZodRecord<z.ZodString, typeof PackageInfo>
+}> = object({
+  categories: z.record(z.string(), Category),
+  packages: z.record(z.string(), PackageInfo),
+}).meta({
+  id: 'PackageIndex',
+})
+export const FullIndex: z.ZodObject<{
+  name: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodString>>,
+    z.ZodNullable<z.ZodString>
+  >
+  icon: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<typeof DataUrl>>,
+    z.ZodNullable<typeof DataUrl>
+  >
+  description: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<typeof LocaleString>>,
+    z.ZodNullable<typeof LocaleString>
+  >
+  package: typeof PackageIndex
+  os: typeof OsIndex
+  signers: z.ZodRecord<z.ZodString, typeof SignerInfo>
+}> = object({
+  name: wire(z.string().nullable().optional(), z.string().nullable()),
+  icon: wire(DataUrl.nullable().optional(), DataUrl.nullable()),
+  description: wire(
+    LocaleString.nullable().optional(),
+    LocaleString.nullable(),
+  ),
+  package: PackageIndex,
+  os: OsIndex,
+  signers: z.record(z.string(), SignerInfo),
+}).meta({
+  id: 'FullIndex',
+})
 export const Api = {
-  _PARAMS: z.object({}) as z.ZodType<{}, {}>,
+  _PARAMS: object({}) as z.ZodType<{}, {}>,
   _CHILDREN: {
     admin: {
-      _PARAMS: z.object({}) as z.ZodType<{}, {}>,
+      _PARAMS: object({}) as z.ZodType<{}, {}>,
       _CHILDREN: {
         add: { _PARAMS: AddAdminParams, _RETURN: z.null() },
         list: {
           _PARAMS: z.intersection(
             z.intersection(
-              z.object({
+              object({
                 format: wire(
                   IoFormat.nullable().optional(),
                   IoFormat.nullable(),
                 ),
               }),
-              z.object({}) as z.ZodType<{}, {}>,
+              object({}) as z.ZodType<{}, {}>,
             ),
-            z.object({}) as z.ZodType<{}, {}>,
+            object({}) as z.ZodType<{}, {}>,
           ),
           _RETURN: z.record(z.string(), SignerInfo),
         },
         remove: { _PARAMS: RemoveAdminParams, _RETURN: z.null() },
         signer: {
-          _PARAMS: z.object({}) as z.ZodType<{}, {}>,
+          _PARAMS: object({}) as z.ZodType<{}, {}>,
           _CHILDREN: {
             add: { _PARAMS: SignerInfo, _RETURN: Guid },
             edit: { _PARAMS: EditSignerParams, _RETURN: z.null() },
             list: {
               _PARAMS: z.intersection(
                 z.intersection(
-                  z.object({
+                  object({
                     format: wire(
                       IoFormat.nullable().optional(),
                       IoFormat.nullable(),
                     ),
                   }),
-                  z.object({}) as z.ZodType<{}, {}>,
+                  object({}) as z.ZodType<{}, {}>,
                 ),
-                z.object({}) as z.ZodType<{}, {}>,
+                object({}) as z.ZodType<{}, {}>,
               ),
               _RETURN: z.record(z.string(), SignerInfo),
             },
@@ -669,7 +976,7 @@ export const Api = {
       },
     },
     db: {
-      _PARAMS: z.object({}) as z.ZodType<{}, {}>,
+      _PARAMS: object({}) as z.ZodType<{}, {}>,
       _CHILDREN: {
         apply: { _PARAMS: ApplyWithPathParams, _RETURN: z.null() },
         dump: { _PARAMS: DumpParams, _RETURN: Dump },
@@ -679,21 +986,21 @@ export const Api = {
     index: {
       _PARAMS: z.intersection(
         z.intersection(
-          z.object({
+          object({
             format: wire(IoFormat.nullable().optional(), IoFormat.nullable()),
           }),
-          z.object({}) as z.ZodType<{}, {}>,
+          object({}) as z.ZodType<{}, {}>,
         ),
-        z.object({}) as z.ZodType<{}, {}>,
+        object({}) as z.ZodType<{}, {}>,
       ),
       _RETURN: FullIndex,
     },
     info: {
       _PARAMS: z.intersection(
-        z.object({
+        object({
           format: wire(IoFormat.nullable().optional(), IoFormat.nullable()),
         }),
-        z.object({}) as z.ZodType<{}, {}>,
+        object({}) as z.ZodType<{}, {}>,
       ),
       _RETURN: RegistryInfo,
       _CHILDREN: {
@@ -703,18 +1010,18 @@ export const Api = {
       },
     },
     metrics: {
-      _PARAMS: z.object({}) as z.ZodType<{}, {}>,
+      _PARAMS: object({}) as z.ZodType<{}, {}>,
       _CHILDREN: {
         downloads: {
           _PARAMS: z.intersection(
             z.intersection(
-              z.object({
+              object({
                 format: wire(
                   IoFormat.nullable().optional(),
                   IoFormat.nullable(),
                 ),
               }),
-              z.object({}) as z.ZodType<{}, {}>,
+              object({}) as z.ZodType<{}, {}>,
             ),
             GetDownloadsParams,
           ),
@@ -723,28 +1030,28 @@ export const Api = {
         summary: {
           _PARAMS: z.intersection(
             z.intersection(
-              z.object({
+              object({
                 format: wire(
                   IoFormat.nullable().optional(),
                   IoFormat.nullable(),
                 ),
               }),
-              z.object({}) as z.ZodType<{}, {}>,
+              object({}) as z.ZodType<{}, {}>,
             ),
-            z.object({}) as z.ZodType<{}, {}>,
+            object({}) as z.ZodType<{}, {}>,
           ),
           _RETURN: MetricsSummary,
         },
         users: {
           _PARAMS: z.intersection(
             z.intersection(
-              z.object({
+              object({
                 format: wire(
                   IoFormat.nullable().optional(),
                   IoFormat.nullable(),
                 ),
               }),
-              z.object({}) as z.ZodType<{}, {}>,
+              object({}) as z.ZodType<{}, {}>,
             ),
             GetUsersParams,
           ),
@@ -753,13 +1060,13 @@ export const Api = {
       },
     },
     os: {
-      _PARAMS: z.object({}) as z.ZodType<{}, {}>,
+      _PARAMS: object({}) as z.ZodType<{}, {}>,
       _CHILDREN: {
         asset: {
-          _PARAMS: z.object({}) as z.ZodType<{}, {}>,
+          _PARAMS: object({}) as z.ZodType<{}, {}>,
           _CHILDREN: {
             add: {
-              _PARAMS: z.object({}) as z.ZodType<{}, {}>,
+              _PARAMS: object({}) as z.ZodType<{}, {}>,
               _CHILDREN: {
                 img: { _PARAMS: AddAssetParams, _RETURN: z.null() },
                 iso: { _PARAMS: AddAssetParams, _RETURN: z.null() },
@@ -767,7 +1074,7 @@ export const Api = {
               },
             },
             get: {
-              _PARAMS: z.object({}) as z.ZodType<{}, {}>,
+              _PARAMS: object({}) as z.ZodType<{}, {}>,
               _CHILDREN: {
                 img: {
                   _PARAMS: GetOsAssetParams,
@@ -784,7 +1091,7 @@ export const Api = {
               },
             },
             remove: {
-              _PARAMS: z.object({}) as z.ZodType<{}, {}>,
+              _PARAMS: object({}) as z.ZodType<{}, {}>,
               _CHILDREN: {
                 img: { _PARAMS: RemoveAssetParams, _RETURN: z.boolean() },
                 iso: { _PARAMS: RemoveAssetParams, _RETURN: z.boolean() },
@@ -792,7 +1099,7 @@ export const Api = {
               },
             },
             sign: {
-              _PARAMS: z.object({}) as z.ZodType<{}, {}>,
+              _PARAMS: object({}) as z.ZodType<{}, {}>,
               _CHILDREN: {
                 img: { _PARAMS: SignAssetParams, _RETURN: z.null() },
                 iso: { _PARAMS: SignAssetParams, _RETURN: z.null() },
@@ -804,32 +1111,32 @@ export const Api = {
         index: {
           _PARAMS: z.intersection(
             z.intersection(
-              z.object({
+              object({
                 format: wire(
                   IoFormat.nullable().optional(),
                   IoFormat.nullable(),
                 ),
               }),
-              z.object({}) as z.ZodType<{}, {}>,
+              object({}) as z.ZodType<{}, {}>,
             ),
-            z.object({}) as z.ZodType<{}, {}>,
+            object({}) as z.ZodType<{}, {}>,
           ),
           _RETURN: OsIndex,
         },
         version: {
-          _PARAMS: z.object({}) as z.ZodType<{}, {}>,
+          _PARAMS: object({}) as z.ZodType<{}, {}>,
           _CHILDREN: {
             add: { _PARAMS: AddVersionParams, _RETURN: z.null() },
             get: {
               _PARAMS: z.intersection(
                 z.intersection(
-                  z.object({
+                  object({
                     format: wire(
                       IoFormat.nullable().optional(),
                       IoFormat.nullable(),
                     ),
                   }),
-                  z.object({}) as z.ZodType<{}, {}>,
+                  object({}) as z.ZodType<{}, {}>,
                 ),
                 GetOsVersionParams,
               ),
@@ -837,19 +1144,19 @@ export const Api = {
             },
             remove: { _PARAMS: RemoveVersionParams, _RETURN: z.null() },
             signer: {
-              _PARAMS: z.object({}) as z.ZodType<{}, {}>,
+              _PARAMS: object({}) as z.ZodType<{}, {}>,
               _CHILDREN: {
                 add: { _PARAMS: VersionSignerParams, _RETURN: z.null() },
                 list: {
                   _PARAMS: z.intersection(
                     z.intersection(
-                      z.object({
+                      object({
                         format: wire(
                           IoFormat.nullable().optional(),
                           IoFormat.nullable(),
                         ),
                       }),
-                      z.object({}) as z.ZodType<{}, {}>,
+                      object({}) as z.ZodType<{}, {}>,
                     ),
                     ListVersionSignersParams,
                   ),
@@ -863,12 +1170,12 @@ export const Api = {
       },
     },
     package: {
-      _PARAMS: z.object({}) as z.ZodType<{}, {}>,
+      _PARAMS: object({}) as z.ZodType<{}, {}>,
       _CHILDREN: {
         add: { _PARAMS: AddPackageParams, _RETURN: z.null() },
         'add-mirror': { _PARAMS: AddMirrorParams, _RETURN: z.null() },
         category: {
-          _PARAMS: z.object({}) as z.ZodType<{}, {}>,
+          _PARAMS: object({}) as z.ZodType<{}, {}>,
           _CHILDREN: {
             add: { _PARAMS: AddCategoryParams, _RETURN: z.null() },
             'add-package': {
@@ -878,15 +1185,15 @@ export const Api = {
             list: {
               _PARAMS: z.intersection(
                 z.intersection(
-                  z.object({
+                  object({
                     format: wire(
                       IoFormat.nullable().optional(),
                       IoFormat.nullable(),
                     ),
                   }),
-                  z.object({}) as z.ZodType<{}, {}>,
+                  object({}) as z.ZodType<{}, {}>,
                 ),
-                z.object({}) as z.ZodType<{}, {}>,
+                object({}) as z.ZodType<{}, {}>,
               ),
               _RETURN: z.record(z.string(), Category),
             },
@@ -900,13 +1207,13 @@ export const Api = {
         get: {
           _PARAMS: z.intersection(
             z.intersection(
-              z.object({
+              object({
                 format: wire(
                   IoFormat.nullable().optional(),
                   IoFormat.nullable(),
                 ),
               }),
-              z.object({}) as z.ZodType<{}, {}>,
+              object({}) as z.ZodType<{}, {}>,
             ),
             GetPackageParams,
           ),
@@ -915,34 +1222,34 @@ export const Api = {
         index: {
           _PARAMS: z.intersection(
             z.intersection(
-              z.object({
+              object({
                 format: wire(
                   IoFormat.nullable().optional(),
                   IoFormat.nullable(),
                 ),
               }),
-              z.object({}) as z.ZodType<{}, {}>,
+              object({}) as z.ZodType<{}, {}>,
             ),
-            z.object({}) as z.ZodType<{}, {}>,
+            object({}) as z.ZodType<{}, {}>,
           ),
           _RETURN: PackageIndex,
         },
         remove: { _PARAMS: RemovePackageParams, _RETURN: z.boolean() },
         'remove-mirror': { _PARAMS: RemoveMirrorParams, _RETURN: z.null() },
         signer: {
-          _PARAMS: z.object({}) as z.ZodType<{}, {}>,
+          _PARAMS: object({}) as z.ZodType<{}, {}>,
           _CHILDREN: {
             add: { _PARAMS: AddPackageSignerParams, _RETURN: z.null() },
             list: {
               _PARAMS: z.intersection(
                 z.intersection(
-                  z.object({
+                  object({
                     format: wire(
                       IoFormat.nullable().optional(),
                       IoFormat.nullable(),
                     ),
                   }),
-                  z.object({}) as z.ZodType<{}, {}>,
+                  object({}) as z.ZodType<{}, {}>,
                 ),
                 ListPackageSignersParams,
               ),

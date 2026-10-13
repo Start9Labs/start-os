@@ -41,7 +41,7 @@ fn borrowed_payloads_and_const_metadata_targets_keep_the_owner_context() {
             .contains("\"value\": z.string()"));
         let bindings = common::module::<Generic<'a, &'a str, 2>>();
         assert!(bindings.schemas.contains(
-            "wire(z.object({ \"payload\": z.string(), \"fixed\": z.tuple([z.int(), z.int()]), \"private\": z.tuple([z.string(), z.string()]) }), z.object({ \"payload\": z.string(), \"fixed\": z.tuple([z.int(), z.int()]), \"private\": z.string() }))"
+            "wire(object({ \"payload\": z.string(), \"fixed\": z.tuple([z.int(), z.int()]), \"private\": z.tuple([z.string(), z.string()]) }), object({ \"payload\": z.string(), \"fixed\": z.tuple([z.int(), z.int()]), \"private\": z.string() }))"
         ), "{}", bindings.schemas);
     }
     let owned = String::from("borrowed locally");

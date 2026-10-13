@@ -114,8 +114,9 @@ and imbl-value/yasi bridges. Dependency edges point from RPC to leaves; patch-db
 exposes generic `reflect` support rather than TypeScript facilities.
 
 `TSVisitor` owns the definition registry. Every expression carries its zod schema
-type beside its value (`Expr`), which annotates the getters that recursive object
-members become. It registers a named type before expanding its fields, tracks
+type beside its value (`Expr`), which annotates every declaration — so member
+JSDoc survives declaration emit — and the getters that recursive object members
+become. Literal overrides are hoisted into typed module constants. It registers a named type before expanding its fields, tracks
 which declarations each one references eagerly and emits the schema module in
 dependency order, rejecting cycles that no object member defers. Type aliases
 project `z.output` and `z.input` of each schema for the directions it is reached

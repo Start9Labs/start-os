@@ -10,7 +10,7 @@ use visit_rs::reflection::{Position, TypeAttributeInfo};
 use super::normalize::{
     Direction, FieldPlan, Hints, Plan, Style, Tag, Target, Variant, VariantPlan,
 };
-use super::types::{jsdoc, json_str, Edge, Expr, TSVisitor, LITERAL_TYPE};
+use super::types::{jsdoc, json_str, Edge, Expr, TSVisitor};
 
 type Callback = fn(&mut TSVisitor);
 pub(super) type Storage = [(Position, Option<Callback>)];
@@ -130,7 +130,7 @@ fn property(name: &str, docs: &[String], expr: Expr) -> Property {
     }
 }
 
-/// A `z.object` literal; recursive members become annotated getters.
+/// An object schema; recursive members become annotated getters.
 fn object(properties: Vec<Property>) -> Expr {
     let mut values = Vec::new();
     let mut types = Vec::new();
@@ -138,7 +138,7 @@ fn object(properties: Vec<Property>) -> Expr {
         let name = json_str(&property.name);
         let docs = jsdoc(&property.docs);
         let expr = property.expr.described(None, &property.docs);
-        types.push(format!("{name}: {}", expr.ty));
+        types.push(format!("{docs}{name}: {}", expr.ty));
         values.push(if property.recursive {
             format!(
                 "{docs}get {name}(): {} {{ return {}; }}",
@@ -148,8 +148,8 @@ fn object(properties: Vec<Property>) -> Expr {
             format!("{docs}{name}: {}", expr.value)
         });
     }
-    Expr::new(
-        format!("z.object({{ {} }})", values.join(", ")),
+    Expr::object(
+        format!("{{ {} }}", values.join(", ")),
         format!("z.ZodObject<{{ {} }}>", types.join("; ")),
     )
 }
@@ -198,7 +198,8 @@ impl TSVisitor {
             self.error("TypeScript skip requires a named field");
         }
         if let Some(literal) = &input.hints.literal {
-            self.leaf(literal, LITERAL_TYPE);
+            let literal = self.literal(literal);
+            self.push(literal);
             return;
         }
         let expression = self.joint(&input, &output, storage, targets);
@@ -352,12 +353,7 @@ impl TSVisitor {
             Some(literal) => {
                 let (_, option, recursive, edges) =
                     self.capture_field(|visitor| visitor.with_suppressed_types(callback));
-                (
-                    Expr::new(literal.clone(), LITERAL_TYPE),
-                    option,
-                    recursive,
-                    edges,
-                )
+                (self.literal(literal), option, recursive, edges)
             }
             None => self.capture_field(callback),
         };

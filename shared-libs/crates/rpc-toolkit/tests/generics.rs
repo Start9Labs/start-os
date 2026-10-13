@@ -82,9 +82,8 @@ fn holder() -> Holder {
 fn families_declare_once_and_instances_reference_them() {
     let bindings = module::<Holder>();
     let schemas = &bindings.schemas;
-    assert!(schemas.contains(
-        "export const Tree = <T extends z.ZodType>(T: T) => {\n  const self = z.object("
-    ));
+    assert!(schemas
+        .contains("export const Tree = <T extends z.ZodType>(T: T) => {\n  const self = object("));
     assert!(
         schemas.contains("get \"childNodes\"(): z.ZodArray<typeof self> { return z.array(self); }")
     );

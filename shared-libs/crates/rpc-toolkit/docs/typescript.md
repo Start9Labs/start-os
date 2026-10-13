@@ -27,10 +27,13 @@ reflect_ts!(Request);
 Every root generates a module pair, `Bindings { schemas, types }`:
 
 - The **schema module** is runtime code: one [zod](https://zod.dev) schema per
-  Rust type, `export const Request = z.object({...}).meta({ id: 'Request' })`,
+  Rust type, `export const Request: z.ZodObject<{...}> = object({...}).meta({ id: 'Request' })`,
   and for a handler tree the root as a plain object of schemas
   (`export const Api = { _PARAMS, _RETURN, _CHILDREN }`). It imports `zod` and
-  nothing else.
+  nothing else. Every declaration is annotated with its schema type, with member
+  JSDoc inside the type literal: TypeScript's declaration emit drops comments
+  from an inferred shape, so the annotation is what keeps field documentation in
+  a consumer's `.d.ts` and editor hover.
 - The **type module** is type-only: `export type Request = z.output<typeof
 schemas.Request>` and `export type RequestInput = z.input<typeof
 schemas.Request>`, the method-path helpers, and
@@ -73,10 +76,11 @@ narrowest differing part is wrapped in `wire(input, output)`, an identity
 directional skip wraps the whole struct or enum.
 
 `parse` runs the input side and then the output side, so it accepts values
-valid in both directions: output data always parses, and input data parses
-unless it relies on an omitted default or an alias. The schemas are structural
-JSON validators, not serde: numeric precision, unknown-field rejection and
-application predicates stay with serde or the handler.
+valid in both directions. Input-only required fields, split renames, aliases,
+omitted defaults and serialized non-finite floats can prevent parsing a value
+that is valid in one direction. The schemas are structural JSON validators,
+not serde: numeric precision, unknown-field rejection and application
+predicates stay with serde or the handler.
 
 ## JSON shapes
 
@@ -111,8 +115,12 @@ and RPC combines that fact with serde policy: input option fields normally allow
 omission, but custom deserialization hooks can require them. Output fields remain
 required unless serde conditionally omits them. Defaults make input fields
 optional, not output fields. Tuple options remain positional. Map keys are
-strings, and map-key types do not need a `TS` implementation. An empty struct is
-`z.object({}) as z.ZodType<{}, {}>`, so intersecting it with inherited parameters
+strings, and map-key types do not need a `TS` implementation. Objects are built
+through the module's `object()` helper, `z.object(shape).meta({ additionalProperties: true })`:
+zod still strips unknown keys when parsing and the inferred TypeScript type gains
+no index signature, but the JSON Schema stays open, so the `allOf` branches an
+intersection renders accept each other's members. An empty struct is
+`object({}) as z.ZodType<{}, {}>`, so intersecting it with inherited parameters
 stays transparent. `Flat<A,B>` combines its two shapes with `z.intersection`.
 
 Rust type, field and variant docs become JSDoc on declarations and object members
@@ -143,9 +151,10 @@ struct variant. A cycle that does not — an internally tagged or untagged newty
 variant holding the enum, a newtype or tuple struct holding itself, a flattened
 field closing a cycle without any member on the way — is a generation error
 (`Recursive reference ... outside an object member`); break it with a wrapper
-struct or an override. The annotation is derived alongside the expression for
-every built-in bridge; a literal override in a recursive member annotates as the
-unconstrained `z.ZodType` and loses its inferred TypeScript type.
+struct or an override. The schema type is derived alongside the expression for
+every built-in bridge; a literal override is hoisted into a module constant
+(`const literal_0 = ...`) and typed as `typeof` that constant, so it must be a
+closed expression that uses only `z`.
 
 ## Overrides and unsupported shapes
 
@@ -160,8 +169,9 @@ Use `.override_params_ts_as::<WireParams>()` or
 `.override_return_ts_as::<WireResult>()` to substitute another `TS` type. To supply a
 literal zod expression, pass `rpc_toolkit::ts::LiteralTS("z.string()".into())` to
 `.override_params_ts(...)` or `.override_return_ts(...)`. The caller owns that
-expression's validity and its agreement with custom serialization. These overrides
-compose with CLI/display adapters. `.no_ts()` remains an opt-out through subsequent
+expression's validity and its agreement with custom serialization; it is hoisted
+into a module constant like a `ts(type = "...")` hint. These overrides compose
+with CLI/display adapters. `.no_ts()` remains an opt-out through subsequent
 decorations.
 
 For individual field types with custom JSON representations, implement `TS`
@@ -240,7 +250,7 @@ Lifetime-only types remain named; generic instances inline unless the type opts
 into a generic family or is registered as a concrete root. `impl_ts_shape!` remains
 available for deliberate manual/inline bridges and explicit `{ define,
 input_define }` policy. `TSWriter`, `type_writer` and `intersection_writer` supply
-handler writers; `TSVisitor::reserve`, `declare`, `in_direction` and
+handler writers; `TSVisitor::reserve`, `declare`, `literal`, `in_direction` and
 `into_bindings` manage composed declarations.
 
 Generic bridges state their payload bounds explicitly and remain inline:
@@ -256,7 +266,8 @@ reflect_ts!(impl [T] for Payload<T> where [T: rpc_toolkit::ts::TS]);
 `reflect_ts!(generic Payload<T>)` instead declares one schema factory,
 `export const Payload = <T extends z.ZodType>(T: T) => { const self = ...; return self }`,
 with `Payload<T>` and `PayloadInput<T>` type aliases, and renders each instance
-as a call such as `Payload(z.string())`. Parameters are plain type identifiers;
+as a call such as `Payload(z.string())`. A factory's return type is inferred, so
+its members' JSDoc does not survive declaration emit. Parameters are plain type identifiers;
 add other bounds with `where [...]`. The family renders with
 `rpc_toolkit::ts::Param<N>` substituted for each parameter, so the declaration's
 own bounds must hold for `Param`. Fields of a parameter type stay required on

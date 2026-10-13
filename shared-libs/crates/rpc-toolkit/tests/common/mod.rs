@@ -85,6 +85,40 @@ pub fn typecheck(bindings: &Bindings, assertions: &str) {
     );
 }
 
+/// The `.d.ts` TypeScript emits for the schema module.
+pub fn declaration_file(bindings: &Bindings) -> String {
+    let fixtures = repo_root().join("target/ts-fixtures");
+    std::fs::create_dir_all(&fixtures).unwrap();
+    let dir = tempfile::tempdir_in(&fixtures).unwrap();
+    std::fs::write(dir.path().join("schemas.ts"), &bindings.schemas).unwrap();
+    let output = Command::new("node")
+        .current_dir(dir.path())
+        .arg(node_module("typescript/bin/tsc"))
+        .args([
+            "--strict",
+            "--declaration",
+            "--emitDeclarationOnly",
+            "--skipLibCheck",
+            "--ignoreConfig",
+            "--target",
+            "ES2022",
+            "--module",
+            "esnext",
+            "--moduleResolution",
+            "bundler",
+            "schemas.ts",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    std::fs::read_to_string(dir.path().join("schemas.d.ts")).unwrap()
+}
+
 /// Evaluates a script against the compiled schema module; `schemas` is bound
 /// to its exports and the assertion text is on stdin.
 pub fn evaluate(bindings: &Bindings, script: &str) -> String {

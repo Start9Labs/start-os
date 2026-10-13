@@ -68,7 +68,8 @@ impl Expr {
     pub fn tuple(elements: Vec<Self>) -> Self {
         Self::new(
             format!("z.tuple([{}])", join(&elements, |e| &e.value, ", ")),
-            format!("z.ZodTuple<[{}]>", join(&elements, |e| &e.ty, ", ")),
+            // `Rest` must be pinned: its default widens the tuple with `...unknown[]`.
+            format!("z.ZodTuple<[{}], null>", join(&elements, |e| &e.ty, ", ")),
         )
     }
     pub fn union(variants: Vec<Self>) -> Self {
@@ -123,9 +124,15 @@ impl Expr {
             ),
         )
     }
+    /// An object schema whose JSON Schema stays open to sibling keys, so the
+    /// branches of an intersection accept each other's members; zod still
+    /// strips unknown keys when parsing.
+    pub fn object(shape: impl AsRef<str>, ty: impl Into<String>) -> Self {
+        Self::new(format!("object({})", shape.as_ref()), ty)
+    }
     /// Accepts any object while inferring `{}`, so intersections with it stay transparent.
     pub fn empty() -> Self {
-        Self::new("(z.object({}) as z.ZodType<{}, {}>)", "z.ZodType<{}, {}>")
+        Self::new("(object({}) as z.ZodType<{}, {}>)", "z.ZodType<{}, {}>")
     }
     pub fn reference(name: &str) -> Self {
         Self::new(name, format!("typeof {name}"))
@@ -238,6 +245,8 @@ pub struct TSVisitor {
     context: Option<Direction>,
     /// Directions each declaration is referenced from, before closure.
     reach: BTreeMap<String, Reach>,
+    /// Literal expressions hoisted into module constants, by text.
+    literals: BTreeMap<String, usize>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -255,7 +264,7 @@ struct Definition {
     owner: &'static str,
     input_name: Option<String>,
     params: &'static [&'static str],
-    expression: Option<String>,
+    expression: Option<Expr>,
     edges: Vec<Edge>,
 }
 
@@ -271,9 +280,10 @@ impl Default for TSVisitor {
 pub struct BindingError(String);
 
 /// Identifiers the schema module prelude and generated code own.
-const RESERVED: &[&str] = &["z", "wire", "schemas", "self"];
+const RESERVED: &[&str] = &["z", "wire", "object", "schemas", "self"];
 
 const WIRE_PRELUDE: &str = "const wire = <A extends z.ZodType, B extends z.ZodType>(input: A, output: B) =>\n  z.codec(input, output, { decode: (v) => v as never, encode: (v) => v as never });\n";
+const OBJECT_PRELUDE: &str = "const object = <Shape extends z.core.$ZodLooseShape>(shape: Shape) =>\n  z.object(shape).meta({ additionalProperties: true });\n";
 
 impl TSVisitor {
     /// Starts with an empty expression/definition registry.
@@ -294,7 +304,20 @@ impl TSVisitor {
             frames: Vec::new(),
             context: None,
             reach: BTreeMap::new(),
+            literals: BTreeMap::new(),
         }
+    }
+
+    /// References a literal zod expression through a module constant, so its
+    /// schema type is `typeof` that constant rather than a guess.
+    ///
+    /// The expression must be closed: it may use `z` and nothing declared in
+    /// the module.
+    pub fn literal(&mut self, expression: &str) -> Expr {
+        let next = self.literals.len();
+        let index = *self.literals.entry(expression.to_owned()).or_insert(next);
+        let name = format!("literal_{index}");
+        Expr::new(name.clone(), format!("typeof {name}"))
     }
 
     /// Renders under one wire direction, so declarations reached only there
@@ -450,7 +473,7 @@ impl TSVisitor {
             self.pending_reference = false;
         }
         let definition = self.definitions.get_mut(name).unwrap();
-        definition.expression = Some(expression.value);
+        definition.expression = Some(expression);
         definition.edges = edges;
     }
 
@@ -541,7 +564,7 @@ impl TSVisitor {
         }
         self.generics.pop();
         let definition = self.definitions.get_mut(name).unwrap();
-        definition.expression = Some(expression.value);
+        definition.expression = Some(expression);
         // A factory body runs at call time, after every declaration.
         definition.edges = edges.into_iter().map(|(name, _)| (name, true)).collect();
     }
@@ -750,6 +773,20 @@ impl TSVisitor {
         if self.uses_wire {
             schemas.push_str(WIRE_PRELUDE);
         }
+        let uses_object = self
+            .definitions
+            .values()
+            .filter_map(|definition| definition.expression.as_ref())
+            .any(|expression| expression.value.contains("object("))
+            || self.ts.contains("object(");
+        if uses_object {
+            schemas.push_str(OBJECT_PRELUDE);
+        }
+        let mut literals: Vec<_> = self.literals.iter().collect();
+        literals.sort_by_key(|(_, index)| **index);
+        for (expression, index) in literals {
+            schemas.push_str(&format!("const literal_{index} = {expression};\n"));
+        }
         let mut types = format!(
             "import type {{ z }} from 'zod'\nimport type * as schemas from {}\n{}",
             json_str(schemas_specifier),
@@ -765,8 +802,12 @@ impl TSVisitor {
                 .find(|(_, owner)| *owner == name)
                 .map(|(alias, _)| alias.as_str());
             if definition.params.is_empty() {
+                // The annotation carries member JSDoc through declaration
+                // emit, which drops comments from an inferred shape.
                 schemas.push_str(&format!(
-                    "{docs}export const {name} = {expression}{};\n",
+                    "{docs}export const {name}: {} = {}{};\n",
+                    expression.ty,
+                    expression.value,
                     meta(Some(name), &definition.docs)
                 ));
                 if projected.output {
@@ -792,7 +833,8 @@ impl TSVisitor {
                     .collect::<Vec<_>>()
                     .join(", ");
                 schemas.push_str(&format!(
-                    "{docs}export const {name} = <{schema_params}>({schema_args}) => {{\n  const self = {expression};\n  return self;\n}};\n"
+                    "{docs}export const {name} = <{schema_params}>({schema_args}) => {{\n  const self = {};\n  return self;\n}};\n",
+                    expression.value
                 ));
                 let type_params = params.join(", ");
                 let type_args = params
@@ -1003,20 +1045,15 @@ impl<T: TypeInfo + VisitVariantsStatic<EnumCollector>> ShapeKind<T> for EnumKind
     }
 }
 
-/// A literal zod expression the caller owns, substituted verbatim.
-///
-/// Its schema type is the unconstrained `z.ZodType`, so a recursive field
-/// holding one loses its inferred TypeScript type.
+/// A literal zod expression the caller owns, hoisted into a module constant.
 pub struct LiteralTS(pub std::borrow::Cow<'static, str>);
 impl Visit<TSVisitor> for LiteralTS {
     fn visit(&self, visitor: &mut TSVisitor) {
-        visitor.leaf(&self.0, LITERAL_TYPE);
+        let literal = visitor.literal(&self.0);
+        visitor.push(literal);
         visitor.type_optional = false;
     }
 }
-
-/// The schema type of a literal expression the generator cannot inspect.
-pub const LITERAL_TYPE: &str = "z.ZodType";
 
 #[derive(Debug, Clone, Copy)]
 pub struct Unknown;
@@ -1076,7 +1113,14 @@ impl_ts!(ipnet::IpNet, ipnet::Ipv4Net, ipnet::Ipv6Net => "z.string()", "z.ZodStr
 #[cfg(feature = "josekit")]
 impl_ts!(josekit::jwk::Jwk => "z.record(z.string(), z.unknown())", "z.ZodRecord<z.ZodString, z.ZodUnknown>");
 #[cfg(feature = "yajrc")]
-impl_ts!(yajrc::RpcError => "z.object({ code: z.number(), message: z.string(), data: z.unknown().optional() })", "z.ZodObject<{ code: z.ZodNumber; message: z.ZodString; data: z.ZodOptional<z.ZodUnknown> }>");
+impl TS for yajrc::RpcError {
+    fn visit_ts(visitor: &mut TSVisitor) {
+        visitor.push(Expr::object(
+            "{ code: z.number(), message: z.string(), data: z.unknown().optional() }",
+            "z.ZodObject<{ code: z.ZodNumber; message: z.ZodString; data: z.ZodOptional<z.ZodUnknown> }>",
+        ));
+    }
+}
 #[cfg(feature = "chrono")]
 impl<T: chrono::TimeZone> TS for chrono::DateTime<T> {
     fn visit_ts(visitor: &mut TSVisitor) {

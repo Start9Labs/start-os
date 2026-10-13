@@ -275,7 +275,7 @@ fn serde_enum_shapes_typecheck() {
     check_serialized(&[Generic::Data("one".to_owned())], "{Data:1}");
     let choice = module::<Choice>();
     assert!(choice.schemas.contains(
-        "export const TestType = z.enum([\"Yes\", \"No\"]).meta({\nid: \"TestType\" });"
+        "export const TestType: z.ZodEnum<{ \"Yes\": \"Yes\"; \"No\": \"No\" }> = z.enum([\"Yes\", \"No\"]).meta({\nid: \"TestType\" });"
     ));
     check_serialized(&[Choice::Yes, Choice::No], "'Maybe'");
 }
@@ -294,6 +294,81 @@ fn recursive_and_composed_types_typecheck() {
     );
     check_serialized(&[BTreeMap::from([(1u64, "value".to_owned())])], "{'1':1}");
     typecheck(&module::<rpc_toolkit::util::Flat<Inner, Flat>>(), "const ok: TestType = {own:'a',inner:1};\n// @ts-expect-error\nconst bad: TestType = {own:1,inner:1};");
+}
+
+#[test]
+fn composed_output_json_schemas_allow_sibling_keys() {
+    #[derive(Serialize, visit_rs::VisitVariants)]
+    #[serde(tag = "kind")]
+    enum TaggedOutput {
+        Data { value: u32 },
+    }
+    reflect_ts!(TaggedOutput);
+
+    #[derive(Serialize, visit_rs::VisitFields)]
+    struct FlattenedOutput {
+        own: String,
+        #[serde(flatten)]
+        inner: Inner,
+    }
+    reflect_ts!(FlattenedOutput);
+
+    fn check<T: TS + Serialize>(value: T) {
+        let output = serde_json::to_string(&value).unwrap();
+        common::evaluate(
+            &module::<T>(),
+            &format!(
+                "const assert = require('node:assert/strict');\n\
+                 const schema = z.toJSONSchema(schemas.TestType, {{ io: 'output' }});\n\
+                 assert.equal(schema.allOf.length, 2);\n\
+                 for (const branch of schema.allOf) {{\n\
+                   const object = branch.$ref ? schema.$defs[branch.$ref.slice('#/$defs/'.length)] : branch;\n\
+                   assert.equal(object.type, 'object');\n\
+                   assert.equal(object.additionalProperties, true);\n\
+                 }}\n\
+                 assert.deepEqual(schemas.TestType.parse({output}), {output});\n\
+                 assert.equal(schemas.TestType.safeParse({{}}).success, false);"
+            ),
+        );
+    }
+    check(TaggedOutput::Data { value: 1 });
+    check(TaggedStruct { some_value: 1 });
+    check(FlattenedOutput {
+        own: "own".into(),
+        inner: Inner { inner: 1 },
+    });
+    check(rpc_toolkit::util::Flat(
+        Inner { inner: 1 },
+        ParentParams { token: "t".into() },
+    ));
+    check(rpc_toolkit::util::Flat(Empty {}, Inner { inner: 1 }));
+}
+
+#[test]
+fn literal_overrides_are_hoisted_into_typed_constants() {
+    #[derive(Serialize, Deserialize, visit_rs::VisitFields)]
+    struct Hinted {
+        #[visit(ts(type = "z.string().min(1)"))]
+        first: String,
+        #[visit(ts(type = "z.string().min(1)"))]
+        second: String,
+        #[visit(ts(type = "z.int().positive()"))]
+        count: u32,
+    }
+    reflect_ts!(Hinted);
+    let bindings = module::<Hinted>();
+    assert!(
+        bindings.schemas.contains(
+            "const literal_0 = z.string().min(1);\nconst literal_1 = z.int().positive();\n"
+        ),
+        "{}",
+        bindings.schemas
+    );
+    assert!(bindings.schemas.contains("export const TestType: z.ZodObject<{ \"first\": typeof literal_0; \"second\": typeof literal_0; \"count\": typeof literal_1 }> = object({ \"first\": literal_0, \"second\": literal_0, \"count\": literal_1 })"), "{}", bindings.schemas);
+    typecheck(
+        &bindings,
+        "const ok: TestType = { first: 'a', second: 'b', count: 1 };\n// @ts-expect-error count is a number\nconst bad: TestType = { first: 'a', second: 'b', count: '1' };",
+    );
 }
 
 #[derive(Serialize, Deserialize, visit_rs::VisitFields)]
@@ -329,7 +404,7 @@ async fn handler_tree_matches_dispatch_and_inference() {
         );
     let root = ParentHandler::<Ctx, Empty, Empty>::new().subcommand("jobs", parent.no_cli());
     let bindings = handler_bindings(&root, "Api", SCHEMAS).unwrap().unwrap();
-    assert!(bindings.schemas.contains("export const Api = { _PARAMS: (z.object({}) as z.ZodType<{}, {}>), _CHILDREN: { \"jobs\": { _PARAMS: ParentParams, _RETURN: z.string(), _CHILDREN: { \"leaf\": { _PARAMS: Params, _RETURN: Node }, \"opaque\": { _PARAMS: z.unknown(), _RETURN: z.unknown() } } } } };"), "{}", bindings.schemas);
+    assert!(bindings.schemas.contains("export const Api = { _PARAMS: (object({}) as z.ZodType<{}, {}>), _CHILDREN: { \"jobs\": { _PARAMS: ParentParams, _RETURN: z.string(), _CHILDREN: { \"leaf\": { _PARAMS: Params, _RETURN: Node }, \"opaque\": { _PARAMS: z.unknown(), _RETURN: z.unknown() } } } } };"), "{}", bindings.schemas);
     assert!(bindings
         .types
         .contains("export type Api = RpcSchemaTree<typeof schemas.Api>;"));

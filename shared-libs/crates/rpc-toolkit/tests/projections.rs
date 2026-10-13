@@ -53,8 +53,13 @@ fn omission_and_optional_state_are_scoped_to_each_field() {
     let schemas = declarations::<Projection>().schemas;
     assert!(!schemas.contains("context"));
     assert!(!schemas.contains("omitted"));
-    assert!(schemas.contains("export const Nested = z.object({ \"value\": z.string() })"));
-    assert!(schemas.contains("export const Projection = z.object({ \"nested\": Nested, \"required\": z.int(), \"nullable\": wire(z.number().nullable().optional(), z.number().nullable()), \"last\": z.string() })"), "{}", schemas);
+    assert!(schemas.contains("export const Nested: z.ZodObject<{ \"value\": z.ZodString }> = object({ \"value\": z.string() })"));
+    assert!(
+        schemas.contains("const literal_0 = z.number().nullable();\n"),
+        "{}",
+        schemas
+    );
+    assert!(schemas.contains("export const Projection: z.ZodObject<{ \"nested\": typeof Nested; \"required\": z.ZodInt; \"nullable\": z.ZodCodec<z.ZodOptional<typeof literal_0>, typeof literal_0>; \"last\": z.ZodString }> = object({ \"nested\": Nested, \"required\": z.int(), \"nullable\": wire(literal_0.optional(), literal_0), \"last\": z.string() })"), "{}", schemas);
 }
 #[test]
 fn omission_rejects_tuple_and_newtype_fields() {
@@ -89,17 +94,22 @@ rpc_toolkit::reflect_ts!(LiteralContainer);
 fn literals_do_not_register_replaced_definitions() {
     let schemas = declarations::<LiteralFields>().schemas;
     assert!(!schemas.contains("Nested"));
-    assert!(schemas.contains("\"overridden\": z.boolean()"));
-    assert!(schemas.contains("\"required\": z.string()"));
     assert!(
         schemas
-            .contains("\"option\": wire(z.number().nullable().optional(), z.number().nullable())"),
+            .contains("const literal_0 = z.boolean();\nconst literal_1 = z.number().nullable();\n"),
+        "{}",
+        schemas
+    );
+    assert!(schemas.contains("\"overridden\": literal_0"));
+    assert!(schemas.contains("\"required\": z.string()"));
+    assert!(
+        schemas.contains("\"option\": wire(literal_1.optional(), literal_1)"),
         "{}",
         schemas
     );
     let schemas = declarations::<LiteralContainer>().schemas;
     assert!(schemas.contains(
-        "export const LiteralContainer = z.number().meta({\nid: \"LiteralContainer\" });"
+        "const literal_0 = z.number();\nexport const LiteralContainer: typeof literal_0 = literal_0.meta({\nid: \"LiteralContainer\" });"
     ));
     assert!(!schemas.contains("Nested"));
 }
@@ -150,11 +160,11 @@ rpc_toolkit::impl_ts_shape!(ManualNamed {
 fn manual_bridges_keep_explicit_inline_and_alias_policy() {
     assert!(module::<ManualEmpty>()
         .schemas
-        .contains("export const TestType = z.null().meta({\nid: \"TestType\" });\n"));
+        .contains("export const TestType: z.ZodNull = z.null().meta({\nid: \"TestType\" });\n"));
     let bindings = declarations::<ManualNamed>();
-    assert!(bindings
-        .schemas
-        .contains("export const ManualAlias = z.string().meta({\nid: \"ManualAlias\" });"));
+    assert!(bindings.schemas.contains(
+        "export const ManualAlias: z.ZodString = z.string().meta({\nid: \"ManualAlias\" });"
+    ));
     assert!(bindings
         .types
         .contains("export type ManualAlias = z.output<typeof schemas.ManualAlias>;\nexport type ManualParams = z.input<typeof schemas.ManualAlias>;"));
@@ -180,15 +190,15 @@ fn malformed_consumer_hints_are_runtime_errors() {
 
 #[test]
 fn unknown_unparsed_metadata_remains_consumer_opaque() {
-    assert!(declarations::<UnknownOuter>()
-        .schemas
-        .contains("export const UnknownOuter = z.string().meta({\nid: \"UnknownOuter\" });\n"));
+    assert!(declarations::<UnknownOuter>().schemas.contains(
+        "export const UnknownOuter: z.ZodString = z.string().meta({\nid: \"UnknownOuter\" });\n"
+    ));
 }
 
 #[test]
 fn precise_generic_bridges_preserve_docs_and_aliases() {
     let bindings = declarations::<Borrowed<'_>>();
-    assert!(bindings.schemas.contains("Borrowed documentation.\n */\nexport const Borrowed = z.string().meta({\nid: \"Borrowed\", description: \"Borrowed documentation.\" });"), "{}", bindings.schemas);
+    assert!(bindings.schemas.contains("Borrowed documentation.\n */\nexport const Borrowed: z.ZodString = z.string().meta({\nid: \"Borrowed\", description: \"Borrowed documentation.\" });"), "{}", bindings.schemas);
     assert!(bindings.types.contains("Borrowed documentation.\n */\nexport type BorrowedParams = z.input<typeof schemas.Borrowed>;"), "{}", bindings.types);
     let mut v = TSVisitor::new();
     v.append_type::<Array<String, 2>>();
@@ -248,7 +258,7 @@ fn public_constants_match_reflected_declaration_identity_and_docs() {
     let bindings = declarations::<ConstantIdentity>();
     assert!(bindings
         .schemas
-        .contains("export const ExplicitAlias = z.null().meta({\nid: \"ExplicitAlias\", description: \" preserved documentation  \" });"), "{}", bindings.schemas);
+        .contains("export const ExplicitAlias: z.ZodNull = z.null().meta({\nid: \"ExplicitAlias\", description: \" preserved documentation  \" });"), "{}", bindings.schemas);
     assert!(bindings
         .types
         .contains("export type ExplicitAlias = z.output<typeof schemas.ExplicitAlias>;"));
