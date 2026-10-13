@@ -289,29 +289,20 @@ mod tests {
     #[cfg(feature = "ts")]
     #[test]
     fn rpc_setter_bindings_require_nullable_values() {
-        use rpc_toolkit::ts::{Direction, TSVisitor};
+        use rpc_toolkit::ts::TSVisitor;
 
         let mut visitor = TSVisitor::new();
-        visitor.with_direction(Direction::Input, |visitor| {
-            visitor.append_type::<SetIconParams>();
-            visitor.append_type::<SetDescriptionParams>();
-        });
-        let declarations = visitor.into_declarations().unwrap();
-        for (field, target) in [
-            ("icon", "DataUrlInput"),
-            ("description", "LocaleStringInput"),
-        ] {
+        visitor.append_type::<SetIconParams>();
+        visitor.append_type::<SetDescriptionParams>();
+        let schemas = visitor.into_bindings(None, "./schemas").unwrap().schemas;
+        for (field, target) in [("icon", "DataUrl"), ("description", "LocaleString")] {
             assert!(
-                declarations.contains(&format!("\"{field}\":")),
-                "{declarations}"
+                schemas.contains(&format!("\"{field}\": {target}.nullable() }}")),
+                "{schemas}"
             );
             assert!(
-                !declarations.contains(&format!("\"{field}\"?:")),
-                "{declarations}"
-            );
-            assert!(
-                declarations.contains(&format!("{target}|null")),
-                "{declarations}"
+                !schemas.contains(&format!("\"{field}\": {target}.nullable().optional()")),
+                "{schemas}"
             );
         }
     }

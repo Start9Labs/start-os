@@ -11,7 +11,7 @@ lazy_static::lazy_static! {
     pub static ref SYSTEM_PACKAGE_ID: PackageId = PackageId(SYSTEM_ID.clone());
 }
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, visit_rs::VisitFields)]
-#[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
 #[visit(opaque, type_attributes(visit::wire))]
 pub struct PackageId(Id);
 

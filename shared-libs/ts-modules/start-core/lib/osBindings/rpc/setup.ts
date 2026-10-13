@@ -1,3 +1,5 @@
+import type { z } from 'zod'
+import type * as schemas from './setup.schemas'
 export type RpcHandler = {
   _PARAMS: unknown
   _RETURN?: unknown
@@ -60,344 +62,69 @@ export type RpcReturnType<
         : never
     : never
 
-export type Api = {
-  _PARAMS: {}
-  _CHILDREN: {
-    auth: {
-      _PARAMS: {}
-      _CHILDREN: { session: { _PARAMS: {}; _CHILDREN: {} } }
-    }
-    backup: {
-      _PARAMS: {}
-      _CHILDREN: {
-        target: {
-          _PARAMS: {}
-          _CHILDREN: { cifs: { _PARAMS: {}; _CHILDREN: {} } }
-        }
-      }
-    }
-    db: { _PARAMS: {}; _CHILDREN: { put: { _PARAMS: {}; _CHILDREN: {} } } }
-    diagnostic: {
-      _PARAMS: {}
-      _CHILDREN: {
-        disk: {
-          _PARAMS: {}
-          _CHILDREN: {
-            forget: { _PARAMS: {}; _RETURN: null }
-            repair: { _PARAMS: {}; _RETURN: null }
-          }
-        }
-      }
-    }
-    disk: { _PARAMS: {}; _CHILDREN: { repair: { _PARAMS: {}; _RETURN: null } } }
-    'git-info': { _PARAMS: {}; _RETURN: string }
-    init: { _PARAMS: {}; _CHILDREN: {} }
-    kiosk: { _PARAMS: {}; _CHILDREN: {} }
-    net: {
-      _PARAMS: {}
-      _CHILDREN: {
-        acme: { _PARAMS: {}; _CHILDREN: {} }
-        dns: {
-          _PARAMS: {}
-          _CHILDREN: {
-            query: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-                QueryDnsParamsInput
-              _RETURN: QueryDnsRes
-            }
-          }
-        }
-        forward: { _PARAMS: {}; _CHILDREN: {} }
-        gateway: { _PARAMS: {}; _CHILDREN: {} }
-        ssl: { _PARAMS: {}; _CHILDREN: {} }
-        tunnel: { _PARAMS: {}; _CHILDREN: {} }
-        vhost: { _PARAMS: {}; _CHILDREN: {} }
-      }
-    }
-    notification: { _PARAMS: {}; _CHILDREN: {} }
-    package: {
-      _PARAMS: {}
-      _CHILDREN: {
-        action: { _PARAMS: {}; _CHILDREN: {} }
-        backup: { _PARAMS: {}; _CHILDREN: {} }
-        host: {
-          _PARAMS: RequiresPackageIdInput
-          _CHILDREN: {
-            address: {
-              _PARAMS: RequiresHostIdInput
-              _CHILDREN: {
-                domain: {
-                  _PARAMS: {}
-                  _CHILDREN: {
-                    private: { _PARAMS: {}; _CHILDREN: {} }
-                    public: { _PARAMS: {}; _CHILDREN: {} }
-                  }
-                }
-              }
-            }
-            binding: { _PARAMS: RequiresHostIdInput; _CHILDREN: {} }
-          }
-        }
-      }
-    }
-    server: {
-      _PARAMS: {}
-      _CHILDREN: {
-        'device-info': {
-          _PARAMS: { format?: IoFormatInput | null } & {}
-          _CHILDREN: {}
-        }
-        experimental: { _PARAMS: {}; _CHILDREN: {} }
-        host: {
-          _PARAMS: {}
-          _CHILDREN: {
-            address: {
-              _PARAMS: {}
-              _CHILDREN: {
-                domain: {
-                  _PARAMS: {}
-                  _CHILDREN: {
-                    private: { _PARAMS: {}; _CHILDREN: {} }
-                    public: { _PARAMS: {}; _CHILDREN: {} }
-                  }
-                }
-              }
-            }
-            binding: { _PARAMS: {}; _CHILDREN: {} }
-          }
-        }
-        metrics: {
-          _PARAMS: { format?: IoFormatInput | null } & {}
-          _CHILDREN: {}
-        }
-      }
-    }
-    setup: {
-      _PARAMS: {}
-      _CHILDREN: {
-        attach: { _PARAMS: AttachParamsInput; _RETURN: SetupProgress }
-        cifs: {
-          _PARAMS: {}
-          _CHILDREN: {
-            verify: {
-              _PARAMS: VerifyCifsParamsInput
-              _RETURN: { [key: string]: StartOsRecoveryInfo }
-            }
-          }
-        }
-        complete: {
-          _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-          _RETURN: SetupResult
-        }
-        disk: {
-          _PARAMS: {}
-          _CHILDREN: {
-            list: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-              _RETURN: DiskInfo[]
-            }
-          }
-        }
-        execute: { _PARAMS: SetupExecuteParamsInput; _RETURN: SetupProgress }
-        exit: { _PARAMS: {}; _RETURN: null }
-        'get-pubkey': {
-          _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-          _RETURN: { [key: string]: unknown }
-        }
-        'install-os': { _PARAMS: InstallOsParamsInput; _RETURN: SetupInfo }
-        logs: {
-          _PARAMS: {
-            limit?: number | null
-            cursor?: string | null
-            boot?: number | string | null
-            before?: boolean
-          } & {}
-          _RETURN: LogResponse
-          _CHILDREN: { follow: { _PARAMS: {}; _RETURN: LogFollowResponse } }
-        }
-        restart: { _PARAMS: {}; _RETURN: null }
-        'set-keyboard': { _PARAMS: KeyboardOptionsInput; _RETURN: null }
-        'set-language': { _PARAMS: SetLanguageParamsInput; _RETURN: null }
-        shutdown: { _PARAMS: {}; _RETURN: null }
-        status: {
-          _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-          _RETURN: SetupStatusRes
-        }
-      }
-    }
-    ssh: { _PARAMS: {}; _CHILDREN: {} }
-    util: { _PARAMS: {}; _CHILDREN: {} }
-    wifi: {
-      _PARAMS: {}
-      _CHILDREN: {
-        available: { _PARAMS: {}; _CHILDREN: {} }
-        country: { _PARAMS: {}; _CHILDREN: {} }
-      }
-    }
-  }
+export type RpcSchemaTree<Schema> = {
+  [Key in keyof Schema]: Key extends '_PARAMS'
+    ? Schema[Key] extends z.ZodType
+      ? z.input<Schema[Key]>
+      : never
+    : Key extends '_RETURN'
+      ? Schema[Key] extends z.ZodType
+        ? z.output<Schema[Key]>
+        : never
+      : Key extends '_CHILDREN'
+        ? { [Name in keyof Schema[Key]]: RpcSchemaTree<Schema[Key][Name]> }
+        : never
 }
-export type AttachParamsInput = {
-  password?: EncryptedWireInput | null
-  guid: string
-  kiosk: boolean
-}
-export type BackupTargetFSInput =
-  | (
-      | ({ type: 'disk' } & Exclude<{ logicalname: string }, null>)
-      | (null extends { logicalname: string } ? { type: 'disk' } : never)
-    )
-  | (
-      | ({ type: 'cifs' } & Exclude<CifsInput, null>)
-      | (null extends CifsInput ? { type: 'cifs' } : never)
-    )
-export type CifsInput = {
-  hostname: string
-  path: string
-  username: string
-  password?: string | null
-}
-export type DataDriveInput = { stablePath: string; wipe: boolean }
-export type DiskInfo = {
-  logicalname: string
-  stablePath: string
-  partitionTable: PartitionTable | null
-  vendor: string | null
-  model: string | null
-  partitions: PartitionInfo[]
-  capacity: number
-  guid: string | null
-  filesystem: string | null
-}
-export type EncryptedWireInput = { encrypted: unknown }
-export type FullProgress = { overall: Progress; phases: NamedProgress[] }
-export type Guid = string
-export type HostIdInput = string
-export type InstallOsParamsInput = {
-  osDrive?: string | null
-  dataDrive?: DataDriveInput | null
-}
-export type IoFormatInput =
-  | 'json'
-  | 'json-pretty'
-  | 'yaml'
-  | 'cbor'
-  | 'toml'
-  | 'toml-pretty'
-export type KeyboardOptionsInput = {
-  layout: string
-  keymap?: string | null
-  model?: string | null
-  variant?: string | null
-  options?: string[]
-}
-export type LogEntry = { timestamp: string; message: string; bootId: string }
-export type LogFollowResponse = { startCursor: string | null; guid: Guid }
-export type LogResponse = {
-  entries: LogEntry[]
-  startCursor: string | null
-  endCursor: string | null
-}
-export type NamedProgress = { name: string; progress: Progress }
-export type PackageIdInput = string
-export type PartitionInfo = {
-  logicalname: string
-  stablePath: string
-  label: string | null
-  capacity: number
-  used: number | null
-  available: number | null
-  startOs: { [key: string]: StartOsRecoveryInfo }
-  legacyBackup: boolean
-  guid: string | null
-  filesystem: string | null
-}
-export type PartitionTable = 'mbr' | 'gpt'
-export type Progress =
-  | null
-  | boolean
-  | { done: number; total: number | null; units: ProgressUnits | null }
-  /**
-   * A sub-tree of progress. Used by `NamedProgress.progress` so a phase
-   * can carry its own `FullProgress` with sub-phases. Producers are
-   * expected to keep `FullProgress.overall` scalar (not nested again).
-   */
-  | FullProgress
-export type ProgressUnits = 'bytes' | 'steps'
-export type QueryDnsParamsInput = { fqdn: string }
+export type CifsInput = z.input<typeof schemas.Cifs>
+export type DataDriveInput = z.input<typeof schemas.DataDrive>
+export type EncryptedWireInput = z.input<typeof schemas.EncryptedWire>
+export type Guid = z.output<typeof schemas.Guid>
+export type HostIdInput = z.input<typeof schemas.HostId>
+export type IoFormatInput = z.input<typeof schemas.IoFormat>
+export type KeyboardOptionsInput = z.input<typeof schemas.KeyboardOptions>
+export type LogEntry = z.output<typeof schemas.LogEntry>
+export type NamedProgress = z.output<typeof schemas.NamedProgress>
+export type PackageIdInput = z.input<typeof schemas.PackageId>
+export type PartitionTable = z.output<typeof schemas.PartitionTable>
+export type ProgressUnits = z.output<typeof schemas.ProgressUnits>
+export type QueryDnsParamsInput = z.input<typeof schemas.QueryDnsParams>
 
 /**
  * What a public domain currently resolves to, per address family. A public
  * domain is DualStack: the operator points an `A` record at the gateway's WAN
  * IPv4 and an `AAAA` at the box's IPv6 GUA. Either may be absent.
  */
-export type QueryDnsRes = { ipv4: string | null; ipv6: string | null }
+export type QueryDnsRes = z.output<typeof schemas.QueryDnsRes>
 
 /**
  * A migration or backup recovery source with a caller-selected backup password representation.
  */
-export type RecoverySourceInput<Password> =
-  | ({ type: 'migrate' } & { guid: string })
-  | ({ type: 'backup' } & {
-      target: BackupTargetFSInput
-      password: Password
-      serverId: string
-    })
-export type RequiresHostIdInput = { host: HostIdInput }
-export type RequiresPackageIdInput = { package: PackageIdInput }
-export type ServerHostname = string
-export type SetLanguageParamsInput = { language: string }
-export type SetupExecuteParamsInput = {
-  guid: string
-  password?: EncryptedWireInput | null
-  recoverySource?: RecoverySourceInput<EncryptedWireInput> | null
-  kiosk: boolean
-  hostname?: string | null
-}
-export type SetupInfo = {
-  guid: string | null
-  attach: boolean
-  mokEnrolled: boolean
-  /**
-   * The whole disk the OS is installed on, recorded by whatever installed it
-   * (os_install, or init_resize for a pre-installed image). When the device
-   * is pre-installed the wizard fixes this as the OS drive and asks only for
-   * a data drive.
-   */
-  osDrive: string | null
-}
-export type SetupProgress = { progress: FullProgress; guid: Guid }
-export type SetupResult = {
-  hostname: string
-  rootCa: string
-  needsRestart: boolean
-}
-export type SetupStatusRes =
-  | { status: 'needs-install' }
-  | (
-      | ({ status: 'incomplete' } & Exclude<SetupInfo, null>)
-      | (null extends SetupInfo ? { status: 'incomplete' } : never)
-    )
-  | (
-      | ({ status: 'running' } & Exclude<SetupProgress, null>)
-      | (null extends SetupProgress ? { status: 'running' } : never)
-    )
-  | (
-      | ({ status: 'complete' } & Exclude<SetupResult, null>)
-      | (null extends SetupResult ? { status: 'complete' } : never)
-    )
+export type RecoverySourceInput<Password> = z.input<
+  ReturnType<typeof schemas.RecoverySource<z.ZodType<Password, Password>>>
+>
+export type ServerHostname = z.output<typeof schemas.ServerHostname>
+export type SetLanguageParamsInput = z.input<typeof schemas.SetLanguageParams>
+export type SetupInfo = z.output<typeof schemas.SetupInfo>
+export type SetupResult = z.output<typeof schemas.SetupResult>
+export type AttachParamsInput = z.input<typeof schemas.AttachParams>
+export type BackupTargetFSInput = z.input<typeof schemas.BackupTargetFS>
+export type FullProgress = z.output<typeof schemas.FullProgress>
+export type InstallOsParamsInput = z.input<typeof schemas.InstallOsParams>
+export type LogFollowResponse = z.output<typeof schemas.LogFollowResponse>
+export type LogResponse = z.output<typeof schemas.LogResponse>
+export type RequiresHostIdInput = z.input<typeof schemas.RequiresHostId>
+export type RequiresPackageIdInput = z.input<typeof schemas.RequiresPackageId>
+export type SetupExecuteParamsInput = z.input<typeof schemas.SetupExecuteParams>
 
 /**
  * The public view of a backup found on a target: enough to identify it, and none of
  * [`BackupUnencryptedMetadata`]'s key material.
  */
-export type StartOsRecoveryInfo = {
-  hostname: ServerHostname
-  version: string
-  timestamp: string
-}
-export type VerifyCifsParamsInput = {
-  hostname: string
-  path: string
-  username: string
-  password?: EncryptedWireInput | null
-}
+export type StartOsRecoveryInfo = z.output<typeof schemas.StartOsRecoveryInfo>
+export type VerifyCifsParamsInput = z.input<typeof schemas.VerifyCifsParams>
+export type PartitionInfo = z.output<typeof schemas.PartitionInfo>
+export type Progress = z.output<typeof schemas.Progress>
+export type SetupProgress = z.output<typeof schemas.SetupProgress>
+export type DiskInfo = z.output<typeof schemas.DiskInfo>
+export type SetupStatusRes = z.output<typeof schemas.SetupStatusRes>
+export type Api = RpcSchemaTree<typeof schemas.Api>

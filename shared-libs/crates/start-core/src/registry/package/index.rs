@@ -43,7 +43,7 @@ pub struct PackageInfo {
     #[visit(opaque, type_attributes(visit::wire))]
     pub authorized: BTreeMap<Guid, VersionRange>,
     pub versions: BTreeMap<VersionString, PackageVersionInfo>,
-    #[visit(ts(type = "string[]"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub categories: BTreeSet<InternedString>,
 }
@@ -120,18 +120,24 @@ pub struct PackageMetadata {
     pub pre_download_alert: Option<PreDownloadAlert>,
     pub git_hash: Option<GitHash>,
     pub license: InternedString,
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[serde(default = "placeholder_url")]
     #[visit(opaque, type_attributes(visit::wire))] // TODO: remove
     pub package_repo: Url,
     pub upstream_repo: Url,
     pub marketing_url: Option<Url>,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     pub donation_url: Option<Url>,
     #[serde(default = "current_version")]
     pub os_version: Version,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     pub sdk_version: Option<Version>,
     #[serde(default)]
@@ -163,7 +169,10 @@ pub struct PackageVersionInfo {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<DataUrl<'static>>,
     pub dependency_metadata: BTreeMap<PackageId, DependencyMetadata>,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     pub source_version: Option<VersionRange>,
     pub s9pks: Vec<(HardwareRequirements, RegistryAsset<MerkleArchiveCommitment>)>,

@@ -38,7 +38,7 @@ The core library (`shared-libs/ts-modules/start-core/`) is a self-contained libr
 
 Auto-generated TypeScript files defining every type exchanged between the SDK and the StartOS runtime. They mirror the Rust types in the monorepo's `shared-libs/crates/start-core` (the `start-core` crate with library name `start_core`) and cover the full surface area of the system: manifests, actions, health checks, service interfaces, bind parameters, dependency requirements, SSL, domains, SMTP, networking, images, and more. When the Rust types change, these bindings must be regenerated.
 
-All bindings are re-exported through `shared-libs/ts-modules/start-core/lib/osBindings/index.ts`.
+Each root is a module pair: `*.schemas.ts` holds runtime [zod](https://zod.dev) schemas (one per Rust type; `z.input` is the deserialization shape, `z.output` the serialization shape, and `z.toJSONSchema` renders either), and the sibling type-only module projects them as the `Foo` / `FooInput` types consumers import. `shared-libs/ts-modules/start-core/lib/osBindings/index.ts` re-exports the types only, so importing it carries no runtime code; validators are imported from the schema modules explicitly.
 
 Key types include:
 

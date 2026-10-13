@@ -31,7 +31,7 @@ pub enum ContactInfo {
     Email(String),
     Matrix(String),
     Website(
-        #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+        #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
         #[visit(opaque, type_attributes(visit::wire))]
         Url,
     ),
