@@ -64,8 +64,8 @@ fn flatten<S>(root: &Node<S>) -> std::io::Result<Vec<FlatNode<'_, S>>> {
                 }
                 Entry::Hardlink(target) => {
                     let target = normalize_path(target)?;
-                    paths.insert(path.clone(), Err(target.clone()));
-                    links.push((parent, name.clone(), path, target));
+                    paths.insert(path.clone(), Err(target));
+                    links.push((parent, name.clone(), path));
                 }
             }
         }
@@ -74,26 +74,9 @@ fn flatten<S>(root: &Node<S>) -> std::io::Result<Vec<FlatNode<'_, S>>> {
         return Err(invalid("invalid SquashFS root mode"));
     }
     u32::try_from(nodes.len() + 1).map_err(|_| invalid("too many SquashFS inodes"))?;
-    for (parent, name, path, mut target) in links {
-        let mut visited = BTreeSet::from([path.clone()]);
-        let index = loop {
-            if !visited.insert(target.clone()) {
-                return Err(invalid("cyclic archive hardlink"));
-            }
-            match paths.get(&target) {
-                Some(Ok(index)) => break *index,
-                Some(Err(next)) => target = next.clone(),
-                None => {
-                    return Err(invalid(format!(
-                        "archive hardlink target does not exist: {}",
-                        target.display()
-                    )));
-                }
-            }
-        };
-        if matches!(nodes[index].node.contents, NodeContents::Directory(_)) {
-            return Err(invalid("archive hardlinks cannot target directories"));
-        }
+    for (parent, name, path) in links {
+        let index = resolve_hardlink(&path, |target| paths.get(target).cloned())?;
+        nodes[index].node.validate_hardlink_target()?;
         nodes[index].links = nodes[index]
             .links
             .checked_add(1)

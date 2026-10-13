@@ -26,6 +26,7 @@ const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x02];
 pub const SIG_CONTEXT: &str = "s9pk";
 
 pub mod compat;
+mod image;
 pub mod manifest;
 pub mod pack;
 pub mod recipe;

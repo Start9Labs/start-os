@@ -12,7 +12,7 @@ use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, Section, TmpSource};
 use crate::util::io::{TmpDir, create_file};
 
-type Payload = Section<TmpSource<MultiCursorFile>>;
+pub(crate) type Payload = Section<TmpSource<MultiCursorFile>>;
 type Pax = BTreeMap<Vec<u8>, Vec<u8>>;
 const EXTENSION_LIMIT: u64 = 16 * 1024 * 1024;
 const EXTENT_LIMIT: usize = 1_000_000;
@@ -294,21 +294,57 @@ async fn sparse_map<R: AsyncRead + Unpin>(
     Ok(Some((logical, map)))
 }
 
-impl Squashfs<Payload> {
-    /// Spools payloads without extracting archive paths onto the host filesystem.
-    /// Rejects extensions above 16 MiB and sparse maps above one million extents.
-    pub async fn from_tar<R: AsyncRead + Unpin + Send>(mut reader: R) -> Result<Self, Error> {
+pub(crate) struct TarReader<R> {
+    reader: R,
+    spool: tokio::fs::File,
+    backing: TmpSource<MultiCursorFile>,
+    position: u64,
+    global: Pax,
+    local: Vec<(Vec<u8>, Vec<u8>)>,
+    pending_extension: bool,
+    extension_bytes: u64,
+    longname: Option<Vec<u8>>,
+    longlink: Option<Vec<u8>>,
+    finished: bool,
+}
+
+impl<R: AsyncRead + Unpin + Send> TarReader<R> {
+    pub(crate) async fn new(reader: R) -> Result<Self, Error> {
         let tmp = Arc::new(TmpDir::new().await?);
-        let mut spool = create_file(tmp.join("payload")).await?;
+        let spool = create_file(tmp.join("payload")).await?;
         let backing = TmpSource::new(tmp, MultiCursorFile::open(&spool).await?);
-        let mut image = Self::new(Metadata::new(0o755), DirectoryContents::new());
-        let mut position = 0u64;
-        let mut global = Pax::new();
-        let mut local = Vec::new();
-        let mut pending_extension = false;
-        let mut extension_bytes = 0u64;
-        let mut longname = None;
-        let mut longlink = None;
+        Ok(Self {
+            reader,
+            spool,
+            backing,
+            position: 0,
+            global: Pax::new(),
+            local: Vec::new(),
+            pending_extension: false,
+            extension_bytes: 0,
+            longname: None,
+            longlink: None,
+            finished: false,
+        })
+    }
+
+    pub(crate) async fn next(&mut self) -> Result<Option<(PathBuf, Entry<Payload>)>, Error> {
+        let Self {
+            reader,
+            spool,
+            backing,
+            position,
+            global,
+            local,
+            pending_extension,
+            extension_bytes,
+            longname,
+            longlink,
+            finished,
+        } = self;
+        if *finished {
+            return Ok(None);
+        }
         loop {
             let mut header = Header::new_old();
             let first = reader.read(header.as_mut_bytes()).await?;
@@ -319,7 +355,7 @@ impl Squashfs<Payload> {
                 .read_exact(&mut header.as_mut_bytes()[first..])
                 .await?;
             if header.as_bytes().iter().all(|b| *b == 0) {
-                if pending_extension || longname.is_some() || longlink.is_some() {
+                if *pending_extension || longname.is_some() || longlink.is_some() {
                     return Err(invalid("dangling tar extension").into());
                 }
                 let mut second = [0; 512];
@@ -327,9 +363,10 @@ impl Squashfs<Payload> {
                 if second.iter().any(|b| *b != 0) {
                     return Err(invalid("invalid tar end marker").into());
                 }
-                tokio::io::copy(&mut reader, &mut tokio::io::sink()).await?;
+                tokio::io::copy(&mut *reader, &mut tokio::io::sink()).await?;
                 spool.flush().await?;
-                return Ok(image);
+                *finished = true;
+                return Ok(None);
             }
             let signed = header
                 .as_bytes()
@@ -351,19 +388,19 @@ impl Squashfs<Payload> {
             let ty = header.entry_type().as_byte();
             if matches!(ty, b'x' | b'g' | b'L' | b'K') {
                 let size = header.entry_size()?;
-                extension_bytes = extension_bytes
+                *extension_bytes = extension_bytes
                     .checked_add(size)
                     .ok_or_else(|| invalid("tar extension size overflow"))?;
-                if extension_bytes > EXTENSION_LIMIT {
+                if *extension_bytes > EXTENSION_LIMIT {
                     return Err(invalid("tar extensions exceed bounded metadata limit").into());
                 }
-                pending_extension = true;
-                let bytes = extension(&mut reader, size).await?;
+                *pending_extension = true;
+                let bytes = extension(reader, size).await?;
                 match ty {
                     b'x' => local.extend(pax_records(&bytes)?),
                     b'g' => {
                         for (key, value) in pax_records(&bytes)? {
-                            apply(&mut global, key, value);
+                            apply(global, key, value);
                         }
                     }
                     _ => {
@@ -372,16 +409,16 @@ impl Squashfs<Payload> {
                             return Err(invalid("NUL inside GNU long path").into());
                         }
                         if ty == b'L' {
-                            longname = Some(bytes);
+                            *longname = Some(bytes);
                         } else {
-                            longlink = Some(bytes);
+                            *longlink = Some(bytes);
                         }
                     }
                 }
                 continue;
             }
             let mut pax = global.clone();
-            for (key, value) in &local {
+            for (key, value) in local.iter() {
                 apply(&mut pax, key.clone(), value.clone());
             }
             let name = pax
@@ -396,12 +433,12 @@ impl Squashfs<Payload> {
                 .cloned()
                 .or_else(|| longlink.take())
                 .or_else(|| header.link_name_bytes().map(|b| b.into_owned()));
-            longname = None;
-            longlink = None;
+            *longname = None;
+            *longlink = None;
             let metadata = metadata(&header, &pax)?;
             let physical = number(&pax, b"size", || header.entry_size())?;
             let mut remaining = physical;
-            let sparse = sparse_map(&mut reader, &header, &pax, &local, &mut remaining).await?;
+            let sparse = sparse_map(reader, &header, &pax, local, &mut remaining).await?;
             if !matches!(ty, 0 | b'0' | b'7' | b'S') && (remaining != 0 || sparse.is_some()) {
                 return Err(invalid("non-file tar entry has payload").into());
             }
@@ -434,12 +471,12 @@ impl Squashfs<Payload> {
                         return Err(invalid("sparse payload byte count mismatch").into());
                     }
                     for (offset, length) in map {
-                        spool.seek(SeekFrom::Start(position + offset)).await?;
-                        exact_copy(&mut reader, &mut spool, length).await?;
+                        spool.seek(SeekFrom::Start(*position + offset)).await?;
+                        exact_copy(reader, spool, length).await?;
                     }
                     spool.set_len(end).await?;
-                    let source = backing.clone().section(position, logical);
-                    position = end;
+                    let source = backing.clone().section(*position, logical);
+                    *position = end;
                     Entry::file(metadata, source)
                 }
                 b'1' => Entry::Hardlink(raw_path(
@@ -477,14 +514,27 @@ impl Squashfs<Payload> {
                 b'6' => Entry::new(metadata, NodeContents::Fifo),
                 _ => return Err(invalid("unsupported tar entry type").into()),
             };
-            padding(&mut reader, physical).await?;
-            insert(&mut image, path, entry)?;
+            padding(reader, physical).await?;
             local.clear();
-            pending_extension = false;
-            extension_bytes = global
+            *pending_extension = false;
+            *extension_bytes = global
                 .iter()
                 .map(|(key, value)| (key.len() + value.len()) as u64)
                 .sum();
+            return Ok(Some((path, entry)));
         }
+    }
+}
+
+impl Squashfs<Payload> {
+    /// Spools payloads without extracting archive paths onto the host filesystem.
+    /// Rejects extensions above 16 MiB and sparse maps above one million extents.
+    pub async fn from_tar<R: AsyncRead + Unpin + Send>(reader: R) -> Result<Self, Error> {
+        let mut reader = TarReader::new(reader).await?;
+        let mut image = Self::default();
+        while let Some((path, entry)) = reader.next().await? {
+            insert(&mut image, path, entry)?;
+        }
+        Ok(image)
     }
 }

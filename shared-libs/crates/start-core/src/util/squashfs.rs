@@ -14,8 +14,9 @@
 //! one-million-extent sparse-map limit. Archive paths must be safe and relative.
 //!
 //! [`Options`] defaults to 128 KiB data blocks and Zstd level 15. Compression
-//! formats other than Zstd are unsupported. Permission changes belong to
-//! callers; importing a directory does not modify its source inodes.
+//! formats other than Zstd are unsupported. Implicit directories and the
+//! default root use root ownership, mode 0755, and zero timestamps. Permission
+//! and timestamp changes belong to callers; imports do not modify source inodes.
 
 mod blocks;
 mod format;
@@ -24,6 +25,11 @@ mod source;
 mod tree;
 mod write;
 
+#[cfg(test)]
+pub(crate) mod test_support;
+
 pub use blocks::{MetadataBlocksReader, MetadataBlocksWriter};
 pub use read::{SquashfsFileReader, SquashfsFileSource};
+pub(crate) use source::LayerFilesystem;
+pub(crate) use tree::resolve_hardlink;
 pub use tree::{Device, DirectoryContents, Entry, Metadata, Node, NodeContents, Options, Squashfs};

@@ -67,7 +67,8 @@ pub struct SqfsDir {
     sqfs: OnceCell<MultiCursorFile>,
 }
 impl SqfsDir {
-    pub fn new<S: FileSource>(filesystem: Squashfs<S>, tmpdir: Arc<TmpDir>) -> Self {
+    pub fn new<S: FileSource>(mut filesystem: Squashfs<S>, tmpdir: Arc<TmpDir>) -> Self {
+        filesystem.set_inode_modification_time(0);
         Self {
             filesystem: filesystem.into_dyn(),
             tmpdir,
@@ -509,9 +510,9 @@ impl Default for ImageSource {
         ImageSource::Packed
     }
 }
-#[derive(Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-struct DockerImageConfig {
+pub(super) struct DockerImageConfig {
     env: Option<Vec<String>>,
     #[serde(default)]
     working_dir: PathBuf,
@@ -522,7 +523,7 @@ struct DockerImageConfig {
 }
 
 impl DockerImageConfig {
-    fn into_parts(self) -> (ImageMetadata, Vec<String>) {
+    pub(super) fn into_parts(self) -> (ImageMetadata, Vec<String>) {
         (
             ImageMetadata {
                 workdir: if self.working_dir == Path::new("") {
@@ -552,36 +553,67 @@ fn docker_platform(arch: &str) -> String {
     format!("--platform=linux/{arch}")
 }
 
-fn image_config_inspect_command(tool: &str, image: &str, platform: &str) -> Command {
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct InspectedImage {
+    id: String,
+    #[serde(flatten)]
+    platform: super::image::ImagePlatform,
+}
+
+fn image_inspect_command(tool: &str, image: &str, platform: &str) -> Command {
     let mut command = Command::new(tool);
     command.arg("image").arg("inspect");
     if tool == "docker" {
         command.arg(platform);
     }
-    command.arg("--format").arg("{{json .Config}}").arg(image);
+    command.arg("--format").arg("{{json .}}").arg(image);
     command
 }
 
-async fn inspect_image_config(
-    tool: &str,
-    container: &str,
-    platform: &str,
-) -> Result<DockerImageConfig, Error> {
-    let image = Command::new(tool)
-        .arg("container")
-        .arg("inspect")
-        .arg("--format")
-        .arg("{{.Image}}")
-        .arg(container)
+async fn resolve_image_id(tool: &str, image: &str, platform: &str) -> Result<String, Error> {
+    if let Ok(output) = image_inspect_command(tool, image, platform)
+        .invoke(ErrorKind::Docker)
+        .await
+    {
+        let inspected: InspectedImage =
+            serde_json::from_slice(&output).with_kind(ErrorKind::Deserialization)?;
+        if inspected.platform.matches(platform) {
+            return Ok(inspected.id);
+        }
+    }
+    Command::new(tool)
+        .arg("image")
+        .arg("pull")
+        .arg(platform)
+        .arg(image)
         .invoke(ErrorKind::Docker)
         .await?;
-    let image = String::from_utf8(image)?;
-    serde_json::from_slice(
-        &image_config_inspect_command(tool, image.trim(), platform)
+    let inspected: InspectedImage = serde_json::from_slice(
+        &image_inspect_command(tool, image, platform)
             .invoke(ErrorKind::Docker)
             .await?,
     )
-    .with_kind(ErrorKind::Deserialization)
+    .with_kind(ErrorKind::Deserialization)?;
+    if !inspected.platform.matches(platform) {
+        return Err(Error::new(
+            eyre!("image does not match the requested platform"),
+            ErrorKind::Docker,
+        ));
+    }
+    Ok(inspected.id)
+}
+
+fn image_save_command(tool: &str, image: &str, platform: &str) -> Command {
+    let mut command = Command::new(tool);
+    command.arg("image").arg("save");
+    if tool == "docker" {
+        command.arg(platform);
+    } else {
+        command.arg("--format=docker-archive");
+    }
+    command.arg(image);
+    command
 }
 
 impl ImageSource {
@@ -679,71 +711,49 @@ impl ImageSource {
                     Ok(())
                 }
                 ImageSource::DockerTag(tag) => {
-                    let container = Command::new(*CONTAINER_TOOL)
-                        .arg("create")
-                        .arg(&docker_platform)
-                        .arg(&tag)
-                        .arg("/startos-pack-placeholder")
-                        .invoke(ErrorKind::Docker)
-                        .await?;
-                    let container = String::from_utf8(container)?;
-                    let container = container.trim();
-                    let packed = async {
-                        let config =
-                            inspect_image_config(*CONTAINER_TOOL, container, &docker_platform)
-                                .await?;
-                        let (metadata, env) = config.into_parts();
-                        let base_path = Path::new("images").join(arch).join(image_id);
-                        into.insert_path(
-                            base_path.with_extension("json"),
-                            Entry::file(
-                                TmpSource::new(
-                                    tmp_dir.clone(),
-                                    PackSource::Buffered(
-                                        serde_json::to_vec(&metadata)
-                                            .with_kind(ErrorKind::Serialization)?
-                                            .into(),
-                                    ),
-                                )
-                                .into(),
-                            ),
-                        )?;
-                        into.insert_path(
-                            base_path.with_extension("env"),
-                            Entry::file(
-                                TmpSource::new(
-                                    tmp_dir.clone(),
-                                    PackSource::Buffered(env.join("\n").into_bytes().into()),
-                                )
-                                .into(),
-                            ),
-                        )?;
-                        let dest = tmp_dir
-                            .join(Guid::new().as_ref())
-                            .with_extension("squashfs");
-
-                        export_squashfs(
-                            Command::new(*CONTAINER_TOOL).arg("export").arg(container),
-                            &dest,
-                        )
-                        .await?;
-                        into.insert_path(
-                            base_path.with_extension("squashfs"),
-                            Entry::file(
-                                TmpSource::new(tmp_dir.clone(), PackSource::File(dest)).into(),
-                            ),
-                        )?;
-                        Ok::<_, Error>(())
-                    }
-                    .await;
-                    let removed = Command::new(*CONTAINER_TOOL)
-                        .arg("rm")
-                        .arg(container)
-                        .invoke(ErrorKind::Docker)
-                        .await;
-                    packed?;
-                    removed?;
-                    Ok(())
+                    let resolved_image =
+                        resolve_image_id(*CONTAINER_TOOL, tag, &docker_platform).await?;
+                    let dest = tmp_dir
+                        .join(Guid::new().as_ref())
+                        .with_extension("squashfs");
+                    let config = save_squashfs(
+                        &mut image_save_command(*CONTAINER_TOOL, &resolved_image, &docker_platform),
+                        &dest,
+                        &resolved_image,
+                        &docker_platform,
+                    )
+                    .await?;
+                    let (metadata, env) = config.into_parts();
+                    let base_path = Path::new("images").join(arch).join(image_id);
+                    into.insert_path(
+                        base_path.with_extension("json"),
+                        Entry::file(
+                            TmpSource::new(
+                                tmp_dir.clone(),
+                                PackSource::Buffered(
+                                    serde_json::to_vec(&metadata)
+                                        .with_kind(ErrorKind::Serialization)?
+                                        .into(),
+                                ),
+                            )
+                            .into(),
+                        ),
+                    )?;
+                    into.insert_path(
+                        base_path.with_extension("env"),
+                        Entry::file(
+                            TmpSource::new(
+                                tmp_dir.clone(),
+                                PackSource::Buffered(env.join("\n").into_bytes().into()),
+                            )
+                            .into(),
+                        ),
+                    )?;
+                    into.insert_path(
+                        base_path.with_extension("squashfs"),
+                        Entry::file(TmpSource::new(tmp_dir.clone(), PackSource::File(dest)).into()),
+                    )?;
+                    Ok::<_, Error>(())
                 }
             }
         }
@@ -751,7 +761,12 @@ impl ImageSource {
     }
 }
 
-async fn export_squashfs(command: &mut Command, dest: &Path) -> Result<(), Error> {
+async fn save_squashfs(
+    command: &mut Command,
+    dest: &Path,
+    image_id: &str,
+    platform: &str,
+) -> Result<DockerImageConfig, Error> {
     let (mut output, input) = tokio::io::duplex(crate::CAP_1_MiB);
     let producer = async {
         let result = command
@@ -761,8 +776,12 @@ async fn export_squashfs(command: &mut Command, dest: &Path) -> Result<(), Error
         drop(output);
         result
     };
-    let (_, filesystem) = tokio::try_join!(producer, Squashfs::from_tar(input))?;
-    filesystem.serialize(&mut create_file(dest).await?).await
+    let (_, (filesystem, config)) = tokio::try_join!(
+        producer,
+        super::image::from_image_archive(input, image_id, platform),
+    )?;
+    filesystem.serialize(&mut create_file(dest).await?).await?;
+    Ok(config)
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, VisitFields)]
@@ -1164,8 +1183,7 @@ mod test {
             ("aarch64", "--platform=linux/arm64"),
             ("riscv64", "--platform=linux/riscv64"),
         ] {
-            let command =
-                image_config_inspect_command("docker", "sha256:index", &docker_platform(arch));
+            let command = image_inspect_command("docker", "sha256:index", &docker_platform(arch));
             assert_eq!(command.as_std().get_program(), "docker");
             assert_eq!(
                 command.as_std().get_args().collect::<Vec<_>>(),
@@ -1174,7 +1192,7 @@ mod test {
                     "inspect",
                     platform,
                     "--format",
-                    "{{json .Config}}",
+                    "{{json .}}",
                     "sha256:index"
                 ]
             );
@@ -1183,11 +1201,8 @@ mod test {
 
     #[test]
     fn podman_inspects_the_resolved_image_without_a_platform_flag() {
-        let command = image_config_inspect_command(
-            "podman",
-            "sha256:arm64-image",
-            &docker_platform("aarch64"),
-        );
+        let command =
+            image_inspect_command("podman", "sha256:arm64-image", &docker_platform("aarch64"));
         assert_eq!(command.as_std().get_program(), "podman");
         assert_eq!(
             command.as_std().get_args().collect::<Vec<_>>(),
@@ -1195,7 +1210,7 @@ mod test {
                 "image",
                 "inspect",
                 "--format",
-                "{{json .Config}}",
+                "{{json .}}",
                 "sha256:arm64-image"
             ]
         );

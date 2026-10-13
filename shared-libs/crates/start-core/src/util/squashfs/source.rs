@@ -9,7 +9,10 @@ use super::format::xattr_kind;
 use super::tree::{normalize_path, *};
 use crate::prelude::*;
 
+mod layers;
 mod tar;
+
+pub(crate) use layers::LayerFilesystem;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

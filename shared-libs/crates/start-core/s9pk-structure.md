@@ -67,7 +67,7 @@ The package manifest contains all metadata:
 
 Contains the package JavaScript that implements the `ABI` interface from `@start9labs/start-core` (re-exported via `@start9labs/start-sdk`). This code runs in the container runtime and manages the package lifecycle.
 
-The squashfs is mounted at `/usr/lib/startos/package/` and the runtime loads `index.js`.
+The squashfs is mounted at `/usr/lib/startos/package/` and the runtime loads `index.js`. Packing and v1 conversion set JavaScript and asset inode timestamps to zero without modifying source files.
 
 ### images/
 
@@ -77,7 +77,11 @@ Container images organized by architecture:
 - **`<image-id>.json`** - Image metadata (entrypoint, user, workdir, etc.)
 - **`<image-id>.env`** - Environment variables for the container
 
-Images are built from Docker/Podman and converted to squashfs. The `ImageConfig` in manifest specifies:
+Packing resolves the requested Linux platform to an immutable Docker/Podman image configuration ID and saves that image in Docker archive format. The native tar decoder spools payloads without extracting paths onto the workstation. Reconstruction applies ordered layers, lower-layer whiteouts and opaque directories, and preserves hardlink inode identity across replacements and deletions. Runtime metadata and environment come from the selected, hash-verified archive configuration; each complete uncompressed layer is verified against its configured SHA-256 DiffID. Uncompressed, gzip, and Zstd layers are supported.
+
+The image filesystem retains image-provided inode attributes within the native SquashFS import limits: whole-second timestamps in the unsigned 32-bit range, and `user.`, `trusted.`, and `security.` xattrs. Docker-created container initialization files are not added or removed by filename. Implicit directories use root ownership, mode 0755, and zero timestamps. Symlink ancestors are rejected rather than followed. Image configuration identity, writer options, and the locked Zstd codec determine SquashFS bytes; JavaScript and assets additionally require identical contents and non-timestamp attributes.
+
+The `ImageConfig` in manifest specifies:
 
 - `arch` - Supported architectures
 - `emulateMissing` - Whether an available image may run under CPU emulation
@@ -110,18 +114,20 @@ Files are sorted by priority for streaming (manifest first, then icon, license, 
 Use `start-cli s9pk pack` to build packages:
 
 ```bash
-start-cli s9pk pack <manifest-path> -o <output.s9pk>
+start-cli s9pk pack <package-directory> -o <output.s9pk>
 ```
 
 Images can be sourced from:
 
-- Docker/Podman build (`--docker-build`)
-- Existing Docker tag (`--docker-tag`)
+- Docker/Podman builds
+- Existing Docker/Podman tags
 - Pre-built squashfs files
 
 ## Related Code
 
-- `core/src/s9pk/v2/mod.rs` - S9pk struct and serialization
-- `core/src/s9pk/v2/manifest.rs` - Manifest types
-- `core/src/s9pk/v2/pack.rs` - Packing logic
-- `core/src/s9pk/merkle_archive/` - Merkle archive implementation
+- `src/s9pk/v2/mod.rs` - S9pk struct and serialization
+- `src/s9pk/manifest.rs` - Manifest types
+- `src/s9pk/v2/pack.rs` - Packing logic
+- `src/s9pk/v2/image.rs` - Image archive selection, decompression, and integrity
+- `src/util/squashfs/source/layers.rs` - Image filesystem changesets
+- `src/s9pk/merkle_archive/` - Merkle archive implementation

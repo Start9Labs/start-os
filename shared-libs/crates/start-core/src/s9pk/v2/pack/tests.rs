@@ -1,4 +1,4 @@
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{MetadataExt, PermissionsExt};
 
 use super::*;
 use crate::context::config::ClientConfig;
@@ -204,42 +204,106 @@ async fn tar_asset_source_is_not_overwritten_and_creates_native_image() {
         b"tar\0bytes\n"
     );
     assert_eq!(mode(dest.join("file")), 0o640);
+    assert_eq!(std::fs::metadata(&dest).unwrap().mtime(), 0);
+    assert_eq!(std::fs::metadata(dest.join("file")).unwrap().mtime(), 0);
     assert_eq!(tokio::fs::read(path).await.unwrap(), original);
     drop(source);
     workspace.gc().await.unwrap();
 }
 
 #[tokio::test]
-async fn export_validates_exit_status_and_drains_large_trailing_padding() {
+async fn javascript_and_asset_images_ignore_source_timestamps_without_mutating_sources() {
+    let workspace = Arc::new(TmpDir::new().await.unwrap());
+    let mut expected_js = None;
+    let mut expected_assets = None;
+    for (index, timestamp) in [42, 123456].into_iter().enumerate() {
+        let root = workspace.join(index.to_string());
+        tokio::fs::create_dir_all(root.join("nested"))
+            .await
+            .unwrap();
+        tokio::fs::write(root.join("nested/file"), b"identical payload")
+            .await
+            .unwrap();
+        tokio::fs::hard_link(root.join("nested/file"), root.join("alias"))
+            .await
+            .unwrap();
+        for path in [&root, &root.join("nested"), &root.join("nested/file")] {
+            std::fs::File::open(path)
+                .unwrap()
+                .set_times(std::fs::FileTimes::new().set_modified(
+                    std::time::UNIX_EPOCH + std::time::Duration::from_secs(timestamp),
+                ))
+                .unwrap();
+        }
+        let js = PackSource::Squashfs(Arc::new(SqfsDir::new(
+            javascript_squashfs(&root).await.unwrap(),
+            workspace.clone(),
+        )));
+        let assets = PackSource::Squashfs(Arc::new(
+            SqfsDir::from_path(&root, workspace.clone()).await.unwrap(),
+        ));
+        let js = js.to_vec(None).await.unwrap();
+        let assets = assets.to_vec(None).await.unwrap();
+        match &expected_js {
+            Some(expected) => assert_eq!(&js, expected),
+            None => expected_js = Some(js),
+        }
+        match &expected_assets {
+            Some(expected) => assert_eq!(&assets, expected),
+            None => expected_assets = Some(assets),
+        }
+        for path in [
+            &root,
+            &root.join("nested"),
+            &root.join("nested/file"),
+            &root.join("alias"),
+        ] {
+            assert_eq!(std::fs::metadata(path).unwrap().mtime(), timestamp as i64);
+        }
+    }
+    workspace.gc().await.unwrap();
+}
+
+#[tokio::test]
+async fn image_save_validates_exit_status_and_drains_large_trailing_padding() {
     let workspace = TmpDir::new().await.unwrap();
-    let archive = workspace.join("export.tar");
-    let mut bytes = asset_tar();
+    let archive = workspace.join("save.tar");
+    let (mut bytes, id) = super::super::image::tests::save_archive(&[asset_tar()], "amd64");
     bytes.resize(bytes.len() + 2 * crate::CAP_1_MiB, 0);
     tokio::fs::write(&archive, bytes).await.unwrap();
     let dest = workspace.join("export.squashfs");
     tokio::time::timeout(
         std::time::Duration::from_secs(30),
-        export_squashfs(Command::new("cat").arg(&archive), &dest),
+        save_squashfs(
+            Command::new("cat").arg(&archive),
+            &dest,
+            &id,
+            "--platform=linux/amd64",
+        ),
     )
     .await
     .unwrap()
     .unwrap();
-    let failed = export_squashfs(
+    let failed = save_squashfs(
         Command::new("sh")
             .arg("-c")
             .arg(r#"cat "$1"; echo 'export-failed-after-tar' >&2; exit 7"#)
             .arg("sh")
             .arg(&archive),
         &workspace.join("failed.squashfs"),
+        &id,
+        "--platform=linux/amd64",
     )
     .await;
     assert!(format!("{:?}", failed.unwrap_err()).contains("export-failed-after-tar"));
     assert!(!workspace.join("failed.squashfs").exists());
     tokio::fs::write(&archive, b"truncated tar").await.unwrap();
     assert!(
-        export_squashfs(
+        save_squashfs(
             Command::new("cat").arg(&archive),
-            &workspace.join("bad.squashfs")
+            &workspace.join("bad.squashfs"),
+            &id,
+            "--platform=linux/amd64",
         )
         .await
         .is_err()
@@ -253,7 +317,11 @@ async fn docker_tag_load_pairs_target_platform_config_with_native_squashfs() {
     const TEST: &str = "s9pk::v2::pack::packaging_tests::docker_tag_load_pairs_target_platform_config_with_native_squashfs";
     let workspace = Arc::new(TmpDir::new().await.unwrap());
     if std::env::var_os(CHILD_ENV).is_none() {
-        tokio::fs::write(workspace.join("export.tar"), asset_tar())
+        let (archive, id) = super::super::image::tests::save_archive(&[asset_tar()], "arm64");
+        tokio::fs::write(workspace.join("save.tar"), archive)
+            .await
+            .unwrap();
+        tokio::fs::write(workspace.join("image-id"), id)
             .await
             .unwrap();
         let docker = workspace.join("docker");
@@ -261,19 +329,22 @@ async fn docker_tag_load_pairs_target_platform_config_with_native_squashfs() {
             &docker,
             r#"#!/bin/sh
 set -eu
+id="$(cat "$STARTOS_NATIVE_PACK_DOCKER_CHILD/image-id")"
+scenario="$(cat "$STARTOS_NATIVE_PACK_DOCKER_CHILD/scenario")"
 case "$*" in
-  'create --platform=linux/arm64 multiarch:test /startos-pack-placeholder')
-    printf 'container-id\n' ;;
-  'container inspect --format {{.Image}} container-id')
-    printf 'sha256:index\n' ;;
-  'image inspect --platform=linux/arm64 --format {{json .Config}} sha256:index')
-    printf '%s\n' '{"Cmd":["serve","--arm64"],"Entrypoint":["/app/start"],"Env":["ARCH=arm64","EMPTY="],"WorkingDir":"/arm64","User":"1000:1000"}' ;;
-  'image inspect --format {{json .Config}} sha256:index')
-    printf '%s\n' '{"Cmd":["serve","--amd64"],"Env":["ARCH=amd64"],"WorkingDir":"/amd64","User":"root"}' ;;
-  'export container-id')
-    cat "$STARTOS_NATIVE_PACK_DOCKER_CHILD/export.tar" ;;
-  'rm container-id')
-    touch "$STARTOS_NATIVE_PACK_DOCKER_CHILD/removed" ;;
+  'image inspect --platform=linux/arm64 --format {{json .}} multiarch:test')
+    if [ ! -e "$STARTOS_NATIVE_PACK_DOCKER_CHILD/pulled" ]; then
+      case "$scenario" in
+        missing) exit 1 ;;
+        wrong-platform) printf '{"Id":"%s","Architecture":"amd64","Os":"linux"}\n' "$id"; exit 0 ;;
+      esac
+    fi
+    printf '{"Id":"%s","Architecture":"arm64","Os":"linux"}\n' "$id" ;;
+  'image pull --platform=linux/arm64 multiarch:test')
+    touch "$STARTOS_NATIVE_PACK_DOCKER_CHILD/pulled" ;;
+  "image save --platform=linux/arm64 $id")
+    touch "$STARTOS_NATIVE_PACK_DOCKER_CHILD/saved"
+    cat "$STARTOS_NATIVE_PACK_DOCKER_CHILD/save.tar" ;;
   *) printf 'unexpected docker arguments: %s\n' "$*" >&2; exit 1 ;;
 esac
 "#,
@@ -285,16 +356,29 @@ esac
             .unwrap();
         let mut paths = vec![workspace.to_path_buf()];
         paths.extend(std::env::split_paths(&std::env::var_os("PATH").unwrap()));
-        Command::new(std::env::current_exe().unwrap())
-            .arg(TEST)
-            .arg("--exact")
-            .arg("--nocapture")
-            .env(CHILD_ENV, &**workspace)
-            .env("PATH", std::env::join_paths(paths).unwrap())
-            .invoke(ErrorKind::Filesystem)
-            .await
-            .unwrap();
-        assert!(workspace.join("removed").exists());
+        for scenario in ["cached", "missing", "wrong-platform"] {
+            tokio::fs::write(workspace.join("scenario"), scenario)
+                .await
+                .unwrap();
+            for marker in ["pulled", "saved"] {
+                if workspace.join(marker).exists() {
+                    tokio::fs::remove_file(workspace.join(marker))
+                        .await
+                        .unwrap();
+                }
+            }
+            Command::new(std::env::current_exe().unwrap())
+                .arg(TEST)
+                .arg("--exact")
+                .arg("--nocapture")
+                .env(CHILD_ENV, &**workspace)
+                .env("PATH", std::env::join_paths(paths.clone()).unwrap())
+                .invoke(ErrorKind::Filesystem)
+                .await
+                .unwrap();
+            assert!(workspace.join("saved").exists());
+            assert_eq!(workspace.join("pulled").exists(), scenario != "cached");
+        }
         workspace.gc().await.unwrap();
         return;
     }

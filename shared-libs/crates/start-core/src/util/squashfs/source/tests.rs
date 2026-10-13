@@ -4,7 +4,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 
 use tokio::io::AsyncWriteExt;
-use tokio_tar::{EntryType, Header};
+use tokio_tar::Header;
 
 use super::*;
 use crate::s9pk::merkle_archive::source::FileSource;
@@ -21,27 +21,7 @@ pub(super) fn command(command: &mut Command) -> Vec<u8> {
     output.stdout
 }
 
-pub(super) fn append(tar: &mut Vec<u8>, path: &[u8], ty: u8, payload: &[u8], link: Option<&[u8]>) {
-    let mut header = Header::new_gnu();
-    header
-        .set_path(Path::new(std::ffi::OsStr::from_bytes(path)))
-        .unwrap();
-    header.set_mode(0o640);
-    header.set_uid(17);
-    header.set_gid(23);
-    header.set_mtime(42);
-    header.set_size(payload.len() as u64);
-    header.set_entry_type(EntryType::new(ty));
-    if let Some(link) = link {
-        header
-            .set_link_name(Path::new(std::ffi::OsStr::from_bytes(link)))
-            .unwrap();
-    }
-    header.set_cksum();
-    tar.extend_from_slice(header.as_bytes());
-    tar.extend_from_slice(payload);
-    tar.resize(tar.len().next_multiple_of(512), 0);
-}
+pub(super) use crate::util::squashfs::test_support::append;
 
 #[tokio::test]
 async fn directory_imports_are_byte_reproducible_across_creation_orders_and_inode_numbers() {

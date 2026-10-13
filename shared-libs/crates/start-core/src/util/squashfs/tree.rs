@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::{OsStr, OsString};
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Component, Path, PathBuf};
@@ -187,9 +187,7 @@ impl<S> DirectoryContents<S> {
             let entry = directory
                 .entries
                 .entry(component.to_os_string())
-                .or_insert_with(|| {
-                    Entry::directory(Metadata::new(0o755), DirectoryContents::new())
-                });
+                .or_insert_with(|| Entry::Node(Node::implicit_directory()));
             directory = entry
                 .as_node_mut()
                 .and_then(|n| n.contents.as_directory_mut())
@@ -278,6 +276,15 @@ pub struct Squashfs<S> {
     pub options: Options,
 }
 
+impl<S> Default for Squashfs<S> {
+    fn default() -> Self {
+        Self {
+            root: Node::implicit_directory(),
+            options: Options::default(),
+        }
+    }
+}
+
 impl<S> Squashfs<S> {
     pub fn new(metadata: Metadata, contents: DirectoryContents<S>) -> Self {
         Self {
@@ -306,6 +313,21 @@ impl<S> Squashfs<S> {
             .as_directory_mut()
             .expect("root is a directory")
     }
+    /// Sets every inode timestamp without modifying the backing sources.
+    pub fn set_inode_modification_time(&mut self, timestamp: u32) {
+        fn set<S>(node: &mut Node<S>, timestamp: u32) {
+            node.metadata.modification_time = timestamp;
+            if let NodeContents::Directory(directory) = &mut node.contents {
+                for (_, entry) in directory.iter_mut() {
+                    if let Entry::Node(node) = entry {
+                        set(node, timestamp);
+                    }
+                }
+            }
+        }
+        set(&mut self.root, timestamp);
+    }
+
     pub(super) fn root(&self) -> &Node<S> {
         &self.root
     }
@@ -321,6 +343,55 @@ impl<S: FileSource> Squashfs<S> {
     }
 }
 
+impl<S> Node<S> {
+    pub(super) fn implicit_directory() -> Self {
+        Self {
+            metadata: Metadata::new(0o755),
+            contents: NodeContents::Directory(DirectoryContents::new()),
+        }
+    }
+
+    pub(super) fn validate_hardlink_target(&self) -> std::io::Result<()> {
+        if matches!(self.contents, NodeContents::Directory(_)) {
+            Err(invalid("archive hardlinks cannot target directories"))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+pub(crate) fn resolve_hardlink<T>(
+    path: &Path,
+    mut lookup: impl FnMut(&Path) -> Option<Result<T, PathBuf>>,
+) -> std::io::Result<T> {
+    let mut target = path.to_owned();
+    let mut visited = BTreeSet::new();
+    loop {
+        if !visited.insert(target.clone()) {
+            return Err(invalid("cyclic archive hardlink"));
+        }
+        match lookup(&target) {
+            Some(Ok(node)) => return Ok(node),
+            Some(Err(next)) => target = next,
+            None => {
+                return Err(invalid(format!(
+                    "archive hardlink target does not exist: {}",
+                    target.display()
+                )));
+            }
+        }
+    }
+}
+
+impl<S: FileSource> Entry<S> {
+    pub(crate) fn into_dyn(self) -> Entry<DynFileSource> {
+        match self {
+            Self::Node(node) => Entry::Node(node.into_dyn()),
+            Self::Hardlink(target) => Entry::Hardlink(target),
+        }
+    }
+}
+
 impl<S: FileSource> Node<S> {
     fn into_dyn(self) -> Node<DynFileSource> {
         let contents = match self.contents {
@@ -329,15 +400,7 @@ impl<S: FileSource> Node<S> {
                 entries: directory
                     .entries
                     .into_iter()
-                    .map(|(name, entry)| {
-                        (
-                            name,
-                            match entry {
-                                Entry::Node(node) => Entry::Node(node.into_dyn()),
-                                Entry::Hardlink(target) => Entry::Hardlink(target),
-                            },
-                        )
-                    })
+                    .map(|(name, entry)| (name, entry.into_dyn()))
                     .collect(),
             }),
             NodeContents::Symlink(target) => NodeContents::Symlink(target),

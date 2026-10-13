@@ -270,7 +270,9 @@ async fn from_v1_native_roundtrip_under_umask_077_with_and_without_scripts() {
         assert_eq!(file.metadata.mode, 0o4600);
         assert_eq!(file.metadata.uid, 1234);
         assert_eq!(file.metadata.gid, 5678);
-        assert_eq!(file.metadata.modification_time, 123456789);
+        assert_eq!(assets.root_metadata().modification_time, 0);
+        assert_eq!(private.metadata.modification_time, 0);
+        assert_eq!(file.metadata.modification_time, 0);
         assert_eq!(
             file.metadata.xattrs.get(OsStr::new("user.legacy")).unwrap(),
             b"asset-value"
