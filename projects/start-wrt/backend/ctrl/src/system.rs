@@ -6,6 +6,7 @@ use std::process::Command as StdCommand;
 
 use chrono::Utc;
 use imbl_value::Value;
+use ipnet::IpNet;
 use nix::sys::signal::{self, Signal};
 use nix::unistd::Pid;
 use rpc_toolkit::{from_fn_async, from_fn_async_local, HandlerExt, ParentHandler};
@@ -190,13 +191,8 @@ const VALID_REMOTE_ACCESS: &[&str] = &["default", "never", "always"];
 pub(crate) const REMOTE_RULE_PREFIX: &str = "startwrt_remote_";
 const REMOTE_ACCESS_PORTS: &[&str] = &["80", "443", "22"];
 
-/// ULA range (RFC 4193). Disjoint from global unicast (`2000::/3`).
 const ULA_PREFIX: &str = "fc00::/7";
 
-/// The three RFC1918 ranges, as `(name suffix, CIDR)`. In `default` mode an IPv4
-/// remote-access rule is emitted per range so that any private source is accepted
-/// while no global one is. fw4's `option src_ip` holds a single value, so each
-/// range needs its own rule; the suffix keeps the generated section names unique.
 const RFC1918_BLOCKS: &[(&str, &str)] = &[
     ("ipv4_10", "10.0.0.0/8"),
     ("ipv4_172", "172.16.0.0/12"),
@@ -204,11 +200,9 @@ const RFC1918_BLOCKS: &[(&str, &str)] = &[
 ];
 
 fn is_private_ipv4(ip: &Ipv4Addr) -> bool {
-    let octets = ip.octets();
-    // RFC1918 only — excludes CGNAT 100.64.0.0/10
-    octets[0] == 10
-        || (octets[0] == 172 && (16..=31).contains(&octets[1]))
-        || (octets[0] == 192 && octets[1] == 168)
+    RFC1918_BLOCKS
+        .iter()
+        .any(|(_, block)| block.parse::<IpNet>().unwrap().contains(&IpAddr::V4(*ip)))
 }
 
 pub(crate) fn has_global_ipv6(addrs: &[Ipv6Addr]) -> bool {
@@ -322,47 +316,28 @@ pub async fn get_wan_ipv6s() -> Result<Vec<Ipv6Addr>, Error> {
     Ok(addrs)
 }
 
-fn apply_remote_access_config(
-    cfgs: &mut Configs,
+struct RemoteAccessRuleSpec {
+    suffix: Option<&'static str>,
+    family: Option<&'static str>,
+    src_ip: Option<&'static str>,
+}
+
+fn remote_access_rule_specs(
     mode: &str,
     wan_ipv4: Option<Ipv4Addr>,
     wan_ipv6s: &[Ipv6Addr],
-) {
-    // Remove all existing remote access rules
-    cfgs["firewall"].sections.retain(|section| {
-        let Ok(rule) = section.get::<FirewallRule>() else {
-            return true;
-        };
-        !rule.name.starts_with(REMOTE_RULE_PREFIX)
-    });
-
-    // Canonical OpenWrt access restriction: limit who may connect via `src_ip`
-    // (mirrors the shipped `Allow-MLD` rule's `src_ip fe80::/10`). In `default`
-    // mode, accept only locally-scoped sources — all RFC1918 ranges for IPv4, the
-    // ULA supernet for IPv6 — so a globally-routable client can never reach these
-    // ports, even if a global address later appears on the WAN. `always` is an
-    // explicit opt-in to full exposure and stays unscoped; `never` opens nothing.
-    struct RuleSpec {
-        /// Disambiguates the section name when one family yields several rules
-        /// (one per RFC1918 range). `None` for the unscoped `always` rule.
-        suffix: Option<&'static str>,
-        family: Option<&'static str>,
-        src_ip: Option<&'static str>,
-    }
-    let specs: Vec<RuleSpec> = match mode {
-        "never" => return,
-        "always" => vec![RuleSpec {
+) -> Vec<RemoteAccessRuleSpec> {
+    match mode {
+        "always" => vec![RemoteAccessRuleSpec {
             suffix: None,
             family: None,
             src_ip: None,
         }],
         "default" => {
             let mut specs = Vec::new();
-            // Behind NAT on IPv4 → accept every private (RFC1918) source, but no
-            // global one. Gated on the WAN address itself being private.
             if wan_ipv4.is_some_and(|ip| is_private_ipv4(&ip)) {
                 for &(suffix, block) in RFC1918_BLOCKS {
-                    specs.push(RuleSpec {
+                    specs.push(RemoteAccessRuleSpec {
                         suffix: Some(suffix),
                         family: Some("ipv4"),
                         src_ip: Some(block),
@@ -370,7 +345,7 @@ fn apply_remote_access_config(
                 }
             }
             if !wan_ipv6s.is_empty() && !has_global_ipv6(wan_ipv6s) {
-                specs.push(RuleSpec {
+                specs.push(RemoteAccessRuleSpec {
                     suffix: Some("ipv6"),
                     family: Some("ipv6"),
                     src_ip: Some(ULA_PREFIX),
@@ -378,10 +353,24 @@ fn apply_remote_access_config(
             }
             specs
         }
-        _ => return,
-    };
+        _ => Vec::new(),
+    }
+}
 
-    for spec in &specs {
+fn apply_remote_access_config(
+    cfgs: &mut Configs,
+    mode: &str,
+    wan_ipv4: Option<Ipv4Addr>,
+    wan_ipv6s: &[Ipv6Addr],
+) {
+    cfgs["firewall"].sections.retain(|section| {
+        let Ok(rule) = section.get::<FirewallRule>() else {
+            return true;
+        };
+        !rule.name.starts_with(REMOTE_RULE_PREFIX)
+    });
+
+    for spec in remote_access_rule_specs(mode, wan_ipv4, wan_ipv6s) {
         for &port in REMOTE_ACCESS_PORTS {
             let name = match spec.suffix {
                 Some(suffix) => format!("{REMOTE_RULE_PREFIX}{port}_{suffix}"),
@@ -422,26 +411,18 @@ fn parse_proc_addr(field: &str) -> Option<(IpAddr, u16)> {
     Some((ip.to_canonical(), port))
 }
 
-/// Whether a Remote Access mode admits a WAN-side source, matching the rules
-/// `apply_remote_access_config` writes for it.
 fn remote_access_admits(
     mode: &str,
     source: IpAddr,
     wan_ipv4: Option<Ipv4Addr>,
     wan_ipv6s: &[Ipv6Addr],
 ) -> bool {
-    match (mode, source) {
-        ("always", _) => true,
-        ("default", IpAddr::V4(ip)) => {
-            wan_ipv4.is_some_and(|wan| is_private_ipv4(&wan)) && is_private_ipv4(&ip)
-        }
-        ("default", IpAddr::V6(ip)) => {
-            !wan_ipv6s.is_empty()
-                && !has_global_ipv6(wan_ipv6s)
-                && (ip.segments()[0] & 0xfe00) == 0xfc00
-        }
-        _ => false,
-    }
+    remote_access_rule_specs(mode, wan_ipv4, wan_ipv6s)
+        .iter()
+        .any(|spec| {
+            spec.src_ip
+                .is_none_or(|prefix| prefix.parse::<IpNet>().unwrap().contains(&source))
+        })
 }
 
 /// Socket inodes of established SSH sessions to a WAN address from a source `admits` rejects.
@@ -1076,11 +1057,11 @@ mod tests {
             Some(("127.0.0.1".parse().unwrap(), 22))
         );
         assert_eq!(
-            parse_proc_addr(&proc_addr("2001:db8::1", 22)),
+            parse_proc_addr("B80D0120000000000000000001000000:0016"),
             Some(("2001:db8::1".parse().unwrap(), 22))
         );
         assert_eq!(
-            parse_proc_addr(&proc_addr("::ffff:10.20.0.2", 22)),
+            parse_proc_addr("0000000000000000FFFF00000200140A:0016"),
             Some(("10.20.0.2".parse().unwrap(), 22))
         );
         assert_eq!(parse_proc_addr("0100007F"), None);
@@ -1152,6 +1133,38 @@ mod tests {
             rejected(&["fd00::1".parse().unwrap(), "2001:db8::9".parse().unwrap()]),
             vec![1, 2]
         );
+    }
+
+    #[test]
+    fn test_remote_access_admits_source_ranges() {
+        let wan_ipv4 = Some("10.20.0.2".parse().unwrap());
+        let wan_ipv6s = ["fd00::1".parse().unwrap()];
+        for source in [
+            "10.0.0.1",
+            "172.16.0.1",
+            "172.31.255.255",
+            "192.168.0.1",
+            "fc00::1",
+            "fdff::1",
+        ] {
+            assert!(
+                remote_access_admits("default", source.parse().unwrap(), wan_ipv4, &wan_ipv6s),
+                "{source}"
+            );
+        }
+        for source in [
+            "100.64.0.1",
+            "172.32.0.1",
+            "8.8.8.8",
+            "fe00::1",
+            "fe80::1",
+            "2001:db8::1",
+        ] {
+            assert!(
+                !remote_access_admits("default", source.parse().unwrap(), wan_ipv4, &wan_ipv6s),
+                "{source}"
+            );
+        }
     }
 
     #[test]
