@@ -317,6 +317,7 @@ impl TSVisitor {
         let next = self.literals.len();
         let index = *self.literals.entry(expression.to_owned()).or_insert(next);
         let name = format!("literal_{index}");
+        self.reserved.insert(name.clone());
         Expr::new(name.clone(), format!("typeof {name}"))
     }
 

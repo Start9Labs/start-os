@@ -57,6 +57,19 @@ struct Shadowed<Inner> {
 }
 reflect_ts!(generic Shadowed<Inner>);
 
+#[allow(non_camel_case_types)]
+mod literal_shadow {
+    use super::*;
+
+    #[derive(Serialize, Deserialize, visit_rs::VisitFields)]
+    pub struct LiteralShadow<literal_0> {
+        value: literal_0,
+        #[visit(ts(type = "z.string()"))]
+        text: String,
+    }
+    reflect_ts!(generic LiteralShadow<literal_0>);
+}
+
 fn holder() -> Holder {
     Holder {
         tree: Tree {
@@ -158,6 +171,17 @@ fn parameters_cannot_shadow_declarations() {
         .unwrap_err()
         .to_string()
         .contains("Generic parameter Inner of Shadowed shadows a declaration"));
+}
+
+#[test]
+fn parameters_cannot_shadow_hoisted_literals() {
+    let mut visitor = TSVisitor::new();
+    visitor.append_type::<literal_shadow::LiteralShadow<u32>>();
+    assert!(visitor
+        .into_bindings(None, SCHEMAS)
+        .unwrap_err()
+        .to_string()
+        .contains("Generic parameter literal_0 of LiteralShadow shadows a declaration"));
 }
 
 #[test]

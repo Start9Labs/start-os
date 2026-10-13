@@ -93,7 +93,8 @@ ever appears in `_RETURN` positions has no `Input` alias — so a Rust type name
 `FooInput` beside `Foo` collides only if both directions are in use; then one of
 them needs a rename. Definitions and the root name must begin with an ASCII
 uppercase letter and contain only ASCII letters, digits and underscores; `z`,
-`wire`, `schemas`, `self` and the helper type names are reserved. Distinct Rust
+`wire`, `object`, `schemas`, `self`, hoisted `literal_N` constants and the helper
+type names are reserved. Distinct Rust
 types cannot share a definition name.
 
 Supported shapes include:
