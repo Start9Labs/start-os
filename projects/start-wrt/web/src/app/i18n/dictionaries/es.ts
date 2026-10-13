@@ -547,4 +547,5 @@ export default {
   569: 'Ancho de canal',
   570: 'Ancho de 2,4 GHz',
   571: 'Ancho de 5 GHz',
+  572: 'No conectado',
 } satisfies i18n

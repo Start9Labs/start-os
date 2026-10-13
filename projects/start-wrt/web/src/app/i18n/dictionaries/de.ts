@@ -547,4 +547,5 @@ export default {
   569: 'Kanalbreite',
   570: '2,4-GHz-Breite',
   571: '5-GHz-Breite',
+  572: 'Nicht verbunden',
 } satisfies i18n

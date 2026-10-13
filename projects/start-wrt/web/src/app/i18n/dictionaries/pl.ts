@@ -547,4 +547,5 @@ export default {
   569: 'Szerokość kanału',
   570: 'Szerokość 2,4 GHz',
   571: 'Szerokość 5 GHz',
+  572: 'Nie połączono',
 } satisfies i18n

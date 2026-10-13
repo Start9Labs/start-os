@@ -552,4 +552,5 @@ export const ENGLISH: Record<string, number> = {
   'Channel Width': 569,
   '2.4 GHz Width': 570,
   '5 GHz Width': 571,
+  'Not connected': 572,
 }

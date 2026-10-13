@@ -1514,6 +1514,10 @@ export type WanIpv4ModeInput = 'dhcp' | 'static' | 'pppoe'
 export type WanIpv4Response = {
   mode: WanIpv4Mode
   assigned_ip: string | null
+  /**
+   * Whether the WAN port has link. A failed read reports link.
+   */
+  carrier: boolean
   address: string | null
   netmask: string | null
   gateway: string | null
