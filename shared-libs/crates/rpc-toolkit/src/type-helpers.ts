@@ -59,3 +59,17 @@ export type RpcReturnType<
           : never
         : never
     : never
+
+export type RpcSchemaTree<Schema> = {
+  [Key in keyof Schema]: Key extends '_PARAMS'
+    ? Schema[Key] extends z.ZodType
+      ? z.input<Schema[Key]>
+      : never
+    : Key extends '_RETURN'
+      ? Schema[Key] extends z.ZodType
+        ? z.output<Schema[Key]>
+        : never
+      : Key extends '_CHILDREN'
+        ? { [Name in keyof Schema[Key]]: RpcSchemaTree<Schema[Key][Name]> }
+        : never
+}

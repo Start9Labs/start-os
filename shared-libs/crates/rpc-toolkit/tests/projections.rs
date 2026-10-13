@@ -1,7 +1,10 @@
 #![cfg(feature = "ts")]
 #![allow(dead_code)]
 
-use rpc_toolkit::ts::{Direction, TSVisitor, TS};
+mod common;
+
+use common::{declarations, module, rejection, SCHEMAS};
+use rpc_toolkit::ts::{TSVisitor, TS};
 
 struct Hidden;
 
@@ -19,7 +22,10 @@ struct Projection {
     nested: Nested,
     required: u32,
     #[visit(type_attributes(visit::wire))]
-    #[visit(ts(type = "number|null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.number().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque)]
     nullable: Option<Hidden>,
     #[visit(type_attributes(visit::wire))]
@@ -44,36 +50,16 @@ rpc_toolkit::reflect_ts!(Newtype);
 
 #[test]
 fn omission_and_optional_state_are_scoped_to_each_field() {
-    for direction in [Direction::Input, Direction::Output] {
-        let mut v = TSVisitor::new();
-        v.with_direction(direction, |v| v.append_type::<Projection>());
-        let output = v.into_declarations().unwrap();
-        assert!(!output.contains("context"));
-        assert!(!output.contains("omitted"));
-        assert!(output.contains("\"nested\":(Nested"));
-        assert!(output.contains("\"value\":(string)"));
-        assert!(output.contains("\"required\":(number)"));
-        assert!(output.contains("\"last\":(string)"));
-        assert!(output.contains(if direction == Direction::Input {
-            "\"nullable\"?:(number|null)"
-        } else {
-            "\"nullable\":(number|null)"
-        }));
-    }
-}
-fn rejects<T: TS>() {
-    let mut v = TSVisitor::new();
-    v.append_type::<T>();
-    assert!(v
-        .into_module("Rejected")
-        .unwrap_err()
-        .to_string()
-        .contains("Omission requires a named field"));
+    let schemas = declarations::<Projection>().schemas;
+    assert!(!schemas.contains("context"));
+    assert!(!schemas.contains("omitted"));
+    assert!(schemas.contains("export const Nested = z.object({ \"value\": z.string() })"));
+    assert!(schemas.contains("export const Projection = z.object({ \"nested\": Nested, \"required\": z.int(), \"nullable\": wire(z.number().nullable().optional(), z.number().nullable()), \"last\": z.string() })"), "{}", schemas);
 }
 #[test]
 fn omission_rejects_tuple_and_newtype_fields() {
-    rejects::<Tuple>();
-    rejects::<Newtype>();
+    assert!(rejection::<Tuple>().contains("Omission requires a named field"));
+    assert!(rejection::<Newtype>().contains("Omission requires a named field"));
 }
 
 /// Borrowed documentation.
@@ -86,40 +72,36 @@ struct Array<T, const N: usize>([T; N]);
 rpc_toolkit::reflect_ts!(impl [T, const N: usize] for Array<T, N> where [T: TS]);
 #[derive(visit_rs::VisitFields)]
 struct LiteralFields {
-    #[visit(ts(type = "boolean"))]
+    #[visit(ts(type = "z.boolean()"))]
     overridden: Nested,
-    #[visit(ts(type = "number|null"))]
+    #[visit(ts(type = "z.number().nullable()"))]
     option: Option<Nested>,
     required: String,
 }
 rpc_toolkit::reflect_ts!(LiteralFields);
 
 #[derive(visit_rs::VisitFields)]
-#[visit(ts(type = "number"))]
+#[visit(ts(type = "z.number()"))]
 struct LiteralContainer(Nested);
 rpc_toolkit::reflect_ts!(LiteralContainer);
 
 #[test]
 fn literals_do_not_register_replaced_definitions() {
-    for direction in [Direction::Input, Direction::Output] {
-        let mut v = TSVisitor::new();
-        v.with_direction(direction, |v| v.append_type::<LiteralFields>());
-        let module = v.into_declarations().unwrap();
-        assert!(!module.contains("Nested"));
-        assert!(module.contains("\"overridden\":(boolean)"));
-        assert!(module.contains("\"required\":(string)"));
-        assert!(module.contains(if direction == Direction::Input {
-            "\"option\"?:(number|null)"
-        } else {
-            "\"option\":(number|null)"
-        }));
-        let mut v = TSVisitor::new();
-        v.append_type::<LiteralContainer>();
-        assert_eq!(
-            v.into_declarations().unwrap(),
-            "export type LiteralContainer = number;\n"
-        );
-    }
+    let schemas = declarations::<LiteralFields>().schemas;
+    assert!(!schemas.contains("Nested"));
+    assert!(schemas.contains("\"overridden\": z.boolean()"));
+    assert!(schemas.contains("\"required\": z.string()"));
+    assert!(
+        schemas
+            .contains("\"option\": wire(z.number().nullable().optional(), z.number().nullable())"),
+        "{}",
+        schemas
+    );
+    let schemas = declarations::<LiteralContainer>().schemas;
+    assert!(schemas.contains(
+        "export const LiteralContainer = z.number().meta({\nid: \"LiteralContainer\" });"
+    ));
+    assert!(!schemas.contains("Nested"));
 }
 
 macro_rules! bad_hint {
@@ -133,16 +115,16 @@ macro_rules! bad_hint {
 bad_hint!(BadValue, visit(ts(type = 42)));
 bad_hint!(BadKey, visit(ts(unknown = "value")));
 bad_hint!(BadList, visit(ts = "value"));
-bad_hint!(Duplicate, visit(ts(type = "string", type = "number")));
+bad_hint!(Duplicate, visit(ts(type = "z.string()", type = "z.number()")));
 bad_hint!(BadSkip, visit(ts(skip = true)));
 bad_hint!(BadName, visit(ts(rename = "invalid-name")));
-bad_hint!(BadNested, visit(ts(type("string"))));
-bad_hint!(BadOuter, visit(ts(type = "string"), @ raw));
+bad_hint!(BadNested, visit(ts(type("z.string()"))));
+bad_hint!(BadOuter, visit(ts(type = "z.string()"), @ raw));
 bad_hint!(UnknownOuter, visit(@ raw));
 
 #[derive(visit_rs::VisitFields)]
 struct BadOuterField {
-    #[visit(ts(type = "string"), @ raw)]
+    #[visit(ts(type = "z.string()"), @ raw)]
     value: u32,
 }
 rpc_toolkit::reflect_ts!(BadOuterField);
@@ -166,28 +148,20 @@ rpc_toolkit::impl_ts_shape!(ManualNamed {
 
 #[test]
 fn manual_bridges_keep_explicit_inline_and_alias_policy() {
-    let mut v = TSVisitor::new();
-    v.append_type::<ManualEmpty>();
-    assert_eq!(
-        v.into_module("EmptyRoot").unwrap(),
-        "export type EmptyRoot = null;\n"
-    );
-    let mut v = TSVisitor::new();
-    v.with_direction(Direction::Input, |v| v.append_type::<ManualNamed>());
-    assert_eq!(
-        v.into_declarations().unwrap(),
-        "export type ManualParams = string;\n"
-    );
+    assert!(module::<ManualEmpty>()
+        .schemas
+        .contains("export const TestType = z.null().meta({\nid: \"TestType\" });\n"));
+    let bindings = declarations::<ManualNamed>();
+    assert!(bindings
+        .schemas
+        .contains("export const ManualAlias = z.string().meta({\nid: \"ManualAlias\" });"));
+    assert!(bindings
+        .types
+        .contains("export type ManualAlias = z.output<typeof schemas.ManualAlias>;\nexport type ManualParams = z.input<typeof schemas.ManualAlias>;"));
 }
 
 fn rejects_hint<T: TS>(message: &str) {
-    let mut v = TSVisitor::new();
-    v.append_type::<T>();
-    assert!(v
-        .into_declarations()
-        .unwrap_err()
-        .to_string()
-        .contains(message));
+    assert!(rejection::<T>().contains(message));
 }
 
 #[test]
@@ -206,26 +180,23 @@ fn malformed_consumer_hints_are_runtime_errors() {
 
 #[test]
 fn unknown_unparsed_metadata_remains_consumer_opaque() {
-    let mut visitor = TSVisitor::new();
-    visitor.append_type::<UnknownOuter>();
-    assert_eq!(
-        visitor.into_declarations().unwrap(),
-        "export type UnknownOuter = string;\n"
-    );
+    assert!(declarations::<UnknownOuter>()
+        .schemas
+        .contains("export const UnknownOuter = z.string().meta({\nid: \"UnknownOuter\" });\n"));
 }
 
 #[test]
 fn precise_generic_bridges_preserve_docs_and_aliases() {
-    let mut v = TSVisitor::new();
-    v.with_direction(Direction::Input, |v| v.append_type::<Borrowed<'_>>());
-    let output = v.into_declarations().unwrap();
-    assert!(output.contains("Borrowed documentation.\n */\nexport type BorrowedParams = string"));
+    let bindings = declarations::<Borrowed<'_>>();
+    assert!(bindings.schemas.contains("Borrowed documentation.\n */\nexport const Borrowed = z.string().meta({\nid: \"Borrowed\", description: \"Borrowed documentation.\" });"), "{}", bindings.schemas);
+    assert!(bindings.types.contains("Borrowed documentation.\n */\nexport type BorrowedParams = z.input<typeof schemas.Borrowed>;"), "{}", bindings.types);
     let mut v = TSVisitor::new();
     v.append_type::<Array<String, 2>>();
     assert!(v
-        .into_module("ArrayRoot")
+        .into_bindings(Some("ArrayRoot"), SCHEMAS)
         .unwrap()
-        .contains("[string,string]"));
+        .schemas
+        .contains("export const ArrayRoot = z.tuple([z.string(), z.string()]);"));
 }
 
 #[derive(visit_rs::VisitFields)]
@@ -274,14 +245,14 @@ fn public_constants_match_reflected_declaration_identity_and_docs() {
         GenericIdentity::<String>::INPUT_DEFINE,
         Some("GenericInput")
     );
-    for direction in [Direction::Input, Direction::Output] {
-        let mut visitor = TSVisitor::new();
-        visitor.with_direction(direction, |v| v.append_type::<ConstantIdentity>());
-        let module = visitor.into_declarations().unwrap();
-        assert!(module.contains(if direction == Direction::Input {
-            "export type ExplicitInput = null;"
-        } else {
-            "export type ExplicitAlias = null;"
-        }));
-    }
+    let bindings = declarations::<ConstantIdentity>();
+    assert!(bindings
+        .schemas
+        .contains("export const ExplicitAlias = z.null().meta({\nid: \"ExplicitAlias\", description: \" preserved documentation  \" });"), "{}", bindings.schemas);
+    assert!(bindings
+        .types
+        .contains("export type ExplicitAlias = z.output<typeof schemas.ExplicitAlias>;"));
+    assert!(bindings
+        .types
+        .contains("export type ExplicitInput = z.input<typeof schemas.ExplicitAlias>;"));
 }

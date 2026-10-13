@@ -3,7 +3,7 @@
 `rpc-toolkit` turns a single set of typed Rust handlers into both a JSON-RPC 2.0 server and a
 CLI. The same handler tree is registered once and then either served (HTTP / Unix socket / TCP)
 or driven from the command line through `clap`. Type information flows end to end, optionally
-emitting TypeScript definitions for clients.
+emitting zod schemas and TypeScript types for clients.
 
 ## Place in the monorepo
 
@@ -79,12 +79,15 @@ param-flattening newtype, and the async plumbing (`JobRunner`, `StreamUntil`, `p
 ## TypeScript generation
 
 Under the opt-in `ts` feature, handler bindings compose parameter, return and child
-writers through `HandlerTSBindings`. Params traverse serde's input shape; returns
-traverse its output shape. RPC parses raw `DeclarationInfo::source` and owns one
-direction-aware normalization plan through pinned `serde_derive_internals` for
-handler and standalone roots. It owns layout, renames, skips, defaults, hooks,
-literals and docs. The parsed AST is normalization input, not a synthetic DTO or
-Rust implementation. Whole-root explicit wire overrides precede serde validation.
+writers through `HandlerTSBindings`. Each Rust type renders once, as a zod schema
+whose `z.input` is serde's deserialization shape and whose `z.output` is its
+serialization shape. RPC parses raw `DeclarationInfo::source` and owns one
+normalization plan per direction through pinned `serde_derive_internals`
+(`ts/normalize.rs`); `ts/render.rs` renders the two plans jointly and wraps the
+narrowest point where they differ in the `wire(input, output)` identity codec.
+Normalization owns layout, renames, skips, defaults, hooks, literals and docs.
+The parsed AST is normalization input, not a synthetic DTO or Rust
+implementation. Whole-root explicit wire overrides precede serde validation.
 
 `VisitFields` and `VisitVariants` supply unconditional `TypeInfo` declaration facts.
 RPC collects struct storage through `VisitFieldsStaticNamed`; enum storage uses
@@ -110,10 +113,15 @@ optional chrono/ipnet/josekit/url/yajrc/exver/patch-db integrations, CBOR integr
 and imbl-value/yasi bridges. Dependency edges point from RPC to leaves; patch-db
 exposes generic `reflect` support rather than TypeScript facilities.
 
-`TSVisitor` owns the definition registry. It registers a named type before expanding
-its fields, enabling recursion, and rejects alias collisions across Rust types or
-directions. Input aliases receive an `Input` suffix. `handler_bindings()` assembles
-these definitions, the root alias and the `type-helpers.ts` inference helpers.
+`TSVisitor` owns the definition registry. Every expression carries its zod schema
+type beside its value (`Expr`), which annotates the getters that recursive object
+members become. It registers a named type before expanding its fields, tracks
+which declarations each one references eagerly and emits the schema module in
+dependency order, rejecting cycles that no object member defers. Type aliases
+project `z.output` and `z.input` of each schema for the directions it is reached
+from; input aliases receive an `Input` suffix. `into_bindings()` assembles the
+schema module and the type-only module, which `handler_bindings()` completes with
+the root tree, `RpcSchemaTree` and the `type-helpers.ts` inference helpers.
 Generation errors are returned rather than hidden in release builds.
 
 The helpers resolve every dotted segment against actual children, combine inherited

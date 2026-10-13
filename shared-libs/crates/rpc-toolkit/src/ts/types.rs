@@ -1,12 +1,10 @@
-//! TypeScript declarations from directional serde JSON shapes.
+//! Zod schema modules from directional serde JSON shapes.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 use std::sync::Arc;
 
 pub use inventory;
-
-pub use super::normalize::Direction;
 
 /// An annotated standalone type root in a compiled crate's export namespace.
 pub struct Export {
@@ -17,8 +15,138 @@ pub struct Export {
 }
 inventory::collect!(Export);
 
-/// Collects annotated roots and their dependencies into one checked declaration module.
-pub fn export_namespace(crate_name: &str, namespace: &str) -> Result<String, BindingError> {
+/// One generated root: the runtime schema module and its type-only projection.
+///
+/// `types` imports `schemas` through the specifier given at generation time, so
+/// consumers that only import `types` carry no runtime code.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Bindings {
+    pub schemas: String,
+    pub types: String,
+}
+
+/// A zod expression and the TypeScript type it evaluates to.
+///
+/// The type annotates recursive getters, where TypeScript cannot infer a schema
+/// that refers to the constant being initialized.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Expr {
+    pub value: String,
+    pub ty: String,
+}
+impl Expr {
+    pub fn new(value: impl Into<String>, ty: impl Into<String>) -> Self {
+        Self {
+            value: value.into(),
+            ty: ty.into(),
+        }
+    }
+    pub fn nullable(self) -> Self {
+        Self::new(
+            format!("{}.nullable()", self.value),
+            format!("z.ZodNullable<{}>", self.ty),
+        )
+    }
+    pub fn optional(self) -> Self {
+        Self::new(
+            format!("{}.optional()", self.value),
+            format!("z.ZodOptional<{}>", self.ty),
+        )
+    }
+    pub fn array(self) -> Self {
+        Self::new(
+            format!("z.array({})", self.value),
+            format!("z.ZodArray<{}>", self.ty),
+        )
+    }
+    pub fn record(self) -> Self {
+        Self::new(
+            format!("z.record(z.string(), {})", self.value),
+            format!("z.ZodRecord<z.ZodString, {}>", self.ty),
+        )
+    }
+    pub fn tuple(elements: Vec<Self>) -> Self {
+        Self::new(
+            format!("z.tuple([{}])", join(&elements, |e| &e.value, ", ")),
+            format!("z.ZodTuple<[{}]>", join(&elements, |e| &e.ty, ", ")),
+        )
+    }
+    pub fn union(variants: Vec<Self>) -> Self {
+        match variants.len() {
+            1 => variants.into_iter().next().unwrap(),
+            _ => Self::new(
+                format!("z.union([{}])", join(&variants, |e| &e.value, ", ")),
+                format!(
+                    "z.ZodUnion<readonly [{}]>",
+                    join(&variants, |e| &e.ty, ", ")
+                ),
+            ),
+        }
+    }
+    pub fn intersection(self, other: Self) -> Self {
+        Self::new(
+            format!("z.intersection({}, {})", self.value, other.value),
+            format!("z.ZodIntersection<{}, {}>", self.ty, other.ty),
+        )
+    }
+    /// The identity codec joining a deserialization and a serialization shape.
+    pub fn codec(input: Self, output: Self) -> Self {
+        Self::new(
+            format!("wire({}, {})", input.value, output.value),
+            format!("z.ZodCodec<{}, {}>", input.ty, output.ty),
+        )
+    }
+    pub fn literal(names: &[String]) -> Self {
+        let quoted: Vec<_> = names.iter().map(|name| json_str(name)).collect();
+        match quoted.as_slice() {
+            [name] => Self::new(
+                format!("z.literal({name})"),
+                format!("z.ZodLiteral<{name}>"),
+            ),
+            _ => Self::new(
+                format!("z.literal([{}])", quoted.join(", ")),
+                format!("z.ZodLiteral<{}>", quoted.join(" | ")),
+            ),
+        }
+    }
+    pub fn enumeration(names: &[String]) -> Self {
+        let quoted: Vec<_> = names.iter().map(|name| json_str(name)).collect();
+        Self::new(
+            format!("z.enum([{}])", quoted.join(", ")),
+            format!(
+                "z.ZodEnum<{{ {} }}>",
+                quoted
+                    .iter()
+                    .map(|name| format!("{name}: {name}"))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            ),
+        )
+    }
+    /// Accepts any object while inferring `{}`, so intersections with it stay transparent.
+    pub fn empty() -> Self {
+        Self::new("(z.object({}) as z.ZodType<{}, {}>)", "z.ZodType<{}, {}>")
+    }
+    pub fn reference(name: &str) -> Self {
+        Self::new(name, format!("typeof {name}"))
+    }
+    /// Appends `.meta({...})`, which leaves the schema type unchanged.
+    pub fn described(mut self, id: Option<&str>, docs: &[String]) -> Self {
+        self.value.push_str(&meta(id, docs));
+        self
+    }
+}
+
+fn join<'a, T>(items: &'a [T], part: impl Fn(&'a T) -> &'a str, separator: &str) -> String {
+    items.iter().map(part).collect::<Vec<_>>().join(separator)
+}
+
+/// Collects annotated roots and their dependencies into one checked module pair.
+pub fn export_namespace(
+    crate_name: &str,
+    namespace: &str,
+    schemas_specifier: &str,
+) -> Result<Bindings, BindingError> {
     let prefix = format!("{crate_name}::");
     let mut exports: Vec<_> = inventory::iter::<Export>
         .into_iter()
@@ -29,14 +157,11 @@ pub fn export_namespace(crate_name: &str, namespace: &str) -> Result<String, Bin
         .collect();
     exports.sort_by_key(|export| (export.name, export.module));
     let mut visitor = TSVisitor::new();
-    for direction in [Direction::Input, Direction::Output] {
-        visitor.with_direction(direction, |visitor| {
-            for export in &exports {
-                (export.register)(visitor);
-            }
-        });
+    for export in &exports {
+        (export.register)(&mut visitor);
+        visitor.ts.clear();
     }
-    visitor.into_declarations()
+    visitor.into_bindings(None, schemas_specifier)
 }
 pub use visit_rs::reflection::TypeInfo;
 use visit_rs::reflection::{
@@ -48,27 +173,29 @@ use visit_rs::{
 };
 
 pub use super::normalize::{
-    declaration_name, default_name, documentation, generic_name, input_name,
+    declaration_name, default_name, documentation, generic_name, input_name, Direction,
 };
-use super::normalize::{Field, Style, Tag, Variant};
 
-/// Appends the JSON expression for the visitor's selected direction.
+/// Appends the zod expression for a type's JSON shape.
 ///
-/// Nested types must use `TSVisitor::append_type` to register named definitions.
+/// Implementations append through `TSVisitor::leaf`, `append_type` and the
+/// composition helpers so the schema type stays paired with the value.
+/// Where deserialization and serialization shapes differ, the expression wraps
+/// both sides with `TSVisitor::wire`; `z.input` and `z.output` select them.
 pub trait TS {
-    /// Base alias name; `None` emits inline. Recursive types require a name.
+    /// Base schema name; `None` emits inline. Recursive types require a name.
     const DEFINE: Option<&'static str> = None;
-    /// Explicit input alias; `None` appends `Input` to the base alias.
+    /// Explicit input type alias; `None` appends `Input` to the base name.
     const INPUT_DEFINE: Option<&'static str> = None;
     /// Rust container doc attributes, emitted on declarations and inline expressions.
     const DOCS: &'static [&'static str] = &[];
     /// Marks nullable options whose named input fields may be omitted or flattened.
     const IS_OPTION: bool = false;
-    /// Returns the output alias, including consumer metadata overrides.
+    /// Returns the schema name, including consumer metadata overrides.
     fn define_name() -> Option<String> {
         Self::DEFINE.map(str::to_owned)
     }
-    /// Returns an explicit input alias; otherwise the output alias gains `Input`.
+    /// Returns an explicit input alias; otherwise the schema name gains `Input`.
     fn input_define_name() -> Option<String> {
         Self::INPUT_DEFINE.map(str::to_owned)
     }
@@ -93,25 +220,43 @@ where
 #[derive(Debug, Clone)]
 pub struct TSVisitor {
     definitions: BTreeMap<String, Definition>,
-    /// Current expression buffer for custom `TS` implementations.
+    /// Current expression buffer; `ty` holds its schema type in parallel.
     pub ts: String,
-    direction: Direction,
-    active: Vec<(&'static str, Direction)>,
-    fields: Vec<(Field, String, bool, bool)>,
-    variants: Vec<String>,
+    pub ty: String,
+    active: Vec<&'static str>,
     type_optional: bool,
     suppress_types: bool,
+    pending_reference: bool,
     pub(super) errors: Vec<String>,
     reserved: BTreeSet<String>,
-    generics: Vec<&'static [&'static str]>,
+    generics: Vec<(&'static str, &'static [&'static str])>,
+    uses_wire: bool,
+    types_prelude: String,
+    /// Definition references collected per enclosing declaration or member.
+    frames: Vec<Vec<Edge>>,
+    /// Wire direction of the surrounding handler position; `None` reaches both.
+    context: Option<Direction>,
+    /// Directions each declaration is referenced from, before closure.
+    reach: BTreeMap<String, Reach>,
 }
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+struct Reach {
+    input: bool,
+    output: bool,
+}
+
+/// A referenced definition name; deferred where a getter or factory body holds it.
+pub(super) type Edge = (String, bool);
 
 #[derive(Debug, Clone)]
 struct Definition {
     docs: Vec<String>,
-    owner: (&'static str, Direction),
+    owner: &'static str,
+    input_name: Option<String>,
     params: &'static [&'static str],
     expression: Option<String>,
+    edges: Vec<Edge>,
 }
 
 impl Default for TSVisitor {
@@ -125,34 +270,109 @@ impl Default for TSVisitor {
 #[error("{0}")]
 pub struct BindingError(String);
 
+/// Identifiers the schema module prelude and generated code own.
+const RESERVED: &[&str] = &["z", "wire", "schemas", "self"];
+
+const WIRE_PRELUDE: &str = "const wire = <A extends z.ZodType, B extends z.ZodType>(input: A, output: B) =>\n  z.codec(input, output, { decode: (v) => v as never, encode: (v) => v as never });\n";
+
 impl TSVisitor {
-    /// Starts with output traversal and an empty expression/definition registry.
+    /// Starts with an empty expression/definition registry.
     pub fn new() -> Self {
         Self {
             definitions: BTreeMap::new(),
             ts: String::new(),
-            direction: Direction::Output,
+            ty: String::new(),
             active: Vec::new(),
-            fields: Vec::new(),
-            variants: Vec::new(),
             type_optional: false,
             suppress_types: false,
+            pending_reference: false,
             errors: Vec::new(),
-            reserved: BTreeSet::new(),
+            reserved: RESERVED.iter().map(|name| (*name).to_owned()).collect(),
             generics: Vec::new(),
+            uses_wire: false,
+            types_prelude: String::new(),
+            frames: Vec::new(),
+            context: None,
+            reach: BTreeMap::new(),
         }
     }
 
-    /// Selects a direction for the callback, restoring it afterward.
-    pub fn with_direction(&mut self, direction: Direction, visit: impl FnOnce(&mut Self)) {
-        let previous = std::mem::replace(&mut self.direction, direction);
+    /// Renders under one wire direction, so declarations reached only there
+    /// project only that direction's type alias.
+    pub fn in_direction(&mut self, direction: Direction, visit: impl FnOnce(&mut Self)) {
+        let previous = self.context.replace(direction);
         visit(self);
-        self.direction = previous;
+        self.context = previous;
     }
 
-    /// Wire direction selected for the expression being visited.
-    pub fn direction(&self) -> Direction {
-        self.direction
+    /// Records a reference to a declaration; one whose eager references reach
+    /// a declaration still being rendered makes the enclosing member a getter.
+    fn reference(&mut self, name: &str) {
+        if self.reaches_pending(name) {
+            self.pending_reference = true;
+        }
+        let reach = self.reach.entry(name.to_owned()).or_default();
+        reach.input |= self.context != Some(Direction::Output);
+        reach.output |= self.context != Some(Direction::Input);
+        if let Some(frame) = self.frames.last_mut() {
+            frame.push((name.to_owned(), false));
+        }
+    }
+
+    /// Closes reachability over references, so a declaration projects every
+    /// direction any of its referrers is reached from.
+    fn reachability(&self) -> BTreeMap<String, Reach> {
+        let mut reach = self.reach.clone();
+        let mut changed = true;
+        while changed {
+            changed = false;
+            for (name, definition) in &self.definitions {
+                let Some(from) = reach.get(name).copied() else {
+                    continue;
+                };
+                for (target, _) in &definition.edges {
+                    let to = reach.entry(target.clone()).or_default();
+                    let merged = Reach {
+                        input: to.input || from.input,
+                        output: to.output || from.output,
+                    };
+                    if merged != *to {
+                        *to = merged;
+                        changed = true;
+                    }
+                }
+            }
+        }
+        reach
+    }
+
+    fn reaches_pending(&self, name: &str) -> bool {
+        let mut seen = BTreeSet::new();
+        let mut stack = vec![name.to_owned()];
+        while let Some(name) = stack.pop() {
+            let Some(definition) = self.definitions.get(&name) else {
+                continue;
+            };
+            if definition.expression.is_none() {
+                return true;
+            }
+            if !seen.insert(name) {
+                continue;
+            }
+            stack.extend(
+                definition
+                    .edges
+                    .iter()
+                    .filter(|(_, deferred)| !deferred)
+                    .map(|(target, _)| target.clone()),
+            );
+        }
+        false
+    }
+
+    /// Appends helper declarations to the type module after its imports.
+    pub fn types_prelude(&mut self, text: &str) {
+        self.types_prelude.push_str(text);
     }
 
     /// Appends an inline expression or registers and references a named definition.
@@ -160,45 +380,51 @@ impl TSVisitor {
         if self.suppress_types {
             return;
         }
-        let owner = (std::any::type_name::<T>(), self.direction);
+        let owner = std::any::type_name::<T>();
         if let Some((name, _)) = self
             .definitions
             .iter()
             .find(|(_, definition)| definition.owner == owner && definition.params.is_empty())
         {
-            self.ts.push_str(name);
+            let name = name.clone();
+            self.reference(&name);
+            self.push(Expr::reference(&name));
         } else if let Some(define) = T::define_name() {
             self.declare::<T>(&define);
         } else if self.active.contains(&owner) {
             self.errors
-                .push(format!("Recursive inline type {} requires DEFINE", owner.0));
+                .push(format!("Recursive inline type {owner} requires DEFINE"));
         } else {
             self.active.push(owner);
-            let docs = T::documentation();
-            if !docs.is_empty() {
-                // Prettier requires inline JSDoc to end on the type's line for stability.
-                self.ts.push_str(jsdoc(&docs).trim_matches('\n'));
-                self.ts.push(' ');
-            }
-            T::visit_ts(self);
+            let expression = self.capture(T::visit_ts);
             self.active.pop();
+            self.push(expression.described(None, &T::documentation()));
         }
+    }
+
+    /// Appends a composed expression.
+    pub fn push(&mut self, expression: Expr) {
+        self.ts.push_str(&expression.value);
+        self.ty.push_str(&expression.ty);
+    }
+
+    /// Appends a primitive schema and its type.
+    pub fn leaf(&mut self, value: &str, ty: &str) {
+        self.ts.push_str(value);
+        self.ty.push_str(ty);
     }
 
     /// Registers a named concrete type, including recursive generic instances.
     pub fn declare<T: TS + ?Sized>(&mut self, name: &str) {
-        let name = match self.direction {
-            Direction::Input => T::input_define_name().unwrap_or_else(|| format!("{name}Input")),
-            Direction::Output => name.to_owned(),
-        };
-        let owner = (std::any::type_name::<T>(), self.direction);
-        if !valid_identifier(&name) || self.reserved.contains(&name) {
+        let owner = std::any::type_name::<T>();
+        if !valid_identifier(name) || self.reserved.contains(name) {
             self.errors
                 .push(format!("Invalid TypeScript definition name: {name}"));
             return;
         }
-        self.ts.push_str(&name);
-        if let Some(existing) = self.definitions.get(&name) {
+        self.reference(name);
+        self.push(Expr::reference(name));
+        if let Some(existing) = self.definitions.get(name) {
             if existing.owner != owner {
                 self.errors
                     .push(format!("Conflicting TypeScript definition: {name}"));
@@ -206,16 +432,26 @@ impl TSVisitor {
             return;
         }
         self.definitions.insert(
-            name.clone(),
+            name.to_owned(),
             Definition {
                 docs: T::documentation(),
                 owner,
+                input_name: T::input_define_name(),
                 params: &[],
                 expression: None,
+                edges: Vec::new(),
             },
         );
+        let top_level = self.frames.is_empty();
+        self.frames.push(Vec::new());
         let expression = self.capture(T::visit_ts);
-        self.definitions.get_mut(&name).unwrap().expression = Some(expression);
+        let edges = self.frames.pop().unwrap();
+        if top_level {
+            self.pending_reference = false;
+        }
+        let definition = self.definitions.get_mut(name).unwrap();
+        definition.expression = Some(expression.value);
+        definition.edges = edges;
     }
 
     /// Appends a generic instance, registering its family from `D`, which
@@ -236,175 +472,212 @@ impl TSVisitor {
                 params.len()
             ));
         }
+        let owner = std::any::type_name::<D>();
+        if self.generics.last().map(|(family, _)| *family) == Some(owner)
+            && args
+                .iter()
+                .map(|arg| arg.value.as_str())
+                .eq(params.iter().copied())
+        {
+            self.pending_reference = true;
+            self.push(Expr::reference("self"));
+            return;
+        }
+        let name = generic_name(&D::DECLARATION);
         self.declare_generic::<D>(params);
-        self.ts.push('<');
-        self.ts.push_str(&args.join(","));
-        self.ts.push('>');
+        self.push(Expr::new(
+            format!("{name}({})", join(&args, |arg| &arg.value, ", ")),
+            format!(
+                "ReturnType<typeof {name}<{}>>",
+                join(&args, |arg| &arg.ty, ", ")
+            ),
+        ));
     }
 
-    /// Registers a generic family by name, appending only that name.
+    /// Registers a generic family by name without appending anything.
     pub fn declare_generic<D>(&mut self, params: &'static [&'static str])
     where
         D: TypeInfo + VisitTypeAttributes<MetadataCollector>,
         D::Kind: ShapeKind<D>,
     {
-        let base = generic_name(&D::DECLARATION);
-        let name = match self.direction {
-            Direction::Input => input_name(&D::DECLARATION)
-                .map(str::to_owned)
-                .unwrap_or_else(|| format!("{base}Input")),
-            Direction::Output => base.to_owned(),
-        };
-        let owner = (std::any::type_name::<D>(), self.direction);
-        if !valid_identifier(&name) || self.reserved.contains(&name) {
+        let name = generic_name(&D::DECLARATION);
+        let owner = std::any::type_name::<D>();
+        if !valid_identifier(name) || self.reserved.contains(name) {
             self.error(format!("Invalid TypeScript definition name: {name}"));
             return;
         }
-        if let Some(param) = params.iter().find(|param| !valid_parameter(param)) {
+        self.reference(name);
+        if let Some(param) = params
+            .iter()
+            .find(|param| !valid_parameter(param) || self.reserved.contains(**param))
+        {
             self.error(format!("Invalid TypeScript generic parameter: {param}"));
             return;
         }
-        self.ts.push_str(&name);
-        if let Some(existing) = self.definitions.get(&name) {
+        if let Some(existing) = self.definitions.get(name) {
             if existing.owner != owner {
                 self.error(format!("Conflicting TypeScript definition: {name}"));
             }
             return;
         }
         self.definitions.insert(
-            name.clone(),
+            name.to_owned(),
             Definition {
                 docs: documentation(&D::DECLARATION),
                 owner,
+                input_name: input_name(&D::DECLARATION).map(str::to_owned),
                 params,
                 expression: None,
+                edges: Vec::new(),
             },
         );
-        self.generics.push(params);
+        self.generics.push((owner, params));
+        let top_level = self.frames.is_empty();
+        self.frames.push(Vec::new());
         let expression = self.capture(visit_shape::<D>);
+        let edges = self.frames.pop().unwrap();
+        if top_level {
+            self.pending_reference = false;
+        }
         self.generics.pop();
-        self.definitions.get_mut(&name).unwrap().expression = Some(expression);
+        let definition = self.definitions.get_mut(name).unwrap();
+        definition.expression = Some(expression.value);
+        // A factory body runs at call time, after every declaration.
+        definition.edges = edges.into_iter().map(|(name, _)| (name, true)).collect();
     }
 
     /// Appends the intersection of two object projections.
     pub fn intersection(&mut self, left: impl FnOnce(&mut Self), right: impl FnOnce(&mut Self)) {
-        self.ts.push('(');
-        left(self);
-        self.ts.push_str(")&(");
-        right(self);
-        self.ts.push(')');
+        let left = self.capture(left);
+        let right = self.capture(right);
+        self.push(left.intersection(right));
     }
 
-    fn capture(&mut self, visit: impl FnOnce(&mut Self)) -> String {
-        let start = self.ts.len();
+    /// Appends a shape whose deserialization and serialization forms differ.
+    ///
+    /// Identical renderings collapse to one expression.
+    pub fn wire(&mut self, input: impl FnOnce(&mut Self), output: impl FnOnce(&mut Self)) {
+        let input = self.capture(input);
+        let output = self.capture(output);
+        let expression = self.wired(input, output);
+        self.push(expression);
+    }
+
+    pub(super) fn wired(&mut self, input: Expr, output: Expr) -> Expr {
+        if input.value == output.value {
+            input
+        } else {
+            self.uses_wire = true;
+            Expr::codec(input, output)
+        }
+    }
+
+    /// Renders an expression into a fresh buffer, leaving the current one intact.
+    pub fn capture(&mut self, visit: impl FnOnce(&mut Self)) -> Expr {
+        let value = self.ts.len();
+        let ty = self.ty.len();
         let optional = std::mem::replace(&mut self.type_optional, false);
         visit(self);
-        let expression = self.ts.split_off(start);
+        let expression = Expr {
+            value: self.ts.split_off(value),
+            ty: self.ty.split_off(ty),
+        };
         self.type_optional = optional;
         expression
     }
 
-    fn payload(&mut self, style: Style, fields: impl FnOnce(&mut Self)) -> String {
-        let saved = std::mem::take(&mut self.fields);
-        fields(self);
-        let fields = std::mem::replace(&mut self.fields, saved);
-        let fields: Vec<_> = fields
-            .into_iter()
-            .filter_map(|(field, ty, option, omitted)| {
-                if omitted {
-                    if style != Style::Struct {
-                        self.errors.push("Omission requires a named field".into());
-                    }
-                    None
-                } else {
-                    Some((field, ty, option))
-                }
+    /// Renders a member type, reporting typed optionality, whether it refers to
+    /// a declaration still being rendered, and the references it made, which
+    /// the caller commits once it knows whether a getter defers them.
+    pub(super) fn capture_field(
+        &mut self,
+        visit: impl FnOnce(&mut Self),
+    ) -> (Expr, bool, bool, Vec<Edge>) {
+        let pending = std::mem::replace(&mut self.pending_reference, false);
+        self.frames.push(Vec::new());
+        let mut optional = false;
+        let expression = self.capture(|visitor| {
+            visit(visitor);
+            optional = visitor.type_optional;
+        });
+        let edges = self.frames.pop().unwrap();
+        let recursive = std::mem::replace(&mut self.pending_reference, pending);
+        (expression, optional, recursive, edges)
+    }
+
+    /// Records a member's references in the enclosing declaration.
+    ///
+    /// A recursive member that no getter defers re-raises the pending
+    /// reference, so an enclosing object member becomes the getter instead.
+    pub(super) fn commit_edges(&mut self, edges: Vec<Edge>, deferred: bool, recursive: bool) {
+        if let Some(frame) = self.frames.last_mut() {
+            frame.extend(
+                edges
+                    .into_iter()
+                    .map(|(name, held)| (name, held || deferred)),
+            );
+        }
+        if recursive && !deferred {
+            self.pending_reference = true;
+        }
+    }
+
+    /// Declaration names in an order every eager reference precedes its use.
+    fn emission_order(&mut self) -> Vec<String> {
+        let mut remaining: BTreeMap<&str, BTreeSet<&str>> = self
+            .definitions
+            .iter()
+            .map(|(name, definition)| {
+                (
+                    name.as_str(),
+                    definition
+                        .edges
+                        .iter()
+                        .filter(|(target, deferred)| !deferred && target != name)
+                        .map(|(target, _)| target.as_str())
+                        .collect(),
+                )
             })
             .collect();
-        match style {
-            Style::Unit => "null".into(),
-            Style::Newtype if fields.is_empty() => match self.direction {
-                Direction::Input => "unknown".into(),
-                Direction::Output => "null".into(),
-            },
-            Style::Newtype => {
-                if fields.len() != 1 {
-                    self.errors
-                        .push("A newtype must have one visible field".into());
-                }
-                fields
-                    .into_iter()
-                    .next()
-                    .map(|(field, ty, _)| format!("{}{ty}", jsdoc(&field.docs)))
-                    .unwrap_or_else(|| "never".into())
-            }
-            Style::Tuple => {
-                if self.direction == Direction::Output && fields.iter().any(|(f, _, _)| f.optional)
-                {
-                    self.errors
-                        .push("Conditional tuple fields require a TypeScript override".into());
-                }
-                let mut optional_seen = false;
-                let elements: Vec<_> = fields.into_iter().map(|(f, ty, _)| {
-                    let optional = self.direction == Direction::Input && f.optional;
-                    if optional_seen && !optional {
-                        self.errors.push("A required tuple field after an optional field requires a TypeScript override".into());
-                    }
-                    optional_seen |= optional;
-                    let ty = if optional { format!("({ty})?") } else { ty };
-                    format!("{}{ty}", jsdoc(&f.docs))
-                }).collect();
-                format!("[{}]", elements.join(","))
-            }
-            Style::Struct => {
-                let mut object = String::from("{");
-                let mut intersections = Vec::new();
-                for (field, ty, option) in fields {
-                    if field.flatten {
-                        intersections.push(if option {
-                            format!("{}Partial<Exclude<({ty}),null>>", jsdoc(&field.docs))
-                        } else {
-                            format!("{}({ty})", jsdoc(&field.docs))
-                        });
-                        continue;
-                    }
-                    let optional = field.optional
-                        || (self.direction == Direction::Input && option && field.option_default);
-                    let mut names = vec![field.name.clone()];
-                    names.extend(field.aliases.iter().cloned());
-                    names.sort_unstable();
-                    names.dedup();
-                    if names.len() > 1 && !optional {
-                        intersections.push(format!(
-                            "({})",
-                            names
-                                .iter()
-                                .map(|name| format!(
-                                    "{{{}{}:({ty})}}",
-                                    jsdoc(&field.docs),
-                                    json_str(name)
-                                ))
-                                .collect::<Vec<_>>()
-                                .join("|")
-                        ));
-                    }
-                    for name in &names {
-                        object.push_str(&jsdoc(&field.docs));
-                        object.push_str(&format!(
-                            "{}{}:({ty});",
-                            json_str(name),
-                            if optional || names.len() > 1 { "?" } else { "" }
-                        ));
-                    }
-                }
-                object.push('}');
-                for inner in intersections {
-                    object.push('&');
-                    object.push_str(&inner);
-                }
-                object
+        for (name, definition) in &self.definitions {
+            if definition
+                .edges
+                .iter()
+                .any(|(target, deferred)| !deferred && target == name)
+            {
+                self.errors.push(format!(
+                    "Recursive reference to {name} outside an object member requires a wrapper struct or an override"
+                ));
             }
         }
+        let mut order = Vec::new();
+        while !remaining.is_empty() {
+            let ready: Vec<&str> = remaining
+                .iter()
+                .filter(|(_, deps)| deps.iter().all(|dep| !remaining.contains_key(dep)))
+                .map(|(name, _)| *name)
+                .collect();
+            if ready.is_empty() {
+                let mut cycle: Vec<_> = remaining.keys().map(|name| (*name).to_owned()).collect();
+                cycle.sort();
+                self.errors.push(format!(
+                    "Recursive references outside object members among {} require a wrapper struct or an override",
+                    cycle.join(", ")
+                ));
+                break;
+            }
+            for name in ready {
+                remaining.remove(name);
+                order.push(name.to_owned());
+            }
+        }
+        order
+    }
+
+    pub(super) fn with_suppressed_types(&mut self, visit: impl FnOnce(&mut Self)) {
+        let saved = std::mem::replace(&mut self.suppress_types, true);
+        visit(self);
+        self.suppress_types = saved;
     }
 
     /// Reserves names supplied by the module's other declarations.
@@ -413,8 +686,33 @@ impl TSVisitor {
             .extend(names.into_iter().map(|name| name.as_ref().to_owned()));
     }
 
-    /// Emits registered type declarations, rejecting accumulated generation errors.
-    pub fn into_declarations(mut self) -> Result<String, BindingError> {
+    /// Records an error that fails `into_bindings`.
+    pub fn error(&mut self, reason: impl Into<String>) {
+        self.errors.push(reason.into());
+    }
+
+    /// Emits registered declarations and an optional named root, rejecting
+    /// accumulated generation errors.
+    ///
+    /// The root is the current expression buffer; a root name makes the schema
+    /// module export it and the type module project it with `RpcSchemaTree`.
+    pub fn into_bindings(
+        mut self,
+        root_name: Option<&str>,
+        schemas_specifier: &str,
+    ) -> Result<Bindings, BindingError> {
+        if let Some(root) = root_name {
+            if !valid_identifier(root)
+                || self.reserved.contains(root)
+                || self.definitions.contains_key(root)
+                || self.ts.is_empty()
+            {
+                self.errors
+                    .push(format!("Invalid or conflicting root name: {root}"));
+            }
+        }
+        let reach = self.reachability();
+        let mut aliases = BTreeMap::new();
         for (name, definition) in &self.definitions {
             for param in definition.params {
                 if self.definitions.contains_key(*param) || self.reserved.contains(*param) {
@@ -423,48 +721,104 @@ impl TSVisitor {
                     ));
                 }
             }
+            let alias = definition
+                .input_name
+                .clone()
+                .unwrap_or_else(|| format!("{name}Input"));
+            let projected = reach.get(name).copied().unwrap_or_default();
+            if projected.input
+                && (!valid_identifier(&alias)
+                    || self.reserved.contains(&alias)
+                    || self
+                        .definitions
+                        .get(&alias)
+                        .is_some_and(|_| reach.get(&alias).is_some_and(|r| r.output))
+                    || root_name == Some(alias.as_str())
+                    || aliases.insert(alias.clone(), name.clone()).is_some())
+            {
+                self.errors
+                    .push(format!("Conflicting TypeScript definition: {alias}"));
+            }
         }
+        let order = self.emission_order();
         if !self.errors.is_empty() {
+            let mut seen = BTreeSet::new();
+            self.errors.retain(|error| seen.insert(error.clone()));
             return Err(BindingError(self.errors.join("\n")));
         }
-        Ok(self
-            .definitions
-            .into_iter()
-            .map(|(name, definition)| {
-                let params = if definition.params.is_empty() {
-                    String::new()
-                } else {
-                    format!("<{}>", definition.params.join(","))
-                };
-                format!(
-                    "{}export type {name}{params} = {};\n",
-                    jsdoc(&definition.docs),
-                    definition.expression.unwrap()
-                )
-            })
-            .collect())
-    }
-
-    /// Emits registered declarations and a named root expression.
-    pub fn into_module(mut self, root_name: &str) -> Result<String, BindingError> {
-        if !valid_identifier(root_name)
-            || self.reserved.contains(root_name)
-            || self.definitions.contains_key(root_name)
-            || self.ts.is_empty()
-        {
-            self.errors
-                .push(format!("Invalid or conflicting root name: {root_name}"));
+        let mut schemas = String::from("import { z } from 'zod'\n");
+        if self.uses_wire {
+            schemas.push_str(WIRE_PRELUDE);
         }
-        self.definitions.insert(
-            root_name.to_owned(),
-            Definition {
-                docs: Vec::new(),
-                owner: ("", self.direction),
-                params: &[],
-                expression: Some(std::mem::take(&mut self.ts)),
-            },
+        let mut types = format!(
+            "import type {{ z }} from 'zod'\nimport type * as schemas from {}\n{}",
+            json_str(schemas_specifier),
+            self.types_prelude
         );
-        self.into_declarations()
+        for name in &order {
+            let definition = &self.definitions[name];
+            let docs = jsdoc(&definition.docs);
+            let expression = definition.expression.as_ref().unwrap();
+            let projected = reach.get(name).copied().unwrap_or_default();
+            let alias = aliases
+                .iter()
+                .find(|(_, owner)| *owner == name)
+                .map(|(alias, _)| alias.as_str());
+            if definition.params.is_empty() {
+                schemas.push_str(&format!(
+                    "{docs}export const {name} = {expression}{};\n",
+                    meta(Some(name), &definition.docs)
+                ));
+                if projected.output {
+                    types.push_str(&format!(
+                        "{docs}export type {name} = z.output<typeof schemas.{name}>;\n"
+                    ));
+                }
+                if let Some(alias) = alias {
+                    types.push_str(&format!(
+                        "{docs}export type {alias} = z.input<typeof schemas.{name}>;\n"
+                    ));
+                }
+            } else {
+                let params = definition.params;
+                let schema_params = params
+                    .iter()
+                    .map(|param| format!("{param} extends z.ZodType"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let schema_args = params
+                    .iter()
+                    .map(|param| format!("{param}: {param}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                schemas.push_str(&format!(
+                    "{docs}export const {name} = <{schema_params}>({schema_args}) => {{\n  const self = {expression};\n  return self;\n}};\n"
+                ));
+                let type_params = params.join(", ");
+                let type_args = params
+                    .iter()
+                    .map(|param| format!("z.ZodType<{param}, {param}>"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                if projected.output {
+                    types.push_str(&format!(
+                        "{docs}export type {name}<{type_params}> = z.output<ReturnType<typeof schemas.{name}<{type_args}>>>;\n"
+                    ));
+                }
+                if let Some(alias) = alias {
+                    types.push_str(&format!(
+                        "{docs}export type {alias}<{type_params}> = z.input<ReturnType<typeof schemas.{name}<{type_args}>>>;\n"
+                    ));
+                }
+            }
+        }
+        if let Some(root) = root_name {
+            schemas.push_str(&format!("export const {root} = {};\n", self.ts));
+            types.push_str(&format!(
+                "export type {root} = RpcSchemaTree<typeof schemas.{root}>;\n"
+            ));
+        }
+        Ok(Bindings { schemas, types })
     }
 }
 
@@ -472,7 +826,6 @@ fn valid_identifier(name: &str) -> bool {
     let mut bytes = name.bytes();
     matches!(bytes.next(), Some(b'A'..=b'Z'))
         && bytes.all(|b| b.is_ascii_alphanumeric() || b == b'_')
-        && !matches!(name, "Partial" | "Exclude")
 }
 
 fn valid_parameter(name: &str) -> bool {
@@ -481,7 +834,8 @@ fn valid_parameter(name: &str) -> bool {
         && bytes.all(|b| b.is_ascii_alphanumeric() || b == b'_')
 }
 
-fn jsdoc(docs: &[String]) -> String {
+/// A JSDoc block ending in a line break, or nothing.
+pub(super) fn jsdoc(docs: &[String]) -> String {
     if docs.is_empty() {
         return String::new();
     }
@@ -502,141 +856,37 @@ fn jsdoc(docs: &[String]) -> String {
     comment
 }
 
-fn json_str(value: &str) -> String {
+/// A `.meta({...})` suffix carrying the JSON Schema id and description, or nothing.
+///
+/// The object opens on its own line: prettier keeps such an object expanded,
+/// which keeps a member chain holding a long description stable across passes.
+pub(super) fn meta(id: Option<&str>, docs: &[String]) -> String {
+    let mut entries = Vec::new();
+    if let Some(id) = id {
+        entries.push(format!("id: {}", json_str(id)));
+    }
+    let description = docs
+        .iter()
+        .flat_map(|doc| doc.split('\n'))
+        .map(|line| line.strip_prefix(' ').unwrap_or(line))
+        .collect::<Vec<_>>()
+        .join("\n");
+    if !docs.is_empty() {
+        entries.push(format!("description: {}", json_str(&description)));
+    }
+    if entries.is_empty() {
+        String::new()
+    } else {
+        format!(".meta({{\n{} }})", entries.join(", "))
+    }
+}
+
+pub(super) fn json_str(value: &str) -> String {
     serde_json::to_string(value).unwrap()
 }
 
 impl Visitor for TSVisitor {
     type Result = ();
-}
-
-impl TSVisitor {
-    /// Records an error that fails `into_declarations`.
-    pub fn error(&mut self, reason: impl Into<String>) {
-        self.errors.push(reason.into());
-    }
-    pub(super) fn structure(
-        &mut self,
-        style: Style,
-        tag: Option<(String, String)>,
-        fields: impl FnOnce(&mut Self),
-    ) {
-        let payload = self.payload(style, fields);
-        if let Some((tag, name)) = tag {
-            // Serde ignores a struct's tag when deserializing.
-            let optional = if self.direction == Direction::Input {
-                "?"
-            } else {
-                ""
-            };
-            self.ts.push_str(&format!(
-                "{{{}{optional}:({})}}&",
-                json_str(&tag),
-                json_str(&name)
-            ));
-        }
-        self.ts.push_str(&payload);
-    }
-
-    pub(super) fn enumeration(&mut self, variants: impl FnOnce(&mut Self)) {
-        let saved = std::mem::take(&mut self.variants);
-        variants(self);
-        let variants = std::mem::replace(&mut self.variants, saved);
-        self.ts
-            .push_str(if variants.is_empty() { "never" } else { "(" });
-        if !variants.is_empty() {
-            self.ts.push_str(&variants.join("|"));
-            self.ts.push(')');
-        }
-    }
-
-    pub(super) fn variant(&mut self, variant: Variant, fields: impl FnOnce(&mut Self)) {
-        if variant.custom || variant.other {
-            self.errors.push(format!(
-                "Custom variant {} requires a TypeScript override",
-                variant.name
-            ));
-        }
-        let payload = self.payload(variant.style, fields);
-        let mut names = vec![variant.name.clone()];
-        names.extend(variant.aliases.iter().cloned());
-        names.sort_unstable();
-        names.dedup();
-        let names = names
-            .into_iter()
-            .map(|name| json_str(&name))
-            .collect::<Vec<_>>()
-            .join("|");
-        let unit = variant.style == Style::Unit;
-        let docs = jsdoc(&variant.docs);
-        let ty = match variant.tag {
-            Tag::External if unit => format!("{docs}{names}"),
-            Tag::External => {
-                let mut variants = Vec::new();
-                let mut names = vec![variant.name.clone()];
-                names.extend(variant.aliases.iter().cloned());
-                names.sort_unstable();
-                names.dedup();
-                for name in names {
-                    variants.push(format!("{{{docs}{}:({payload})}}", json_str(&name)));
-                }
-                format!("({})", variants.join("|"))
-            }
-            Tag::Internal(tag) => {
-                let tagged = format!("{{{docs}{}:({names})}}", json_str(&tag));
-                if unit {
-                    tagged
-                } else if variant.style == Style::Newtype {
-                    format!(
-                        "(({tagged}&Exclude<({payload}),null>)|(null extends ({payload})?{tagged}:never))"
-                    )
-                } else {
-                    format!("{tagged}&({payload})")
-                }
-            }
-            Tag::Adjacent(tag, content) => {
-                if unit {
-                    format!("{{{docs}{}:({names})}}", json_str(&tag))
-                } else {
-                    format!(
-                        "{{{docs}{}:({names});{}:({payload})}}",
-                        json_str(&tag),
-                        json_str(&content)
-                    )
-                }
-            }
-            Tag::Untagged => format!("{docs}{payload}"),
-        };
-        self.variants.push(ty);
-    }
-
-    pub(super) fn render_field(&mut self, field: Field, callback: Option<fn(&mut Self)>) {
-        let hints = &field.hints;
-        self.errors.extend(hints.errors.clone());
-        if hints.skip {
-            self.fields.push((field, String::new(), false, true));
-            return;
-        }
-        let Some(callback) = callback else {
-            self.error(format!("Opaque field {} requires a typed optionality fact from storage or a selected wire target", field.name));
-            return;
-        };
-        let mut optional = false;
-        let ty = self.capture(|visitor| {
-            if let Some(literal) = &hints.literal {
-                let saved = visitor.suppress_types;
-                visitor.suppress_types = true;
-                callback(visitor);
-                visitor.suppress_types = saved;
-                optional = visitor.type_optional;
-                visitor.ts.push_str(literal);
-            } else {
-                callback(visitor);
-                optional = visitor.type_optional;
-            }
-        });
-        self.fields.push((field, ty, optional, false));
-    }
 }
 
 type TypeCallback = fn(&mut TSVisitor);
@@ -753,13 +1003,20 @@ impl<T: TypeInfo + VisitVariantsStatic<EnumCollector>> ShapeKind<T> for EnumKind
     }
 }
 
+/// A literal zod expression the caller owns, substituted verbatim.
+///
+/// Its schema type is the unconstrained `z.ZodType`, so a recursive field
+/// holding one loses its inferred TypeScript type.
 pub struct LiteralTS(pub std::borrow::Cow<'static, str>);
 impl Visit<TSVisitor> for LiteralTS {
     fn visit(&self, visitor: &mut TSVisitor) {
-        visitor.ts.push_str(&self.0);
+        visitor.leaf(&self.0, LITERAL_TYPE);
         visitor.type_optional = false;
     }
 }
+
+/// The schema type of a literal expression the generator cannot inspect.
+pub const LITERAL_TYPE: &str = "z.ZodType";
 
 #[derive(Debug, Clone, Copy)]
 pub struct Unknown;
@@ -769,8 +1026,12 @@ pub struct Unknown;
 pub struct Param<const N: usize>;
 impl<const N: usize> TS for Param<N> {
     fn visit_ts(visitor: &mut TSVisitor) {
-        match visitor.generics.last().and_then(|params| params.get(N)) {
-            Some(param) => visitor.ts.push_str(param),
+        match visitor
+            .generics
+            .last()
+            .and_then(|(_, params)| params.get(N))
+        {
+            Some(param) => visitor.leaf(param, param),
             None => visitor.error(format!("Generic parameter {N} outside its declaration")),
         }
     }
@@ -778,53 +1039,53 @@ impl<const N: usize> TS for Param<N> {
 #[derive(Debug, Clone, Copy)]
 pub enum Never {}
 
+/// Implements `TS` with a fixed zod expression and its schema type.
 #[macro_export]
 macro_rules! impl_ts {
-    ($($ty:ty),+ => $ts:expr) => { $(
+    ($($ty:ty),+ => $value:expr, $schema:expr) => { $(
         impl $crate::ts::TS for $ty {
-            fn visit_ts(visitor: &mut $crate::ts::TSVisitor) { visitor.ts.push_str($ts); }
+            fn visit_ts(visitor: &mut $crate::ts::TSVisitor) { visitor.leaf($value, $schema); }
         }
     )+ };
 }
 
-impl_ts!(bool => "boolean");
-impl_ts!(String, str => "string");
-impl_ts!(usize,u8,u16,u32,u64,u128,isize,i8,i16,i32,i64,i128 => "number");
-impl_ts!(char => "string");
+impl_ts!(bool => "z.boolean()", "z.ZodBoolean");
+impl_ts!(String, str, char => "z.string()", "z.ZodString");
+impl_ts!(usize,u8,u16,u32,u64,u128,isize,i8,i16,i32,i64,i128 => "z.int()", "z.ZodInt");
 macro_rules! float {
     ($($ty:ty),*) => { $(impl TS for $ty {
         fn visit_ts(v: &mut TSVisitor) {
-            v.ts.push_str(match v.direction {
-                Direction::Input => "number",
-                Direction::Output => "(number|null)",
-            });
+            v.wire(
+                |v| v.leaf("z.number()", "z.ZodNumber"),
+                |v| v.leaf("z.number().nullable()", "z.ZodNullable<z.ZodNumber>"),
+            );
         }
     })* };
 }
 float!(f32, f64);
-impl_ts!(Unknown,serde_json::Value => "unknown");
+impl_ts!(Unknown,serde_json::Value => "z.unknown()", "z.ZodUnknown");
 #[cfg(feature = "cbor")]
-impl_ts!(serde_cbor::Value => "unknown");
-impl_ts!(Never => "never");
-impl_ts!(() => "null");
-impl_ts!(serde_json::Number => "number");
+impl_ts!(serde_cbor::Value => "z.unknown()", "z.ZodUnknown");
+impl_ts!(Never => "z.never()", "z.ZodNever");
+impl_ts!(() => "z.null()", "z.ZodNull");
+impl_ts!(serde_json::Number => "z.number()", "z.ZodNumber");
 #[cfg(feature = "url")]
-impl_ts!(url::Url => "string");
+impl_ts!(url::Url => "z.string()", "z.ZodString");
 #[cfg(feature = "ipnet")]
-impl_ts!(ipnet::IpNet, ipnet::Ipv4Net, ipnet::Ipv6Net => "string");
+impl_ts!(ipnet::IpNet, ipnet::Ipv4Net, ipnet::Ipv6Net => "z.string()", "z.ZodString");
 #[cfg(feature = "josekit")]
-impl_ts!(josekit::jwk::Jwk => "{[key:string]:unknown}");
+impl_ts!(josekit::jwk::Jwk => "z.record(z.string(), z.unknown())", "z.ZodRecord<z.ZodString, z.ZodUnknown>");
 #[cfg(feature = "yajrc")]
-impl_ts!(yajrc::RpcError => "{code:number;message:string;data?:unknown}");
+impl_ts!(yajrc::RpcError => "z.object({ code: z.number(), message: z.string(), data: z.unknown().optional() })", "z.ZodObject<{ code: z.ZodNumber; message: z.ZodString; data: z.ZodOptional<z.ZodUnknown> }>");
 #[cfg(feature = "chrono")]
 impl<T: chrono::TimeZone> TS for chrono::DateTime<T> {
     fn visit_ts(visitor: &mut TSVisitor) {
-        visitor.ts.push_str("string");
+        visitor.leaf("z.string()", "z.ZodString");
     }
 }
 impl_ts!(std::path::Path, std::path::PathBuf,
     std::net::Ipv4Addr, std::net::Ipv6Addr, std::net::IpAddr,
-    std::net::SocketAddr, std::net::SocketAddrV4, std::net::SocketAddrV6 => "string");
+    std::net::SocketAddr, std::net::SocketAddrV4, std::net::SocketAddrV6 => "z.string()", "z.ZodString");
 
 /// Renders existing field/variant callbacks through the RPC-owned serde plan.
 ///
@@ -855,15 +1116,17 @@ where
 {
     let children = <T::Kind as ShapeKind<T>>::storage();
     let targets: Vec<_> = T::visit_type_attributes(&mut MetadataCollector::default()).collect();
-    match super::normalize::normalize(&T::DECLARATION, visitor.direction) {
-        Ok(plan) => plan.render(visitor, &children, &targets),
-        Err(error) => visitor.error(error),
+    let input = super::normalize::normalize(&T::DECLARATION, Direction::Input);
+    let output = super::normalize::normalize(&T::DECLARATION, Direction::Output);
+    match (input, output) {
+        (Ok(input), Ok(output)) => visitor.render_plans(input, output, &children, &targets),
+        (Err(error), _) | (_, Err(error)) => visitor.error(error),
     }
 }
 
-/// Bridges reflected declaration identity, docs and wire shape to TypeScript.
+/// Bridges reflected declaration identity, docs and wire shape to a zod schema.
 ///
-/// `generic Name<A, B>` declares one TypeScript generic for every instance.
+/// `generic Name<A, B>` declares one schema factory for every instance.
 #[macro_export]
 macro_rules! reflect_ts {
     (generic $name:ident < $($param:ident),+ $(,)? > $(where [$($bounds:tt)*])?) => {
@@ -957,9 +1220,8 @@ macro_rules! impl_ts_map {
         impl<K, V> $crate::ts::TS for $ty
         where V: $crate::ts::TS, $($($bounds)*,)? {
             fn visit_ts(visitor: &mut $crate::ts::TSVisitor) {
-                visitor.ts.push_str("{[key:string]:");
-                visitor.append_type::<V>();
-                visitor.ts.push('}');
+                let value = visitor.capture(|visitor| visitor.append_type::<V>());
+                visitor.push(value.record());
             }
         }
     )+ };
@@ -972,7 +1234,8 @@ macro_rules! impl_ts_array {
         impl<T> $crate::ts::TS for $ty
         where T: $crate::ts::TS, $($($bounds)*,)? {
             fn visit_ts(visitor: &mut $crate::ts::TSVisitor) {
-                visitor.ts.push('('); visitor.append_type::<T>(); visitor.ts.push_str(")[]");
+                let element = visitor.capture(|visitor| visitor.append_type::<T>());
+                visitor.push(element.array());
             }
         }
     )+ };
@@ -988,16 +1251,16 @@ impl_ts_array!(
 
 impl<T: TS, const N: usize> TS for [T; N] {
     fn visit_ts(v: &mut TSVisitor) {
-        let ty = v.capture(|v| v.append_type::<T>());
-        v.ts.push_str(&format!("[{}]", vec![ty; N].join(",")));
+        let element = v.capture(|v| v.append_type::<T>());
+        v.push(Expr::tuple(vec![element; N]));
     }
 }
 macro_rules! tuple {
     ($($ty:ident),+) => {
         impl<$($ty: TS),+> TS for ($($ty,)+) {
             fn visit_ts(v: &mut TSVisitor) {
-                let elements = [$(v.capture(|v| v.append_type::<$ty>())),+];
-                v.ts.push_str(&format!("[{}]", elements.join(",")));
+                let elements = vec![$(v.capture(|v| v.append_type::<$ty>())),+];
+                v.push(Expr::tuple(elements));
             }
         }
     };
@@ -1044,16 +1307,15 @@ impl<T: TS + std::borrow::ToOwned + ?Sized> TS for std::borrow::Cow<'_, T> {
 impl<T: TS> TS for Option<T> {
     const IS_OPTION: bool = true;
     fn visit_ts(visitor: &mut TSVisitor) {
-        visitor.ts.push('(');
-        visitor.append_type::<T>();
-        visitor.ts.push_str("|null)");
+        let inner = visitor.capture(|visitor| visitor.append_type::<T>());
+        visitor.push(inner.nullable());
     }
 }
 
-impl_ts!(imbl_value::Value => "unknown");
+impl_ts!(imbl_value::Value => "z.unknown()", "z.ZodUnknown");
 impl_ts_map!(imbl_value::InOMap<K,V> where [K: Eq + Clone, V: Clone]);
-impl_ts!(yasi::InternedString => "string");
+impl_ts!(yasi::InternedString => "z.string()", "z.ZodString");
 #[cfg(feature = "exver")]
-impl_ts!(exver::Version, exver::ExtendedVersion, exver::VersionRange => "string");
+impl_ts!(exver::Version, exver::ExtendedVersion, exver::VersionRange => "z.string()", "z.ZodString");
 #[cfg(feature = "patch-db")]
 crate::reflect_ts!(patch_db::Dump);
