@@ -1229,6 +1229,7 @@ export class MockApiService extends ApiService {
   private mockWanIpv4: WanIpv4Response = {
     mode: 'dhcp',
     assigned_ip: '203.0.113.45',
+    carrier: true,
     address: null,
     netmask: null,
     gateway: null,
