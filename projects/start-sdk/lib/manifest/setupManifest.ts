@@ -90,7 +90,13 @@ export function buildManifest<
     canMigrateFrom: versions.canMigrateFrom().toString(),
     images,
     hardwareRequirements: {
-      device: manifest.hardwareRequirements?.device || [],
+      device: (manifest.hardwareRequirements?.device ?? []).map(d => ({
+        product: null,
+        vendor: null,
+        capabilities: null,
+        driver: null,
+        ...d,
+      })),
       ram: manifest.hardwareRequirements?.ram || null,
       arch: Object.values(images).reduce(
         (arch, inputSpec) => {

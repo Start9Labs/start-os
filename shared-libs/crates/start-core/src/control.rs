@@ -2,7 +2,6 @@ use clap::Parser;
 use patch_db::Dump;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::DatabaseModel;
@@ -10,15 +9,17 @@ use crate::db::model::package::PackageDataEntry;
 use crate::prelude::*;
 use crate::{Error, PackageId, RpcError};
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ControlParams {
     #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
 }
+
+rpc_toolkit::reflect_ts!(ControlParams);
+rpc_toolkit::ts_export!(ControlParams, namespaces = [""]);
 
 fn record_start(db: &mut DatabaseModel, id: &PackageId) -> Result<(), Error> {
     db.as_public_mut()
