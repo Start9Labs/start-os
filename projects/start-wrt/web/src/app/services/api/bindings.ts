@@ -89,6 +89,13 @@ export type AffectedPublishedPort = {
   device_mac: string
   device_name: string | null
 }
+export type ApChannel = {
+  channel: number
+  /**
+   * Widths in MHz whose every bonded channel is usable.
+   */
+  widths: number[]
+}
 export type Api = {
   _PARAMS: {}
   _CHILDREN: {
@@ -839,6 +846,13 @@ export type AutomaticPortUse = {
 }
 export type BackupCreateRes = { guid: Guid; filename: string }
 export type BackupRestoreRes = { upload: Guid }
+export type BandChannels = {
+  channels: ApChannel[]
+  /**
+   * Widths automatic channel selection can serve without radar-detection channels.
+   */
+  autoWidths: number[]
+}
 export type BlackoutWindow = {
   startTime: string
   endTime: string
@@ -1574,12 +1588,22 @@ export type WanPortCollision = {
 export type WifiRadio = {
   band: string
   channel: string
+  /**
+   * Channel width in MHz. Null when the radio's mode sets none; null on
+   * `set` keeps the current width.
+   */
+  width: number | null
   enabled: boolean
   broadcast: boolean
 }
 export type WifiRadioInput = {
   band: string
   channel: string
+  /**
+   * Channel width in MHz. Null when the radio's mode sets none; null on
+   * `set` keeps the current width.
+   */
+  width?: number | null
   enabled: boolean
   broadcast: boolean
 }
@@ -1589,9 +1613,9 @@ export type WifiRegulatory = {
    */
   countries: string[]
   /**
-   * Channels an access point may use under the current country, by band.
+   * What an access point may use under the current country, by band.
    */
-  channels: { [key: string]: number[] }
+  bands: { [key: string]: BandChannels }
 }
 
 /**
