@@ -7,7 +7,6 @@ use std::path::Path;
 use rpc_toolkit::Empty;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
-use ts_rs::TS;
 
 use crate::context::RpcContext;
 use crate::prelude::*;
@@ -19,9 +18,8 @@ const NUT_OVERLAY_DIR: &str = "/media/startos/config/overlay/etc/nut";
 const NUT_PORT: u16 = 3493;
 
 /// Stored NUT configuration and its independent enabled state.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct NutConfig {
     /// Whether StartOS should run NUT monitoring.
     #[serde(default)]
@@ -31,14 +29,16 @@ pub struct NutConfig {
     pub settings: Option<NutSettings>,
 }
 
+rpc_toolkit::reflect_ts!(NutConfig);
+rpc_toolkit::ts_export!(NutConfig, namespaces = [""]);
+
 /// Directly connected UPS server settings or remote NUT client settings.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, VisitVariants)]
 #[serde(
     tag = "mode",
     rename_all = "kebab-case",
     rename_all_fields = "camelCase"
 )]
-#[ts(export)]
 pub enum NutSettings {
     /// Serve and monitor a UPS connected directly to this StartOS host.
     Server {
@@ -69,22 +69,29 @@ pub enum NutSettings {
     },
 }
 
+rpc_toolkit::reflect_ts!(NutSettings);
+rpc_toolkit::ts_export!(NutSettings, namespaces = [""]);
+
 /// Parameters for replacing the stored NUT configuration.
-#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[derive(Debug, Clone, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct SetNutParams {
     pub config: NutConfig,
 }
 
+rpc_toolkit::reflect_ts!(SetNutParams);
+rpc_toolkit::ts_export!(SetNutParams, namespaces = [""]);
+
 /// Current variables reported by the configured UPS.
-#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[derive(Debug, Clone, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct NutStatus {
     pub target: String,
     pub variables: BTreeMap<String, String>,
 }
+
+rpc_toolkit::reflect_ts!(NutStatus);
+rpc_toolkit::ts_export!(NutStatus, namespaces = [""]);
 
 const fn default_nut_port() -> u16 {
     NUT_PORT

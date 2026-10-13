@@ -15,12 +15,12 @@ StartOS versions carry an optional fourth **revision** segment — `0.4.0.1` —
 
 - **Root `package.json` is the source of truth.** Everything that needs the OS version reads it: `build/env/version.sh` (used by `check-version.sh`, `basename.sh`, `debian/build.sh`), `derive_version` in `scripts/manage-release.sh`, `.github/workflows/startos-iso.yaml`, and `build.rs`, which bakes it in as `STARTOS_VERSION` for `bins::startos_version()`.
 - **`projects/start-os/Cargo.toml` is a label**, spelling `X.Y.Z.N` as `X.Y.Z-rev.N` so the manifest acknowledges the release it belongs to. Nothing reads it for the OS version. Never treat it as a comparand: `0.4.0-rev.1` is a SemVer _prerelease_, so it sorts **below** `0.4.0` in both `semver` and `exver`. `manage-release.sh pre-check start-os` fails if the label doesn't match the version being cut.
-- **`shared-libs/crates/start-core/Cargo.toml` tracks the OS line** (`0.4.0`, `0.4.1`, `0.5.0`), not the revision. Leave it alone for a revision bump — it feeds the generated man pages for all four products, several of which version independently.
+- **`shared-libs/crates/start-core/Cargo.toml` tracks the OS line** (`0.4.0`, `0.4.1`, `0.5.0`), not the revision. Leave it alone for a revision bump. Generated man pages use each product's own version, independently of this crate.
 - `version::tests::current_matches_manifest` asserts `Current::default().semver()` equals `package.json`, so the two cannot silently drift.
 
 ## Changelog
 
-A version bump **pairs with a `CHANGELOG.md` entry** in the same change. Placement follows the repo-wide rule in the root [`AGENTS.md`](../../../AGENTS.md): freshly pull tags from origin first, keep the changelog's top heading at the prospective version (never `## [Unreleased]`), add your entry under it while that version is untagged, and cut a new heading only once it is a tagged release.
+A version bump pairs with fragments in `projects/start-os/changelog/` and release notes in the same change. Follow the root [`AGENTS.md`](../../../AGENTS.md) fragment rules and freshly query origin tags to establish what has shipped. Set root `package.json` to the fragment-derived version under those rules; it remains the canonical manifest. `CHANGELOG.md` is generated release history.
 
 ## Files to update
 
@@ -122,7 +122,7 @@ cargo test -p start-core --features test version::   # incl. current_matches_man
 - [ ] Update the `projects/start-os/Cargo.toml` label; `cargo check` to refresh `Cargo.lock`
 - [ ] Create `shared-libs/crates/start-core/src/version/vX_Y_Z_N.rs`
 - [ ] Update `shared-libs/crates/start-core/src/version/mod.rs` in 5 locations
-- [ ] Add the `CHANGELOG.md` entry under a new heading
+- [ ] Add the StartOS changelog fragments
 - [ ] Write `projects/start-os/release-notes/X.Y.Z.N.md` (the image won't build without it), plus `X.Y.Z.N.pre-update.md` for any pre-update instructions
 - [ ] Bump the release link in `projects/start-os/docs/src/`
 - [ ] Update `projects/start-sdk/lib/StartSdk.ts` `OSVersion` — **only** on breaking SDK changes
