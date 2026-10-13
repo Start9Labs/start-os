@@ -67,5 +67,6 @@ You need the router, the Wi-Fi module, the small screwdriver that came in the ro
 ## If Wi-Fi Doesn't Appear
 
 - **No Wi-Fi network at all:** unplug the router, open it again, and check that the module is fully inserted and screwed down.
-- **Weak or patchy signal:** an antenna connector has probably come off its socket. Unplug the router, open it, and press each one back down until it clicks.
+- **Weak or patchy signal:** first check the settings under `Points of Entry > Wi-Fi > Settings` (see [Wi-Fi](wifi.md#settings)). Make sure **Country** is set to where the router is. Until it is, the router uses a restricted set of channels at reduced power. Then try a different channel: on 2.4 GHz use 1, 6, or 11, and on 5 GHz try one from 149–165.
+- **Still weak after that:** an antenna connector may have come off its socket. Unplug the router, open it, and press each one back down until it clicks.
 - **Still stuck:** [contact us](https://start9.com/contact/), and we will help you through it.
