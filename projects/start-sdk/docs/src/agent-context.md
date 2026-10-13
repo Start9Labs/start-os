@@ -116,6 +116,7 @@ Understand these before writing any code (full detail on the pages above):
 - **Code lives in reference pages and packages, not recipes.** Recipes describe the pattern; reference pages have the API; real packages have production implementations.
 - **Match existing patterns — but a neighbouring package is not the authority.** Read a package's code before introducing a new pattern. Then check it against the recipe: the fleet is mid-migration, so the package you happened to grep may itself be non-conformant. "It matches the package next door" is not a quality bar. A recipe and its named reference implementation outrank a package you found by searching.
 - **The package repo is not a fork of the application.** Take the application from a published image, a git submodule, or a Start9-built image — never by copying upstream's source in and merging releases into it. Carrying a patch upstream hasn't taken uses the submodule plus `patches/`, not a fork. (`project-structure.md`)
+- **The root `LICENSE` is the wrapped application's license and nothing else.** Replace whatever notice the template or an earlier release carried with upstream's; don't keep or append a separate notice for the packaging code. (`project-structure.md` § LICENSE)
 
 ## Working discipline (every change)
 

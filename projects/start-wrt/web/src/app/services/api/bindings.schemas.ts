@@ -1987,6 +1987,10 @@ export const WanIpv4Response: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
+  /**
+   * Whether the WAN port has link. A failed read reports link.
+   */
+  carrier: z.ZodBoolean
   address: z.ZodCodec<
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
@@ -2014,6 +2018,12 @@ export const WanIpv4Response: z.ZodObject<{
 }> = object({
   mode: WanIpv4Mode,
   assigned_ip: wire(z.string().nullable().optional(), z.string().nullable()),
+  /**
+   * Whether the WAN port has link. A failed read reports link.
+   */
+  carrier: z.boolean().meta({
+    description: 'Whether the WAN port has link. A failed read reports link.',
+  }),
   address: wire(z.string().nullable().optional(), z.string().nullable()),
   netmask: wire(z.string().nullable().optional(), z.string().nullable()),
   gateway: wire(z.string().nullable().optional(), z.string().nullable()),
