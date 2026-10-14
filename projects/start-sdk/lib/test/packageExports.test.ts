@@ -1,6 +1,10 @@
 import * as fs from 'fs'
 import * as path from 'path'
 
+const {
+  assertPackageSubpaths,
+} = require('../../../../shared-libs/ts-modules/scripts/assert-package-subpaths.cjs')
+
 const packageRoot = path.resolve(__dirname, '..', '..')
 const lib = path.join(packageRoot, 'lib')
 const entries = JSON.parse(
@@ -17,6 +21,23 @@ const indexDirectories = (dir: string): string[] =>
       const own = fs.existsSync(path.join(child, 'index.ts')) ? [rel] : []
       return [...own, ...indexDirectories(child)]
     })
+
+test.each([
+  [
+    'lib/trigger/defaultTrigger',
+    ['/lib/trigger/defaultTrigger', '/lib/trigger/defaultTrigger.js'],
+  ],
+  [
+    'lib/trigger/index',
+    ['/lib/trigger', '/lib/trigger/index', '/lib/trigger/index.js'],
+  ],
+  ['lib/index', ['', '/lib', '/lib/index', '/lib/index.js']],
+])(
+  '%s resolves in CommonJS and ESM with and without .js',
+  (modulePath, subpaths) => {
+    assertPackageSubpaths(packageRoot, modulePath, subpaths)
+  },
+)
 
 test('every directory a consumer can import by its index has an exports entry', () => {
   for (const dir of indexDirectories(lib)) {

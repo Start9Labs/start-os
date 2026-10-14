@@ -69,6 +69,11 @@
       "import": "./esm/util/index.mjs",
       "default": "./util/index.js"
     },
+    "./*.js": {
+      "types": "./*.d.ts",
+      "import": "./esm/*.mjs",
+      "default": "./*.js"
+    },
     "./*": {
       "types": "./*.d.ts",
       "import": "./esm/*.mjs",

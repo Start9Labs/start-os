@@ -11,6 +11,11 @@
       "import": "./esm/lib/index.mjs",
       "default": "./lib/index.js"
     },
+    "./lib": {
+      "types": "./lib/index.d.ts",
+      "import": "./esm/lib/index.mjs",
+      "default": "./lib/index.js"
+    },
     "./lib/backup": {
       "types": "./lib/backup/index.d.ts",
       "import": "./esm/lib/backup/index.mjs",
@@ -55,6 +60,11 @@
       "types": "./lib/version/index.d.ts",
       "import": "./esm/lib/version/index.mjs",
       "default": "./lib/version/index.js"
+    },
+    "./lib/*.js": {
+      "types": "./lib/*.d.ts",
+      "import": "./esm/lib/*.mjs",
+      "default": "./lib/*.js"
     },
     "./lib/*": {
       "types": "./lib/*.d.ts",
