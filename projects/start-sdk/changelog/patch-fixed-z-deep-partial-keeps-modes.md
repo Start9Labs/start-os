@@ -1,0 +1,1 @@
+- **`z.deepPartial` keeps each object’s unknown-key mode**, as `partialValidator` already did; it no longer loosens every object it visits, so compose it with `z.deepLoose` where that is wanted. A discriminated union keeps its discriminator required, and the `zod-deep-partial` dependency is gone.
