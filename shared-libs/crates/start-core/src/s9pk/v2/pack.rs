@@ -1144,7 +1144,7 @@ mod test {
         visitor.append_type::<ImageConfig>();
         let schemas = visitor.into_bindings(None, "./schemas").unwrap().schemas;
         assert!(
-            schemas.contains("export const ImageConfig = wire(ImageConfigRepr, z.object({"),
+            schemas.contains("= wire(ImageConfigRepr, object({"),
             "{schemas}"
         );
         assert!(
