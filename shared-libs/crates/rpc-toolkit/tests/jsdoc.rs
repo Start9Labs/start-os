@@ -272,7 +272,7 @@ fn enum_docs_survive_all_serde_tag_layouts() {
 fn overrides_keep_owner_docs_without_claiming_replaced_members() {
     let transparent = declarations::<Transparent>().schemas;
     assert!(transparent.contains("Transparent documentation."));
-    assert!(transparent.contains("export const Transparent: z.ZodString = z.string().meta({\ndescription: \"Transparent field documentation.\" })"));
+    assert!(transparent.contains("export const Transparent: z.ZodString = /* @__PURE__ */ z.string().meta({\ndescription: \"Transparent field documentation.\" })"));
     assert!(!transparent.contains("Transparent hidden"));
     let literal = declarations::<Literal>().schemas;
     assert!(literal.contains("Literal container documentation."));
@@ -280,18 +280,18 @@ fn overrides_keep_owner_docs_without_claiming_replaced_members() {
     let wire = declarations::<Wire>().schemas;
     assert!(wire.contains("Wire container documentation."));
     assert!(!wire.contains("Replaced wire field"));
-    assert!(wire.contains("export const Wire: z.ZodCodec<z.ZodObject<{ \n/**\n * Inline field documentation. It runs past prettier's print width so the\n * member chain holding its description must format to a fixed point.\n */\n\"value\": z.ZodString }>, z.ZodString> = wire(object({ \n/**\n * Inline field documentation. It runs past prettier's print width so the\n * member chain holding its description must format to a fixed point.\n */\n\"value\": z.string().meta({\ndescription: \"Inline field documentation. It runs past prettier's print width so the\\nmember chain holding its description must format to a fixed point.\" }) }).meta({\ndescription: \"Inline container documentation.\" }), z.string())"), "{}", wire);
+    assert!(wire.contains("export const Wire: z.ZodCodec<z.ZodObject<{ \n/**\n * Inline field documentation. It runs past prettier's print width so the\n * member chain holding its description must format to a fixed point.\n */\n\"value\": z.ZodString }>, z.ZodString> = /* @__PURE__ */ wire(object({ \n/**\n * Inline field documentation. It runs past prettier's print width so the\n * member chain holding its description must format to a fixed point.\n */\n\"value\": z.string().meta({\ndescription: \"Inline field documentation. It runs past prettier's print width so the\\nmember chain holding its description must format to a fixed point.\" }) }).meta({\ndescription: \"Inline container documentation.\" }), z.string())"), "{}", wire);
     let converted = declarations::<Converted>().schemas;
     assert!(converted.contains("Conversion documentation."));
     assert!(converted.contains(
-        "export const Converted: z.ZodCodec<z.ZodString, z.ZodInt> = wire(z.string(), z.int())"
+        "export const Converted: z.ZodCodec<z.ZodString, z.ZodInt> = /* @__PURE__ */ wire(z.string(), z.int())"
     ));
     let field = declarations::<WireField>().schemas;
     assert!(field.contains("Custom field documentation.\n */\n\"value\": z.string()"));
     assert!(field.contains("Custom field documentation.\n */\n\"value\": z.int()"));
     assert!(field.contains("Literal field documentation.\n */\n\"literal\": literal_0"));
     let tuple = declarations::<Tuple>().schemas;
-    assert!(tuple.contains("export const Tuple: z.ZodTuple<[z.ZodString, z.ZodInt], null> = z.tuple([z.string().meta({\ndescription: \"Tuple field documentation.\" }), z.int()])"), "{}", tuple);
+    assert!(tuple.contains("export const Tuple: z.ZodTuple<[z.ZodString, z.ZodInt], null> = /* @__PURE__ */ z.tuple([z.string().meta({\ndescription: \"Tuple field documentation.\" }), z.int()])"), "{}", tuple);
 }
 
 #[test]

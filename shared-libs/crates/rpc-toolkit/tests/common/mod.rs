@@ -165,3 +165,29 @@ pub fn evaluate(bindings: &Bindings, script: &str) -> String {
     );
     String::from_utf8(output.stdout).unwrap()
 }
+
+/// Bundles an entry module beside the schema module with esbuild, tree shaking
+/// enabled and `zod` external, returning the output text.
+pub fn bundle(bindings: &Bindings, entry: &str) -> String {
+    let fixtures = repo_root().join("target/ts-fixtures");
+    std::fs::create_dir_all(&fixtures).unwrap();
+    let dir = tempfile::tempdir_in(&fixtures).unwrap();
+    std::fs::write(dir.path().join("schemas.ts"), &bindings.schemas).unwrap();
+    std::fs::write(dir.path().join("entry.ts"), entry).unwrap();
+    let output = Command::new("node")
+        .current_dir(dir.path())
+        .arg("-e")
+        .arg(format!(
+            "const esbuild = require({esbuild});\nconst result = esbuild.buildSync({{ entryPoints: ['entry.ts'], bundle: true, write: false, format: 'esm', treeShaking: true, external: ['zod'] }});\nprocess.stdout.write(result.outputFiles[0].text);",
+            esbuild = serde_json::to_string(&node_module("esbuild")).unwrap()
+        ))
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout).unwrap()
+}

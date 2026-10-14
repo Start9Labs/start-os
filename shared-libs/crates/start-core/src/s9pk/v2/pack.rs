@@ -1144,7 +1144,7 @@ mod test {
         visitor.append_type::<ImageConfig>();
         let schemas = visitor.into_bindings(None, "./schemas").unwrap().schemas;
         assert!(
-            schemas.contains("= wire(ImageConfigRepr, object({"),
+            schemas.contains("= /* @__PURE__ */ wire(ImageConfigRepr, object({"),
             "{schemas}"
         );
         assert!(

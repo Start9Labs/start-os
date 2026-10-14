@@ -275,7 +275,7 @@ fn serde_enum_shapes_typecheck() {
     check_serialized(&[Generic::Data("one".to_owned())], "{Data:1}");
     let choice = module::<Choice>();
     assert!(choice.schemas.contains(
-        "export const TestType: z.ZodEnum<{ \"Yes\": \"Yes\"; \"No\": \"No\" }> = z.enum([\"Yes\", \"No\"]).meta({\nid: \"TestType\" });"
+        "export const TestType: z.ZodEnum<{ \"Yes\": \"Yes\"; \"No\": \"No\" }> = /* @__PURE__ */ z.enum([\"Yes\", \"No\"]).meta({\nid: \"TestType\" });"
     ));
     check_serialized(&[Choice::Yes, Choice::No], "'Maybe'");
 }
@@ -359,12 +359,12 @@ fn literal_overrides_are_hoisted_into_typed_constants() {
     let bindings = module::<Hinted>();
     assert!(
         bindings.schemas.contains(
-            "const literal_0 = z.string().min(1);\nconst literal_1 = z.int().positive();\n"
+            "const literal_0 = /* @__PURE__ */ z.string().min(1);\nconst literal_1 = /* @__PURE__ */ z.int().positive();\n"
         ),
         "{}",
         bindings.schemas
     );
-    assert!(bindings.schemas.contains("export const TestType: z.ZodObject<{ \"first\": typeof literal_0; \"second\": typeof literal_0; \"count\": typeof literal_1 }> = object({ \"first\": literal_0, \"second\": literal_0, \"count\": literal_1 })"), "{}", bindings.schemas);
+    assert!(bindings.schemas.contains("export const TestType: z.ZodObject<{ \"first\": typeof literal_0; \"second\": typeof literal_0; \"count\": typeof literal_1 }> = /* @__PURE__ */ object({ \"first\": literal_0, \"second\": literal_0, \"count\": literal_1 })"), "{}", bindings.schemas);
     typecheck(
         &bindings,
         "const ok: TestType = { first: 'a', second: 'b', count: 1 };\n// @ts-expect-error count is a number\nconst bad: TestType = { first: 'a', second: 'b', count: '1' };",
@@ -404,7 +404,7 @@ async fn handler_tree_matches_dispatch_and_inference() {
         );
     let root = ParentHandler::<Ctx, Empty, Empty>::new().subcommand("jobs", parent.no_cli());
     let bindings = handler_bindings(&root, "Api", SCHEMAS).unwrap().unwrap();
-    assert!(bindings.schemas.contains("export const Api = { _PARAMS: (object({}) as z.ZodType<{}, {}>), _CHILDREN: { \"jobs\": { _PARAMS: ParentParams, _RETURN: z.string(), _CHILDREN: { \"leaf\": { _PARAMS: Params, _RETURN: Node }, \"opaque\": { _PARAMS: z.unknown(), _RETURN: z.unknown() } } } } };"), "{}", bindings.schemas);
+    assert!(bindings.schemas.contains("export const Api = { _PARAMS: /* @__PURE__ */ empty, _CHILDREN: { \"jobs\": { _PARAMS: /* @__PURE__ */ ParentParams, _RETURN: /* @__PURE__ */ z.string(), _CHILDREN: { \"leaf\": { _PARAMS: /* @__PURE__ */ Params, _RETURN: /* @__PURE__ */ Node }, \"opaque\": { _PARAMS: /* @__PURE__ */ z.unknown(), _RETURN: /* @__PURE__ */ z.unknown() } } } } };"), "{}", bindings.schemas);
     assert!(bindings
         .types
         .contains("export type Api = RpcSchemaTree<typeof schemas.Api>;"));
@@ -659,4 +659,29 @@ fn overrides_and_opt_out_compose_with_other_adapters() {
         &handler_bindings(&literal, "Api", SCHEMAS).unwrap().unwrap(),
         "const done: RpcReturnType<Api,''> = 'done';\n// @ts-expect-error\nconst other: RpcReturnType<Api,''> = 'other';",
     );
+}
+
+#[test]
+fn bundlers_drop_schemas_a_consumer_never_imports() {
+    let mut visitor = TSVisitor::new();
+    visitor.append_type::<Params>();
+    visitor.append_type::<Node>();
+    visitor.append_type::<Choice>();
+    visitor.append_type::<Defaults>();
+    let bindings = visitor.into_bindings(None, SCHEMAS).unwrap();
+    let kept = common::bundle(
+        &bindings,
+        "import { Choice } from './schemas'\nconsole.log(Choice)\n",
+    );
+    assert!(kept.contains("Choice"), "{}", kept);
+    for dropped in ["Params", "Node", "Defaults", "wire(", "literal_"] {
+        assert!(
+            !kept.contains(dropped),
+            "{} survived tree shaking\n{}",
+            dropped,
+            kept
+        );
+    }
+    let empty = common::bundle(&bindings, "export const nothing = 1\n");
+    assert!(!empty.contains("z."), "{}", empty);
 }

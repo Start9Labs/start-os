@@ -75,8 +75,8 @@ fn container_override_reuses_the_real_deserialization_representation() {
     let value: CustomContainer = serde_json::from_str(r#"{"value":null}"#).unwrap();
     assert_eq!(serde_json::to_string(&value).unwrap(), r#"{"value":""}"#);
     let bindings = declarations::<CustomContainer>();
-    assert!(bindings.schemas.contains("export const LegacyForm: z.ZodObject<{ \"value\": z.ZodCodec<z.ZodOptional<z.ZodNullable<z.ZodString>>, z.ZodNullable<z.ZodString>> }> = object({ \"value\": wire(z.string().nullable().optional(), z.string().nullable()) }).meta({\nid: \"LegacyForm\" });"));
-    assert!(bindings.schemas.contains("export const CustomContainer: z.ZodCodec<typeof LegacyForm, z.ZodObject<{ \"value\": z.ZodString }>> = wire(LegacyForm, object({ \"value\": z.string() })).meta({\nid: \"CustomContainer\" });"));
+    assert!(bindings.schemas.contains("export const LegacyForm: z.ZodObject<{ \"value\": z.ZodCodec<z.ZodOptional<z.ZodNullable<z.ZodString>>, z.ZodNullable<z.ZodString>> }> = /* @__PURE__ */ object({ \"value\": wire(z.string().nullable().optional(), z.string().nullable()) }).meta({\nid: \"LegacyForm\" });"));
+    assert!(bindings.schemas.contains("export const CustomContainer: z.ZodCodec<typeof LegacyForm, z.ZodObject<{ \"value\": z.ZodString }>> = /* @__PURE__ */ wire(LegacyForm, object({ \"value\": z.string() })).meta({\nid: \"CustomContainer\" });"));
     assert!(bindings.types.contains("export type LegacyFormInput ="));
     let earlier = bindings.schemas.find("export const LegacyForm").unwrap();
     assert!(

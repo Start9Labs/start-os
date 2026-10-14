@@ -3,9 +3,10 @@ const wire = <A extends z.ZodType, B extends z.ZodType>(input: A, output: B) =>
   z.codec(input, output, { decode: v => v as never, encode: v => v as never })
 const object = <Shape extends z.core.$ZodLooseShape>(shape: Shape) =>
   z.object(shape).meta({ additionalProperties: true })
-const literal_0 = z.string()
-const literal_1 = z.string().nullable()
-const literal_2 = z.array(z.string())
+const empty: z.ZodType<{}, {}> = /* @__PURE__ */ object({})
+const literal_0 = /* @__PURE__ */ z.string()
+const literal_1 = /* @__PURE__ */ z.string().nullable()
+const literal_2 = /* @__PURE__ */ z.array(z.string())
 export const AddDnsRecordParams: z.ZodObject<{
   name: z.ZodString
   type: z.ZodString
@@ -14,7 +15,7 @@ export const AddDnsRecordParams: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodInt>>,
     z.ZodNullable<z.ZodInt>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   name: z.string(),
   type: z.string(),
   value: z.string(),
@@ -51,7 +52,7 @@ export const AddPinholeParams: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodInt>>,
     z.ZodNullable<z.ZodInt>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * The client's global IPv6 (GUA) to expose. Must be an address this tunnel
    * delegates to a client — its subnet needs an IPv6 prefix.
@@ -112,7 +113,7 @@ export const AddPortForwardParams: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodInt>>,
     z.ZodNullable<z.ZodInt>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * External (WAN) port to forward. The external IP is fixed to the target's
    * WAN so return traffic stays symmetric.
@@ -142,15 +143,16 @@ export const AddPortForwardParams: z.ZodObject<{
 }).meta({
   id: 'AddPortForwardParams',
 })
-export const AddSubnetParams: z.ZodObject<{ name: z.ZodString }> = object({
-  name: z.string(),
-}).meta({
-  id: 'AddSubnetParams',
-})
-export const AnyVerifyingKey: typeof literal_0 = literal_0.meta({
-  id: 'AnyVerifyingKey',
-})
-export const Base64: typeof literal_0 = literal_0.meta({
+export const AddSubnetParams: z.ZodObject<{ name: z.ZodString }> =
+  /* @__PURE__ */ object({ name: z.string() }).meta({
+    id: 'AddSubnetParams',
+  })
+export const AnyVerifyingKey: typeof literal_0 = /* @__PURE__ */ literal_0.meta(
+  {
+    id: 'AnyVerifyingKey',
+  },
+)
+export const Base64: typeof literal_0 = /* @__PURE__ */ literal_0.meta({
   id: 'Base64',
 })
 export const CapabilityVerdict: z.ZodObject<{
@@ -162,7 +164,7 @@ export const CapabilityVerdict: z.ZodObject<{
     z.ZodNullable<z.ZodBoolean>
   >
   at: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * `None` = never probed.
    */
@@ -209,7 +211,7 @@ export const DnsConfig: z.ZodUnion<
       z.ZodObject<{ servers: typeof literal_2 }>
     >,
   ]
-> = z
+> = /* @__PURE__ */ z
   .union([
     object({
       /**
@@ -258,7 +260,7 @@ export const DnsMode: z.ZodEnum<{
   default: 'default'
   device: 'device'
   custom: 'custom'
-}> = z.enum(['default', 'device', 'custom']).meta({
+}> = /* @__PURE__ */ z.enum(['default', 'device', 'custom']).meta({
   id: 'DnsMode',
   description:
     "Which upstream a subnet's DNS proxy forwards to. `Device`/`Custom` draw\ntheir data from companion fields on [`SetSubnetDnsParams`].",
@@ -280,7 +282,7 @@ export const DnsRecordEntry: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   name: z.string(),
   type: z.string(),
   value: z.string(),
@@ -297,13 +299,13 @@ export const DnsRecordEntry: z.ZodObject<{
   description:
     'A DNS record served by the tunnel (injected via RFC 2136 or added manually).\n`value` is the rdata as text: an IP for A/AAAA, a name for CNAME, etc.',
 })
-export const GatewayId: typeof literal_0 = literal_0.meta({
+export const GatewayId: typeof literal_0 = /* @__PURE__ */ literal_0.meta({
   id: 'GatewayId',
 })
 export const GatewayType: z.ZodEnum<{
   'inbound-outbound': 'inbound-outbound'
   'outbound-only': 'outbound-only'
-}> = z.enum(['inbound-outbound', 'outbound-only']).meta({
+}> = /* @__PURE__ */ z.enum(['inbound-outbound', 'outbound-only']).meta({
   id: 'GatewayType',
 })
 export const HttpRedirectStatus: z.ZodObject<{
@@ -317,7 +319,7 @@ export const HttpRedirectStatus: z.ZodObject<{
    * the redirect yields and does not bind.
    */
   forwarded: z.ZodBoolean
-}> = object({
+}> = /* @__PURE__ */ object({
   ip: z.string(),
   /**
    * Whether the redirect is on for this IP (default true).
@@ -345,13 +347,15 @@ export const HttpRedirectStatus: z.ZodObject<{
  */
 export const HttpRedirects: z.ZodObject<{
   disabled: z.ZodCodec<z.ZodOptional<typeof literal_2>, typeof literal_2>
-}> = object({ disabled: wire(literal_2.optional(), literal_2) }).meta({
+}> = /* @__PURE__ */ object({
+  disabled: wire(literal_2.optional(), literal_2),
+}).meta({
   id: 'HttpRedirects',
   description:
     'Per-IPv4 HTTP→HTTPS redirect state. The tunnel runs a redirect on port 80 of\nevery public IPv4 by default; this records the addresses where the user has\nturned it off (absence = on). The redirect also yields to any port-forward\noccupying port 80 on that IP, so the two never fight over the port.',
 })
 export const ListDevicesParams: z.ZodObject<{ subnet: typeof literal_0 }> =
-  object({ subnet: literal_0 }).meta({
+  /* @__PURE__ */ object({ subnet: literal_0 }).meta({
     id: 'ListDevicesParams',
   })
 export const NetworkInterfaceType: z.ZodEnum<{
@@ -360,10 +364,12 @@ export const NetworkInterfaceType: z.ZodEnum<{
   bridge: 'bridge'
   wireguard: 'wireguard'
   loopback: 'loopback'
-}> = z.enum(['ethernet', 'wireless', 'bridge', 'wireguard', 'loopback']).meta({
-  id: 'NetworkInterfaceType',
-})
-export const Pem: typeof literal_0 = literal_0.meta({
+}> = /* @__PURE__ */ z
+  .enum(['ethernet', 'wireless', 'bridge', 'wireguard', 'loopback'])
+  .meta({
+    id: 'NetworkInterfaceType',
+  })
+export const Pem: typeof literal_0 = /* @__PURE__ */ literal_0.meta({
   id: 'Pem',
 })
 
@@ -396,7 +402,7 @@ export const Pinhole: z.ZodObject<{
    * Gateway-created (PCP) vs user-added. Drives the UI Manual/Automatic split.
    */
   auto: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
-}> = object({
+}> = /* @__PURE__ */ object({
   label: wire(z.string().nullable().optional(), z.string().nullable()),
   enabled: wire(z.boolean().optional(), z.boolean()),
   /**
@@ -429,7 +435,7 @@ export const Pinhole: z.ZodObject<{
 export const RemoveDeviceParams: z.ZodObject<{
   subnet: typeof literal_0
   ip: z.ZodString
-}> = object({ subnet: literal_0, ip: z.string() }).meta({
+}> = /* @__PURE__ */ object({ subnet: literal_0, ip: z.string() }).meta({
   id: 'RemoveDeviceParams',
 })
 export const RemoveDnsRecordParams: z.ZodObject<{
@@ -438,7 +444,7 @@ export const RemoveDnsRecordParams: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   name: z.string(),
   type: wire(z.string().nullable().optional(), z.string().nullable()),
 }).meta({
@@ -447,7 +453,7 @@ export const RemoveDnsRecordParams: z.ZodObject<{
 export const RemovePinholeParams: z.ZodObject<{
   gua: z.ZodString
   externalPort: z.ZodInt
-}> = object({ gua: z.string(), externalPort: z.int() }).meta({
+}> = /* @__PURE__ */ object({ gua: z.string(), externalPort: z.int() }).meta({
   id: 'RemovePinholeParams',
 })
 export const RemovePortForwardParams: z.ZodObject<{
@@ -459,7 +465,7 @@ export const RemovePortForwardParams: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   source: z.string(),
   /**
    * Remove a single SNI route on `source`; omit to remove the whole forward.
@@ -486,7 +492,7 @@ export const Session: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * A friendly name for the key, if one was assigned at enrollment (e.g.
    * tunnel device keys). UI-enrolled keys are unnamed.
@@ -505,14 +511,18 @@ export const SetAutoPortForwardParams: z.ZodObject<{
   subnet: typeof literal_0
   ip: z.ZodString
   enabled: z.ZodBoolean
-}> = object({ subnet: literal_0, ip: z.string(), enabled: z.boolean() }).meta({
+}> = /* @__PURE__ */ object({
+  subnet: literal_0,
+  ip: z.string(),
+  enabled: z.boolean(),
+}).meta({
   id: 'SetAutoPortForwardParams',
 })
 export const SetDeviceWanParams: z.ZodObject<{
   subnet: typeof literal_0
   ip: z.ZodString
   wanIp: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
-}> = object({
+}> = /* @__PURE__ */ object({
   subnet: literal_0,
   ip: z.string(),
   wanIp: wire(literal_1.optional(), literal_1),
@@ -523,7 +533,11 @@ export const SetDnsInjectionParams: z.ZodObject<{
   subnet: typeof literal_0
   ip: z.ZodString
   enabled: z.ZodBoolean
-}> = object({ subnet: literal_0, ip: z.string(), enabled: z.boolean() }).meta({
+}> = /* @__PURE__ */ object({
+  subnet: literal_0,
+  ip: z.string(),
+  enabled: z.boolean(),
+}).meta({
   id: 'SetDnsInjectionParams',
 })
 export const SetHttpRedirectEnabledParams: z.ZodObject<{
@@ -532,7 +546,7 @@ export const SetHttpRedirectEnabledParams: z.ZodObject<{
    */
   ip: z.ZodString
   enabled: z.ZodBoolean
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * The public IPv4 whose default-on port-80 HTTP→HTTPS redirect to toggle.
    */
@@ -544,16 +558,15 @@ export const SetHttpRedirectEnabledParams: z.ZodObject<{
 }).meta({
   id: 'SetHttpRedirectEnabledParams',
 })
-export const SetPasswordParams: z.ZodObject<{ password: z.ZodString }> = object(
-  { password: z.string() },
-).meta({
-  id: 'SetPasswordParams',
-})
+export const SetPasswordParams: z.ZodObject<{ password: z.ZodString }> =
+  /* @__PURE__ */ object({ password: z.string() }).meta({
+    id: 'SetPasswordParams',
+  })
 export const SetPinholeEnabledParams: z.ZodObject<{
   gua: z.ZodString
   externalPort: z.ZodInt
   enabled: z.ZodBoolean
-}> = object({
+}> = /* @__PURE__ */ object({
   gua: z.string(),
   externalPort: z.int(),
   enabled: z.boolean(),
@@ -570,7 +583,7 @@ export const SetPortForwardEnabledParams: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   source: z.string(),
   enabled: z.boolean(),
   /**
@@ -589,7 +602,7 @@ export const SetSubnetIpv6Params: z.ZodObject<{
    * a /56 from Linode). `null` disables IPv6 on the subnet.
    */
   prefix: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * The routed IPv6 prefix delegated to this subnet (e.g. a /64 from Hetzner,
    * a /56 from Linode). `null` disables IPv6 on the subnet.
@@ -603,13 +616,15 @@ export const SetSubnetIpv6Params: z.ZodObject<{
 })
 export const SetSubnetWanParams: z.ZodObject<{
   wanIp: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
-}> = object({ wanIp: wire(literal_1.optional(), literal_1) }).meta({
+}> = /* @__PURE__ */ object({
+  wanIp: wire(literal_1.optional(), literal_1),
+}).meta({
   id: 'SetSubnetWanParams',
 })
 export const ShowConfigParams: z.ZodObject<{
   subnet: typeof literal_0
   ip: z.ZodString
-}> = object({ subnet: literal_0, ip: z.string() }).meta({
+}> = /* @__PURE__ */ object({ subnet: literal_0, ip: z.string() }).meta({
   id: 'ShowConfigParams',
 })
 
@@ -627,7 +642,7 @@ export const SniRoute: z.ZodObject<{
    * Gateway-created vs user-added. Drives the UI Manual/Automatic split.
    */
   auto: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
-}> = object({
+}> = /* @__PURE__ */ object({
   target: z.string(),
   label: wire(z.string().nullable().optional(), z.string().nullable()),
   enabled: wire(z.boolean().optional(), z.boolean()),
@@ -643,15 +658,14 @@ export const SniRoute: z.ZodObject<{
   description:
     'One SNI-demultiplexed hostname route on a shared external port.',
 })
-export const SubnetParams: z.ZodObject<{ subnet: typeof literal_0 }> = object({
-  subnet: literal_0,
-}).meta({
-  id: 'SubnetParams',
-})
+export const SubnetParams: z.ZodObject<{ subnet: typeof literal_0 }> =
+  /* @__PURE__ */ object({ subnet: literal_0 }).meta({
+    id: 'SubnetParams',
+  })
 export const TunnelCertData: z.ZodObject<{
   key: typeof literal_0
   cert: typeof literal_0
-}> = object({ key: literal_0, cert: literal_0 }).meta({
+}> = /* @__PURE__ */ object({ key: literal_0, cert: literal_0 }).meta({
   id: 'TunnelCertData',
 })
 export const TunnelUpdateResult: z.ZodObject<{
@@ -667,7 +681,7 @@ export const TunnelUpdateResult: z.ZodObject<{
    * Available candidate version
    */
   candidate: z.ZodString
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * "up-to-date", "update-available", or "updating"
    */
@@ -696,7 +710,7 @@ export const UpdatePinholeLabelParams: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   gua: z.string(),
   externalPort: z.int(),
   label: wire(z.string().nullable().optional(), z.string().nullable()),
@@ -716,7 +730,7 @@ export const UpdatePortForwardLabelParams: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   source: z.string(),
   label: wire(z.string().nullable().optional(), z.string().nullable()),
   /**
@@ -736,9 +750,8 @@ export const UpdatePortForwardLabelParams: z.ZodObject<{
  * no autoconfig. Stored and sticky — toggling the capability flags never changes
  * it; the migration backfills it from those flags.
  */
-export const WgClientKind: z.ZodEnum<{ client: 'client'; server: 'server' }> = z
-  .enum(['client', 'server'])
-  .meta({
+export const WgClientKind: z.ZodEnum<{ client: 'client'; server: 'server' }> =
+  /* @__PURE__ */ z.enum(['client', 'server']).meta({
     id: 'WgClientKind',
     description:
       "A WireGuard client's role. A `Server` is a StartOS box that may configure the\ngateway (DNS injection / auto port-forward); a `Client` is a plain peer with\nno autoconfig. Stored and sticky — toggling the capability flags never changes\nit; the migration backfills it from those flags.",
@@ -751,7 +764,7 @@ export const AddDeviceParams: z.ZodObject<{
    * Client (no autoconfig) or Server (gateway-autoconfig on by default).
    */
   kind: z.ZodCodec<z.ZodOptional<typeof WgClientKind>, typeof WgClientKind>
-}> = object({
+}> = /* @__PURE__ */ object({
   subnet: literal_0,
   name: z.string(),
   ip: wire(literal_1.optional(), literal_1),
@@ -768,7 +781,7 @@ export const AddDeviceParams: z.ZodObject<{
 export const AddKeyParams: z.ZodObject<{
   name: z.ZodString
   key: typeof AnyVerifyingKey
-}> = object({ name: z.string(), key: AnyVerifyingKey }).meta({
+}> = /* @__PURE__ */ object({ name: z.string(), key: AnyVerifyingKey }).meta({
   id: 'AddKeyParams',
 })
 
@@ -777,14 +790,13 @@ export const AddKeyParams: z.ZodObject<{
  * key is a sign-in: it carries the same metadata a session used to (when it
  * was created, when it was last used, and the user agent that enrolled it).
  */
-export const AuthKeys: z.ZodRecord<z.ZodString, typeof Session> = z
-  .record(z.string(), Session)
-  .meta({
+export const AuthKeys: z.ZodRecord<z.ZodString, typeof Session> =
+  /* @__PURE__ */ z.record(z.string(), Session).meta({
     id: 'AuthKeys',
     description:
       "The server's enrolled auth keys, keyed by their PEM encoding. Each enrolled\nkey is a sign-in: it carries the same metadata a session used to (when it\nwas created, when it was last used, and the user agent that enrolled it).",
   })
-export const DnsRecords: z.ZodArray<typeof DnsRecordEntry> = z
+export const DnsRecords: z.ZodArray<typeof DnsRecordEntry> = /* @__PURE__ */ z
   .array(DnsRecordEntry)
   .meta({
     id: 'DnsRecords',
@@ -806,7 +818,7 @@ export const GatewayPortMapCapabilities: z.ZodObject<{
    * it honors OPTION_HOSTNAME (SNI demux).
    */
   pcpHostname: typeof CapabilityVerdict
-}> = object({
+}> = /* @__PURE__ */ object({
   pcp: CapabilityVerdict,
   natPmp: CapabilityVerdict,
   upnp: CapabilityVerdict,
@@ -838,7 +850,7 @@ export const IpInfo: z.ZodObject<{
   >
   ntpServers: typeof literal_2
   dnsServers: typeof literal_2
-}> = object({
+}> = /* @__PURE__ */ object({
   name: z.string(),
   scopeId: z.int(),
   deviceType: wire(
@@ -853,9 +865,8 @@ export const IpInfo: z.ZodObject<{
 }).meta({
   id: 'IpInfo',
 })
-export const Pinholes6: z.ZodRecord<z.ZodString, typeof Pinhole> = z
-  .record(z.string(), Pinhole)
-  .meta({
+export const Pinholes6: z.ZodRecord<z.ZodString, typeof Pinhole> =
+  /* @__PURE__ */ z.record(z.string(), Pinhole).meta({
     id: 'Pinholes6',
   })
 
@@ -905,7 +916,7 @@ export const PortForward: z.ZodUnion<
       }>
     >,
   ]
-> = z
+> = /* @__PURE__ */ z
   .union([
     z.intersection(
       object({ kind: z.literal('dnat') }),
@@ -961,14 +972,18 @@ export const PortForward: z.ZodUnion<
       'One external-port forward: an nftables DNAT or an SNI-demultiplexed shared\nport. Mutually exclusive for a given external address.',
   })
 export const RemoveKeyParams: z.ZodObject<{ key: typeof AnyVerifyingKey }> =
-  object({ key: AnyVerifyingKey }).meta({
+  /* @__PURE__ */ object({ key: AnyVerifyingKey }).meta({
     id: 'RemoveKeyParams',
   })
 export const SetDeviceKindParams: z.ZodObject<{
   subnet: typeof literal_0
   ip: z.ZodString
   kind: typeof WgClientKind
-}> = object({ subnet: literal_0, ip: z.string(), kind: WgClientKind }).meta({
+}> = /* @__PURE__ */ object({
+  subnet: literal_0,
+  ip: z.string(),
+  kind: WgClientKind,
+}).meta({
   id: 'SetDeviceKindParams',
 })
 export const SetSubnetDnsParams: z.ZodObject<{
@@ -981,7 +996,7 @@ export const SetSubnetDnsParams: z.ZodObject<{
    * Up to 3 upstream servers (bare IP or `ip:port`); used when `mode` is `custom`.
    */
   servers: typeof literal_2
-}> = object({
+}> = /* @__PURE__ */ object({
   mode: DnsMode,
   /**
    * The selected device's WireGuard IP; required when `mode` is `device`.
@@ -1010,7 +1025,7 @@ export const WebserverInfo: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<typeof TunnelCertData>>,
     z.ZodNullable<typeof TunnelCertData>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   enabled: z.boolean(),
   listen: wire(z.string().nullable().optional(), z.string().nullable()),
   certificate: wire(
@@ -1047,7 +1062,7 @@ export const WgConfig: z.ZodObject<{
    * `wan_ip` / the default masquerade. `None` falls back to the subnet rule.
    */
   wanIp: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
-}> = object({
+}> = /* @__PURE__ */ object({
   name: z.string(),
   key: literal_0,
   psk: literal_0,
@@ -1118,7 +1133,7 @@ export const NetworkInterfaceInfo: z.ZodCodec<
      */
     dnsUpdate: typeof CapabilityVerdict
   }>
-> = wire(
+> = /* @__PURE__ */ wire(
   object({
     name: z.string().nullable().optional(),
     secure: z.boolean().nullable().optional(),
@@ -1156,14 +1171,12 @@ export const NetworkInterfaceInfo: z.ZodCodec<
 ).meta({
   id: 'NetworkInterfaceInfo',
 })
-export const PortForwards: z.ZodRecord<z.ZodString, typeof PortForward> = z
-  .record(z.string(), PortForward)
-  .meta({
+export const PortForwards: z.ZodRecord<z.ZodString, typeof PortForward> =
+  /* @__PURE__ */ z.record(z.string(), PortForward).meta({
     id: 'PortForwards',
   })
-export const WgSubnetClients: z.ZodRecord<z.ZodString, typeof WgConfig> = z
-  .record(z.string(), WgConfig)
-  .meta({
+export const WgSubnetClients: z.ZodRecord<z.ZodString, typeof WgConfig> =
+  /* @__PURE__ */ z.record(z.string(), WgConfig).meta({
     id: 'WgSubnetClients',
   })
 export const WgSubnetConfig: z.ZodObject<{
@@ -1181,7 +1194,7 @@ export const WgSubnetConfig: z.ZodObject<{
    * tunnel IPv4 embedded — see [`crate::tunnel::wg6`].
    */
   ipv6: z.ZodCodec<z.ZodOptional<typeof literal_1>, typeof literal_1>
-}> = object({
+}> = /* @__PURE__ */ object({
   name: z.string(),
   clients: WgSubnetClients,
   dns: wire(DnsConfig.optional(), DnsConfig),
@@ -1205,16 +1218,19 @@ export const WgSubnetConfig: z.ZodObject<{
 }).meta({
   id: 'WgSubnetConfig',
 })
-export const WgSubnetMap: z.ZodRecord<z.ZodString, typeof WgSubnetConfig> = z
-  .record(z.string(), WgSubnetConfig)
-  .meta({
+export const WgSubnetMap: z.ZodRecord<z.ZodString, typeof WgSubnetConfig> =
+  /* @__PURE__ */ z.record(z.string(), WgSubnetConfig).meta({
     id: 'WgSubnetMap',
   })
 export const WgServer: z.ZodObject<{
   port: z.ZodInt
   key: typeof literal_0
   subnets: typeof WgSubnetMap
-}> = object({ port: z.int(), key: literal_0, subnets: WgSubnetMap }).meta({
+}> = /* @__PURE__ */ object({
+  port: z.int(),
+  key: literal_0,
+  subnets: WgSubnetMap,
+}).meta({
   id: 'WgServer',
 })
 export const TunnelDatabase: z.ZodObject<{
@@ -1242,7 +1258,7 @@ export const TunnelDatabase: z.ZodObject<{
     z.ZodOptional<typeof HttpRedirects>,
     typeof HttpRedirects
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   webserver: WebserverInfo,
   password: wire(z.string().nullable().optional(), z.string().nullable()),
   /**

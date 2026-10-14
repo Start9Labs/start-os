@@ -130,9 +130,10 @@ impl Expr {
     pub fn object(shape: impl AsRef<str>, ty: impl Into<String>) -> Self {
         Self::new(format!("object({})", shape.as_ref()), ty)
     }
-    /// Accepts any object while inferring `{}`, so intersections with it stay transparent.
+    /// The module's `empty` constant: any object, inferred as `{}` so
+    /// intersections with it stay transparent.
     pub fn empty() -> Self {
-        Self::new("(object({}) as z.ZodType<{}, {}>)", "z.ZodType<{}, {}>")
+        Self::new("empty", "typeof empty")
     }
     pub fn reference(name: &str) -> Self {
         Self::new(name, format!("typeof {name}"))
@@ -280,10 +281,17 @@ impl Default for TSVisitor {
 pub struct BindingError(String);
 
 /// Identifiers the schema module prelude and generated code own.
-const RESERVED: &[&str] = &["z", "wire", "object", "schemas", "self"];
+const RESERVED: &[&str] = &["z", "wire", "object", "empty", "schemas", "self"];
 
 const WIRE_PRELUDE: &str = "const wire = <A extends z.ZodType, B extends z.ZodType>(input: A, output: B) =>\n  z.codec(input, output, { decode: (v) => v as never, encode: (v) => v as never });\n";
+/// Marks a schema constructor call as droppable when its result is unused, so
+/// bundlers shake schemas a consumer never imports. esbuild applies it to the
+/// whole member chain that follows.
+pub const PURE: &str = "/* @__PURE__ */";
 const OBJECT_PRELUDE: &str = "const object = <Shape extends z.core.$ZodLooseShape>(shape: Shape) =>\n  z.object(shape).meta({ additionalProperties: true });\n";
+/// A cast expression would need parentheses, which hide a purity annotation
+/// from bundlers once TypeScript erases the cast; a typed constant does not.
+const EMPTY_PRELUDE: &str = "const empty: z.ZodType<{}, {}> = /* @__PURE__ */ object({});\n";
 
 impl TSVisitor {
     /// Starts with an empty expression/definition registry.
@@ -774,19 +782,24 @@ impl TSVisitor {
         if self.uses_wire {
             schemas.push_str(WIRE_PRELUDE);
         }
-        let uses_object = self
-            .definitions
-            .values()
-            .filter_map(|definition| definition.expression.as_ref())
-            .any(|expression| expression.value.contains("object("))
-            || self.ts.contains("object(");
-        if uses_object {
+        let uses = |needle: &str| {
+            self.definitions
+                .values()
+                .filter_map(|definition| definition.expression.as_ref())
+                .any(|expression| expression.value.contains(needle))
+                || self.ts.contains(needle)
+        };
+        let uses_empty = uses("empty");
+        if uses_empty || uses("object(") {
             schemas.push_str(OBJECT_PRELUDE);
+        }
+        if uses_empty {
+            schemas.push_str(EMPTY_PRELUDE);
         }
         let mut literals: Vec<_> = self.literals.iter().collect();
         literals.sort_by_key(|(_, index)| **index);
         for (expression, index) in literals {
-            schemas.push_str(&format!("const literal_{index} = {expression};\n"));
+            schemas.push_str(&format!("const literal_{index} = {PURE} {expression};\n"));
         }
         let mut types = format!(
             "import type {{ z }} from 'zod'\nimport type * as schemas from {}\n{}",
@@ -806,7 +819,7 @@ impl TSVisitor {
                 // The annotation carries member JSDoc through declaration
                 // emit, which drops comments from an inferred shape.
                 schemas.push_str(&format!(
-                    "{docs}export const {name}: {} = {}{};\n",
+                    "{docs}export const {name}: {} = {PURE} {}{};\n",
                     expression.ty,
                     expression.value,
                     meta(Some(name), &definition.docs)

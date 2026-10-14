@@ -114,9 +114,13 @@ impl<'a> HandlerTS<'a> {
 impl<'a> Visit<TSVisitor> for HandlerTS<'a> {
     fn visit(&self, visitor: &mut TSVisitor) -> <TSVisitor as Visitor>::Result {
         visitor.ts.push_str("{ _PARAMS: ");
+        visitor.ts.push_str(PURE);
+        visitor.ts.push(' ');
         visitor.in_direction(Direction::Input, |visitor| (self.params_ts)(visitor));
         if let Some(return_ty) = &self.return_ts {
             visitor.ts.push_str(", _RETURN: ");
+            visitor.ts.push_str(PURE);
+            visitor.ts.push(' ');
             visitor.in_direction(Direction::Output, |visitor| return_ty(visitor));
         }
         if let Some(children) = &self.children {
@@ -242,9 +246,9 @@ where
                 if let Some(ts) = handler.0.get_ts() {
                     ts.visit(visitor);
                 } else {
-                    visitor
-                        .ts
-                        .push_str("{ _PARAMS: z.unknown(), _RETURN: z.unknown() }");
+                    visitor.ts.push_str(&format!(
+                        "{{ _PARAMS: {PURE} z.unknown(), _RETURN: {PURE} z.unknown() }}"
+                    ));
                 }
             }
             visitor.ts.push_str(" }");

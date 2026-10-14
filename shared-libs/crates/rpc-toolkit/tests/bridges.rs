@@ -32,7 +32,7 @@ fn assert_bridge<T: DeserializeOwned + Serialize + TS>(
     let bindings = module::<T>();
     assert!(
         bindings.schemas.contains(&format!(
-            "export const TestType: {schema_type} = {expression}.meta({{\nid: \"TestType\" }});\n"
+            "export const TestType: {schema_type} = /* @__PURE__ */ {expression}.meta({{\nid: \"TestType\" }});\n"
         )),
         "{}",
         bindings.schemas

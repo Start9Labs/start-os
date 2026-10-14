@@ -785,7 +785,9 @@ mod tests {
         visitor.declare::<LogsParams>("Logs");
         let schema = visitor.into_bindings(None, "./schemas").unwrap().schemas;
         assert!(
-            schema.contains("const literal_0 = z.union([z.number(), z.string()]).nullable();\n"),
+            schema.contains(
+                "const literal_0 = /* @__PURE__ */ z.union([z.number(), z.string()]).nullable();\n"
+            ),
             "{schema}"
         );
         assert!(

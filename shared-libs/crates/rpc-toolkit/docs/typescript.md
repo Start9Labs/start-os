@@ -121,8 +121,8 @@ through the module's `object()` helper, `z.object(shape).meta({ additionalProper
 zod still strips unknown keys when parsing and the inferred TypeScript type gains
 no index signature, but the JSON Schema stays open, so the `allOf` branches an
 intersection renders accept each other's members. An empty struct is
-`object({}) as z.ZodType<{}, {}>`, so intersecting it with inherited parameters
-stays transparent. `Flat<A,B>` combines its two shapes with `z.intersection`.
+the module's `empty` constant, `object({})` typed as `z.ZodType<{}, {}>`, so
+intersecting it with inherited parameters stays transparent. `Flat<A,B>` combines its two shapes with `z.intersection`.
 
 Rust type, field and variant docs become JSDoc on declarations and object members
 — which TypeScript carries through `z.input`/`z.output` to editor hover — and
@@ -301,6 +301,13 @@ The generated modules depend on `zod` 4 and resolve it from the consuming
 package. A consumer that wants runtime validation imports the schema module;
 `z.toJSONSchema` renders JSON Schema for either direction. The type module keeps
 the previous type-only surface, so existing consumers need no change.
+
+Every top-level schema initializer carries a `/* @__PURE__ */` annotation, which
+bundlers honour across the whole constructor chain: a schema module can sit
+behind a package's index and esbuild, webpack or Rollup still drop every
+declaration, hoisted literal and API tree the consumer never imports. The
+annotation only holds because schema construction has no side effects beyond
+`z.globalRegistry` metadata; keep it that way in custom `TS` implementations.
 
 Core and StartWRT generate their production server trees through this feature:
 `make start-core-ts-bindings` and `make start-wrt-rpc-bindings` write the pairs

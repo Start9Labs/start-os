@@ -64,7 +64,7 @@ fn raw_inventory_does_not_apply_consumer_renames_or_skips() {
     assert_eq!(decoded.original, 7);
     let bindings = module::<Original>();
     let schemas = &bindings.schemas;
-    assert!(schemas.contains("export const TestType: z.ZodCodec<z.ZodIntersection<z.ZodObject<{ \"old\": z.ZodOptional<z.ZodInt>; \"wire\": z.ZodOptional<z.ZodInt> }>, z.ZodUnion<readonly [z.ZodObject<{ \"old\": z.ZodInt }>, z.ZodObject<{ \"wire\": z.ZodInt }>]>>, z.ZodObject<{ \"wire\": z.ZodInt }>> = wire(z.intersection(object({ \"old\": z.int().optional(), \"wire\": z.int().optional() }), z.union([object({ \"old\": z.int() }), object({ \"wire\": z.int() })])), object({ \"wire\": z.int() })).meta({\nid: \"TestType\" });"), "{}", schemas);
+    assert!(schemas.contains("export const TestType: z.ZodCodec<z.ZodIntersection<z.ZodObject<{ \"old\": z.ZodOptional<z.ZodInt>; \"wire\": z.ZodOptional<z.ZodInt> }>, z.ZodUnion<readonly [z.ZodObject<{ \"old\": z.ZodInt }>, z.ZodObject<{ \"wire\": z.ZodInt }>]>>, z.ZodObject<{ \"wire\": z.ZodInt }>> = /* @__PURE__ */ wire(z.intersection(object({ \"old\": z.int().optional(), \"wire\": z.int().optional() }), z.union([object({ \"old\": z.int() }), object({ \"wire\": z.int() })])), object({ \"wire\": z.int() })).meta({\nid: \"TestType\" });"), "{}", schemas);
     assert!(!schemas.contains("original") && !schemas.contains("skipped"));
     common::typecheck(
         &bindings,
@@ -105,14 +105,14 @@ fn unsupported_shapes_fail_without_unknown_fallback() {
     assert!(rejection::<UnselectedLiteral>().contains("Missing selected type metadata callback"));
     assert!(declarations::<OpaqueContainerLiteral>()
         .schemas
-        .contains("const literal_0 = z.number();\nexport const OpaqueContainerLiteral: typeof literal_0 = literal_0.meta({\nid: \"OpaqueContainerLiteral\" });"));
+        .contains("const literal_0 = /* @__PURE__ */ z.number();\nexport const OpaqueContainerLiteral: typeof literal_0 = /* @__PURE__ */ literal_0.meta({\nid: \"OpaqueContainerLiteral\" });"));
     assert!(rejection::<OpaqueRequired>().contains("Opaque field hidden"));
     assert!(rejection::<MissingSelector>().contains("Missing selected type metadata callback"));
     assert!(rejection::<Invalid>().contains("transparent"));
     let bypass = declarations::<Bypass>();
-    assert!(bypass
-        .schemas
-        .contains("export const Bypass: z.ZodString = z.string().meta({\nid: \"Bypass\" });"));
+    assert!(bypass.schemas.contains(
+        "export const Bypass: z.ZodString = /* @__PURE__ */ z.string().meta({\nid: \"Bypass\" });"
+    ));
     assert!(bypass
         .types
         .contains("export type BypassInput = z.input<typeof schemas.Bypass>;"));
@@ -180,12 +180,12 @@ fn private_targets_and_mixed_conversion_roles_use_compiler_selected_callbacks() 
     let bindings = declarations::<owner::Root>();
     let schemas = &bindings.schemas;
     assert!(schemas.contains(
-        "export const Input: z.ZodObject<{ \"count\": z.ZodInt }> = object({ \"count\": z.int() }).meta({\nid: \"Input\" });"
+        "export const Input: z.ZodObject<{ \"count\": z.ZodInt }> = /* @__PURE__ */ object({ \"count\": z.int() }).meta({\nid: \"Input\" });"
     ));
     assert!(schemas.contains(
-        "export const Output: z.ZodObject<{ \"text\": z.ZodString }> = object({ \"text\": z.string() }).meta({\nid: \"Output\" });"
+        "export const Output: z.ZodObject<{ \"text\": z.ZodString }> = /* @__PURE__ */ object({ \"text\": z.string() }).meta({\nid: \"Output\" });"
     ));
-    assert!(schemas.contains("export const Root: z.ZodCodec<typeof Input, typeof Output> = wire(Input, Output).meta({\nid: \"Root\" });"));
+    assert!(schemas.contains("export const Root: z.ZodCodec<typeof Input, typeof Output> = /* @__PURE__ */ wire(Input, Output).meta({\nid: \"Root\" });"));
     assert!(!<owner::Root as TS>::IS_OPTION);
     common::typecheck(
         &bindings,
@@ -274,7 +274,7 @@ fn unselected_and_literal_replaced_targets_never_register_definitions() {
     let schemas = declarations::<LazyTargets>().schemas;
     assert!(!schemas.contains("Unselected"), "{}", schemas);
     assert!(
-        schemas.contains("const literal_0 = z.number().nullable();\n"),
+        schemas.contains("const literal_0 = /* @__PURE__ */ z.number().nullable();\n"),
         "{}",
         schemas
     );

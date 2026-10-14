@@ -3,11 +3,11 @@ const wire = <A extends z.ZodType, B extends z.ZodType>(input: A, output: B) =>
   z.codec(input, output, { decode: v => v as never, encode: v => v as never })
 const object = <Shape extends z.core.$ZodLooseShape>(shape: Shape) =>
   z.object(shape).meta({ additionalProperties: true })
-export const ActivityDeleteParams: z.ZodObject<{ id: z.ZodInt }> = object({
-  id: z.int(),
-}).meta({
-  id: 'ActivityDeleteParams',
-})
+const empty: z.ZodType<{}, {}> = /* @__PURE__ */ object({})
+export const ActivityDeleteParams: z.ZodObject<{ id: z.ZodInt }> =
+  /* @__PURE__ */ object({ id: z.int() }).meta({
+    id: 'ActivityDeleteParams',
+  })
 export const ActivityEntry: z.ZodObject<{
   id: z.ZodInt
   timestamp: z.ZodString
@@ -16,7 +16,7 @@ export const ActivityEntry: z.ZodObject<{
   success: z.ZodBoolean
   summary: z.ZodString
   error: z.ZodOptional<z.ZodNullable<z.ZodString>>
-}> = object({
+}> = /* @__PURE__ */ object({
   id: z.int(),
   timestamp: z.string(),
   category: z.string(),
@@ -36,7 +36,7 @@ export const ActivityListParams: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodInt>>,
     z.ZodNullable<z.ZodInt>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   offset: wire(z.int().nullable().optional(), z.int().nullable()),
   limit: wire(z.int().nullable().optional(), z.int().nullable()),
 }).meta({
@@ -58,7 +58,7 @@ export const AffectedPublishedPort: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   id: z.string(),
   label: z.string(),
   device_mac: z.string(),
@@ -74,7 +74,7 @@ export const ApChannel: z.ZodObject<{
    * Widths in MHz whose every bonded channel is usable.
    */
   widths: z.ZodArray<z.ZodInt>
-}> = object({
+}> = /* @__PURE__ */ object({
   channel: z.int(),
   /**
    * Widths in MHz whose every bonded channel is usable.
@@ -133,7 +133,7 @@ export const AutomaticPortUse: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * UCI section name (`apf_<mac>_<extport>`).
    */
@@ -202,7 +202,7 @@ export const BlackoutWindow: z.ZodObject<{
     ],
     null
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   startTime: z.string(),
   endTime: z.string(),
   days: z.tuple([
@@ -218,21 +218,25 @@ export const BlackoutWindow: z.ZodObject<{
   id: 'BlackoutWindow',
 })
 export const CheckInitializedRes: z.ZodObject<{ initialized: z.ZodBoolean }> =
-  object({ initialized: z.boolean() }).meta({
+  /* @__PURE__ */ object({ initialized: z.boolean() }).meta({
     id: 'CheckInitializedRes',
   })
 export const DataUsagePeriod: z.ZodEnum<{
   week: 'week'
   month: 'month'
   '3months': '3months'
-}> = z.enum(['week', 'month', '3months']).meta({
+}> = /* @__PURE__ */ z.enum(['week', 'month', '3months']).meta({
   id: 'DataUsagePeriod',
 })
 export const DataUsagePoint: z.ZodObject<{
   timestamp: z.ZodInt
   upload: z.ZodInt
   download: z.ZodInt
-}> = object({ timestamp: z.int(), upload: z.int(), download: z.int() }).meta({
+}> = /* @__PURE__ */ object({
+  timestamp: z.int(),
+  upload: z.int(),
+  download: z.int(),
+}).meta({
   id: 'DataUsagePoint',
 })
 export const DdnsProvider: z.ZodEnum<{
@@ -241,15 +245,17 @@ export const DdnsProvider: z.ZodEnum<{
   cloudflare: 'cloudflare'
   duckdns: 'duckdns'
   freedns: 'freedns'
-}> = z.enum(['dyndns', 'noip', 'cloudflare', 'duckdns', 'freedns']).meta({
-  id: 'DdnsProvider',
-})
+}> = /* @__PURE__ */ z
+  .enum(['dyndns', 'noip', 'cloudflare', 'duckdns', 'freedns'])
+  .meta({
+    id: 'DdnsProvider',
+  })
 export const DeleteArgs: z.ZodObject<{
   /**
    * Profile interface name
    */
   profile: z.ZodString
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * Profile interface name
    */
@@ -259,13 +265,12 @@ export const DeleteArgs: z.ZodObject<{
 }).meta({
   id: 'DeleteArgs',
 })
-export const DeviceMacReq: z.ZodObject<{ mac: z.ZodString }> = object({
-  mac: z.string(),
-}).meta({
-  id: 'DeviceMacReq',
-})
+export const DeviceMacReq: z.ZodObject<{ mac: z.ZodString }> =
+  /* @__PURE__ */ object({ mac: z.string() }).meta({
+    id: 'DeviceMacReq',
+  })
 export const DeviceStatus: z.ZodEnum<{ online: 'online'; offline: 'offline' }> =
-  z.enum(['online', 'offline']).meta({
+  /* @__PURE__ */ z.enum(['online', 'offline']).meta({
     id: 'DeviceStatus',
   })
 export const DeviceUpdateReq: z.ZodObject<{
@@ -280,7 +285,7 @@ export const DeviceUpdateReq: z.ZodObject<{
   >
   ipv4_static: z.ZodBoolean
   ipv4: z.ZodString
-}> = object({
+}> = /* @__PURE__ */ object({
   mac: z.string(),
   /**
    * Absent leaves the assigned name untouched; empty clears it. Otherwise
@@ -295,11 +300,10 @@ export const DeviceUpdateReq: z.ZodObject<{
 }).meta({
   id: 'DeviceUpdateReq',
 })
-export const DirGetArgs: z.ZodObject<{ path: z.ZodString }> = object({
-  path: z.string(),
-}).meta({
-  id: 'DirGetArgs',
-})
+export const DirGetArgs: z.ZodObject<{ path: z.ZodString }> =
+  /* @__PURE__ */ object({ path: z.string() }).meta({
+    id: 'DirGetArgs',
+  })
 export const DiskState: z.ZodObject<{
   /**
    * An eMMC device was found.
@@ -309,7 +313,7 @@ export const DiskState: z.ZodObject<{
    * The eMMC has existing firmware (rootfs partition present).
    */
   hasFirmware: z.ZodBoolean
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * An eMMC device was found.
    */
@@ -325,9 +329,8 @@ export const DiskState: z.ZodObject<{
 }).meta({
   id: 'DiskState',
 })
-export const DnsMode: z.ZodEnum<{ isp: 'isp'; custom: 'custom' }> = z
-  .enum(['isp', 'custom'])
-  .meta({
+export const DnsMode: z.ZodEnum<{ isp: 'isp'; custom: 'custom' }> =
+  /* @__PURE__ */ z.enum(['isp', 'custom']).meta({
     id: 'DnsMode',
   })
 
@@ -339,7 +342,7 @@ export const DnsMode: z.ZodEnum<{ isp: 'isp'; custom: 'custom' }> = z
 export const DnsServer: z.ZodObject<{
   address: z.ZodString
   ssl: z.ZodBoolean
-}> = object({ address: z.string(), ssl: z.boolean() }).meta({
+}> = /* @__PURE__ */ object({ address: z.string(), ssl: z.boolean() }).meta({
   id: 'DnsServer',
   description:
     'A single DNS server entry with protocol info.\n`ssl: false` = plain UDP on port 53.\n`ssl: true`  = DNS-over-HTTPS via SmartDNS (`server-https`).',
@@ -351,7 +354,7 @@ export const ExecReq: z.ZodObject<{
    * Timeout in milliseconds
    */
   timeout: z.ZodInt
-}> = object({
+}> = /* @__PURE__ */ object({
   command: z.string(),
   args: z.array(z.string()),
   /**
@@ -367,15 +370,20 @@ export const ExecRes: z.ZodObject<{
   stdout: z.ZodString
   stderr: z.ZodString
   exitCode: z.ZodInt
-}> = object({ stdout: z.string(), stderr: z.string(), exitCode: z.int() }).meta(
-  {
-    id: 'ExecRes',
-  },
-)
+}> = /* @__PURE__ */ object({
+  stdout: z.string(),
+  stderr: z.string(),
+  exitCode: z.int(),
+}).meta({
+  id: 'ExecRes',
+})
 export const FileContents: z.ZodObject<{
   contents: z.ZodString
   modified: z.ZodString
-}> = object({ contents: z.string(), modified: z.string() }).meta({
+}> = /* @__PURE__ */ object({
+  contents: z.string(),
+  modified: z.string(),
+}).meta({
   id: 'FileContents',
 })
 export const FileType: z.ZodEnum<{
@@ -386,7 +394,7 @@ export const FileType: z.ZodEnum<{
   'char-device': 'char-device'
   fifo: 'fifo'
   socket: 'socket'
-}> = z
+}> = /* @__PURE__ */ z
   .enum([
     'regular-file',
     'directory',
@@ -399,22 +407,20 @@ export const FileType: z.ZodEnum<{
   .meta({
     id: 'FileType',
   })
-export const GetArgs: z.ZodObject<{ names: z.ZodArray<z.ZodString> }> = object({
-  names: z.array(z.string()),
-}).meta({
-  id: 'GetArgs',
-})
-export const GetFileArgs: z.ZodObject<{ path: z.ZodString }> = object({
-  path: z.string(),
-}).meta({
-  id: 'GetFileArgs',
-})
+export const GetArgs: z.ZodObject<{ names: z.ZodArray<z.ZodString> }> =
+  /* @__PURE__ */ object({ names: z.array(z.string()) }).meta({
+    id: 'GetArgs',
+  })
+export const GetFileArgs: z.ZodObject<{ path: z.ZodString }> =
+  /* @__PURE__ */ object({ path: z.string() }).meta({
+    id: 'GetFileArgs',
+  })
 
 /**
  * Unguessable random token, used as a one-time REST endpoint path segment.
  * Wraps `startos::util::new_guid()` (160-bit, base32-encoded, 32 chars).
  */
-export const Guid: z.ZodString = z.string().meta({
+export const Guid: z.ZodString = /* @__PURE__ */ z.string().meta({
   id: 'Guid',
   description:
     'Unguessable random token, used as a one-time REST endpoint path segment.\nWraps `startos::util::new_guid()` (160-bit, base32-encoded, 32 chars).',
@@ -459,7 +465,7 @@ export const InjectedDnsRecord: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   name: z.string(),
   rtype: z.string(),
   value: z.string(),
@@ -513,7 +519,7 @@ export const IoFormat: z.ZodEnum<{
   cbor: 'cbor'
   toml: 'toml'
   'toml-pretty': 'toml-pretty'
-}> = z
+}> = /* @__PURE__ */ z
   .enum(['json', 'json-pretty', 'yaml', 'cbor', 'toml', 'toml-pretty'])
   .meta({
     id: 'IoFormat',
@@ -521,7 +527,7 @@ export const IoFormat: z.ZodEnum<{
 export const LanIpv4Response: z.ZodObject<{
   address: z.ZodString
   netmask: z.ZodString
-}> = object({ address: z.string(), netmask: z.string() }).meta({
+}> = /* @__PURE__ */ object({ address: z.string(), netmask: z.string() }).meta({
   id: 'LanIpv4Response',
 })
 export const LanIpv4SetRequest: z.ZodObject<{
@@ -530,7 +536,7 @@ export const LanIpv4SetRequest: z.ZodObject<{
    * When true, forcibly delete VPN peers that would break due to block change.
    */
   force: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
-}> = object({
+}> = /* @__PURE__ */ object({
   address: z.string(),
   /**
    * When true, forcibly delete VPN peers that would break due to block change.
@@ -560,7 +566,7 @@ export const LanIpv6Response: z.ZodObject<{
    * WAN prefix length (read-only context for the UI)
    */
   wan_prefix: z.ZodInt
-}> = object({
+}> = /* @__PURE__ */ object({
   slaac: z.boolean(),
   dhcpv6: z.boolean(),
   /**
@@ -588,13 +594,20 @@ export const LanIpv6SetRequest: z.ZodObject<{
   slaac: z.ZodBoolean
   dhcpv6: z.ZodBoolean
   prefix: z.ZodInt
-}> = object({ slaac: z.boolean(), dhcpv6: z.boolean(), prefix: z.int() }).meta({
+}> = /* @__PURE__ */ object({
+  slaac: z.boolean(),
+  dhcpv6: z.boolean(),
+  prefix: z.int(),
+}).meta({
   id: 'LanIpv6SetRequest',
 })
 export const LogEntry: z.ZodObject<{
   timestamp: z.ZodString
   message: z.ZodString
-}> = object({ timestamp: z.string(), message: z.string() }).meta({
+}> = /* @__PURE__ */ object({
+  timestamp: z.string(),
+  message: z.string(),
+}).meta({
   id: 'LogEntry',
 })
 export const LoginParams: z.ZodObject<{
@@ -603,17 +616,16 @@ export const LoginParams: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   password: z.string(),
   userAgent: wire(z.string().nullable().optional(), z.string().nullable()),
 }).meta({
   id: 'LoginParams',
 })
-export const LoginRes: z.ZodObject<{ session: z.ZodString }> = object({
-  session: z.string(),
-}).meta({
-  id: 'LoginRes',
-})
+export const LoginRes: z.ZodObject<{ session: z.ZodString }> =
+  /* @__PURE__ */ object({ session: z.string() }).meta({
+    id: 'LoginRes',
+  })
 export const LogoutParams: z.ZodObject<{
   /**
    * Session hash injected by auth middleware
@@ -622,7 +634,7 @@ export const LogoutParams: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * Session hash injected by auth middleware
    */
@@ -635,9 +647,8 @@ export const LogoutParams: z.ZodObject<{
 }).meta({
   id: 'LogoutParams',
 })
-export const MacStrategy: z.ZodEnum<{ router: 'router'; custom: 'custom' }> = z
-  .enum(['router', 'custom'])
-  .meta({
+export const MacStrategy: z.ZodEnum<{ router: 'router'; custom: 'custom' }> =
+  /* @__PURE__ */ z.enum(['router', 'custom']).meta({
     id: 'MacStrategy',
   })
 export const OutboundVpn: z.ZodObject<{
@@ -664,7 +675,7 @@ export const OutboundVpn: z.ZodObject<{
    * The server is named by hostname; only `Internet` is a valid target.
    */
   hostname_endpoint: z.ZodBoolean
-}> = object({
+}> = /* @__PURE__ */ object({
   id: z.string(),
   label: z.string(),
   target: z.string(),
@@ -704,7 +715,7 @@ export const OutboundVpnCreateRequest: z.ZodObject<{
    * Raw WireGuard .conf file contents
    */
   config: z.ZodString
-}> = object({
+}> = /* @__PURE__ */ object({
   label: z.string(),
   target: z.string(),
   /**
@@ -717,17 +728,17 @@ export const OutboundVpnCreateRequest: z.ZodObject<{
   id: 'OutboundVpnCreateRequest',
 })
 export const OutboundVpnCreateResponse: z.ZodObject<{ id: z.ZodString }> =
-  object({ id: z.string() }).meta({
+  /* @__PURE__ */ object({ id: z.string() }).meta({
     id: 'OutboundVpnCreateResponse',
   })
 export const OutboundVpnDeleteRequest: z.ZodObject<{ id: z.ZodString }> =
-  object({ id: z.string() }).meta({
+  /* @__PURE__ */ object({ id: z.string() }).meta({
     id: 'OutboundVpnDeleteRequest',
   })
 export const OutboundVpnSetEnabledRequest: z.ZodObject<{
   id: z.ZodString
   enabled: z.ZodBoolean
-}> = object({ id: z.string(), enabled: z.boolean() }).meta({
+}> = /* @__PURE__ */ object({ id: z.string(), enabled: z.boolean() }).meta({
   id: 'OutboundVpnSetEnabledRequest',
 })
 export const OutboundVpnUpdateRequest: z.ZodObject<{
@@ -742,7 +753,7 @@ export const OutboundVpnUpdateRequest: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodInt>>,
     z.ZodNullable<z.ZodInt>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   id: z.string(),
   label: z.string(),
   target: z.string(),
@@ -774,7 +785,7 @@ export const PeerAddResponse: z.ZodObject<{
    * The assigned IP address
    */
   ip: z.ZodString
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * WireGuard client configuration (only present if keys were generated server-side)
    */
@@ -808,7 +819,7 @@ export const PeerDeleteArgs: z.ZodObject<{
    * Public key of the peer to delete
    */
   public_key: z.ZodString
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * Profile interface name
    */
@@ -828,7 +839,7 @@ export const ProfileId: z.ZodObject<{
   fullname: z.ZodString
   interface: z.ZodString
   vlan_tag: z.ZodInt
-}> = object({
+}> = /* @__PURE__ */ object({
   fullname: z.string(),
   interface: z.string(),
   vlan_tag: z.int(),
@@ -848,7 +859,7 @@ export const ProfileIdOpt: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodInt>>,
     z.ZodNullable<z.ZodInt>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   fullname: wire(z.string().nullable().optional(), z.string().nullable()),
   interface: wire(z.string().nullable().optional(), z.string().nullable()),
   vlan_tag: wire(z.int().nullable().optional(), z.int().nullable()),
@@ -859,7 +870,7 @@ export const Protocol: z.ZodEnum<{
   tcp: 'tcp'
   udp: 'udp'
   'tcp+udp': 'tcp+udp'
-}> = z.enum(['tcp', 'udp', 'tcp+udp']).meta({
+}> = /* @__PURE__ */ z.enum(['tcp', 'udp', 'tcp+udp']).meta({
   id: 'Protocol',
 })
 export const PublishedPortStatus: z.ZodEnum<{
@@ -868,17 +879,22 @@ export const PublishedPortStatus: z.ZodEnum<{
   paused: 'paused'
   error: 'error'
   disabled: 'disabled'
-}> = z.enum(['active', 'partial', 'paused', 'error', 'disabled']).meta({
-  id: 'PublishedPortStatus',
-})
+}> = /* @__PURE__ */ z
+  .enum(['active', 'partial', 'paused', 'error', 'disabled'])
+  .meta({
+    id: 'PublishedPortStatus',
+  })
 export const ResetPasswordParams: z.ZodObject<{
   oldPassword: z.ZodString
   newPassword: z.ZodString
-}> = object({ oldPassword: z.string(), newPassword: z.string() }).meta({
+}> = /* @__PURE__ */ object({
+  oldPassword: z.string(),
+  newPassword: z.string(),
+}).meta({
   id: 'ResetPasswordParams',
 })
 export const ScheduleGetParams: z.ZodObject<{ interface: z.ZodString }> =
-  object({ interface: z.string() }).meta({
+  /* @__PURE__ */ object({ interface: z.string() }).meta({
     id: 'ScheduleGetParams',
   })
 export const ScheduleWindow: z.ZodObject<{
@@ -896,7 +912,7 @@ export const ScheduleWindow: z.ZodObject<{
     ],
     null
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   startTime: z.string(),
   endTime: z.string(),
   days: z.tuple([
@@ -919,7 +935,7 @@ export const Section: z.ZodObject<{
   >
   options: z.ZodRecord<z.ZodString, z.ZodString>
   lists: z.ZodRecord<z.ZodString, z.ZodArray<z.ZodString>>
-}> = object({
+}> = /* @__PURE__ */ object({
   ty: z.string(),
   name: wire(z.string().nullable().optional(), z.string().nullable()),
   options: z.record(z.string(), z.string()),
@@ -930,13 +946,13 @@ export const Section: z.ZodObject<{
 export const SetAutoForwardRequest: z.ZodObject<{
   mac: z.ZodString
   allow: z.ZodBoolean
-}> = object({ mac: z.string(), allow: z.boolean() }).meta({
+}> = /* @__PURE__ */ object({ mac: z.string(), allow: z.boolean() }).meta({
   id: 'SetAutoForwardRequest',
 })
 export const SetDnsInjectionReq: z.ZodObject<{
   mac: z.ZodString
   allow: z.ZodBoolean
-}> = object({ mac: z.string(), allow: z.boolean() }).meta({
+}> = /* @__PURE__ */ object({ mac: z.string(), allow: z.boolean() }).meta({
   id: 'SetDnsInjectionReq',
 })
 export const SetFileArgs: z.ZodObject<{
@@ -946,7 +962,7 @@ export const SetFileArgs: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   path: z.string(),
   contents: z.string(),
   modified: wire(z.string().nullable().optional(), z.string().nullable()),
@@ -954,7 +970,7 @@ export const SetFileArgs: z.ZodObject<{
   id: 'SetFileArgs',
 })
 export const SetInitialPasswordParams: z.ZodObject<{ password: z.ZodString }> =
-  object({ password: z.string() }).meta({
+  /* @__PURE__ */ object({ password: z.string() }).meta({
     id: 'SetInitialPasswordParams',
   })
 export const SetPreferencesReq: z.ZodObject<{
@@ -970,7 +986,7 @@ export const SetPreferencesReq: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   language: wire(z.string().nullable().optional(), z.string().nullable()),
   theme: wire(z.string().nullable().optional(), z.string().nullable()),
   remoteAccess: wire(z.string().nullable().optional(), z.string().nullable()),
@@ -982,7 +998,7 @@ export const SetTimezoneParams: z.ZodObject<{
    * IANA timezone name, e.g. "America/New_York"
    */
   timezone: z.ZodString
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * IANA timezone name, e.g. "America/New_York"
    */
@@ -996,7 +1012,7 @@ export const SniPortUse: z.ZodObject<{
   ports: z.ZodString
   hostnames: z.ZodArray<z.ZodString>
   devices: z.ZodArray<z.ZodString>
-}> = object({
+}> = /* @__PURE__ */ object({
   ports: z.string(),
   hostnames: z.array(z.string()),
   devices: z.array(z.string()),
@@ -1006,26 +1022,25 @@ export const SniPortUse: z.ZodObject<{
 export const SpeedData: z.ZodObject<{
   up: z.ZodCodec<z.ZodNumber, z.ZodNullable<z.ZodNumber>>
   down: z.ZodCodec<z.ZodNumber, z.ZodNullable<z.ZodNumber>>
-}> = object({
+}> = /* @__PURE__ */ object({
   up: wire(z.number(), z.number().nullable()),
   down: wire(z.number(), z.number().nullable()),
 }).meta({
   id: 'SpeedData',
 })
-export const SshKeyAddParams: z.ZodObject<{ key: z.ZodString }> = object({
-  key: z.string(),
-}).meta({
-  id: 'SshKeyAddParams',
-})
+export const SshKeyAddParams: z.ZodObject<{ key: z.ZodString }> =
+  /* @__PURE__ */ object({ key: z.string() }).meta({
+    id: 'SshKeyAddParams',
+  })
 export const SshKeyDeleteParams: z.ZodObject<{ fingerprint: z.ZodString }> =
-  object({ fingerprint: z.string() }).meta({
+  /* @__PURE__ */ object({ fingerprint: z.string() }).meta({
     id: 'SshKeyDeleteParams',
   })
 export const SshKeyResponse: z.ZodObject<{
   algorithm: z.ZodString
   fingerprint: z.ZodString
   hostname: z.ZodString
-}> = object({
+}> = /* @__PURE__ */ object({
   algorithm: z.string(),
   fingerprint: z.string(),
   hostname: z.string(),
@@ -1040,7 +1055,7 @@ export const SystemInfoResponse: z.ZodObject<{
   theme: z.ZodString
   remoteAccess: z.ZodString
   timezone: z.ZodString
-}> = object({
+}> = /* @__PURE__ */ object({
   version: z.string(),
   gitHash: z.string(),
   language: z.string(),
@@ -1060,7 +1075,7 @@ export const UpdateSystemParams: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   registry: wire(z.string().nullable().optional(), z.string().nullable()),
   targetVersion: wire(z.string().nullable().optional(), z.string().nullable()),
 }).meta({
@@ -1075,20 +1090,23 @@ export const UpdateSystemRes: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   target: wire(z.string().nullable().optional(), z.string().nullable()),
   progress: wire(z.string().nullable().optional(), z.string().nullable()),
 }).meta({
   id: 'UpdateSystemRes',
 })
 export const VerifyPasswordParams: z.ZodObject<{ password: z.ZodString }> =
-  object({ password: z.string() }).meta({
+  /* @__PURE__ */ object({ password: z.string() }).meta({
     id: 'VerifyPasswordParams',
   })
 export const VersionInfo: z.ZodObject<{
   version: z.ZodString
   releaseNotes: z.ZodString
-}> = object({ version: z.string(), releaseNotes: z.string() }).meta({
+}> = /* @__PURE__ */ object({
+  version: z.string(),
+  releaseNotes: z.string(),
+}).meta({
   id: 'VersionInfo',
 })
 
@@ -1116,7 +1134,7 @@ export const VpnServerConfig: z.ZodObject<{
    * Private key. If not provided, a new key will be generated.
    */
   private_key: z.ZodOptional<z.ZodNullable<z.ZodString>>
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * Human-readable label for the VPN server
    */
@@ -1177,7 +1195,7 @@ export const VpnServerPeer: z.ZodObject<{
    * Route all traffic (LAN + WAN) through the tunnel. Default (false/absent) = split tunnel (LAN only).
    */
   route_all: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * Human-readable name for the peer
    */
@@ -1222,7 +1240,7 @@ export const WanAccess: z.ZodUnion<
     z.ZodObject<{ whitelist: z.ZodArray<z.ZodString> }>,
     z.ZodObject<{ blacklist: z.ZodArray<z.ZodString> }>,
   ]
-> = z
+> = /* @__PURE__ */ z
   .union([
     z.literal('ALL'),
     z.literal('NONE'),
@@ -1236,7 +1254,7 @@ export const WanIpv4Mode: z.ZodEnum<{
   dhcp: 'dhcp'
   static: 'static'
   pppoe: 'pppoe'
-}> = z.enum(['dhcp', 'static', 'pppoe']).meta({
+}> = /* @__PURE__ */ z.enum(['dhcp', 'static', 'pppoe']).meta({
   id: 'WanIpv4Mode',
 })
 export const WanIpv6Mode: z.ZodEnum<{
@@ -1245,9 +1263,11 @@ export const WanIpv6Mode: z.ZodEnum<{
   dhcpv6: 'dhcpv6'
   static: 'static'
   '6rd': '6rd'
-}> = z.enum(['disabled', 'slaac', 'dhcpv6', 'static', '6rd']).meta({
-  id: 'WanIpv6Mode',
-})
+}> = /* @__PURE__ */ z
+  .enum(['disabled', 'slaac', 'dhcpv6', 'static', '6rd'])
+  .meta({
+    id: 'WanIpv6Mode',
+  })
 export const WifiRadio: z.ZodObject<{
   band: z.ZodString
   channel: z.ZodString
@@ -1261,7 +1281,7 @@ export const WifiRadio: z.ZodObject<{
   >
   enabled: z.ZodBoolean
   broadcast: z.ZodBoolean
-}> = object({
+}> = /* @__PURE__ */ object({
   band: z.string(),
   channel: z.string(),
   /**
@@ -1280,27 +1300,29 @@ export const WifiRadio: z.ZodObject<{
 export const ActivityListResponse: z.ZodObject<{
   entries: z.ZodArray<typeof ActivityEntry>
   total: z.ZodInt
-}> = object({ entries: z.array(ActivityEntry), total: z.int() }).meta({
+}> = /* @__PURE__ */ object({
+  entries: z.array(ActivityEntry),
+  total: z.int(),
+}).meta({
   id: 'ActivityListResponse',
 })
 export const BackupCreateRes: z.ZodObject<{
   guid: typeof Guid
   filename: z.ZodString
-}> = object({ guid: Guid, filename: z.string() }).meta({
+}> = /* @__PURE__ */ object({ guid: Guid, filename: z.string() }).meta({
   id: 'BackupCreateRes',
 })
-export const BackupRestoreRes: z.ZodObject<{ upload: typeof Guid }> = object({
-  upload: Guid,
-}).meta({
-  id: 'BackupRestoreRes',
-})
+export const BackupRestoreRes: z.ZodObject<{ upload: typeof Guid }> =
+  /* @__PURE__ */ object({ upload: Guid }).meta({
+    id: 'BackupRestoreRes',
+  })
 export const BandChannels: z.ZodObject<{
   channels: z.ZodArray<typeof ApChannel>
   /**
    * Widths automatic channel selection can serve without radar-detection channels.
    */
   autoWidths: z.ZodArray<z.ZodInt>
-}> = object({
+}> = /* @__PURE__ */ object({
   channels: z.array(ApChannel),
   /**
    * Widths automatic channel selection can serve without radar-detection channels.
@@ -1314,13 +1336,13 @@ export const BandChannels: z.ZodObject<{
 })
 export const BlackoutWindows: z.ZodObject<{
   windows: z.ZodArray<typeof BlackoutWindow>
-}> = object({ windows: z.array(BlackoutWindow) }).meta({
+}> = /* @__PURE__ */ object({ windows: z.array(BlackoutWindow) }).meta({
   id: 'BlackoutWindows',
 })
 export const DataUsageReq: z.ZodObject<{
   mac: z.ZodString
   period: typeof DataUsagePeriod
-}> = object({ mac: z.string(), period: DataUsagePeriod }).meta({
+}> = /* @__PURE__ */ object({ mac: z.string(), period: DataUsagePeriod }).meta({
   id: 'DataUsageReq',
 })
 export const Device: z.ZodObject<{
@@ -1386,7 +1408,7 @@ export const Device: z.ZodObject<{
     >,
     z.ZodNullable<z.ZodCodec<z.ZodNumber, z.ZodNullable<z.ZodNumber>>>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   mac: wire(z.string().nullable().optional(), z.string().nullable()),
   /**
    * Fully-resolved display name: UCI static name → live DHCP hostname →
@@ -1449,7 +1471,7 @@ export const Device: z.ZodObject<{
 export const DiagnosticsCreateRes: z.ZodObject<{
   guid: typeof Guid
   filename: z.ZodString
-}> = object({ guid: Guid, filename: z.string() }).meta({
+}> = /* @__PURE__ */ object({ guid: Guid, filename: z.string() }).meta({
   id: 'DiagnosticsCreateRes',
 })
 export const DirEntry: z.ZodObject<{
@@ -1467,7 +1489,7 @@ export const DirEntry: z.ZodObject<{
   access: z.ZodString
   modify: z.ZodString
   change: z.ZodString
-}> = object({
+}> = /* @__PURE__ */ object({
   name: z.string(),
   size: z.int(),
   blocks: z.int(),
@@ -1488,7 +1510,7 @@ export const DirEntry: z.ZodObject<{
 export const EditArgs: z.ZodObject<{
   get: typeof ProfileIdOpt
   create: z.ZodBoolean
-}> = object({ get: ProfileIdOpt, create: z.boolean() }).meta({
+}> = /* @__PURE__ */ object({ get: ProfileIdOpt, create: z.boolean() }).meta({
   id: 'EditArgs',
 })
 
@@ -1523,7 +1545,7 @@ export const EthernetSetRequest: z.ZodIntersection<
       }>
     >
   }>
-> = z
+> = /* @__PURE__ */ z
   .intersection(
     object({
       confirm_published_port_deletion: wire(
@@ -1556,7 +1578,7 @@ export const EthernetSetResult: z.ZodObject<{
    * the caller hasn't confirmed yet. Empty once the change is applied.
    */
   pending_published_port_deletions: z.ZodArray<typeof AffectedPublishedPort>
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * Non-empty (and nothing applied) when published ports would be deleted and
    * the caller hasn't confirmed yet. Empty once the change is applied.
@@ -1570,7 +1592,7 @@ export const EthernetSetResult: z.ZodObject<{
 })
 export const LogsResponse: z.ZodObject<{
   entries: z.ZodArray<typeof LogEntry>
-}> = object({ entries: z.array(LogEntry) }).meta({
+}> = /* @__PURE__ */ object({ entries: z.array(LogEntry) }).meta({
   id: 'LogsResponse',
 })
 export const PeerAddArgs: z.ZodObject<{
@@ -1582,7 +1604,7 @@ export const PeerAddArgs: z.ZodObject<{
    * Peer configuration
    */
   peer: typeof VpnServerPeer
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * Profile interface name (e.g., "lan", "guest")
    */
@@ -1622,7 +1644,7 @@ export const ProfileSetRequest: z.ZodIntersection<
     }>,
     typeof ProfileIdOpt
   >
-> = z
+> = /* @__PURE__ */ z
   .intersection(
     object({ force: wire(z.boolean().optional(), z.boolean()) }),
     z.intersection(
@@ -1681,7 +1703,7 @@ export const PublishedPort: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   id: z.string(),
   enabled: z.boolean(),
   label: z.string(),
@@ -1727,7 +1749,7 @@ export const PublishedPortInput: z.ZodObject<{
    * Confirms an enabled IPv4 WAN collision.
    */
   override_wan_ports: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
-}> = object({
+}> = /* @__PURE__ */ object({
   id: z.string(),
   enabled: z.boolean(),
   label: z.string(),
@@ -1753,7 +1775,10 @@ export const PublishedPortInput: z.ZodObject<{
 export const ScheduleWindows: z.ZodObject<{
   interface: z.ZodString
   windows: z.ZodArray<typeof ScheduleWindow>
-}> = object({ interface: z.string(), windows: z.array(ScheduleWindow) }).meta({
+}> = /* @__PURE__ */ object({
+  interface: z.string(),
+  windows: z.array(ScheduleWindow),
+}).meta({
   id: 'ScheduleWindows',
 })
 export const SetArgs: z.ZodObject<{
@@ -1765,7 +1790,7 @@ export const SetArgs: z.ZodObject<{
    * VPN server configuration
    */
   config: typeof VpnServerConfig
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * Profile interface name (e.g., "lan", "guest")
    */
@@ -1784,7 +1809,7 @@ export const SetArgs: z.ZodObject<{
 export const SetupStatusRes: z.ZodObject<{
   setupMode: z.ZodBoolean
   disk: typeof DiskState
-}> = object({ setupMode: z.boolean(), disk: DiskState }).meta({
+}> = /* @__PURE__ */ object({ setupMode: z.boolean(), disk: DiskState }).meta({
   id: 'SetupStatusRes',
 })
 export const UciFile: z.ZodObject<{
@@ -1793,7 +1818,7 @@ export const UciFile: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   sections: z.array(Section),
   modified: wire(z.string().nullable().optional(), z.string().nullable()),
 }).meta({
@@ -1836,7 +1861,7 @@ export const VpnServer: z.ZodObject<{
    * Connected peers
    */
   peers: z.ZodArray<typeof VpnServerPeer>
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * Profile interface name this VPN server is associated with (e.g., "lan", "guest")
    */
@@ -1915,7 +1940,7 @@ export const WanDdnsResponse: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   enabled: z.boolean(),
   provider: DdnsProvider,
   hostname: wire(z.string().nullable().optional(), z.string().nullable()),
@@ -1949,7 +1974,7 @@ export const WanDdnsSetRequest: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   enabled: z.boolean(),
   provider: DdnsProvider,
   hostname: wire(z.string().nullable().optional(), z.string().nullable()),
@@ -1963,7 +1988,10 @@ export const WanDdnsSetRequest: z.ZodObject<{
 export const WanDnsResponse: z.ZodObject<{
   mode: typeof DnsMode
   servers: z.ZodArray<typeof DnsServer>
-}> = object({ mode: DnsMode, servers: z.array(DnsServer) }).meta({
+}> = /* @__PURE__ */ object({
+  mode: DnsMode,
+  servers: z.array(DnsServer),
+}).meta({
   id: 'WanDnsResponse',
 })
 export const WanDnsSetRequest: z.ZodObject<{
@@ -1972,7 +2000,7 @@ export const WanDnsSetRequest: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodArray<typeof DnsServer>>>,
     z.ZodNullable<z.ZodArray<typeof DnsServer>>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   mode: DnsMode,
   servers: wire(
     z.array(DnsServer).nullable().optional(),
@@ -2015,7 +2043,7 @@ export const WanIpv4Response: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   mode: WanIpv4Mode,
   assigned_ip: wire(z.string().nullable().optional(), z.string().nullable()),
   /**
@@ -2059,7 +2087,7 @@ export const WanIpv4SetRequest: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   mode: WanIpv4Mode,
   address: wire(z.string().nullable().optional(), z.string().nullable()),
   netmask: wire(z.string().nullable().optional(), z.string().nullable()),
@@ -2111,7 +2139,7 @@ export const WanIpv6Response: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   mode: WanIpv6Mode,
   address: wire(z.string().nullable().optional(), z.string().nullable()),
   prefix: wire(z.string().nullable().optional(), z.string().nullable()),
@@ -2171,7 +2199,7 @@ export const WanIpv6SetRequest: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   mode: WanIpv6Mode,
   address: wire(z.string().nullable().optional(), z.string().nullable()),
   prefix: wire(z.string().nullable().optional(), z.string().nullable()),
@@ -2197,7 +2225,7 @@ export const WanMacResponse: z.ZodObject<{
   strategy: typeof MacStrategy
   mac: z.ZodString
   default_mac: z.ZodString
-}> = object({
+}> = /* @__PURE__ */ object({
   strategy: MacStrategy,
   mac: z.string(),
   default_mac: z.string(),
@@ -2210,7 +2238,7 @@ export const WanMacSetRequest: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   strategy: MacStrategy,
   mac: wire(z.string().nullable().optional(), z.string().nullable()),
 }).meta({
@@ -2225,7 +2253,7 @@ export const WanPortCollision: z.ZodObject<{
   label: z.ZodString
   router_service_ports: z.ZodArray<z.ZodString>
   hostname_route_ports: z.ZodArray<typeof SniPortUse>
-}> = object({
+}> = /* @__PURE__ */ object({
   id: z.string(),
   label: z.string(),
   router_service_ports: z.array(z.string()),
@@ -2274,7 +2302,7 @@ export const WifiSetRequest: z.ZodIntersection<
       }>
     >
   }>
-> = z
+> = /* @__PURE__ */ z
   .intersection(
     object({
       confirmPublishedPortDeletion: wire(z.boolean().optional(), z.boolean()),
@@ -2315,7 +2343,7 @@ export const WifiSetResult: z.ZodObject<{
    * the caller hasn't confirmed yet. Empty once the change is applied.
    */
   pendingPublishedPortDeletions: z.ZodArray<typeof AffectedPublishedPort>
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * Non-empty (and nothing applied) when published ports would be deleted and
    * the caller hasn't confirmed yet. Empty once the change is applied.
@@ -2329,7 +2357,7 @@ export const WifiSetResult: z.ZodObject<{
 })
 export const PublishedPortsSetRequest: z.ZodObject<{
   ports: z.ZodArray<typeof PublishedPortInput>
-}> = object({ ports: z.array(PublishedPortInput) }).meta({
+}> = /* @__PURE__ */ object({ ports: z.array(PublishedPortInput) }).meta({
   id: 'PublishedPortsSetRequest',
 })
 
@@ -2339,7 +2367,9 @@ export const PublishedPortsSetRequest: z.ZodObject<{
  */
 export const PublishedPortsSetResult: z.ZodObject<{
   pending_wan_port_collisions: z.ZodArray<typeof WanPortCollision>
-}> = object({ pending_wan_port_collisions: z.array(WanPortCollision) }).meta({
+}> = /* @__PURE__ */ object({
+  pending_wan_port_collisions: z.array(WanPortCollision),
+}).meta({
   id: 'PublishedPortsSetResult',
   description:
     '[`set`] response. A non-empty collision list means nothing was applied —\nthe caller confirms and re-saves; empty means the request was applied.',
@@ -2350,7 +2380,7 @@ export const PublishedPortsSetResult: z.ZodObject<{
  */
 export const VpnServers: z.ZodObject<{
   servers: z.ZodArray<typeof VpnServer>
-}> = object({ servers: z.array(VpnServer) }).meta({
+}> = /* @__PURE__ */ object({ servers: z.array(VpnServer) }).meta({
   id: 'VpnServers',
   description: 'Response containing all VPN servers',
 })
@@ -2363,7 +2393,7 @@ export const WifiRegulatory: z.ZodObject<{
    * What an access point may use under the current country, by band.
    */
   bands: z.ZodRecord<z.ZodString, typeof BandChannels>
-}> = object({
+}> = /* @__PURE__ */ object({
   /**
    * ISO 3166-1 alpha-2 codes the regulatory database defines.
    */
@@ -2381,15 +2411,21 @@ export const WifiRegulatory: z.ZodObject<{
   id: 'WifiRegulatory',
 })
 export const Api = {
-  _PARAMS: object({}) as z.ZodType<{}, {}>,
+  _PARAMS: /* @__PURE__ */ empty,
   _CHILDREN: {
     activity: {
-      _PARAMS: object({}) as z.ZodType<{}, {}>,
+      _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
-        clear: { _PARAMS: object({}) as z.ZodType<{}, {}>, _RETURN: z.null() },
-        delete: { _PARAMS: ActivityDeleteParams, _RETURN: z.null() },
+        clear: {
+          _PARAMS: /* @__PURE__ */ empty,
+          _RETURN: /* @__PURE__ */ z.null(),
+        },
+        delete: {
+          _PARAMS: /* @__PURE__ */ ActivityDeleteParams,
+          _RETURN: /* @__PURE__ */ z.null(),
+        },
         list: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2397,49 +2433,61 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             ActivityListParams,
           ),
-          _RETURN: ActivityListResponse,
+          _RETURN: /* @__PURE__ */ ActivityListResponse,
         },
       },
     },
     auth: {
-      _PARAMS: object({}) as z.ZodType<{}, {}>,
+      _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
         'check-initialized': {
-          _PARAMS: object({}) as z.ZodType<{}, {}>,
-          _RETURN: CheckInitializedRes,
+          _PARAMS: /* @__PURE__ */ empty,
+          _RETURN: /* @__PURE__ */ CheckInitializedRes,
         },
-        login: { _PARAMS: LoginParams, _RETURN: LoginRes },
-        logout: { _PARAMS: LogoutParams, _RETURN: z.null() },
+        login: {
+          _PARAMS: /* @__PURE__ */ LoginParams,
+          _RETURN: /* @__PURE__ */ LoginRes,
+        },
+        logout: {
+          _PARAMS: /* @__PURE__ */ LogoutParams,
+          _RETURN: /* @__PURE__ */ z.null(),
+        },
         'set-initial-password': {
-          _PARAMS: SetInitialPasswordParams,
-          _RETURN: LoginRes,
+          _PARAMS: /* @__PURE__ */ SetInitialPasswordParams,
+          _RETURN: /* @__PURE__ */ LoginRes,
         },
-        'set-password': { _PARAMS: ResetPasswordParams, _RETURN: z.null() },
-        'verify-password': { _PARAMS: VerifyPasswordParams, _RETURN: z.null() },
+        'set-password': {
+          _PARAMS: /* @__PURE__ */ ResetPasswordParams,
+          _RETURN: /* @__PURE__ */ z.null(),
+        },
+        'verify-password': {
+          _PARAMS: /* @__PURE__ */ VerifyPasswordParams,
+          _RETURN: /* @__PURE__ */ z.null(),
+        },
       },
     },
     backup: {
-      _PARAMS: object({}) as z.ZodType<{}, {}>,
+      _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
         create: {
-          _PARAMS: object({}) as z.ZodType<{}, {}>,
-          _RETURN: BackupCreateRes,
+          _PARAMS: /* @__PURE__ */ empty,
+          _RETURN: /* @__PURE__ */ BackupCreateRes,
         },
         restore: {
-          _PARAMS: object({}) as z.ZodType<{}, {}>,
-          _RETURN: BackupRestoreRes,
+          _PARAMS: /* @__PURE__ */ empty,
+          _RETURN: /* @__PURE__ */ BackupRestoreRes,
         },
       },
     },
     devices: {
-      _PARAMS: object({}) as z.ZodType<{}, {}>,
+      _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
         'data-usage': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2447,24 +2495,24 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             DataUsageReq.meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: z.array(DataUsagePoint),
+          _RETURN: /* @__PURE__ */ z.array(DataUsagePoint),
         },
         forget: {
-          _PARAMS: DeviceMacReq.meta({
+          _PARAMS: /* @__PURE__ */ DeviceMacReq.meta({
             description:
               'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
           }),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
         list: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2472,49 +2520,49 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: z.array(Device),
+          _RETURN: /* @__PURE__ */ z.array(Device),
         },
         'set-auto-forward': {
-          _PARAMS: SetAutoForwardRequest.meta({
+          _PARAMS: /* @__PURE__ */ SetAutoForwardRequest.meta({
             description:
               'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
           }),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
         'set-dns-injection': {
-          _PARAMS: SetDnsInjectionReq.meta({
+          _PARAMS: /* @__PURE__ */ SetDnsInjectionReq.meta({
             description:
               'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
           }),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
         update: {
-          _PARAMS: DeviceUpdateReq.meta({
+          _PARAMS: /* @__PURE__ */ DeviceUpdateReq.meta({
             description:
               'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
           }),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
       },
     },
     diagnostics: {
-      _PARAMS: object({}) as z.ZodType<{}, {}>,
+      _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
         create: {
-          _PARAMS: object({}) as z.ZodType<{}, {}>,
-          _RETURN: DiagnosticsCreateRes,
+          _PARAMS: /* @__PURE__ */ empty,
+          _RETURN: /* @__PURE__ */ DiagnosticsCreateRes,
         },
       },
     },
     dir: {
-      _PARAMS: object({}) as z.ZodType<{}, {}>,
+      _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
         get: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2522,19 +2570,19 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             DirGetArgs,
           ),
-          _RETURN: z.array(DirEntry),
+          _RETURN: /* @__PURE__ */ z.array(DirEntry),
         },
       },
     },
     dns: {
-      _PARAMS: object({}) as z.ZodType<{}, {}>,
+      _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
         'injected-list': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2542,19 +2590,19 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: z.array(InjectedDnsRecord),
+          _RETURN: /* @__PURE__ */ z.array(InjectedDnsRecord),
         },
       },
     },
     ethernet: {
-      _PARAMS: object({}) as z.ZodType<{}, {}>,
+      _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
         edit: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2562,14 +2610,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
         get: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2577,11 +2625,11 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: object({
+          _RETURN: /* @__PURE__ */ object({
             wan_ipv6: z.boolean(),
             wan_port: wire(
               z.string().nullable().optional(),
@@ -2599,7 +2647,7 @@ export const Api = {
           }),
         },
         set: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2607,34 +2655,34 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             EthernetSetRequest.meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: EthernetSetResult,
+          _RETURN: /* @__PURE__ */ EthernetSetResult,
         },
       },
     },
     exec: {
-      _PARAMS: z.intersection(
+      _PARAMS: /* @__PURE__ */ z.intersection(
         z.intersection(
           object({
             format: wire(IoFormat.nullable().optional(), IoFormat.nullable()),
           }),
-          object({}) as z.ZodType<{}, {}>,
+          empty,
         ),
         ExecReq,
       ),
-      _RETURN: ExecRes,
+      _RETURN: /* @__PURE__ */ ExecRes,
     },
     file: {
-      _PARAMS: object({}) as z.ZodType<{}, {}>,
+      _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
         get: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2642,14 +2690,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             GetFileArgs,
           ),
-          _RETURN: FileContents,
+          _RETURN: /* @__PURE__ */ FileContents,
         },
         set: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2657,19 +2705,19 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             SetFileArgs,
           ),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
       },
     },
     lan: {
-      _PARAMS: object({}) as z.ZodType<{}, {}>,
+      _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
         'ipv4-get': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2677,14 +2725,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: LanIpv4Response,
+          _RETURN: /* @__PURE__ */ LanIpv4Response,
         },
         'ipv4-set': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2692,17 +2740,17 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             LanIpv4SetRequest.meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
         'ipv6-get': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2710,14 +2758,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: LanIpv6Response,
+          _RETURN: /* @__PURE__ */ LanIpv6Response,
         },
         'ipv6-set': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2725,22 +2773,22 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             LanIpv6SetRequest.meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
       },
     },
     profiles: {
-      _PARAMS: object({}) as z.ZodType<{}, {}>,
+      _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
         create: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2748,7 +2796,7 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             z
               .intersection(
@@ -2776,11 +2824,14 @@ export const Api = {
                   'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
               }),
           ),
-          _RETURN: ProfileId,
+          _RETURN: /* @__PURE__ */ ProfileId,
         },
-        delete: { _PARAMS: ProfileIdOpt, _RETURN: z.null() },
+        delete: {
+          _PARAMS: /* @__PURE__ */ ProfileIdOpt,
+          _RETURN: /* @__PURE__ */ z.null(),
+        },
         edit: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2788,14 +2839,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             EditArgs,
           ),
-          _RETURN: ProfileId,
+          _RETURN: /* @__PURE__ */ ProfileId,
         },
         get: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2803,11 +2854,11 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             ProfileIdOpt,
           ),
-          _RETURN: z.intersection(
+          _RETURN: /* @__PURE__ */ z.intersection(
             object({
               gateway_ip: z.string(),
               outbound: z.string(),
@@ -2829,7 +2880,7 @@ export const Api = {
           ),
         },
         list: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2837,14 +2888,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: z.array(ProfileId),
+          _RETURN: /* @__PURE__ */ z.array(ProfileId),
         },
         'schedule-get': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2852,24 +2903,24 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             ScheduleGetParams.meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: z.array(ScheduleWindow),
+          _RETURN: /* @__PURE__ */ z.array(ScheduleWindow),
         },
         'schedule-set': {
-          _PARAMS: ScheduleWindows.meta({
+          _PARAMS: /* @__PURE__ */ ScheduleWindows.meta({
             description:
               'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
           }),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
         set: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2877,22 +2928,22 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             ProfileSetRequest.meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: ProfileId,
+          _RETURN: /* @__PURE__ */ ProfileId,
         },
       },
     },
     'published-ports': {
-      _PARAMS: object({}) as z.ZodType<{}, {}>,
+      _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
         'auto-list': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2900,14 +2951,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: z.array(AutomaticPortUse),
+          _RETURN: /* @__PURE__ */ z.array(AutomaticPortUse),
         },
         list: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2915,47 +2966,47 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: z.array(PublishedPort),
+          _RETURN: /* @__PURE__ */ z.array(PublishedPort),
         },
         reconcile: {
-          _PARAMS: object({}) as z.ZodType<{}, {}>,
-          _RETURN: z.unknown(),
+          _PARAMS: /* @__PURE__ */ empty,
+          _RETURN: /* @__PURE__ */ z.unknown(),
         },
         set: {
-          _PARAMS: PublishedPortsSetRequest.meta({
+          _PARAMS: /* @__PURE__ */ PublishedPortsSetRequest.meta({
             description:
               'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
           }),
-          _RETURN: PublishedPortsSetResult,
+          _RETURN: /* @__PURE__ */ PublishedPortsSetResult,
         },
         'sync-hairpin': {
-          _PARAMS: object({}) as z.ZodType<{}, {}>,
-          _RETURN: z.unknown(),
+          _PARAMS: /* @__PURE__ */ empty,
+          _RETURN: /* @__PURE__ */ z.unknown(),
         },
         'wan-changed': {
-          _PARAMS: object({}) as z.ZodType<{}, {}>,
-          _RETURN: z.unknown(),
+          _PARAMS: /* @__PURE__ */ empty,
+          _RETURN: /* @__PURE__ */ z.unknown(),
         },
       },
     },
     setup: {
-      _PARAMS: object({}) as z.ZodType<{}, {}>,
+      _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
         status: {
-          _PARAMS: object({}) as z.ZodType<{}, {}>,
-          _RETURN: SetupStatusRes,
+          _PARAMS: /* @__PURE__ */ empty,
+          _RETURN: /* @__PURE__ */ SetupStatusRes,
         },
       },
     },
     'ssh-keys': {
-      _PARAMS: object({}) as z.ZodType<{}, {}>,
+      _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
         add: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2963,15 +3014,18 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             SshKeyAddParams,
           ),
-          _RETURN: SshKeyResponse,
+          _RETURN: /* @__PURE__ */ SshKeyResponse,
         },
-        delete: { _PARAMS: SshKeyDeleteParams, _RETURN: z.null() },
+        delete: {
+          _PARAMS: /* @__PURE__ */ SshKeyDeleteParams,
+          _RETURN: /* @__PURE__ */ z.null(),
+        },
         list: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -2979,27 +3033,27 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: z.array(SshKeyResponse),
+          _RETURN: /* @__PURE__ */ z.array(SshKeyResponse),
         },
       },
     },
     system: {
-      _PARAMS: object({}) as z.ZodType<{}, {}>,
+      _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
         'apply-remote-access': {
-          _PARAMS: object({}) as z.ZodType<{}, {}>,
-          _RETURN: z.unknown(),
+          _PARAMS: /* @__PURE__ */ empty,
+          _RETURN: /* @__PURE__ */ z.unknown(),
         },
         'factory-reset': {
-          _PARAMS: object({}) as z.ZodType<{}, {}>,
-          _RETURN: z.null(),
+          _PARAMS: /* @__PURE__ */ empty,
+          _RETURN: /* @__PURE__ */ z.null(),
         },
         'get-timezones': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3007,14 +3061,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: z.array(z.string()),
+          _RETURN: /* @__PURE__ */ z.array(z.string()),
         },
         info: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3022,14 +3076,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: SystemInfoResponse,
+          _RETURN: /* @__PURE__ */ SystemInfoResponse,
         },
         logs: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3037,14 +3091,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: LogsResponse,
+          _RETURN: /* @__PURE__ */ LogsResponse,
         },
         'newer-versions': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3052,18 +3106,18 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: z.array(VersionInfo),
+          _RETURN: /* @__PURE__ */ z.array(VersionInfo),
         },
         restart: {
-          _PARAMS: object({}) as z.ZodType<{}, {}>,
-          _RETURN: z.null(),
+          _PARAMS: /* @__PURE__ */ empty,
+          _RETURN: /* @__PURE__ */ z.null(),
         },
         'set-preferences': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3071,24 +3125,24 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             SetPreferencesReq.meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: z.unknown(),
+          _RETURN: /* @__PURE__ */ z.unknown(),
         },
         'set-timezone': {
-          _PARAMS: SetTimezoneParams.meta({
+          _PARAMS: /* @__PURE__ */ SetTimezoneParams.meta({
             description:
               'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
           }),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
         update: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3096,19 +3150,19 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             UpdateSystemParams,
           ),
-          _RETURN: UpdateSystemRes,
+          _RETURN: /* @__PURE__ */ UpdateSystemRes,
         },
       },
     },
     uci: {
-      _PARAMS: object({}) as z.ZodType<{}, {}>,
+      _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
         edit: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3116,14 +3170,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             GetArgs,
           ),
-          _RETURN: z.record(z.string(), z.string()),
+          _RETURN: /* @__PURE__ */ z.record(z.string(), z.string()),
         },
         get: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3131,14 +3185,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             GetArgs,
           ),
-          _RETURN: z.record(z.string(), UciFile),
+          _RETURN: /* @__PURE__ */ z.record(z.string(), UciFile),
         },
         set: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3146,22 +3200,22 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             z.record(z.string(), UciFile).meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: z.record(z.string(), z.string()),
+          _RETURN: /* @__PURE__ */ z.record(z.string(), z.string()),
         },
       },
     },
     'vpn-client': {
-      _PARAMS: object({}) as z.ZodType<{}, {}>,
+      _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
         create: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3169,17 +3223,17 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             OutboundVpnCreateRequest.meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: OutboundVpnCreateResponse,
+          _RETURN: /* @__PURE__ */ OutboundVpnCreateResponse,
         },
         delete: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3187,14 +3241,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             OutboundVpnDeleteRequest,
           ),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
         list: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3202,14 +3256,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: z.array(OutboundVpn),
+          _RETURN: /* @__PURE__ */ z.array(OutboundVpn),
         },
         'set-enabled': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3217,17 +3271,17 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             OutboundVpnSetEnabledRequest.meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
         update: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3235,22 +3289,22 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             OutboundVpnUpdateRequest.meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
       },
     },
     'vpn-server': {
-      _PARAMS: object({}) as z.ZodType<{}, {}>,
+      _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
         delete: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3258,14 +3312,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             DeleteArgs,
           ),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
         list: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3273,14 +3327,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: VpnServers,
+          _RETURN: /* @__PURE__ */ VpnServers,
         },
         'peer-add': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3288,17 +3342,17 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             PeerAddArgs.meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: PeerAddResponse,
+          _RETURN: /* @__PURE__ */ PeerAddResponse,
         },
         'peer-delete': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3306,14 +3360,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             PeerDeleteArgs,
           ),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
         set: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3321,22 +3375,22 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             SetArgs.meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
       },
     },
     wan: {
-      _PARAMS: object({}) as z.ZodType<{}, {}>,
+      _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
         'ddns-get': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3344,14 +3398,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: WanDdnsResponse,
+          _RETURN: /* @__PURE__ */ WanDdnsResponse,
         },
         'ddns-set': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3359,17 +3413,17 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             WanDdnsSetRequest.meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
         'dns-get': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3377,14 +3431,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: WanDnsResponse,
+          _RETURN: /* @__PURE__ */ WanDnsResponse,
         },
         'dns-set': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3392,17 +3446,17 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             WanDnsSetRequest.meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
         'ipv4-get': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3410,14 +3464,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: WanIpv4Response,
+          _RETURN: /* @__PURE__ */ WanIpv4Response,
         },
         'ipv4-set': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3425,17 +3479,17 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             WanIpv4SetRequest.meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
         'ipv6-get': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3443,14 +3497,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: WanIpv6Response,
+          _RETURN: /* @__PURE__ */ WanIpv6Response,
         },
         'ipv6-set': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3458,17 +3512,17 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             WanIpv6SetRequest.meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
         'mac-get': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3476,14 +3530,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: WanMacResponse,
+          _RETURN: /* @__PURE__ */ WanMacResponse,
         },
         'mac-set': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3491,22 +3545,22 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             WanMacSetRequest.meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
       },
     },
     wifi: {
-      _PARAMS: object({}) as z.ZodType<{}, {}>,
+      _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
         'blackout-get': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3514,14 +3568,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: z.array(BlackoutWindow),
+          _RETURN: /* @__PURE__ */ z.array(BlackoutWindow),
         },
         'blackout-set': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3529,17 +3583,17 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             BlackoutWindows.meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
         edit: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3547,14 +3601,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: z.null(),
+          _RETURN: /* @__PURE__ */ z.null(),
         },
         'generate-password': {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3562,14 +3616,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: z.string(),
+          _RETURN: /* @__PURE__ */ z.string(),
         },
         get: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3577,11 +3631,11 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: object({
+          _RETURN: /* @__PURE__ */ object({
             ssid: z.string(),
             broadcastSeparately: z.boolean(),
             /**
@@ -3607,7 +3661,7 @@ export const Api = {
           }),
         },
         regulatory: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3615,14 +3669,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
-            object({}) as z.ZodType<{}, {}>,
+            empty,
           ),
-          _RETURN: WifiRegulatory,
+          _RETURN: /* @__PURE__ */ WifiRegulatory,
         },
         set: {
-          _PARAMS: z.intersection(
+          _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
               object({
                 format: wire(
@@ -3630,14 +3684,14 @@ export const Api = {
                   IoFormat.nullable(),
                 ),
               }),
-              object({}) as z.ZodType<{}, {}>,
+              empty,
             ),
             WifiSetRequest.meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: WifiSetResult,
+          _RETURN: /* @__PURE__ */ WifiSetResult,
         },
       },
     },

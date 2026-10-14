@@ -72,7 +72,7 @@ fn one_owner_can_export_into_multiple_namespaces() {
     let left = export_namespace("ts", "left", SCHEMAS).unwrap();
     let right = export_namespace("ts", "right", SCHEMAS).unwrap();
     assert_eq!(left, right);
-    assert!(left.schemas.contains("export const SharedName: z.ZodObject<{ \"value\": z.ZodString }> = object({ \"value\": z.string() })"));
+    assert!(left.schemas.contains("export const SharedName: z.ZodObject<{ \"value\": z.ZodString }> = /* @__PURE__ */ object({ \"value\": z.string() })"));
     assert!(left
         .types
         .contains("export type SharedName = z.output<typeof schemas.SharedName>;"));
@@ -102,7 +102,7 @@ reflect_ts!(Node);
 #[test]
 fn standalone_declarations_do_not_require_an_rpc_tree() {
     let bindings = declarations::<Node>();
-    assert!(bindings.schemas.contains("export const Node: z.ZodObject<{ \"value\": z.ZodString; \"next\": z.ZodCodec<z.ZodOptional<z.ZodNullable<typeof Node>>, z.ZodNullable<typeof Node>> }> = object({ \"value\": z.string(), get \"next\"()"));
+    assert!(bindings.schemas.contains("export const Node: z.ZodObject<{ \"value\": z.ZodString; \"next\": z.ZodCodec<z.ZodOptional<z.ZodNullable<typeof Node>>, z.ZodNullable<typeof Node>> }> = /* @__PURE__ */ object({ \"value\": z.string(), get \"next\"()"));
     assert!(bindings.schemas.contains(
         "get \"next\"(): z.ZodCodec<z.ZodOptional<z.ZodNullable<typeof Node>>, z.ZodNullable<typeof Node>> { return wire(Node.nullable().optional(), Node.nullable()); }"
     ));
@@ -125,7 +125,9 @@ fn derives_share_directional_shapes_and_explicit_overrides() {
     assert!(bindings
         .schemas
         .contains("\"count\": wire(z.int().optional(), z.int())"));
-    assert!(bindings.schemas.contains("const literal_0 = z.string();\n"));
+    assert!(bindings
+        .schemas
+        .contains("const literal_0 = /* @__PURE__ */ z.string();\n"));
     assert!(!bindings.schemas.contains("skipped"));
     assert!(bindings.types.contains("export type Derived ="));
 
@@ -136,7 +138,7 @@ fn derives_share_directional_shapes_and_explicit_overrides() {
         .unwrap()
         .schemas
         .contains(
-        "export const OpaqueWire: typeof literal_0 = literal_0.meta({\nid: \"OpaqueWire\" });\n"
+        "export const OpaqueWire: typeof literal_0 = /* @__PURE__ */ literal_0.meta({\nid: \"OpaqueWire\" });\n"
     ));
 }
 
@@ -158,7 +160,7 @@ fn annotated_concrete_exports_support_generic_recursion() {
     let bindings = export_namespace("ts", "generic", SCHEMAS).unwrap();
     assert!(bindings
         .schemas
-        .contains("export const Generic: z.ZodObject<{ \"value\": z.ZodString; \"next\": z.ZodCodec<z.ZodOptional<z.ZodNullable<typeof Generic>>, z.ZodNullable<typeof Generic>> }> = object("));
+        .contains("export const Generic: z.ZodObject<{ \"value\": z.ZodString; \"next\": z.ZodCodec<z.ZodOptional<z.ZodNullable<typeof Generic>>, z.ZodNullable<typeof Generic>> }> = /* @__PURE__ */ object("));
     assert!(bindings.schemas.contains("get \"next\"(): z.ZodCodec<z.ZodOptional<z.ZodNullable<typeof Generic>>, z.ZodNullable<typeof Generic>>"));
     assert!(bindings
         .types

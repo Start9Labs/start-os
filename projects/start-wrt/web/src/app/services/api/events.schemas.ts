@@ -6,12 +6,11 @@ const object = <Shape extends z.core.$ZodLooseShape>(shape: Shape) =>
 export const FlashMode: z.ZodEnum<{
   update: 'update'
   'fresh-start': 'fresh-start'
-}> = z.enum(['update', 'fresh-start']).meta({
+}> = /* @__PURE__ */ z.enum(['update', 'fresh-start']).meta({
   id: 'FlashMode',
 })
-export const ProgressUnits: z.ZodEnum<{ bytes: 'bytes'; steps: 'steps' }> = z
-  .enum(['bytes', 'steps'])
-  .meta({
+export const ProgressUnits: z.ZodEnum<{ bytes: 'bytes'; steps: 'steps' }> =
+  /* @__PURE__ */ z.enum(['bytes', 'steps']).meta({
     id: 'ProgressUnits',
   })
 
@@ -43,7 +42,7 @@ export const SetupEvent: z.ZodUnion<
       z.ZodObject<{ message: z.ZodString }>
     >,
   ]
-> = z
+> = /* @__PURE__ */ z
   .union([
     z.intersection(
       object({ phase: z.literal('copying') }),
@@ -80,7 +79,7 @@ export const FlashParams: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-}> = object({
+}> = /* @__PURE__ */ object({
   mode: FlashMode,
   password: z.string(),
   /**
@@ -116,7 +115,7 @@ export const Progress: z.ZodUnion<
       >
     }>,
   ]
-> = z
+> = /* @__PURE__ */ z
   .union([
     z.null().meta({
       description: 'Not started yet — serializes as `null`',
@@ -144,7 +143,7 @@ export const Progress: z.ZodUnion<
 export const NamedProgress: z.ZodObject<{
   name: z.ZodString
   progress: typeof Progress
-}> = object({ name: z.string(), progress: Progress }).meta({
+}> = /* @__PURE__ */ object({ name: z.string(), progress: Progress }).meta({
   id: 'NamedProgress',
 })
 
@@ -154,7 +153,10 @@ export const NamedProgress: z.ZodObject<{
 export const FullProgress: z.ZodObject<{
   overall: typeof Progress
   phases: z.ZodArray<typeof NamedProgress>
-}> = object({ overall: Progress, phases: z.array(NamedProgress) }).meta({
+}> = /* @__PURE__ */ object({
+  overall: Progress,
+  phases: z.array(NamedProgress),
+}).meta({
   id: 'FullProgress',
   description: 'Snapshot of overall + per-phase progress, sent over WebSocket.',
 })
