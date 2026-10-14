@@ -13,7 +13,7 @@ import {
 import { DefaultString } from '../inputSpecTypes'
 import { _, once } from '../../../util'
 import { withPatterns } from './patternCheck'
-import { z } from '../../../zExport'
+import * as z from '../../../z'
 import { DeepPartial } from '../../../types'
 
 /** Build a union-of-literals validator from object keys, falling back to z.string() when empty */

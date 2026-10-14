@@ -1,4 +1,4 @@
-import { z } from '../zExport'
+import * as z from '../z'
 import { Effects } from '../Effects'
 import { Origin } from './Origin'
 import { RangeOrigin } from './RangeOrigin'

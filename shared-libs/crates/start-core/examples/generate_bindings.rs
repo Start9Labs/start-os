@@ -80,6 +80,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "export * from './types'\nexport * as Tunnel from './tunnel'\n",
     )?;
     std::fs::write(
+        directory.join("schemas.ts"),
+        "export * from './types.schemas'\nexport * as Tunnel from './tunnel/types.schemas'\nexport * as RPC from './rpc/schemas'\n",
+    )?;
+    std::fs::write(
+        directory.join("rpc/schemas.ts"),
+        "export { Api as StartOS } from './start-os.schemas'\nexport { Api as Setup } from './setup.schemas'\nexport { Api as Init } from './init.schemas'\nexport { Api as Diagnostic } from './diagnostic.schemas'\nexport { Api as Registry } from './registry.schemas'\nexport { Api as Tunnel } from './tunnel.schemas'\nexport { Api as Effects } from './effects.schemas'\n",
+    )?;
+    std::fs::write(
         directory.join("rpc/index.ts"),
         "export type { Api as StartOS } from './start-os'\nexport type { Api as Setup } from './setup'\nexport type { Api as Init } from './init'\nexport type { Api as Diagnostic } from './diagnostic'\nexport type { Api as Registry } from './registry'\nexport type { Api as Tunnel } from './tunnel'\nexport type { Api as Effects } from './effects'\nexport type { RpcMethod, RpcParamType, RpcReturnType } from './start-os'\n",
     )?;
