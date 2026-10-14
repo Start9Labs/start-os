@@ -125,8 +125,9 @@ schema module and the type-only module, which `handler_bindings()` completes wit
 the root tree, `RpcSchemaTree` and the `type-helpers.ts` inference helpers.
 Generation errors are returned rather than hidden in release builds.
 
-The helpers resolve every dotted segment against actual children, combine inherited
-parameters and distinguish namespaces from callable parents. Adapter passthrough
+The tree emitter folds each parent's parameters into its children's `_PARAMS`, so
+the helpers resolve every dotted segment against actual children and distinguish
+namespaces from callable parents without combining anything. Adapter passthrough
 preserves the binding opt-out regardless of decoration order. See
 [docs/typescript.md](docs/typescript.md) for the supported surface and overrides.
 

@@ -404,7 +404,7 @@ async fn handler_tree_matches_dispatch_and_inference() {
         );
     let root = ParentHandler::<Ctx, Empty, Empty>::new().subcommand("jobs", parent.no_cli());
     let bindings = handler_bindings(&root, "Api", SCHEMAS).unwrap().unwrap();
-    assert!(bindings.schemas.contains("export const Api = { _PARAMS: /* @__PURE__ */ empty, _CHILDREN: { \"jobs\": { _PARAMS: /* @__PURE__ */ ParentParams, _RETURN: /* @__PURE__ */ z.string(), _CHILDREN: { \"leaf\": { _PARAMS: /* @__PURE__ */ Params, _RETURN: /* @__PURE__ */ Node }, \"opaque\": { _PARAMS: /* @__PURE__ */ z.unknown(), _RETURN: /* @__PURE__ */ z.unknown() } } } } };"), "{}", bindings.schemas);
+    assert!(bindings.schemas.contains("export const Api = { _PARAMS: /* @__PURE__ */ empty, _CHILDREN: { \"jobs\": { _PARAMS: /* @__PURE__ */ ParentParams, _RETURN: /* @__PURE__ */ z.string(), _CHILDREN: { \"leaf\": { _PARAMS: /* @__PURE__ */ z.intersection(ParentParams, Params), _RETURN: /* @__PURE__ */ Node }, \"opaque\": { _PARAMS: /* @__PURE__ */ z.unknown(), _RETURN: /* @__PURE__ */ z.unknown() } } } } };"), "{}", bindings.schemas);
     assert!(bindings
         .types
         .contains("export type Api = RpcSchemaTree<typeof schemas.Api>;"));
@@ -434,11 +434,11 @@ const invalidReturn: RpcReturnType<Api,'jobs.leaf'> = {value:1,next:null};
     );
     let schema = common::evaluate(
         &bindings,
-        "const leaf = schemas.Api._CHILDREN.jobs._CHILDREN.leaf;\nprocess.stdout.write(JSON.stringify(z.toJSONSchema(leaf._PARAMS, { io: 'input' }).allOf[0].required) + '\\n' + JSON.stringify(z.toJSONSchema(leaf._RETURN).required) + '\\n' + JSON.stringify(z.toJSONSchema(leaf._PARAMS).required));",
+        "const leaf = schemas.Api._CHILDREN.jobs._CHILDREN.leaf;\nconst required = (root) => { const walk = (s) => s.$ref ? walk(root.$defs[s.$ref.split('/').pop()]) : s.allOf ? s.allOf.flatMap(walk) : s.required ?? []; return walk(root) };\nprocess.stdout.write(JSON.stringify(required(z.toJSONSchema(leaf._PARAMS, { io: 'input' }))) + '\\n' + JSON.stringify(z.toJSONSchema(leaf._RETURN).required) + '\\n' + JSON.stringify(required(z.toJSONSchema(leaf._PARAMS))));",
     );
     assert_eq!(
         schema,
-        "[\"REQUIRED_VALUE\",\"INPUT_ONLY\"]\n[\"value\",\"next\"]\n[\"requiredValue\",\"nullable\",\"withDefault\",\"out\",\"outputOnly\"]"
+        "[\"token\",\"REQUIRED_VALUE\",\"INPUT_ONLY\"]\n[\"value\",\"next\"]\n[\"token\",\"requiredValue\",\"nullable\",\"withDefault\",\"out\",\"outputOnly\"]"
     );
     let server = Server::new(|| async { Ok(Ctx) }, root);
     let result = server

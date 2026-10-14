@@ -5107,33 +5107,57 @@ export const Api = {
           _PARAMS: /* @__PURE__ */ RequiresPackageId,
           _CHILDREN: {
             address: {
-              _PARAMS: /* @__PURE__ */ RequiresHostId,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                RequiresPackageId,
+                RequiresHostId,
+              ),
               _CHILDREN: {
                 domain: {
-                  _PARAMS: /* @__PURE__ */ empty,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    RequiresPackageId,
+                    RequiresHostId,
+                  ),
                   _CHILDREN: {
                     private: {
-                      _PARAMS: /* @__PURE__ */ empty,
+                      _PARAMS: /* @__PURE__ */ z.intersection(
+                        RequiresPackageId,
+                        RequiresHostId,
+                      ),
                       _CHILDREN: {
                         add: {
-                          _PARAMS: /* @__PURE__ */ AddPrivateDomainParams,
+                          _PARAMS: /* @__PURE__ */ z.intersection(
+                            z.intersection(RequiresPackageId, RequiresHostId),
+                            AddPrivateDomainParams,
+                          ),
                           _RETURN: /* @__PURE__ */ z.boolean(),
                         },
                         remove: {
-                          _PARAMS: /* @__PURE__ */ RemoveDomainParams,
+                          _PARAMS: /* @__PURE__ */ z.intersection(
+                            z.intersection(RequiresPackageId, RequiresHostId),
+                            RemoveDomainParams,
+                          ),
                           _RETURN: /* @__PURE__ */ z.null(),
                         },
                       },
                     },
                     public: {
-                      _PARAMS: /* @__PURE__ */ empty,
+                      _PARAMS: /* @__PURE__ */ z.intersection(
+                        RequiresPackageId,
+                        RequiresHostId,
+                      ),
                       _CHILDREN: {
                         add: {
-                          _PARAMS: /* @__PURE__ */ AddPublicDomainParams,
+                          _PARAMS: /* @__PURE__ */ z.intersection(
+                            z.intersection(RequiresPackageId, RequiresHostId),
+                            AddPublicDomainParams,
+                          ),
                           _RETURN: /* @__PURE__ */ AddPublicDomainRes,
                         },
                         remove: {
-                          _PARAMS: /* @__PURE__ */ RemoveDomainParams,
+                          _PARAMS: /* @__PURE__ */ z.intersection(
+                            z.intersection(RequiresPackageId, RequiresHostId),
+                            RemoveDomainParams,
+                          ),
                           _RETURN: /* @__PURE__ */ z.null(),
                         },
                       },
@@ -5142,55 +5166,73 @@ export const Api = {
                 },
                 list: {
                   _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(RequiresPackageId, RequiresHostId),
                     z.intersection(
-                      object({
-                        format: wire(
-                          IoFormat.nullable().optional(),
-                          IoFormat.nullable(),
-                        ),
-                      }),
+                      z.intersection(
+                        object({
+                          format: wire(
+                            IoFormat.nullable().optional(),
+                            IoFormat.nullable(),
+                          ),
+                        }),
+                        empty,
+                      ),
                       empty,
                     ),
-                    empty,
                   ),
                   _RETURN: /* @__PURE__ */ z.array(HostAddress),
                 },
               },
             },
             binding: {
-              _PARAMS: /* @__PURE__ */ RequiresHostId,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                RequiresPackageId,
+                RequiresHostId,
+              ),
               _CHILDREN: {
                 list: {
                   _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(RequiresPackageId, RequiresHostId),
                     z.intersection(
-                      object({
-                        format: wire(
-                          IoFormat.nullable().optional(),
-                          IoFormat.nullable(),
-                        ),
-                      }),
+                      z.intersection(
+                        object({
+                          format: wire(
+                            IoFormat.nullable().optional(),
+                            IoFormat.nullable(),
+                          ),
+                        }),
+                        empty,
+                      ),
                       empty,
                     ),
-                    empty,
                   ),
                   _RETURN: /* @__PURE__ */ Bindings,
                 },
                 'set-address-enabled': {
-                  _PARAMS: /* @__PURE__ */ BindingSetAddressEnabledParams,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(RequiresPackageId, RequiresHostId),
+                    BindingSetAddressEnabledParams,
+                  ),
                   _RETURN: /* @__PURE__ */ z.null(),
                 },
                 'set-gua-wan': {
-                  _PARAMS: /* @__PURE__ */ BindingSetGuaWanParams,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(RequiresPackageId, RequiresHostId),
+                    BindingSetGuaWanParams,
+                  ),
                   _RETURN: /* @__PURE__ */ z.null(),
                 },
                 'set-range-address-enabled': {
-                  _PARAMS: /* @__PURE__ */ BindingSetAddressEnabledParams,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(RequiresPackageId, RequiresHostId),
+                    BindingSetAddressEnabledParams,
+                  ),
                   _RETURN: /* @__PURE__ */ z.null(),
                 },
               },
             },
             list: {
-              _PARAMS: /* @__PURE__ */ empty,
+              _PARAMS: /* @__PURE__ */ RequiresPackageId,
               _RETURN: /* @__PURE__ */ z.array(HostId),
             },
           },
@@ -5245,7 +5287,21 @@ export const Api = {
           _RETURN: /* @__PURE__ */ LogResponse,
           _CHILDREN: {
             follow: {
-              _PARAMS: /* @__PURE__ */ empty,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                object({
+                  limit: wire(
+                    z.int().nullable().optional(),
+                    z.int().nullable(),
+                  ),
+                  cursor: wire(
+                    z.string().nullable().optional(),
+                    z.string().nullable(),
+                  ),
+                  boot: wire(literal_10.optional(), literal_10),
+                  before: wire(z.boolean().optional(), z.boolean()),
+                }),
+                PackageIdParams,
+              ),
               _RETURN: /* @__PURE__ */ LogFollowResponse,
             },
           },
@@ -5302,59 +5358,80 @@ export const Api = {
       _PARAMS: /* @__PURE__ */ z.intersection(empty, RegistryUrlParams),
       _CHILDREN: {
         admin: {
-          _PARAMS: /* @__PURE__ */ empty,
+          _PARAMS: /* @__PURE__ */ z.intersection(empty, RegistryUrlParams),
           _CHILDREN: {
             add: {
-              _PARAMS: /* @__PURE__ */ AddAdminParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, RegistryUrlParams),
+                AddAdminParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             list: {
               _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, RegistryUrlParams),
                 z.intersection(
-                  object({
-                    format: wire(
-                      IoFormat.nullable().optional(),
-                      IoFormat.nullable(),
-                    ),
-                  }),
+                  z.intersection(
+                    object({
+                      format: wire(
+                        IoFormat.nullable().optional(),
+                        IoFormat.nullable(),
+                      ),
+                    }),
+                    empty,
+                  ),
                   empty,
                 ),
-                empty,
               ),
               _RETURN: /* @__PURE__ */ z.record(z.string(), SignerInfo),
             },
             remove: {
-              _PARAMS: /* @__PURE__ */ RemoveAdminParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, RegistryUrlParams),
+                RemoveAdminParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             signer: {
-              _PARAMS: /* @__PURE__ */ empty,
+              _PARAMS: /* @__PURE__ */ z.intersection(empty, RegistryUrlParams),
               _CHILDREN: {
                 add: {
-                  _PARAMS: /* @__PURE__ */ SignerInfo,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, RegistryUrlParams),
+                    SignerInfo,
+                  ),
                   _RETURN: /* @__PURE__ */ Guid,
                 },
                 edit: {
-                  _PARAMS: /* @__PURE__ */ EditSignerParams,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, RegistryUrlParams),
+                    EditSignerParams,
+                  ),
                   _RETURN: /* @__PURE__ */ z.null(),
                 },
                 list: {
                   _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, RegistryUrlParams),
                     z.intersection(
-                      object({
-                        format: wire(
-                          IoFormat.nullable().optional(),
-                          IoFormat.nullable(),
-                        ),
-                      }),
+                      z.intersection(
+                        object({
+                          format: wire(
+                            IoFormat.nullable().optional(),
+                            IoFormat.nullable(),
+                          ),
+                        }),
+                        empty,
+                      ),
                       empty,
                     ),
-                    empty,
                   ),
                   _RETURN: /* @__PURE__ */ z.record(z.string(), SignerInfo),
                 },
                 remove: {
-                  _PARAMS: /* @__PURE__ */ RemoveSignerParams,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, RegistryUrlParams),
+                    RemoveSignerParams,
+                  ),
                   _RETURN: /* @__PURE__ */ z.null(),
                 },
               },
@@ -5362,24 +5439,52 @@ export const Api = {
           },
         },
         db: {
-          _PARAMS: /* @__PURE__ */ empty,
+          _PARAMS: /* @__PURE__ */ z.intersection(empty, RegistryUrlParams),
           _CHILDREN: {
             apply: {
-              _PARAMS: /* @__PURE__ */ ApplyWithPathParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, RegistryUrlParams),
+                ApplyWithPathParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             dump: {
-              _PARAMS: /* @__PURE__ */ DumpParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, RegistryUrlParams),
+                DumpParams,
+              ),
               _RETURN: /* @__PURE__ */ Dump,
             },
             subscribe: {
-              _PARAMS: /* @__PURE__ */ DumpParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, RegistryUrlParams),
+                DumpParams,
+              ),
               _RETURN: /* @__PURE__ */ SubscribeRes,
             },
           },
         },
         index: {
           _PARAMS: /* @__PURE__ */ z.intersection(
+            z.intersection(empty, RegistryUrlParams),
+            z.intersection(
+              z.intersection(
+                object({
+                  format: wire(
+                    IoFormat.nullable().optional(),
+                    IoFormat.nullable(),
+                  ),
+                }),
+                empty,
+              ),
+              empty,
+            ),
+          ),
+          _RETURN: /* @__PURE__ */ FullIndex,
+        },
+        info: {
+          _PARAMS: /* @__PURE__ */ z.intersection(
+            z.intersection(empty, RegistryUrlParams),
             z.intersection(
               object({
                 format: wire(
@@ -5389,153 +5494,242 @@ export const Api = {
               }),
               empty,
             ),
-            empty,
-          ),
-          _RETURN: /* @__PURE__ */ FullIndex,
-        },
-        info: {
-          _PARAMS: /* @__PURE__ */ z.intersection(
-            object({
-              format: wire(IoFormat.nullable().optional(), IoFormat.nullable()),
-            }),
-            empty,
           ),
           _RETURN: /* @__PURE__ */ RegistryInfo,
           _CHILDREN: {
             'set-description': {
-              _PARAMS: /* @__PURE__ */ SetDescriptionParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(
+                  z.intersection(empty, RegistryUrlParams),
+                  z.intersection(
+                    object({
+                      format: wire(
+                        IoFormat.nullable().optional(),
+                        IoFormat.nullable(),
+                      ),
+                    }),
+                    empty,
+                  ),
+                ),
+                SetDescriptionParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             'set-icon': {
-              _PARAMS: /* @__PURE__ */ SetIconParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(
+                  z.intersection(empty, RegistryUrlParams),
+                  z.intersection(
+                    object({
+                      format: wire(
+                        IoFormat.nullable().optional(),
+                        IoFormat.nullable(),
+                      ),
+                    }),
+                    empty,
+                  ),
+                ),
+                SetIconParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             'set-name': {
-              _PARAMS: /* @__PURE__ */ SetNameParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(
+                  z.intersection(empty, RegistryUrlParams),
+                  z.intersection(
+                    object({
+                      format: wire(
+                        IoFormat.nullable().optional(),
+                        IoFormat.nullable(),
+                      ),
+                    }),
+                    empty,
+                  ),
+                ),
+                SetNameParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
           },
         },
         metrics: {
-          _PARAMS: /* @__PURE__ */ empty,
+          _PARAMS: /* @__PURE__ */ z.intersection(empty, RegistryUrlParams),
           _CHILDREN: {
             downloads: {
               _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, RegistryUrlParams),
                 z.intersection(
-                  object({
-                    format: wire(
-                      IoFormat.nullable().optional(),
-                      IoFormat.nullable(),
-                    ),
-                  }),
-                  empty,
+                  z.intersection(
+                    object({
+                      format: wire(
+                        IoFormat.nullable().optional(),
+                        IoFormat.nullable(),
+                      ),
+                    }),
+                    empty,
+                  ),
+                  GetDownloadsParams,
                 ),
-                GetDownloadsParams,
               ),
               _RETURN: /* @__PURE__ */ DownloadsResponse,
             },
             summary: {
               _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, RegistryUrlParams),
                 z.intersection(
-                  object({
-                    format: wire(
-                      IoFormat.nullable().optional(),
-                      IoFormat.nullable(),
-                    ),
-                  }),
+                  z.intersection(
+                    object({
+                      format: wire(
+                        IoFormat.nullable().optional(),
+                        IoFormat.nullable(),
+                      ),
+                    }),
+                    empty,
+                  ),
                   empty,
                 ),
-                empty,
               ),
               _RETURN: /* @__PURE__ */ MetricsSummary,
             },
             users: {
               _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, RegistryUrlParams),
                 z.intersection(
-                  object({
-                    format: wire(
-                      IoFormat.nullable().optional(),
-                      IoFormat.nullable(),
-                    ),
-                  }),
-                  empty,
+                  z.intersection(
+                    object({
+                      format: wire(
+                        IoFormat.nullable().optional(),
+                        IoFormat.nullable(),
+                      ),
+                    }),
+                    empty,
+                  ),
+                  GetUsersParams,
                 ),
-                GetUsersParams,
               ),
               _RETURN: /* @__PURE__ */ UsersResponse,
             },
           },
         },
         os: {
-          _PARAMS: /* @__PURE__ */ empty,
+          _PARAMS: /* @__PURE__ */ z.intersection(empty, RegistryUrlParams),
           _CHILDREN: {
             asset: {
-              _PARAMS: /* @__PURE__ */ empty,
+              _PARAMS: /* @__PURE__ */ z.intersection(empty, RegistryUrlParams),
               _CHILDREN: {
                 add: {
-                  _PARAMS: /* @__PURE__ */ empty,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    empty,
+                    RegistryUrlParams,
+                  ),
                   _CHILDREN: {
                     img: {
-                      _PARAMS: /* @__PURE__ */ AddAssetParams,
+                      _PARAMS: /* @__PURE__ */ z.intersection(
+                        z.intersection(empty, RegistryUrlParams),
+                        AddAssetParams,
+                      ),
                       _RETURN: /* @__PURE__ */ z.null(),
                     },
                     iso: {
-                      _PARAMS: /* @__PURE__ */ AddAssetParams,
+                      _PARAMS: /* @__PURE__ */ z.intersection(
+                        z.intersection(empty, RegistryUrlParams),
+                        AddAssetParams,
+                      ),
                       _RETURN: /* @__PURE__ */ z.null(),
                     },
                     squashfs: {
-                      _PARAMS: /* @__PURE__ */ AddAssetParams,
+                      _PARAMS: /* @__PURE__ */ z.intersection(
+                        z.intersection(empty, RegistryUrlParams),
+                        AddAssetParams,
+                      ),
                       _RETURN: /* @__PURE__ */ z.null(),
                     },
                   },
                 },
                 get: {
-                  _PARAMS: /* @__PURE__ */ empty,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    empty,
+                    RegistryUrlParams,
+                  ),
                   _CHILDREN: {
                     img: {
-                      _PARAMS: /* @__PURE__ */ GetOsAssetParams,
+                      _PARAMS: /* @__PURE__ */ z.intersection(
+                        z.intersection(empty, RegistryUrlParams),
+                        GetOsAssetParams,
+                      ),
                       _RETURN: /* @__PURE__ */ RegistryAsset(Blake3Commitment),
                     },
                     iso: {
-                      _PARAMS: /* @__PURE__ */ GetOsAssetParams,
+                      _PARAMS: /* @__PURE__ */ z.intersection(
+                        z.intersection(empty, RegistryUrlParams),
+                        GetOsAssetParams,
+                      ),
                       _RETURN: /* @__PURE__ */ RegistryAsset(Blake3Commitment),
                     },
                     squashfs: {
-                      _PARAMS: /* @__PURE__ */ GetOsAssetParams,
+                      _PARAMS: /* @__PURE__ */ z.intersection(
+                        z.intersection(empty, RegistryUrlParams),
+                        GetOsAssetParams,
+                      ),
                       _RETURN: /* @__PURE__ */ RegistryAsset(Blake3Commitment),
                     },
                   },
                 },
                 remove: {
-                  _PARAMS: /* @__PURE__ */ empty,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    empty,
+                    RegistryUrlParams,
+                  ),
                   _CHILDREN: {
                     img: {
-                      _PARAMS: /* @__PURE__ */ RemoveAssetParams,
+                      _PARAMS: /* @__PURE__ */ z.intersection(
+                        z.intersection(empty, RegistryUrlParams),
+                        RemoveAssetParams,
+                      ),
                       _RETURN: /* @__PURE__ */ z.boolean(),
                     },
                     iso: {
-                      _PARAMS: /* @__PURE__ */ RemoveAssetParams,
+                      _PARAMS: /* @__PURE__ */ z.intersection(
+                        z.intersection(empty, RegistryUrlParams),
+                        RemoveAssetParams,
+                      ),
                       _RETURN: /* @__PURE__ */ z.boolean(),
                     },
                     squashfs: {
-                      _PARAMS: /* @__PURE__ */ RemoveAssetParams,
+                      _PARAMS: /* @__PURE__ */ z.intersection(
+                        z.intersection(empty, RegistryUrlParams),
+                        RemoveAssetParams,
+                      ),
                       _RETURN: /* @__PURE__ */ z.boolean(),
                     },
                   },
                 },
                 sign: {
-                  _PARAMS: /* @__PURE__ */ empty,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    empty,
+                    RegistryUrlParams,
+                  ),
                   _CHILDREN: {
                     img: {
-                      _PARAMS: /* @__PURE__ */ SignAssetParams,
+                      _PARAMS: /* @__PURE__ */ z.intersection(
+                        z.intersection(empty, RegistryUrlParams),
+                        SignAssetParams,
+                      ),
                       _RETURN: /* @__PURE__ */ z.null(),
                     },
                     iso: {
-                      _PARAMS: /* @__PURE__ */ SignAssetParams,
+                      _PARAMS: /* @__PURE__ */ z.intersection(
+                        z.intersection(empty, RegistryUrlParams),
+                        SignAssetParams,
+                      ),
                       _RETURN: /* @__PURE__ */ z.null(),
                     },
                     squashfs: {
-                      _PARAMS: /* @__PURE__ */ SignAssetParams,
+                      _PARAMS: /* @__PURE__ */ z.intersection(
+                        z.intersection(empty, RegistryUrlParams),
+                        SignAssetParams,
+                      ),
                       _RETURN: /* @__PURE__ */ z.null(),
                     },
                   },
@@ -5544,69 +5738,93 @@ export const Api = {
             },
             index: {
               _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, RegistryUrlParams),
                 z.intersection(
-                  object({
-                    format: wire(
-                      IoFormat.nullable().optional(),
-                      IoFormat.nullable(),
-                    ),
-                  }),
+                  z.intersection(
+                    object({
+                      format: wire(
+                        IoFormat.nullable().optional(),
+                        IoFormat.nullable(),
+                      ),
+                    }),
+                    empty,
+                  ),
                   empty,
                 ),
-                empty,
               ),
               _RETURN: /* @__PURE__ */ OsIndex,
             },
             version: {
-              _PARAMS: /* @__PURE__ */ empty,
+              _PARAMS: /* @__PURE__ */ z.intersection(empty, RegistryUrlParams),
               _CHILDREN: {
                 add: {
-                  _PARAMS: /* @__PURE__ */ AddVersionParams,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, RegistryUrlParams),
+                    AddVersionParams,
+                  ),
                   _RETURN: /* @__PURE__ */ z.null(),
                 },
                 get: {
                   _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, RegistryUrlParams),
                     z.intersection(
-                      object({
-                        format: wire(
-                          IoFormat.nullable().optional(),
-                          IoFormat.nullable(),
-                        ),
-                      }),
-                      empty,
+                      z.intersection(
+                        object({
+                          format: wire(
+                            IoFormat.nullable().optional(),
+                            IoFormat.nullable(),
+                          ),
+                        }),
+                        empty,
+                      ),
+                      GetOsVersionParams,
                     ),
-                    GetOsVersionParams,
                   ),
                   _RETURN: /* @__PURE__ */ OsVersionInfoMap,
                 },
                 remove: {
-                  _PARAMS: /* @__PURE__ */ RemoveVersionParams,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, RegistryUrlParams),
+                    RemoveVersionParams,
+                  ),
                   _RETURN: /* @__PURE__ */ z.null(),
                 },
                 signer: {
-                  _PARAMS: /* @__PURE__ */ empty,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    empty,
+                    RegistryUrlParams,
+                  ),
                   _CHILDREN: {
                     add: {
-                      _PARAMS: /* @__PURE__ */ VersionSignerParams,
+                      _PARAMS: /* @__PURE__ */ z.intersection(
+                        z.intersection(empty, RegistryUrlParams),
+                        VersionSignerParams,
+                      ),
                       _RETURN: /* @__PURE__ */ z.null(),
                     },
                     list: {
                       _PARAMS: /* @__PURE__ */ z.intersection(
+                        z.intersection(empty, RegistryUrlParams),
                         z.intersection(
-                          object({
-                            format: wire(
-                              IoFormat.nullable().optional(),
-                              IoFormat.nullable(),
-                            ),
-                          }),
-                          empty,
+                          z.intersection(
+                            object({
+                              format: wire(
+                                IoFormat.nullable().optional(),
+                                IoFormat.nullable(),
+                              ),
+                            }),
+                            empty,
+                          ),
+                          ListVersionSignersParams,
                         ),
-                        ListVersionSignersParams,
                       ),
                       _RETURN: /* @__PURE__ */ z.record(z.string(), SignerInfo),
                     },
                     remove: {
-                      _PARAMS: /* @__PURE__ */ VersionSignerParams,
+                      _PARAMS: /* @__PURE__ */ z.intersection(
+                        z.intersection(empty, RegistryUrlParams),
+                        VersionSignerParams,
+                      ),
                       _RETURN: /* @__PURE__ */ z.null(),
                     },
                   },
@@ -5616,109 +5834,148 @@ export const Api = {
           },
         },
         package: {
-          _PARAMS: /* @__PURE__ */ empty,
+          _PARAMS: /* @__PURE__ */ z.intersection(empty, RegistryUrlParams),
           _CHILDREN: {
             add: {
-              _PARAMS: /* @__PURE__ */ AddPackageParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, RegistryUrlParams),
+                AddPackageParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             'add-mirror': {
-              _PARAMS: /* @__PURE__ */ AddMirrorParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, RegistryUrlParams),
+                AddMirrorParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             category: {
-              _PARAMS: /* @__PURE__ */ empty,
+              _PARAMS: /* @__PURE__ */ z.intersection(empty, RegistryUrlParams),
               _CHILDREN: {
                 add: {
-                  _PARAMS: /* @__PURE__ */ AddCategoryParams,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, RegistryUrlParams),
+                    AddCategoryParams,
+                  ),
                   _RETURN: /* @__PURE__ */ z.null(),
                 },
                 'add-package': {
-                  _PARAMS: /* @__PURE__ */ AddPackageToCategoryParams,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, RegistryUrlParams),
+                    AddPackageToCategoryParams,
+                  ),
                   _RETURN: /* @__PURE__ */ z.null(),
                 },
                 list: {
                   _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, RegistryUrlParams),
                     z.intersection(
-                      object({
-                        format: wire(
-                          IoFormat.nullable().optional(),
-                          IoFormat.nullable(),
-                        ),
-                      }),
+                      z.intersection(
+                        object({
+                          format: wire(
+                            IoFormat.nullable().optional(),
+                            IoFormat.nullable(),
+                          ),
+                        }),
+                        empty,
+                      ),
                       empty,
                     ),
-                    empty,
                   ),
                   _RETURN: /* @__PURE__ */ z.record(z.string(), Category),
                 },
                 remove: {
-                  _PARAMS: /* @__PURE__ */ RemoveCategoryParams,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, RegistryUrlParams),
+                    RemoveCategoryParams,
+                  ),
                   _RETURN: /* @__PURE__ */ z.null(),
                 },
                 'remove-package': {
-                  _PARAMS: /* @__PURE__ */ RemovePackageFromCategoryParams,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, RegistryUrlParams),
+                    RemovePackageFromCategoryParams,
+                  ),
                   _RETURN: /* @__PURE__ */ z.null(),
                 },
               },
             },
             get: {
               _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, RegistryUrlParams),
                 z.intersection(
-                  object({
-                    format: wire(
-                      IoFormat.nullable().optional(),
-                      IoFormat.nullable(),
-                    ),
-                  }),
-                  empty,
+                  z.intersection(
+                    object({
+                      format: wire(
+                        IoFormat.nullable().optional(),
+                        IoFormat.nullable(),
+                      ),
+                    }),
+                    empty,
+                  ),
+                  GetPackageParams,
                 ),
-                GetPackageParams,
               ),
               _RETURN: /* @__PURE__ */ GetPackageResult,
             },
             index: {
               _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, RegistryUrlParams),
                 z.intersection(
-                  object({
-                    format: wire(
-                      IoFormat.nullable().optional(),
-                      IoFormat.nullable(),
-                    ),
-                  }),
+                  z.intersection(
+                    object({
+                      format: wire(
+                        IoFormat.nullable().optional(),
+                        IoFormat.nullable(),
+                      ),
+                    }),
+                    empty,
+                  ),
                   empty,
                 ),
-                empty,
               ),
               _RETURN: /* @__PURE__ */ PackageIndex,
             },
             remove: {
-              _PARAMS: /* @__PURE__ */ RemovePackageParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, RegistryUrlParams),
+                RemovePackageParams,
+              ),
               _RETURN: /* @__PURE__ */ z.boolean(),
             },
             'remove-mirror': {
-              _PARAMS: /* @__PURE__ */ RemoveMirrorParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, RegistryUrlParams),
+                RemoveMirrorParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             signer: {
-              _PARAMS: /* @__PURE__ */ empty,
+              _PARAMS: /* @__PURE__ */ z.intersection(empty, RegistryUrlParams),
               _CHILDREN: {
                 add: {
-                  _PARAMS: /* @__PURE__ */ AddPackageSignerParams,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, RegistryUrlParams),
+                    AddPackageSignerParams,
+                  ),
                   _RETURN: /* @__PURE__ */ z.null(),
                 },
                 list: {
                   _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, RegistryUrlParams),
                     z.intersection(
-                      object({
-                        format: wire(
-                          IoFormat.nullable().optional(),
-                          IoFormat.nullable(),
-                        ),
-                      }),
-                      empty,
+                      z.intersection(
+                        object({
+                          format: wire(
+                            IoFormat.nullable().optional(),
+                            IoFormat.nullable(),
+                          ),
+                        }),
+                        empty,
+                      ),
+                      ListPackageSignersParams,
                     ),
-                    ListPackageSignersParams,
                   ),
                   _RETURN: /* @__PURE__ */ z.record(
                     z.string(),
@@ -5726,7 +5983,10 @@ export const Api = {
                   ),
                 },
                 remove: {
-                  _PARAMS: /* @__PURE__ */ RemovePackageSignerParams,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, RegistryUrlParams),
+                    RemovePackageSignerParams,
+                  ),
                   _RETURN: /* @__PURE__ */ z.null(),
                 },
               },
@@ -5895,7 +6155,21 @@ export const Api = {
           _RETURN: /* @__PURE__ */ LogResponse,
           _CHILDREN: {
             follow: {
-              _PARAMS: /* @__PURE__ */ empty,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                object({
+                  limit: wire(
+                    z.int().nullable().optional(),
+                    z.int().nullable(),
+                  ),
+                  cursor: wire(
+                    z.string().nullable().optional(),
+                    z.string().nullable(),
+                  ),
+                  boot: wire(literal_10.optional(), literal_10),
+                  before: wire(z.boolean().optional(), z.boolean()),
+                }),
+                empty,
+              ),
               _RETURN: /* @__PURE__ */ LogFollowResponse,
             },
           },
@@ -5916,7 +6190,21 @@ export const Api = {
           _RETURN: /* @__PURE__ */ LogResponse,
           _CHILDREN: {
             follow: {
-              _PARAMS: /* @__PURE__ */ empty,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                object({
+                  limit: wire(
+                    z.int().nullable().optional(),
+                    z.int().nullable(),
+                  ),
+                  cursor: wire(
+                    z.string().nullable().optional(),
+                    z.string().nullable(),
+                  ),
+                  boot: wire(literal_10.optional(), literal_10),
+                  before: wire(z.boolean().optional(), z.boolean()),
+                }),
+                empty,
+              ),
               _RETURN: /* @__PURE__ */ LogFollowResponse,
             },
           },
@@ -5931,7 +6219,18 @@ export const Api = {
           _RETURN: /* @__PURE__ */ Metrics,
           _CHILDREN: {
             follow: {
-              _PARAMS: /* @__PURE__ */ MetricsFollowParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(
+                  object({
+                    format: wire(
+                      IoFormat.nullable().optional(),
+                      IoFormat.nullable(),
+                    ),
+                  }),
+                  empty,
+                ),
+                MetricsFollowParams,
+              ),
               _RETURN: /* @__PURE__ */ MetricsFollowResponse,
             },
           },
@@ -6055,367 +6354,517 @@ export const Api = {
       _PARAMS: /* @__PURE__ */ z.intersection(empty, TunnelUrlParams),
       _CHILDREN: {
         auth: {
-          _PARAMS: /* @__PURE__ */ empty,
+          _PARAMS: /* @__PURE__ */ z.intersection(empty, TunnelUrlParams),
           _CHILDREN: {
             key: {
-              _PARAMS: /* @__PURE__ */ empty,
+              _PARAMS: /* @__PURE__ */ z.intersection(empty, TunnelUrlParams),
               _CHILDREN: {
                 add: {
-                  _PARAMS: /* @__PURE__ */ AddKeyParams,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, TunnelUrlParams),
+                    AddKeyParams,
+                  ),
                   _RETURN: /* @__PURE__ */ z.null(),
                 },
                 list: {
                   _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, TunnelUrlParams),
                     z.intersection(
-                      object({
-                        format: wire(
-                          IoFormat.nullable().optional(),
-                          IoFormat.nullable(),
-                        ),
-                      }),
+                      z.intersection(
+                        object({
+                          format: wire(
+                            IoFormat.nullable().optional(),
+                            IoFormat.nullable(),
+                          ),
+                        }),
+                        empty,
+                      ),
                       empty,
                     ),
-                    empty,
                   ),
                   _RETURN: /* @__PURE__ */ AuthKeys,
                 },
                 remove: {
-                  _PARAMS: /* @__PURE__ */ RemoveKeyParams,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, TunnelUrlParams),
+                    RemoveKeyParams,
+                  ),
                   _RETURN: /* @__PURE__ */ z.null(),
                 },
               },
             },
             login: {
-              _PARAMS: /* @__PURE__ */ LoginParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                LoginParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             logout: {
-              _PARAMS: /* @__PURE__ */ LogoutParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                LogoutParams,
+              ),
               _RETURN: /* @__PURE__ */ HasUnenrolledKeys.nullable(),
             },
             session: {
-              _PARAMS: /* @__PURE__ */ empty,
+              _PARAMS: /* @__PURE__ */ z.intersection(empty, TunnelUrlParams),
               _CHILDREN: {
                 kill: {
-                  _PARAMS: /* @__PURE__ */ KillParams,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, TunnelUrlParams),
+                    KillParams,
+                  ),
                   _RETURN: /* @__PURE__ */ z.null(),
                 },
                 list: {
                   _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, TunnelUrlParams),
                     z.intersection(
-                      object({
-                        format: wire(
-                          IoFormat.nullable().optional(),
-                          IoFormat.nullable(),
-                        ),
-                      }),
-                      empty,
+                      z.intersection(
+                        object({
+                          format: wire(
+                            IoFormat.nullable().optional(),
+                            IoFormat.nullable(),
+                          ),
+                        }),
+                        empty,
+                      ),
+                      ListParams,
                     ),
-                    ListParams,
                   ),
                   _RETURN: /* @__PURE__ */ SessionList,
                 },
               },
             },
             'set-password': {
-              _PARAMS: /* @__PURE__ */ SetPasswordParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                SetPasswordParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
           },
         },
         db: {
-          _PARAMS: /* @__PURE__ */ empty,
+          _PARAMS: /* @__PURE__ */ z.intersection(empty, TunnelUrlParams),
           _CHILDREN: {
             apply: {
-              _PARAMS: /* @__PURE__ */ ApplyWithPathParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                ApplyWithPathParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             dump: {
-              _PARAMS: /* @__PURE__ */ DumpParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                DumpParams,
+              ),
               _RETURN: /* @__PURE__ */ Dump,
             },
             subscribe: {
-              _PARAMS: /* @__PURE__ */ SubscribeParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                SubscribeParams,
+              ),
               _RETURN: /* @__PURE__ */ SubscribeRes,
             },
           },
         },
         device: {
-          _PARAMS: /* @__PURE__ */ empty,
+          _PARAMS: /* @__PURE__ */ z.intersection(empty, TunnelUrlParams),
           _CHILDREN: {
             add: {
-              _PARAMS: /* @__PURE__ */ AddDeviceParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                AddDeviceParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             list: {
               _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
                 z.intersection(
-                  object({
-                    format: wire(
-                      IoFormat.nullable().optional(),
-                      IoFormat.nullable(),
-                    ),
-                  }),
-                  empty,
+                  z.intersection(
+                    object({
+                      format: wire(
+                        IoFormat.nullable().optional(),
+                        IoFormat.nullable(),
+                      ),
+                    }),
+                    empty,
+                  ),
+                  ListDevicesParams,
                 ),
-                ListDevicesParams,
               ),
               _RETURN: /* @__PURE__ */ WgSubnetConfig,
             },
             remove: {
-              _PARAMS: /* @__PURE__ */ RemoveDeviceParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                RemoveDeviceParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             'set-auto-port-forward': {
-              _PARAMS: /* @__PURE__ */ SetAutoPortForwardParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                SetAutoPortForwardParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             'set-dns-injection': {
-              _PARAMS: /* @__PURE__ */ SetDnsInjectionParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                SetDnsInjectionParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             'set-kind': {
-              _PARAMS: /* @__PURE__ */ SetDeviceKindParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                SetDeviceKindParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             'set-wan': {
-              _PARAMS: /* @__PURE__ */ SetDeviceWanParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                SetDeviceWanParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             'show-config': {
-              _PARAMS: /* @__PURE__ */ ShowConfigParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                ShowConfigParams,
+              ),
               _RETURN: /* @__PURE__ */ z.string(),
             },
           },
         },
         dns: {
-          _PARAMS: /* @__PURE__ */ empty,
+          _PARAMS: /* @__PURE__ */ z.intersection(empty, TunnelUrlParams),
           _CHILDREN: {
             add: {
-              _PARAMS: /* @__PURE__ */ AddDnsRecordParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                AddDnsRecordParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             list: {
               _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
                 z.intersection(
-                  object({
-                    format: wire(
-                      IoFormat.nullable().optional(),
-                      IoFormat.nullable(),
-                    ),
-                  }),
+                  z.intersection(
+                    object({
+                      format: wire(
+                        IoFormat.nullable().optional(),
+                        IoFormat.nullable(),
+                      ),
+                    }),
+                    empty,
+                  ),
                   empty,
                 ),
-                empty,
               ),
               _RETURN: /* @__PURE__ */ z.array(DnsRecordEntry),
             },
             remove: {
-              _PARAMS: /* @__PURE__ */ RemoveDnsRecordParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                RemoveDnsRecordParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
           },
         },
         'http-redirect': {
-          _PARAMS: /* @__PURE__ */ empty,
+          _PARAMS: /* @__PURE__ */ z.intersection(empty, TunnelUrlParams),
           _CHILDREN: {
             list: {
               _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
                 z.intersection(
-                  object({
-                    format: wire(
-                      IoFormat.nullable().optional(),
-                      IoFormat.nullable(),
-                    ),
-                  }),
+                  z.intersection(
+                    object({
+                      format: wire(
+                        IoFormat.nullable().optional(),
+                        IoFormat.nullable(),
+                      ),
+                    }),
+                    empty,
+                  ),
                   empty,
                 ),
-                empty,
               ),
               _RETURN: /* @__PURE__ */ z.array(HttpRedirectStatus),
             },
             'set-enabled': {
-              _PARAMS: /* @__PURE__ */ SetHttpRedirectEnabledParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                SetHttpRedirectEnabledParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
           },
         },
         pinhole: {
-          _PARAMS: /* @__PURE__ */ empty,
+          _PARAMS: /* @__PURE__ */ z.intersection(empty, TunnelUrlParams),
           _CHILDREN: {
             add: {
-              _PARAMS: /* @__PURE__ */ AddPinholeParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                AddPinholeParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             remove: {
-              _PARAMS: /* @__PURE__ */ RemovePinholeParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                RemovePinholeParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             'set-enabled': {
-              _PARAMS: /* @__PURE__ */ SetPinholeEnabledParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                SetPinholeEnabledParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             'update-label': {
-              _PARAMS: /* @__PURE__ */ UpdatePinholeLabelParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                UpdatePinholeLabelParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
           },
         },
         'port-forward': {
-          _PARAMS: /* @__PURE__ */ empty,
+          _PARAMS: /* @__PURE__ */ z.intersection(empty, TunnelUrlParams),
           _CHILDREN: {
             add: {
-              _PARAMS: /* @__PURE__ */ AddPortForwardParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                AddPortForwardParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             remove: {
-              _PARAMS: /* @__PURE__ */ RemovePortForwardParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                RemovePortForwardParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             'set-enabled': {
-              _PARAMS: /* @__PURE__ */ SetPortForwardEnabledParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                SetPortForwardEnabledParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             'update-label': {
-              _PARAMS: /* @__PURE__ */ UpdatePortForwardLabelParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                UpdatePortForwardLabelParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
           },
         },
         restart: {
-          _PARAMS: /* @__PURE__ */ empty,
+          _PARAMS: /* @__PURE__ */ z.intersection(empty, TunnelUrlParams),
           _RETURN: /* @__PURE__ */ z.null(),
         },
         subnet: {
-          _PARAMS: /* @__PURE__ */ SubnetParams,
+          _PARAMS: /* @__PURE__ */ z.intersection(
+            z.intersection(empty, TunnelUrlParams),
+            SubnetParams,
+          ),
           _CHILDREN: {
             add: {
-              _PARAMS: /* @__PURE__ */ AddSubnetParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(
+                  z.intersection(empty, TunnelUrlParams),
+                  SubnetParams,
+                ),
+                AddSubnetParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             remove: {
-              _PARAMS: /* @__PURE__ */ empty,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                SubnetParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             'set-dns': {
-              _PARAMS: /* @__PURE__ */ SetSubnetDnsParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(
+                  z.intersection(empty, TunnelUrlParams),
+                  SubnetParams,
+                ),
+                SetSubnetDnsParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             'set-ipv6': {
-              _PARAMS: /* @__PURE__ */ SetSubnetIpv6Params,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(
+                  z.intersection(empty, TunnelUrlParams),
+                  SubnetParams,
+                ),
+                SetSubnetIpv6Params,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             'set-wan': {
-              _PARAMS: /* @__PURE__ */ SetSubnetWanParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(
+                  z.intersection(empty, TunnelUrlParams),
+                  SubnetParams,
+                ),
+                SetSubnetWanParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
           },
         },
         update: {
-          _PARAMS: /* @__PURE__ */ empty,
+          _PARAMS: /* @__PURE__ */ z.intersection(empty, TunnelUrlParams),
           _CHILDREN: {
             apply: {
               _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
                 z.intersection(
-                  object({
-                    format: wire(
-                      IoFormat.nullable().optional(),
-                      IoFormat.nullable(),
-                    ),
-                  }),
+                  z.intersection(
+                    object({
+                      format: wire(
+                        IoFormat.nullable().optional(),
+                        IoFormat.nullable(),
+                      ),
+                    }),
+                    empty,
+                  ),
                   empty,
                 ),
-                empty,
               ),
               _RETURN: /* @__PURE__ */ TunnelUpdateResult,
             },
             check: {
               _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
                 z.intersection(
-                  object({
-                    format: wire(
-                      IoFormat.nullable().optional(),
-                      IoFormat.nullable(),
-                    ),
-                  }),
+                  z.intersection(
+                    object({
+                      format: wire(
+                        IoFormat.nullable().optional(),
+                        IoFormat.nullable(),
+                      ),
+                    }),
+                    empty,
+                  ),
                   empty,
                 ),
-                empty,
               ),
               _RETURN: /* @__PURE__ */ TunnelUpdateResult,
             },
           },
         },
         web: {
-          _PARAMS: /* @__PURE__ */ empty,
+          _PARAMS: /* @__PURE__ */ z.intersection(empty, TunnelUrlParams),
           _CHILDREN: {
             disable: {
-              _PARAMS: /* @__PURE__ */ empty,
+              _PARAMS: /* @__PURE__ */ z.intersection(empty, TunnelUrlParams),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             enable: {
-              _PARAMS: /* @__PURE__ */ empty,
+              _PARAMS: /* @__PURE__ */ z.intersection(empty, TunnelUrlParams),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             'generate-certificate': {
-              _PARAMS: /* @__PURE__ */ GenerateCertParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                GenerateCertParams,
+              ),
               _RETURN: /* @__PURE__ */ literal_0,
             },
             'get-available-ips': {
               _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
                 z.intersection(
-                  object({
-                    format: wire(
-                      IoFormat.nullable().optional(),
-                      IoFormat.nullable(),
-                    ),
-                  }),
+                  z.intersection(
+                    object({
+                      format: wire(
+                        IoFormat.nullable().optional(),
+                        IoFormat.nullable(),
+                      ),
+                    }),
+                    empty,
+                  ),
                   empty,
                 ),
-                empty,
               ),
               _RETURN: /* @__PURE__ */ z.array(z.string()),
             },
             'get-certificate': {
               _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
                 z.intersection(
-                  object({
-                    format: wire(
-                      IoFormat.nullable().optional(),
-                      IoFormat.nullable(),
-                    ),
-                  }),
+                  z.intersection(
+                    object({
+                      format: wire(
+                        IoFormat.nullable().optional(),
+                        IoFormat.nullable(),
+                      ),
+                    }),
+                    empty,
+                  ),
                   empty,
                 ),
-                empty,
               ),
               _RETURN: /* @__PURE__ */ literal_0.nullable(),
             },
             'get-listen': {
               _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
                 z.intersection(
-                  object({
-                    format: wire(
-                      IoFormat.nullable().optional(),
-                      IoFormat.nullable(),
-                    ),
-                  }),
+                  z.intersection(
+                    object({
+                      format: wire(
+                        IoFormat.nullable().optional(),
+                        IoFormat.nullable(),
+                      ),
+                    }),
+                    empty,
+                  ),
                   empty,
                 ),
-                empty,
               ),
               _RETURN: /* @__PURE__ */ z.string().nullable(),
             },
             'import-certificate': {
-              _PARAMS: /* @__PURE__ */ TunnelCertData,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                TunnelCertData,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             'set-listen': {
-              _PARAMS: /* @__PURE__ */ SetListenParams,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(empty, TunnelUrlParams),
+                SetListenParams,
+              ),
               _RETURN: /* @__PURE__ */ z.null(),
             },
             uninit: {
-              _PARAMS: /* @__PURE__ */ empty,
+              _PARAMS: /* @__PURE__ */ z.intersection(empty, TunnelUrlParams),
               _RETURN: /* @__PURE__ */ z.null(),
             },
           },

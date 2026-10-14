@@ -57,7 +57,7 @@ type Result = RpcReturnType<Api, 'users.create'>
 const inputSchema = z.toJSONSchema(schemas._CHILDREN.users._CHILDREN.create._PARAMS, { io: 'input' })
 ```
 
-Parameters include every enclosing parent's parameters. A parent with a
+A node's `_PARAMS` already includes every enclosing parent's parameters (`z.intersection(Parent, Own)`; a parent with no parameters adds nothing), so `RpcParamType` is a lookup and `z.toJSONSchema(node._PARAMS)` describes the whole request. A parent with a
 `root_handler` is callable at its own method path; the empty method selects the
 root itself. A namespace without a root handler and an invalid method path resolve
 to `never`. A child that opts out has unknown parameters/results without weakening

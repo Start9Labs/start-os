@@ -31,7 +31,7 @@ where
     Box::new(|visitor| Static::<T>::new().visit(visitor))
 }
 
-/// Supplies the handler's own input shape, excluding inherited parameters.
+/// Supplies the handler's own input shape; the tree emitter folds inherited parameters in.
 pub trait ParamsTS {
     fn params_ts<'a>(&'a self) -> TSWriter<'a>;
 }
@@ -113,10 +113,18 @@ impl<'a> HandlerTS<'a> {
 }
 impl<'a> Visit<TSVisitor> for HandlerTS<'a> {
     fn visit(&self, visitor: &mut TSVisitor) -> <TSVisitor as Visitor>::Result {
+        let own = visitor.in_direction(Direction::Input, |visitor| {
+            visitor.capture(|visitor| (self.params_ts)(visitor)).value
+        });
+        let params = match visitor.inherited_params() {
+            Some(inherited) if own == "empty" => inherited.to_owned(),
+            Some(inherited) => format!("z.intersection({inherited}, {own})"),
+            None => own,
+        };
         visitor.ts.push_str("{ _PARAMS: ");
         visitor.ts.push_str(PURE);
         visitor.ts.push(' ');
-        visitor.in_direction(Direction::Input, |visitor| (self.params_ts)(visitor));
+        visitor.ts.push_str(&params);
         if let Some(return_ty) = &self.return_ts {
             visitor.ts.push_str(", _RETURN: ");
             visitor.ts.push_str(PURE);
@@ -125,7 +133,7 @@ impl<'a> Visit<TSVisitor> for HandlerTS<'a> {
         }
         if let Some(children) = &self.children {
             visitor.ts.push_str(", _CHILDREN: ");
-            children(visitor);
+            visitor.with_inherited_params(params, |visitor| children(visitor));
         }
         visitor.ts.push_str(" }");
     }

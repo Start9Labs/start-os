@@ -248,6 +248,8 @@ pub struct TSVisitor {
     reach: BTreeMap<String, Reach>,
     /// Literal expressions hoisted into module constants, by text.
     literals: BTreeMap<String, usize>,
+    /// Folded parameter expressions of the enclosing handlers, innermost last.
+    inherited_params: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -313,6 +315,7 @@ impl TSVisitor {
             context: None,
             reach: BTreeMap::new(),
             literals: BTreeMap::new(),
+            inherited_params: Vec::new(),
         }
     }
 
@@ -331,10 +334,36 @@ impl TSVisitor {
 
     /// Renders under one wire direction, so declarations reached only there
     /// project only that direction's type alias.
-    pub fn in_direction(&mut self, direction: Direction, visit: impl FnOnce(&mut Self)) {
+    pub fn in_direction<R>(
+        &mut self,
+        direction: Direction,
+        visit: impl FnOnce(&mut Self) -> R,
+    ) -> R {
         let previous = self.context.replace(direction);
-        visit(self);
+        let result = visit(self);
         self.context = previous;
+        result
+    }
+
+    /// The parameters every handler under the current tree position accepts
+    /// besides its own, already folded; `None` where no ancestor declares any.
+    pub fn inherited_params(&self) -> Option<&str> {
+        self.inherited_params
+            .last()
+            .map(String::as_str)
+            .filter(|params| *params != "empty")
+    }
+
+    /// Runs the children of a handler whose full parameters are `params`.
+    pub fn with_inherited_params<R>(
+        &mut self,
+        params: String,
+        visit: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        self.inherited_params.push(params);
+        let result = visit(self);
+        self.inherited_params.pop();
+        result
     }
 
     /// Records a reference to a declaration; one whose eager references reach

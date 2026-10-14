@@ -1171,23 +1171,35 @@ export const Api = {
       _PARAMS: /* @__PURE__ */ SubnetParams,
       _CHILDREN: {
         add: {
-          _PARAMS: /* @__PURE__ */ AddSubnetParams,
+          _PARAMS: /* @__PURE__ */ z.intersection(
+            SubnetParams,
+            AddSubnetParams,
+          ),
           _RETURN: /* @__PURE__ */ z.null(),
         },
         remove: {
-          _PARAMS: /* @__PURE__ */ empty,
+          _PARAMS: /* @__PURE__ */ SubnetParams,
           _RETURN: /* @__PURE__ */ z.null(),
         },
         'set-dns': {
-          _PARAMS: /* @__PURE__ */ SetSubnetDnsParams,
+          _PARAMS: /* @__PURE__ */ z.intersection(
+            SubnetParams,
+            SetSubnetDnsParams,
+          ),
           _RETURN: /* @__PURE__ */ z.null(),
         },
         'set-ipv6': {
-          _PARAMS: /* @__PURE__ */ SetSubnetIpv6Params,
+          _PARAMS: /* @__PURE__ */ z.intersection(
+            SubnetParams,
+            SetSubnetIpv6Params,
+          ),
           _RETURN: /* @__PURE__ */ z.null(),
         },
         'set-wan': {
-          _PARAMS: /* @__PURE__ */ SetSubnetWanParams,
+          _PARAMS: /* @__PURE__ */ z.intersection(
+            SubnetParams,
+            SetSubnetWanParams,
+          ),
           _RETURN: /* @__PURE__ */ z.null(),
         },
       },

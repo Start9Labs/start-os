@@ -1044,15 +1044,48 @@ export const Api = {
       _RETURN: /* @__PURE__ */ RegistryInfo,
       _CHILDREN: {
         'set-description': {
-          _PARAMS: /* @__PURE__ */ SetDescriptionParams,
+          _PARAMS: /* @__PURE__ */ z.intersection(
+            z.intersection(
+              object({
+                format: wire(
+                  IoFormat.nullable().optional(),
+                  IoFormat.nullable(),
+                ),
+              }),
+              empty,
+            ),
+            SetDescriptionParams,
+          ),
           _RETURN: /* @__PURE__ */ z.null(),
         },
         'set-icon': {
-          _PARAMS: /* @__PURE__ */ SetIconParams,
+          _PARAMS: /* @__PURE__ */ z.intersection(
+            z.intersection(
+              object({
+                format: wire(
+                  IoFormat.nullable().optional(),
+                  IoFormat.nullable(),
+                ),
+              }),
+              empty,
+            ),
+            SetIconParams,
+          ),
           _RETURN: /* @__PURE__ */ z.null(),
         },
         'set-name': {
-          _PARAMS: /* @__PURE__ */ SetNameParams,
+          _PARAMS: /* @__PURE__ */ z.intersection(
+            z.intersection(
+              object({
+                format: wire(
+                  IoFormat.nullable().optional(),
+                  IoFormat.nullable(),
+                ),
+              }),
+              empty,
+            ),
+            SetNameParams,
+          ),
           _RETURN: /* @__PURE__ */ z.null(),
         },
       },

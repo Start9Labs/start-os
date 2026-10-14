@@ -607,18 +607,42 @@ export const Api = {
           _PARAMS: /* @__PURE__ */ RequiresPackageId,
           _CHILDREN: {
             address: {
-              _PARAMS: /* @__PURE__ */ RequiresHostId,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                RequiresPackageId,
+                RequiresHostId,
+              ),
               _CHILDREN: {
                 domain: {
-                  _PARAMS: /* @__PURE__ */ empty,
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    RequiresPackageId,
+                    RequiresHostId,
+                  ),
                   _CHILDREN: {
-                    private: { _PARAMS: /* @__PURE__ */ empty, _CHILDREN: {} },
-                    public: { _PARAMS: /* @__PURE__ */ empty, _CHILDREN: {} },
+                    private: {
+                      _PARAMS: /* @__PURE__ */ z.intersection(
+                        RequiresPackageId,
+                        RequiresHostId,
+                      ),
+                      _CHILDREN: {},
+                    },
+                    public: {
+                      _PARAMS: /* @__PURE__ */ z.intersection(
+                        RequiresPackageId,
+                        RequiresHostId,
+                      ),
+                      _CHILDREN: {},
+                    },
                   },
                 },
               },
             },
-            binding: { _PARAMS: /* @__PURE__ */ RequiresHostId, _CHILDREN: {} },
+            binding: {
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                RequiresPackageId,
+                RequiresHostId,
+              ),
+              _CHILDREN: {},
+            },
           },
         },
       },
@@ -762,7 +786,21 @@ export const Api = {
           _RETURN: /* @__PURE__ */ LogResponse,
           _CHILDREN: {
             follow: {
-              _PARAMS: /* @__PURE__ */ empty,
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                object({
+                  limit: wire(
+                    z.int().nullable().optional(),
+                    z.int().nullable(),
+                  ),
+                  cursor: wire(
+                    z.string().nullable().optional(),
+                    z.string().nullable(),
+                  ),
+                  boot: wire(literal_4.optional(), literal_4),
+                  before: wire(z.boolean().optional(), z.boolean()),
+                }),
+                empty,
+              ),
               _RETURN: /* @__PURE__ */ LogFollowResponse,
             },
           },
