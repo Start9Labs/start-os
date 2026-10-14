@@ -2,15 +2,9 @@
 
 After unboxing your Start9 router or completing a fresh install, follow these steps to get up and running. The entire process takes just a few minutes.
 
-<<<<<<< HEAD
 ## Connect the Router
 
-1. Connect your modem or upstream router to the Ethernet port labeled **WAN**. The port labeled **LAN** is for wired devices on your network.
-=======
-## Connect to the Router
-
-1. Connect the router's WAN port to your modem, and the included switch to its LAN port.
->>>>>>> 66cd15e56 (docs(start-wrt): align the router's docs with its store listing (#4232))
+1. Connect your modem or upstream router to the Ethernet port labeled **WAN**, and the included switch to the port labeled **LAN**, for wired devices on your network.
 
 1. Power on the router.
 
