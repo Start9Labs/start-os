@@ -4,11 +4,16 @@ After unboxing your Start9 router or completing a fresh install, follow these st
 
 ## Connect the Router
 
-1. Connect your modem or upstream router to the Ethernet port labeled **WAN**. The port labeled **LAN** is for wired devices on your network.
+1. Connect your modem or upstream router to the Ethernet port labeled **WAN**, and the included switch to the port labeled **LAN**, for wired devices on your network.
 
 1. Power on the router.
 
-1. On your phone or computer, connect to the `StartWRT` Wi-Fi network using the password printed on the sticker on the bottom of the device.
+1. Connect your phone or computer to the router, either:
+   - **Over Wi-Fi:** join the `StartWRT` network using the password printed on the sticker on the bottom of the device.
+   - **Over Ethernet:** plug it into the switch.
+
+> [!NOTE]
+> Routers sold in the United States ship without Wi-Fi. Set up over Ethernet, and see [Installing the Wi-Fi Module](wifi-module.md) to add it.
 
 ## Create Your Admin Password
 

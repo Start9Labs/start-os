@@ -2,17 +2,18 @@
 
 Every router Start9 has sold, newest first. Each entry lists the specifications and how to tell that model apart. What is for sale now is at [store.start9.com](https://store.start9.com). For servers, see [Start9 Hardware](/start-os/start9-hardware.html) in the StartOS documentation.
 
-## RISC-V Router
+## Start9 Router
 
 - **Sold:** October 2026 – present
 - **Base hardware:** BananaPi BPI-F3
 - **CPU:** SpaceMiT K1, 8-core RISC-V
 - **RAM:** 4 GB LPDDR4
 - **Storage:** 16 GB eMMC
-- **Ethernet:** 1× Gigabit WAN, 1× Gigabit LAN
+- **Ethernet:** 1× Gigabit WAN, 1× Gigabit LAN, plus a TP-Link 4-port switch in the box
 - **Wi-Fi:** AsiaRF AW7916-NPD mini-PCIe module (MediaTek MT7916), Wi-Fi 6E (802.11ax) — 2T2R on 2.4 GHz, 2T3R on 5/6 GHz, up to 2402 Mbps; StartWRT runs it on 2.4 GHz and 5 GHz concurrently. Sold separately to US customers, as FCC regulations require
 - **Ports:** 2× USB 3.0 Type-A, 1× USB-C (USB 2.0), and a microSD slot for flashing
 - **Power:** 12 V / 3 A DC; shipped with a C13/C14 mains cord
+- **Warranty:** 1 year
 - **How to identify it:** Start9 wordmark on top, a small DeepComputing logo on the back, and a Wi-Fi password sticker on the bottom
 - **Known issues:** none
 
