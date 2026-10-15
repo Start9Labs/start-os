@@ -70,7 +70,8 @@ pub struct Device {
     /// (default off; set via `devices set-auto-forward`).
     pub allow_auto_port_forward: bool,
     /// Whether this device may publish DNS records into the router's resolver
-    /// (`devices set-dns-injection`).
+    /// (`devices set-dns-injection`; `vpn-server peer-set-dns-injection` for a
+    /// VPN peer).
     pub allow_dns_injection: bool,
     pub security_profile: Option<String>,
     pub speed: Option<SpeedData>,
@@ -552,6 +553,7 @@ struct VpnPeerConfig {
     public_key: String,
     name: String,
     ip: Option<String>,
+    allow_dns_injection: bool,
 }
 
 /// An active VPN peer from `wg show`
@@ -623,6 +625,7 @@ fn get_vpn_peer_configs(cfgs: &Configs, wg_interface: &str) -> Vec<VpnPeerConfig
                 public_key,
                 name: description.unwrap_or_else(|| section.name().unwrap_or_default().to_string()),
                 ip,
+                allow_dns_injection: crate::dns_inject::peer_allows_dns_inject(section),
             })
         })
         .collect()
@@ -1677,8 +1680,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
                 ipv4_static: true,
                 // No MAC to authorize, so a VPN peer can never be auto-forward capable.
                 allow_auto_port_forward: false,
-                // A VPN peer is admitted on its TSIG signature, not a toggle.
-                allow_dns_injection: false,
+                allow_dns_injection: peer_cfg.allow_dns_injection,
                 security_profile: Some(server.profile_fullname.clone()),
                 speed,
                 data_usage,
