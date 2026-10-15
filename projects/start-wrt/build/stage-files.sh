@@ -170,6 +170,12 @@ for f in "$PROJECT_DIR"/backend/nftables/*.nft; do
     cp "$f" "${FILES_DIR}/usr/share/nftables.d/table-pre/$(basename "$f")"
 done
 
+# fw4 auto-includes these at the top level, outside `table inet fw4`.
+mkdir -p "${FILES_DIR}/usr/share/nftables.d/ruleset-pre"
+for f in "$PROJECT_DIR"/backend/nftables/ruleset-pre/*.nft; do
+    cp "$f" "${FILES_DIR}/usr/share/nftables.d/ruleset-pre/$(basename "$f")"
+done
+
 # Deletes the copies earlier images staged in /etc/nftables.d. fw4 would load
 # them alongside the ones above.
 mkdir -p "${FILES_DIR}/etc/uci-defaults"
