@@ -65,8 +65,6 @@ if (args.join(' ') === 's9pk list-ingredients') {
       bundle: fs.readFileSync('javascript/index.js', 'utf8'),
     }))
   }
-} else if (args.join(' ') === 's9pk select') {
-  console.log(fs.readdirSync('.').find(name => name.endsWith('.s9pk')))
 } else if (args[0] === 'package' && args[1] === 'install' && args[2] === '-s') {
   fs.copyFileSync(args[3], 'installed')
   process.exitCode = Number(process.env.INSTALL_STATUS || 0)

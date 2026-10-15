@@ -295,7 +295,7 @@ host:
 ```
 
 > [!TIP]
-> Setting `host.default` lets you upload an already-built package with `make install`. Build for your device first (`make x86`, `make arm`, or `make riscv`); `make install` does not build or refresh the artifact. It also requires logging in once with `start-cli auth login` (it prompts for your StartOS master password). If you'd rather not set up the CLI yet, you can sideload the `.s9pk` through the web interface instead — see [Quick Start](./quick-start.md#install-to-startos).
+> Setting `host.default` lets `make install` build the current variant for your device's architecture when needed and install that exact package. It also requires logging in once with `start-cli auth login` (it prompts for your StartOS master password). If you'd rather not set up the CLI yet, you can sideload the `.s9pk` through the web interface instead — see [Quick Start](./quick-start.md#install-to-startos).
 
 Any `start-cli` command takes `-H`/`--host` and `-r`/`--registry`. Pass a **profile name** to use one of these entries, or a **URL** to target something directly:
 
@@ -308,7 +308,7 @@ start-cli -H https://my-box.local <command>  # a URL works too
 With no flag, the `default` entry is used. `start-cli` finds this config by walking up from the current directory, so it works anywhere inside the workspace.
 
 > [!NOTE]
-> As of `@start9labs/start-sdk` 2.0, `make install` and `make publish` resolve their target through `start-cli` — the workspace `.startos/config.yaml` profiles, or `-H` / `-r`. See [Makefile](./makefile.md).
+> `make install` and `make publish` resolve their targets through the workspace profiles used by `start-cli`. To override a profile for one command, invoke `start-cli` directly with `-H` or `-r`. See [Makefile](./makefile.md).
 
 ### Keep it current
 
