@@ -549,4 +549,8 @@ export const ENGLISH: Record<string, number> = {
   'Names this device has published into the router. They expire on their own when the device stops publishing them; turning the permission off removes them immediately.': 566,
   'Type': 567,
   'Resolves to': 568,
+  'Channel Width': 569,
+  '2.4 GHz Width': 570,
+  '5 GHz Width': 571,
+  'Not connected': 572,
 }
