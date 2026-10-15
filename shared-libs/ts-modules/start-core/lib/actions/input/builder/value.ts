@@ -46,7 +46,7 @@ export type AsRequired<T, Required extends boolean> = Required extends true
 
 const testForAsRequiredParser = once(
   () => (v: unknown) =>
-    z.looseObject({ required: z.literal(true) }).safeParse(v).success,
+    z.looseObject({ required: z.literal(true) }).validate(v),
 )
 function asRequiredParser<Type, Input extends { required: boolean }>(
   parser: z.ZodType<Type>,
