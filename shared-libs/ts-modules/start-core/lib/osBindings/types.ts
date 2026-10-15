@@ -1590,6 +1590,18 @@ export type ImageSource =
       }
     }
   | { dockerTag: string }
+  | {
+      /**
+       * A self-contained local OCI image-layout directory or tar archive.
+       */
+      ociLayout: {
+        path: string
+        /**
+         * Top-level reference annotation or descriptor digest. Unset selects by platform.
+         */
+        reference?: string | null
+      }
+    }
 export type ImageSourceInput =
   | 'packed'
   | {
@@ -1600,6 +1612,18 @@ export type ImageSourceInput =
       }
     }
   | { dockerTag: string }
+  | {
+      /**
+       * A self-contained local OCI image-layout directory or tar archive.
+       */
+      ociLayout: {
+        path: string
+        /**
+         * Top-level reference annotation or descriptor digest. Unset selects by platform.
+         */
+        reference?: string | null
+      }
+    }
 export type InfoParams = {
   targetId: BackupTargetId
   serverId: string

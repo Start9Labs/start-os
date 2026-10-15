@@ -4,10 +4,13 @@ use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::process::Command;
 
 use super::*;
+use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::v1::builder::S9pkPacker;
 use crate::s9pk::v1::docker::DockerMultiArch;
+use crate::util::Invoke;
 use crate::util::squashfs::{Entry as SqfsEntry, NodeContents};
 
 const SCRIPT: &[u8] = b"export const main = () => 'legacy script sentinel';\n";
@@ -125,14 +128,23 @@ async fn legacy_package(assets: &[u8], scripts: Option<&[u8]>) -> Vec<u8> {
         None,
     );
     let docker = docker.into_inner().unwrap();
+    pack_legacy(&manifest, &docker, assets, scripts).await
+}
+
+async fn pack_legacy(
+    manifest: &ManifestV1,
+    docker: &[u8],
+    assets: &[u8],
+    scripts: Option<&[u8]>,
+) -> Vec<u8> {
     let mut writer = Cursor::new(Vec::new());
     S9pkPacker::builder()
         .writer(&mut writer)
-        .manifest(&manifest)
+        .manifest(manifest)
         .license(&b"MIT\n"[..])
         .instructions(&b"Legacy instructions\n"[..])
         .icon(&b"fixture icon"[..])
-        .docker_images(docker.as_slice())
+        .docker_images(docker)
         .assets(assets)
         .scripts(scripts)
         .build()
@@ -356,4 +368,91 @@ async fn from_v1_native_roundtrip_under_umask_077_with_and_without_scripts() {
         drop(reopened);
         workspace.gc().await.unwrap();
     }
+}
+
+#[tokio::test]
+async fn legacy_single_arch_images_convert_without_container_tools() {
+    const CHILD: &str = "STARTOS_LEGACY_NATIVE_IMAGE_TEST";
+    const TEST: &str =
+        "s9pk::v2::compat::tests::legacy_single_arch_images_convert_without_container_tools";
+    if std::env::var_os(CHILD).is_none() {
+        Command::new(std::env::current_exe().unwrap())
+            .arg(TEST)
+            .arg("--exact")
+            .env(CHILD, "1")
+            .env("PATH", "/nonexistent-startos-test-bin")
+            .invoke(ErrorKind::Filesystem)
+            .await
+            .unwrap();
+        return;
+    }
+    use std::io::Read;
+    use std::os::unix::ffi::OsStrExt;
+    let (saved, _) = super::super::image::tests::save_archive(&[asset_tar()], "amd64");
+    let mut docker = Vec::new();
+    for entry in tar::Archive::new(saved.as_slice()).entries().unwrap() {
+        let mut entry = entry.unwrap();
+        let path = entry.path().unwrap().into_owned();
+        let mut bytes = Vec::new();
+        entry.read_to_end(&mut bytes).unwrap();
+        if path == Path::new("manifest.json") {
+            let mut manifest: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+            manifest[0]["RepoTags"] = serde_json::json!(["start9/conversion-test/main:1.2.3"]);
+            bytes = serde_json::to_vec(&manifest).unwrap();
+        }
+        crate::util::squashfs::test_support::append(
+            &mut docker,
+            path.as_os_str().as_bytes(),
+            b'0',
+            &bytes,
+            None,
+        );
+    }
+    docker.extend_from_slice(&[0; 1024]);
+    let mut manifest = legacy_manifest();
+    manifest.main = serde_json::from_value(
+        serde_json::json!({"type":"docker", "image":"main", "entrypoint":"/bin/true"}),
+    )
+    .unwrap();
+    let bytes = pack_legacy(&manifest, &docker, &asset_tar(), None).await;
+    let reader = S9pkReader::from_reader(Cursor::new(bytes), true)
+        .await
+        .unwrap();
+    let workspace = Arc::new(TmpDir::new().await.unwrap());
+    let converted = S9pk::from_v1(
+        reader,
+        workspace.clone(),
+        ed25519_dalek::SigningKey::from_bytes(&[23; 32]),
+    )
+    .await
+    .unwrap();
+    assert!(
+        converted.manifest.images[&"main".parse().unwrap()]
+            .arch
+            .contains("x86_64")
+    );
+    let source = converted
+        .archive
+        .contents()
+        .get_path("images/x86_64/main.squashfs")
+        .unwrap()
+        .expect_file()
+        .unwrap();
+    let image = Squashfs::deserialize(Arc::<[u8]>::from(source.to_vec(None).await.unwrap()))
+        .await
+        .unwrap();
+    assert_eq!(
+        image
+            .contents()
+            .get_path(Path::new(OsStr::from_bytes(RAW_NAME)))
+            .unwrap()
+            .as_node()
+            .unwrap()
+            .metadata
+            .mode,
+        0o4600
+    );
+    drop(image);
+    drop(converted);
+    workspace.gc().await.unwrap();
 }

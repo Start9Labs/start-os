@@ -274,36 +274,30 @@ async fn image_save_validates_exit_status_and_drains_large_trailing_padding() {
     let dest = workspace.join("export.squashfs");
     tokio::time::timeout(
         std::time::Duration::from_secs(30),
-        save_squashfs(
-            Command::new("cat").arg(&archive),
-            &dest,
-            "--platform=linux/amd64",
-        ),
+        image_from_command(Command::new("cat").arg(&archive), "--platform=linux/amd64"),
     )
     .await
     .unwrap()
+    .unwrap()
+    .0
+    .serialize(&mut create_file(&dest).await.unwrap())
+    .await
     .unwrap();
-    let failed = save_squashfs(
+    let failed = image_from_command(
         Command::new("sh")
             .arg("-c")
             .arg(r#"cat "$1"; echo 'export-failed-after-tar' >&2; exit 7"#)
             .arg("sh")
             .arg(&archive),
-        &workspace.join("failed.squashfs"),
         "--platform=linux/amd64",
     )
     .await;
-    assert!(format!("{:?}", failed.unwrap_err()).contains("export-failed-after-tar"));
-    assert!(!workspace.join("failed.squashfs").exists());
+    assert!(format!("{:?}", failed.err().unwrap()).contains("export-failed-after-tar"));
     tokio::fs::write(&archive, b"truncated tar").await.unwrap();
     assert!(
-        save_squashfs(
-            Command::new("cat").arg(&archive),
-            &workspace.join("bad.squashfs"),
-            "--platform=linux/amd64",
-        )
-        .await
-        .is_err()
+        image_from_command(Command::new("cat").arg(&archive), "--platform=linux/amd64",)
+            .await
+            .is_err()
     );
     workspace.delete().await.unwrap();
 }
@@ -318,31 +312,27 @@ async fn docker_tag_load_pairs_target_platform_config_with_native_squashfs() {
         tokio::fs::write(workspace.join("save.tar"), archive)
             .await
             .unwrap();
-        tokio::fs::write(
-            workspace.join("image-id"),
-            format!("sha256:{}", "1".repeat(64)),
-        )
-        .await
-        .unwrap();
+        let (wrong_archive, _) = super::super::image::tests::save_archive(&[asset_tar()], "amd64");
+        tokio::fs::write(workspace.join("wrong.tar"), wrong_archive)
+            .await
+            .unwrap();
         let docker = workspace.join("docker");
         tokio::fs::write(
             &docker,
             r#"#!/bin/sh
 set -eu
-id="$(cat "$STARTOS_NATIVE_PACK_DOCKER_CHILD/image-id")"
 scenario="$(cat "$STARTOS_NATIVE_PACK_DOCKER_CHILD/scenario")"
 case "$*" in
-  'image inspect --platform=linux/arm64 --format {{json .}} multiarch:test')
+  'image pull --platform=linux/arm64 multiarch:test')
+    touch "$STARTOS_NATIVE_PACK_DOCKER_CHILD/pulled" ;;
+  'image save --platform=linux/arm64 multiarch:test')
     if [ ! -e "$STARTOS_NATIVE_PACK_DOCKER_CHILD/pulled" ]; then
       case "$scenario" in
         missing) exit 1 ;;
-        wrong-platform) printf '{"Id":"%s","Architecture":"amd64","Os":"linux"}\n' "$id"; exit 0 ;;
+        wrong-platform) cat "$STARTOS_NATIVE_PACK_DOCKER_CHILD/wrong.tar"; exit 0 ;;
+        corrupt) printf 'invalid image archive'; exit 0 ;;
       esac
     fi
-    printf '{"Id":"%s","Architecture":"arm64","Os":"linux"}\n' "$id" ;;
-  'image pull --platform=linux/arm64 multiarch:test')
-    touch "$STARTOS_NATIVE_PACK_DOCKER_CHILD/pulled" ;;
-  "image save --platform=linux/arm64 $id")
     touch "$STARTOS_NATIVE_PACK_DOCKER_CHILD/saved"
     cat "$STARTOS_NATIVE_PACK_DOCKER_CHILD/save.tar" ;;
   *) printf 'unexpected docker arguments: %s\n' "$*" >&2; exit 1 ;;
@@ -356,7 +346,7 @@ esac
             .unwrap();
         let mut paths = vec![workspace.to_path_buf()];
         paths.extend(std::env::split_paths(&std::env::var_os("PATH").unwrap()));
-        for scenario in ["cached", "missing", "wrong-platform"] {
+        for scenario in ["cached", "missing", "wrong-platform", "corrupt"] {
             tokio::fs::write(workspace.join("scenario"), scenario)
                 .await
                 .unwrap();
@@ -376,8 +366,11 @@ esac
                 .invoke(ErrorKind::Filesystem)
                 .await
                 .unwrap();
-            assert!(workspace.join("saved").exists());
-            assert_eq!(workspace.join("pulled").exists(), scenario != "cached");
+            assert_eq!(workspace.join("saved").exists(), scenario != "corrupt");
+            assert_eq!(
+                workspace.join("pulled").exists(),
+                matches!(scenario, "missing" | "wrong-platform")
+            );
         }
         workspace.gc().await.unwrap();
         return;
@@ -385,17 +378,27 @@ esac
     PREFER_DOCKER.set(true).unwrap();
     assert_eq!(*CONTAINER_TOOL, "docker");
     let mut files = DirectoryContents::<TmpSource<PackSource>>::new();
-    ImageSource::DockerTag("multiarch:test".into())
+    let loaded = ImageSource::DockerTag("multiarch:test".into())
         .load(
             workspace.clone(),
-            &"test".parse().unwrap(),
-            &"1.0.0:0".parse().unwrap(),
             &"main".parse().unwrap(),
             "aarch64",
             &mut files,
         )
-        .await
-        .unwrap();
+        .await;
+    let scenario = tokio::fs::read_to_string(
+        PathBuf::from(std::env::var_os(CHILD_ENV).unwrap()).join("scenario"),
+    )
+    .await
+    .unwrap();
+    if scenario == "corrupt" {
+        assert!(loaded.is_err());
+        assert!(files.is_empty());
+        drop(files);
+        workspace.gc().await.unwrap();
+        return;
+    }
+    loaded.unwrap();
     let metadata: ImageMetadata = serde_json::from_slice(
         &files
             .get_path("images/aarch64/main.json")

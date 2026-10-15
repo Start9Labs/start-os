@@ -13,6 +13,31 @@ use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::{DynFileSource, FileSource};
 use crate::util::squashfs::{Entry, LayerFilesystem, Squashfs, resolve_hardlink};
 
+mod oci;
+
+#[cfg(test)]
+pub(crate) use oci::tests::simple_archive as oci_test_archive;
+
+const ARCHITECTURES: &[(&str, &str)] = &[("x86_64", "amd64"), ("aarch64", "arm64")];
+
+pub(super) fn oci_architecture(arch: &str) -> &str {
+    ARCHITECTURES
+        .iter()
+        .find(|(package, _)| *package == arch)
+        .map_or(arch, |(_, oci)| *oci)
+}
+
+pub(super) fn package_architecture(arch: &str) -> &str {
+    ARCHITECTURES
+        .iter()
+        .find(|(_, oci)| *oci == arch)
+        .map_or(arch, |(package, _)| *package)
+}
+
+#[derive(Debug, thiserror::Error)]
+#[error("image archive has no image for the requested platform")]
+pub(super) struct MissingImagePlatform;
+
 fn invalid(message: impl Into<String>) -> std::io::Error {
     std::io::Error::new(std::io::ErrorKind::InvalidData, message.into())
 }
@@ -37,6 +62,7 @@ impl ImagePlatform {
 struct ArchiveManifest {
     config: PathBuf,
     layers: Option<Vec<PathBuf>>,
+    repo_tags: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -124,6 +150,34 @@ pub(super) async fn from_image_archive<R: AsyncRead + Unpin + Send>(
     platform: &str,
 ) -> Result<(Squashfs<DynFileSource>, DockerImageConfig), Error> {
     let archive = Squashfs::from_tar(reader).await?;
+    from_archive(&archive, platform, None).await
+}
+
+pub(super) async fn from_path(
+    path: &Path,
+    platform: &str,
+    reference: Option<&str>,
+) -> Result<(Squashfs<DynFileSource>, DockerImageConfig), Error> {
+    if tokio::fs::metadata(path).await?.is_dir() {
+        from_archive(&Squashfs::from_directory(path).await?, platform, reference).await
+    } else {
+        from_archive(
+            &Squashfs::from_tar(crate::util::io::open_file(path).await?).await?,
+            platform,
+            reference,
+        )
+        .await
+    }
+}
+
+pub(super) async fn from_archive<S: FileSource + Clone>(
+    archive: &Squashfs<S>,
+    platform: &str,
+    reference: Option<&str>,
+) -> Result<(Squashfs<DynFileSource>, DockerImageConfig), Error> {
+    if archive.contents().get("oci-layout").is_some() {
+        return oci::from_layout(archive, platform, reference).await;
+    }
     let manifests: Vec<ArchiveManifest> = serde_json::from_slice(
         &archive_file(&archive, Path::new("manifest.json"))?
             .to_vec(None)
@@ -132,6 +186,14 @@ pub(super) async fn from_image_archive<R: AsyncRead + Unpin + Send>(
     .with_kind(ErrorKind::Deserialization)?;
     let mut selected = None;
     for manifest in manifests {
+        if reference.is_some_and(|reference| {
+            !manifest
+                .repo_tags
+                .as_ref()
+                .is_some_and(|tags| tags.iter().any(|tag| tag == reference))
+        }) {
+            continue;
+        }
         let config: ArchiveConfig = serde_json::from_slice(
             &archive_file(&archive, &manifest.config)?
                 .to_vec(None)
@@ -148,7 +210,7 @@ pub(super) async fn from_image_archive<R: AsyncRead + Unpin + Send>(
         }
     }
     let (manifest, config) =
-        selected.ok_or_else(|| invalid("image archive has no image for the requested platform"))?;
+        selected.ok_or_else(|| Error::new(MissingImagePlatform, ErrorKind::ParseS9pk))?;
     let layers = manifest
         .layers
         .unwrap_or_default()

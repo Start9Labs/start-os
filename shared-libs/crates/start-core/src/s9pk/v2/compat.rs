@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use exver::{ExtendedVersion, Version, VersionRange};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWriteExt};
-use tokio::process::Command;
 
 use crate::dependencies::{DepInfo, Dependencies};
 use crate::prelude::*;
@@ -17,10 +16,9 @@ use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
 use crate::s9pk::v1::manifest::{Manifest as ManifestV1, PackageProcedure};
 use crate::s9pk::v1::reader::S9pkReader;
 use crate::s9pk::v2::pack::{
-    CONTAINER_TOOL, ImageSource, PackSource, SqfsDir, javascript_squashfs,
+    PackSource, SqfsDir, docker_platform, javascript_squashfs, write_image,
 };
 use crate::s9pk::v2::{S9pk, SIG_CONTEXT};
-use crate::util::Invoke;
 use crate::util::io::{TmpDir, create_file};
 use crate::util::squashfs::Squashfs;
 use crate::{ImageId, PackageId, VolumeId};
@@ -52,18 +50,6 @@ impl S9pk<TmpSource<PackSource>> {
                 }
             })
             .collect();
-
-        if !images.is_empty() {
-            Command::new(*CONTAINER_TOOL)
-                .arg("run")
-                .arg("--rm")
-                .arg("--privileged")
-                .arg("tonistiigi/binfmt")
-                .arg("--install")
-                .arg("all")
-                .invoke(ErrorKind::Docker)
-                .await?;
-        }
 
         let license: Arc<[u8]> = reader.license().await?.to_vec().await?.into();
         archive.insert_path(
@@ -103,37 +89,22 @@ impl S9pk<TmpSource<PackSource>> {
             )),
         )?;
 
-        for arch in reader.docker_arches().await? {
-            Command::new(*CONTAINER_TOOL)
-                .arg("load")
-                .input(Some(&mut reader.docker_images(&arch).await?))
-                .invoke(ErrorKind::Docker)
-                .await?;
+        for saved_arch in reader.docker_arches().await? {
+            let arch = super::image::package_architecture(&saved_arch);
+            let saved = Squashfs::from_tar(reader.docker_images(&saved_arch).await?).await?;
             for (image, system) in &images {
                 let mut image_config = new_manifest.images.remove(image).unwrap_or_default();
-                image_config.arch.insert(arch.as_str().into());
+                image_config.arch.insert(arch.into());
                 new_manifest.images.insert(image.clone(), image_config);
                 let image_name = if *system {
                     format!("start9/{}:latest", image)
                 } else {
                     format!("start9/{}/{}:{}", manifest.id, image, manifest.version)
                 };
-                ImageSource::DockerTag(image_name.clone())
-                    .load(
-                        tmp_dir.clone(),
-                        &new_manifest.id,
-                        &new_manifest.version,
-                        image,
-                        &arch,
-                        &mut archive,
-                    )
-                    .await?;
-                Command::new(*CONTAINER_TOOL)
-                    .arg("rmi")
-                    .arg("-f")
-                    .arg(&image_name)
-                    .invoke(ErrorKind::Docker)
-                    .await?;
+                let filesystem =
+                    super::image::from_archive(&saved, &docker_platform(&arch), Some(&image_name))
+                        .await?;
+                write_image(filesystem, tmp_dir.clone(), image, &arch, &mut archive).await?;
             }
         }
 
