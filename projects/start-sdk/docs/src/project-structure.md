@@ -8,6 +8,8 @@ A StartOS package follows this organizational pattern:
 
 ```
 my-service-startos/
+├── .forgejo/
+│   └── workflows/          # Forgejo variants of the five workflows below
 ├── .github/
 │   └── workflows/
 │       ├── build.yml          # CI build on PR
@@ -246,6 +248,42 @@ The paired branch is derived rather than configured: an explicit `next/<base>` i
 Neither `next` nor the base branch is force-pushed or rewritten. `next` is fast-forwarded when it is merely behind, given a merge commit when it carries unmerged work, and left untouched with a pull request opened for a human only when that merge conflicts. That pull request is headed by a throwaway `sync-next/<base>` branch rather than the base itself, so resolving its conflicts in GitHub's web editor — which commits to the head branch — cannot land on the base. **Merge it with a merge commit rather than a squash**, so `next` comes out with the base as an ancestor; a squash leaves equivalent content under a fresh commit and the following sync conflicts all over again. `workflow_dispatch` is there so a package can be brought into line without waiting for its next merge.
 
 List every base branch the package maintains under `branches:`, and note this is one of the two workflows whose branch list must match the branch the repo actually uses — a package on `main` that still says `master` here silently never syncs.
+
+### .forgejo/workflows/
+
+The template also includes Forgejo variants of the five workflows above. Forgejo
+prefers `.forgejo/workflows/` over `.github/workflows/`; GitHub reads `.github/workflows/`.
+The Forgejo callers import the shared `.forgejo/workflows/` from this monorepo using
+full `https://github.com/...@master` URLs. Their action dependencies also use full
+URLs, independent of the instance's `DEFAULT_ACTIONS_URL` setting.
+
+Enable Actions on the Forgejo repository and provide the same registry variables
+and signing/S3 secrets described above. The workflows target Forgejo 16 with
+Forgejo Runner 13 or newer. Use isolated x86-64 Ubuntu runner environments labeled
+`ubuntu-latest`, with Node.js 24 for the imported JavaScript actions, Git, npm,
+jq, curl, and passwordless sudo. Build jobs install their Rust, Docker/Buildx,
+QEMU, and squashfs tooling; container-backed runners need privileged Docker
+access. Keep `FREE_DISK_SPACE` disabled on shared hosts: that optional action
+removes host tools and prunes Docker images.
+
+Cross-host reusable calls execute within the selected runner rather than expanding
+into separately scheduled jobs on the Forgejo server. The Forgejo variants use
+QEMU for non-x86 targets instead of selecting GitHub's native ARM runners.
+Runners must reach GitHub,
+`data.forgejo.org`, npm, container registries, and the configured package registry.
+
+Forgejo uses its repository-scoped automatic token for checkout, tag pushes,
+releases, and sync pull requests. Configure its repository write access accordingly;
+Forgejo does not enforce GitHub's `permissions:` declarations. PR builds receive no
+signing key. As on GitHub, pushes made with the automatic token do not trigger a
+second workflow, so tag-and-release calls the release workflow directly.
+
+Forgejo artifacts group the `.s9pk` files by build target rather than creating an
+artifact for each file. Release assets remain individual `.s9pk` downloads, and
+re-running a release updates its notes and replaces same-named assets in place.
+The shared release workflow retains its 2 GiB per-asset ceiling; configure S3 for
+larger files and ensure the Forgejo instance's upload limit permits the remaining
+assets.
 
 ### AGENTS.md and CLAUDE.md
 
