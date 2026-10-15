@@ -119,8 +119,9 @@ optional, not output fields. Tuple options remain positional. Map keys are
 strings, and map-key types do not need a `TS` implementation. Objects are built
 through the module's `object()` helper, `z.object(shape).meta({ additionalProperties: true })`:
 zod still strips unknown keys when parsing and the inferred TypeScript type gains
-no index signature, but the JSON Schema stays open, so the `allOf` branches an
-intersection renders accept each other's members. An empty struct is
+no index signature, but the JSON Schema stays open, so the parts of an
+intersection — whether zod renders them as `allOf` branches or merges them into one
+object — accept each other's members. An empty struct is
 the module's `empty` constant, `object({})` typed as `z.ZodType<{}, {}>`, so
 intersecting it with inherited parameters stays transparent. `Flat<A,B>` combines its two shapes with `z.intersection`.
 

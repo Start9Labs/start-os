@@ -320,11 +320,14 @@ fn composed_output_json_schemas_allow_sibling_keys() {
             &format!(
                 "const assert = require('node:assert/strict');\n\
                  const schema = z.toJSONSchema(schemas.TestType, {{ io: 'output' }});\n\
-                 assert.equal(schema.allOf.length, 2);\n\
-                 for (const branch of schema.allOf) {{\n\
-                   const object = branch.$ref ? schema.$defs[branch.$ref.slice('#/$defs/'.length)] : branch;\n\
+                 const resolve = (node) => node.$ref ? schema.$defs[node.$ref.slice('#/$defs/'.length)] : node;\n\
+                 const objects = (node) => {{ node = resolve(node); return node.allOf ? node.allOf.flatMap(objects) : [node]; }};\n\
+                 const parts = objects(schema);\n\
+                 const keys = parts.flatMap(object => Object.keys(object.properties));\n\
+                 assert.ok(keys.includes('kind') && keys.length >= 2, JSON.stringify(schema));\n\
+                 for (const object of parts) {{\n\
                    assert.equal(object.type, 'object');\n\
-                   assert.equal(object.additionalProperties, true);\n\
+                   assert.notEqual(object.additionalProperties, false);\n\
                  }}\n\
                  assert.deepEqual(schemas.TestType.parse({output}), {output});\n\
                  assert.equal(schemas.TestType.safeParse({{}}).success, false);"
@@ -440,14 +443,14 @@ const invalidReturn: RpcReturnType<Api,'jobs.leaf'> = {value:1,next:null};
         r#"
 const leaf = schemas.Api._CHILDREN.jobs._CHILDREN.leaf;
 const opaque = schemas.Api._CHILDREN.jobs._CHILDREN.opaque;
-const required = (root) => { const walk = (s) => s.$ref ? walk(root.$defs[s.$ref.split('/').pop()]) : s.allOf ? s.allOf.flatMap(walk) : s.required ?? []; return walk(root) };
+const required = (root) => { const walk = (s) => s.$ref ? walk(root.$defs[s.$ref.split('/').pop()]) : s.allOf ? s.allOf.flatMap(walk) : s.anyOf ? s.anyOf.map(walk).reduce((a, b) => a.filter(k => b.includes(k))) : s.required ?? []; return walk(root) };
 const assert = require('node:assert/strict');
 for (const io of ['input', 'output']) {
   assert.deepEqual(required(z.toJSONSchema(opaque._PARAMS, { io })), ['token']);
 }
 assert.equal(opaque._PARAMS.safeParse({}).success, false);
 assert.deepEqual(opaque._PARAMS.parse({token:'t',extra:true}), {token:'t',extra:true});
-process.stdout.write(JSON.stringify(required(z.toJSONSchema(leaf._PARAMS, { io: 'input' }))) + '\n' + JSON.stringify(z.toJSONSchema(leaf._RETURN).required) + '\n' + JSON.stringify(required(z.toJSONSchema(leaf._PARAMS))));
+process.stdout.write(JSON.stringify(required(z.toJSONSchema(leaf._PARAMS, { io: 'input' }))) + '\n' + JSON.stringify(required(z.toJSONSchema(leaf._RETURN))) + '\n' + JSON.stringify(required(z.toJSONSchema(leaf._PARAMS))));
 "#,
     );
     assert_eq!(
