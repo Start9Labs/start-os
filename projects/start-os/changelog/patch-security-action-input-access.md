@@ -1,0 +1,1 @@
+- Enforce action access permissions when services request another service’s action form, preventing unauthorized reads of form fields and prefilled values.
