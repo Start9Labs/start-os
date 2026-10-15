@@ -48,6 +48,24 @@ for (const [file, expected] of outputs) {
   })
 }
 
+test('package build setup installs mksquashfs for start-cli', () => {
+  const github = yaml.load(
+    readFileSync(
+      join(root, '.github/actions/setup-build-env/action.yml'),
+      'utf8',
+    ),
+  )
+  for (const action of [
+    github,
+    document('.forgejo/actions/setup-build-env/action.yml'),
+  ]) {
+    const install = action.runs.steps.find(
+      step => step.name === 'Install dependencies',
+    )
+    assert.match(install.run, /(?:^|\s)squashfs-tools(?:\s|$)/)
+  }
+})
+
 test('Forgejo callers use the Forgejo workflow variants without changing GitHub callers', () => {
   for (const [filename, target] of [
     ['build', 'build'],

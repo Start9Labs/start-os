@@ -10,13 +10,14 @@ runs:
         node-version: '22'
     - name: Install dependencies
       run: |
-        # The runner image's Microsoft apt sources 403 intermittently, and one failing source fails the whole update.
+        # Microsoft apt sources intermittently return HTTP 403.
         grep -rl 'packages\.microsoft\.com' /etc/apt/sources.list.d/ 2>/dev/null | sudo xargs -r rm -f || true
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends \
           build-essential \
           clang \
           libclang-dev \
+          squashfs-tools \
           squashfs-tools-ng \
           qemu-user-static
       shell: bash
