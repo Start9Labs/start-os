@@ -70,7 +70,10 @@ rpc_toolkit::ts_export!(PackageInfoShort, namespaces = [""]);
 pub struct GetPackageParams {
     #[arg(help = "help.arg.package-id")]
     pub id: Option<PackageId>,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[arg(long, short = 'v', help = "help.arg.target-version-range")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub target_version: Option<VersionRange>,
@@ -510,13 +513,19 @@ pub struct CliDownloadParams {
     #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
     #[arg(long, short = 'v', help = "help.arg.target-version-range")]
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     pub target_version: Option<VersionRange>,
     #[arg(short, long, help = "help.arg.destination-path")]
     pub dest: Option<PathBuf>,
     #[arg(long, short, help = "help.arg.architecture")]
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     pub arch: Option<InternedString>,
 }

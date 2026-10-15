@@ -180,7 +180,7 @@ pub async fn restart(ctx: TunnelContext) -> Result<(), Error> {
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct SubnetParams {
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     subnet: Ipv4Net,
 }
@@ -323,7 +323,7 @@ pub fn device_api<C: Context>() -> ParentHandler<C> {
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct SetDnsInjectionParams {
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     subnet: Ipv4Net,
     ip: Ipv4Addr,
@@ -372,7 +372,7 @@ pub async fn set_dns_injection(
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct SetAutoPortForwardParams {
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     subnet: Ipv4Net,
     ip: Ipv4Addr,
@@ -420,7 +420,7 @@ pub async fn set_auto_port_forward(
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct SetDeviceKindParams {
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     subnet: Ipv4Net,
     ip: Ipv4Addr,
@@ -713,12 +713,15 @@ pub struct SetSubnetDnsParams {
     mode: DnsMode,
     /// The selected device's WireGuard IP; required when `mode` is `device`.
     #[arg(long, help = "help.arg.dns-device-ip")]
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     device_ip: Option<Ipv4Addr>,
     /// Up to 3 upstream servers (bare IP or `ip:port`); used when `mode` is `custom`.
     #[arg(long = "server", action = clap::ArgAction::Append, help = "help.arg.dns-server")]
-    #[visit(ts(type = "string[]"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     servers: Vec<String>,
 }
@@ -806,7 +809,10 @@ pub async fn set_subnet_dns(
 #[serde(rename_all = "camelCase")]
 pub struct SetSubnetWanParams {
     #[arg(long)]
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     wan_ip: Option<Ipv4Addr>,
 }
@@ -843,7 +849,10 @@ pub struct SetSubnetIpv6Params {
     /// The routed IPv6 prefix delegated to this subnet (e.g. a /64 from Hetzner,
     /// a /56 from Linode). `null` disables IPv6 on the subnet.
     #[arg(long)]
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     prefix: Option<Ipv6Net>,
 }
@@ -965,12 +974,15 @@ pub async fn set_subnet_ipv6(
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct SetDeviceWanParams {
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     subnet: Ipv4Net,
     ip: Ipv4Addr,
     #[arg(long)]
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     wan_ip: Option<Ipv4Addr>,
 }
@@ -1006,11 +1018,14 @@ pub async fn set_device_wan(
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct AddDeviceParams {
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     subnet: Ipv4Net,
     name: InternedString,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     ip: Option<Ipv4Addr>,
     /// Client (no autoconfig) or Server (gateway-autoconfig on by default).
@@ -1123,7 +1138,7 @@ pub async fn add_device(
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDeviceParams {
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     subnet: Ipv4Net,
     ip: Ipv4Addr,
@@ -1163,7 +1178,7 @@ pub async fn remove_device(
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct ListDevicesParams {
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     subnet: Ipv4Net,
 }
@@ -1189,7 +1204,7 @@ pub async fn list_devices(
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct ShowConfigParams {
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     subnet: Ipv4Net,
     ip: Ipv4Addr,

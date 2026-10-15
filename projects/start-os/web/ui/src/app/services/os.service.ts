@@ -51,7 +51,7 @@ export class OSService {
     const { version, id } = await getServerInfo(this.patch)
     const { startosRegistry } = await firstValueFrom(this.patch.watch$('ui'))
 
-    this.osUpdate = await this.api.checkOSUpdate({
+    this.osUpdate = await this.api.rpc.registry.os.version.get({
       registry: startosRegistry,
       serverId: id,
     })

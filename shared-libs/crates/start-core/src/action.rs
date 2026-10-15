@@ -53,13 +53,13 @@ pub struct ActionInput {
     #[serde(default)]
     pub event_id: Guid,
     #[visit(
-        ts(type = "Record<string, unknown>"),
+        ts(type = "z.record(z.string(), z.unknown())"),
         wire = "rpc_toolkit::ts::Unknown"
     )]
     #[visit(opaque, type_attributes(visit::wire))]
     pub spec: Value,
     #[visit(
-        ts(type = "Record<string, unknown> | null"),
+        ts(type = "z.record(z.string(), z.unknown()).nullable()"),
         wire = "Option<rpc_toolkit::ts::Unknown>"
     )]
     #[visit(opaque, type_attributes(visit::wire))]
@@ -78,7 +78,7 @@ pub struct GetActionInputParams {
     #[arg(help = "help.arg.action-id")]
     pub action_id: ActionId,
     #[visit(
-        ts(type = "Record<string, unknown> | null"),
+        ts(type = "z.record(z.string(), z.unknown()).nullable()"),
         wire = "Option<rpc_toolkit::ts::Unknown>"
     )]
     #[serde(default)]

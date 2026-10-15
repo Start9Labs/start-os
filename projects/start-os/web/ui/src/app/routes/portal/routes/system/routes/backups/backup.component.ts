@@ -183,7 +183,7 @@ export class BackupsBackupComponent {
 
     return this.tasks.run(async () => {
       try {
-        await this.api.createBackup(params)
+        await this.api.rpc.backup.create(params)
       } catch (e: any) {
         if (oldPassword || e.code !== BACKUP_PASSWORD_MISMATCH) throw e
 

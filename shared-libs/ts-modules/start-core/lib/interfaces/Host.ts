@@ -1,4 +1,4 @@
-import { z } from '../zExport'
+import * as z from '../z'
 import { Effects } from '../Effects'
 import { Origin } from './Origin'
 import { RangeOrigin } from './RangeOrigin'
@@ -87,7 +87,7 @@ export type BindOptionsByProtocol =
   | (BindOptions & { protocol: null })
 
 const hasStringProtocol = (v: unknown): v is { protocol: string } =>
-  z.looseObject({ protocol: z.string() }).safeParse(v).success
+  z.looseObject({ protocol: z.string() }).validate(v)
 
 /**
  * Hard cap on how many ports a single {@link MultiHost.bindPortRange} call

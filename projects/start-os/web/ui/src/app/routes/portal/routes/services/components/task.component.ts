@@ -192,7 +192,11 @@ export class ServiceTaskComponent {
       .subscribe(() =>
         this.tasks.run(
           async () =>
-            await this.api.clearTask({ packageId, replayId, force: false }),
+            await this.api.rpc.package.action.clearTask({
+              packageId,
+              replayId,
+              force: false,
+            }),
         ),
       )
   }

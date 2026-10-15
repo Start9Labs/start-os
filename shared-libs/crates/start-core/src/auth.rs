@@ -426,11 +426,11 @@ pub struct Session {
     #[serde(default)]
     pub name: Option<InternedString>,
     #[serde(default)]
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub logged_in: DateTime<Utc>,
     #[serde(default)]
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub last_active: DateTime<Utc>,
     #[serde(default)]
@@ -443,7 +443,10 @@ rpc_toolkit::ts_export!(Session, namespaces = [""]);
 #[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionList {
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     current: Option<InternedString>,
     sessions: AuthKeys,

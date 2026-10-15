@@ -128,7 +128,7 @@ pub struct GetActionInputParams {
     #[arg(help = "help.arg.action-id")]
     action_id: ActionId,
     #[visit(
-        ts(type = "Record<string, unknown> | null"),
+        ts(type = "z.record(z.string(), z.unknown()).nullable()"),
         wire = "Option<rpc_toolkit::ts::Unknown>"
     )]
     #[serde(default)]
@@ -396,7 +396,9 @@ async fn create_task(
 #[derive(Debug, Clone, Serialize, Deserialize, visit_rs::VisitFields, Parser)]
 #[group(skip)]
 #[visit(
-    ts(type = "{ only: string[] } | { except: string[] }"),
+    ts(
+        type = "z.union([z.object({ only: z.array(z.string()) }), z.object({ except: z.array(z.string()) })])"
+    ),
     wire = "rpc_toolkit::ts::Unknown"
 )]
 #[visit(opaque, type_attributes(visit::wire))]
