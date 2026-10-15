@@ -39,6 +39,8 @@ rpc_toolkit::reflect_ts!(WanIpv4Mode);
 pub struct WanIpv4Response {
     pub mode: WanIpv4Mode,
     pub assigned_ip: Option<String>,
+    /// Whether the WAN port has link. A failed read reports link.
+    pub carrier: bool,
     pub address: Option<String>,
     pub netmask: Option<String>,
     pub gateway: Option<String>,
@@ -280,6 +282,25 @@ async fn get_assigned_wan_ip() -> Option<String> {
         .map(|s| s.to_string())
 }
 
+async fn get_wan_carrier(device: &str) -> bool {
+    let Ok(output) = tokio::process::Command::new("ubus")
+        .args([
+            "call",
+            "network.device",
+            "status",
+            &serde_json::json!({ "name": device }).to_string(),
+        ])
+        .invoke(ErrorKind::Network.into())
+        .await
+    else {
+        return true;
+    };
+    serde_json::from_slice::<serde_json::Value>(&output)
+        .ok()
+        .and_then(|json| json.get("carrier")?.as_bool())
+        .unwrap_or(true)
+}
+
 async fn get_default_mac(dev_name: &str) -> String {
     // Read the hardware MAC from the WAN device via ip link
     let output = tokio::process::Command::new("ip")
@@ -334,14 +355,18 @@ pub async fn ipv4_get<C: CtrlContext>(ctx: C) -> Result<WanIpv4Response, Error> 
 
     match result {
         Some((mode, iface)) => {
-            let assigned_ip = if effectful {
-                get_assigned_wan_ip().await
+            let (assigned_ip, carrier) = if effectful {
+                (
+                    get_assigned_wan_ip().await,
+                    get_wan_carrier(&iface.device).await,
+                )
             } else {
-                None
+                (None, true)
             };
             Ok(WanIpv4Response {
                 mode,
                 assigned_ip,
+                carrier,
                 address: iface.ipaddr.map(|ip| ip.to_string()),
                 netmask: iface.netmask.map(|m| m.to_string()),
                 gateway: iface.gateway,
@@ -1228,6 +1253,7 @@ config service 'wan'
         let res = ipv4_get(ctx).await.unwrap();
         assert_eq!(res.mode, WanIpv4Mode::Dhcp);
         assert!(res.assigned_ip.is_none()); // effectful=false
+        assert!(res.carrier);
     }
 
     #[tokio::test]
