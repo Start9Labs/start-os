@@ -404,7 +404,7 @@ async fn handler_tree_matches_dispatch_and_inference() {
         );
     let root = ParentHandler::<Ctx, Empty, Empty>::new().subcommand("jobs", parent.no_cli());
     let bindings = handler_bindings(&root, "Api", SCHEMAS).unwrap().unwrap();
-    assert!(bindings.schemas.contains("export const Api = { _PARAMS: /* @__PURE__ */ empty, _CHILDREN: { \"jobs\": { _PARAMS: /* @__PURE__ */ ParentParams, _RETURN: /* @__PURE__ */ z.string(), _CHILDREN: { \"leaf\": { _PARAMS: /* @__PURE__ */ z.intersection(ParentParams, Params), _RETURN: /* @__PURE__ */ Node }, \"opaque\": { _PARAMS: /* @__PURE__ */ z.unknown(), _RETURN: /* @__PURE__ */ z.unknown() } } } } };"), "{}", bindings.schemas);
+    assert!(bindings.schemas.contains("export const Api = { _PARAMS: /* @__PURE__ */ empty, _CHILDREN: { \"jobs\": { _PARAMS: /* @__PURE__ */ ParentParams, _RETURN: /* @__PURE__ */ z.string(), _CHILDREN: { \"leaf\": { _PARAMS: /* @__PURE__ */ z.intersection(ParentParams, Params), _RETURN: /* @__PURE__ */ Node }, \"opaque\": { _PARAMS: /* @__PURE__ */ z.intersection(ParentParams, z.unknown()), _RETURN: /* @__PURE__ */ z.unknown() } } } } };"), "{}", bindings.schemas);
     assert!(bindings
         .types
         .contains("export type Api = RpcSchemaTree<typeof schemas.Api>;"));
@@ -422,6 +422,9 @@ const params: RpcParamType<Api,'jobs.leaf'> = {token:'t',REQUIRED_VALUE:1,in:'x'
 const result: RpcReturnType<Api,'jobs.leaf'> = {value:'x',next:null};
 const parentResult: RpcReturnType<Api,'jobs'> = 't';
 const opaqueResult: RpcReturnType<Api,'jobs.opaque'> = true;
+const opaqueParams: RpcParamType<Api,'jobs.opaque'> = {token:'t'};
+// @ts-expect-error
+const missingOpaqueToken: RpcParamType<Api,'jobs.opaque'> = {};
 // @ts-expect-error
 const invalid: RpcParamType<Api,'jobs.leaf'> = {REQUIRED_VALUE:1,in:'x',INPUT_ONLY:'x'};
 // @ts-expect-error
@@ -434,7 +437,18 @@ const invalidReturn: RpcReturnType<Api,'jobs.leaf'> = {value:1,next:null};
     );
     let schema = common::evaluate(
         &bindings,
-        "const leaf = schemas.Api._CHILDREN.jobs._CHILDREN.leaf;\nconst required = (root) => { const walk = (s) => s.$ref ? walk(root.$defs[s.$ref.split('/').pop()]) : s.allOf ? s.allOf.flatMap(walk) : s.required ?? []; return walk(root) };\nprocess.stdout.write(JSON.stringify(required(z.toJSONSchema(leaf._PARAMS, { io: 'input' }))) + '\\n' + JSON.stringify(z.toJSONSchema(leaf._RETURN).required) + '\\n' + JSON.stringify(required(z.toJSONSchema(leaf._PARAMS))));",
+        r#"
+const leaf = schemas.Api._CHILDREN.jobs._CHILDREN.leaf;
+const opaque = schemas.Api._CHILDREN.jobs._CHILDREN.opaque;
+const required = (root) => { const walk = (s) => s.$ref ? walk(root.$defs[s.$ref.split('/').pop()]) : s.allOf ? s.allOf.flatMap(walk) : s.required ?? []; return walk(root) };
+const assert = require('node:assert/strict');
+for (const io of ['input', 'output']) {
+  assert.deepEqual(required(z.toJSONSchema(opaque._PARAMS, { io })), ['token']);
+}
+assert.equal(opaque._PARAMS.safeParse({}).success, false);
+assert.deepEqual(opaque._PARAMS.parse({token:'t',extra:true}), {token:'t',extra:true});
+process.stdout.write(JSON.stringify(required(z.toJSONSchema(leaf._PARAMS, { io: 'input' }))) + '\n' + JSON.stringify(z.toJSONSchema(leaf._RETURN).required) + '\n' + JSON.stringify(required(z.toJSONSchema(leaf._PARAMS))));
+"#,
     );
     assert_eq!(
         schema,
@@ -460,6 +474,21 @@ const invalidReturn: RpcReturnType<Api,'jobs.leaf'> = {value:1,next:null};
         .await
         .unwrap();
     assert_eq!(imbl_value::from_value::<String>(result).unwrap(), "t");
+    assert!(server
+        .handle_command("jobs.opaque", imbl_value::to_value(&json!({})).unwrap())
+        .await
+        .is_err());
+    let result = server
+        .handle_command(
+            "jobs.opaque",
+            imbl_value::to_value(&json!({"token":"t","extra":true})).unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        imbl_value::from_value::<serde_json::Value>(result).unwrap(),
+        json!(null)
+    );
 }
 
 #[test]

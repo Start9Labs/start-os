@@ -209,7 +209,7 @@ impl<Context, Params, InheritedParams> ReturnTS
     fn return_ts<'a>(&'a self) -> Option<Box<dyn Fn(&mut TSVisitor) + Send + Sync + 'a>> {
         match self.subcommands.0.as_ref()?.get_ts() {
             Some(ts) => ts.return_ts,
-            None => Some(Box::new(|v| v.leaf("z.unknown()", "z.ZodUnknown"))),
+            None => Some(type_writer::<serde_json::Value>()),
         }
     }
 }
@@ -254,9 +254,12 @@ where
                 if let Some(ts) = handler.0.get_ts() {
                     ts.visit(visitor);
                 } else {
-                    visitor.ts.push_str(&format!(
-                        "{{ _PARAMS: {PURE} z.unknown(), _RETURN: {PURE} z.unknown() }}"
-                    ));
+                    HandlerTS {
+                        params_ts: type_writer::<serde_json::Value>(),
+                        return_ts: Some(type_writer::<serde_json::Value>()),
+                        children: None,
+                    }
+                    .visit(visitor);
                 }
             }
             visitor.ts.push_str(" }");
