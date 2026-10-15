@@ -15,7 +15,8 @@ root and `shared-libs/` guidance first. `CLAUDE.md` imports this file.
   reuses `HttpServer`'s middleware steps rather than reimplementing them.
 - `ts.rs` owns handler traversal, deferred parameter/result writers and binding
   composition. `type-helpers.ts` owns method-path parameter/return inference and
-  the `RpcSchemaTree` projection of a schema tree.
+  the `RpcSchemaTree` projection of a schema tree; `tool-catalogue.ts` owns the
+  MCP tool catalogue derived from a schema tree.
 - `rpc_toolkit::ts` owns the `TS` trait, the definition registry, module
   emission, scalar bridges and exports (`ts/types.rs`); `ts/normalize.rs` owns the
   serde policy, one plan per direction from `TypeInfo::DECLARATION.source` through

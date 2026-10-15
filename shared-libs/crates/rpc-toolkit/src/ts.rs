@@ -17,6 +17,11 @@ pub fn type_helpers() -> &'static str {
     include_str!("./type-helpers.ts")
 }
 
+/// Runtime code appended to a handler tree's schema module.
+pub fn tool_catalogue() -> &'static str {
+    include_str!("./tool-catalogue.ts")
+}
+
 /// Appends a binding expression in the visitor's selected direction.
 pub type TSWriter<'a> = Box<dyn Fn(&mut TSVisitor) + Send + Sync + 'a>;
 
@@ -98,6 +103,7 @@ pub struct HandlerTS<'a> {
     params_ts: TSWriter<'a>,
     return_ts: Option<TSWriter<'a>>,
     children: Option<TSWriter<'a>>,
+    opaque: bool,
 }
 impl<'a> HandlerTS<'a> {
     pub fn new<H>(handler: &'a H) -> Self
@@ -108,6 +114,7 @@ impl<'a> HandlerTS<'a> {
             params_ts: handler.params_ts(),
             return_ts: handler.return_ts(),
             children: handler.children_ts(),
+            opaque: false,
         }
     }
 }
@@ -134,6 +141,9 @@ impl<'a> Visit<TSVisitor> for HandlerTS<'a> {
         if let Some(children) = &self.children {
             visitor.ts.push_str(", _CHILDREN: ");
             visitor.with_inherited_params(params, |visitor| children(visitor));
+        }
+        if self.opaque {
+            visitor.ts.push_str(", _OPAQUE: true as const");
         }
         visitor.ts.push_str(" }");
     }
@@ -258,6 +268,7 @@ where
                         params_ts: type_writer::<serde_json::Value>(),
                         return_ts: Some(type_writer::<serde_json::Value>()),
                         children: None,
+                        opaque: true,
                     }
                     .visit(visitor);
                 }
@@ -306,7 +317,7 @@ where
 /// Generates the module pair for the handler tree; an opted-out root returns `None`.
 ///
 /// The type module includes the method-path inference helpers and projects the
-/// root through `RpcSchemaTree`.
+/// root through `RpcSchemaTree`; the schema module exports `toolCatalogue`.
 pub fn handler_bindings<H: HandlerTSBindings>(
     handler: &H,
     root_name: &str,
@@ -323,11 +334,12 @@ pub fn handler_bindings<H: HandlerTSBindings>(
                 .next()
         })
     }));
+    visitor.reserve(["toolCatalogue"]);
     visitor.types_prelude(type_helpers());
     ts.visit(&mut visitor);
-    visitor
-        .into_bindings(Some(root_name), schemas_specifier)
-        .map(Some)
+    let mut bindings = visitor.into_bindings(Some(root_name), schemas_specifier)?;
+    bindings.schemas.push_str(tool_catalogue());
+    Ok(Some(bindings))
 }
 
 impl<A: TS, B: TS> TS for crate::util::Flat<A, B> {

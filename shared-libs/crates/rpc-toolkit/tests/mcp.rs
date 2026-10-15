@@ -1,5 +1,8 @@
 #![cfg(feature = "mcp")]
 
+#[cfg(feature = "ts")]
+mod common;
+
 use std::net::SocketAddr;
 
 use axum::extract::Request;
@@ -434,4 +437,144 @@ async fn legacy_clients_initialize_then_call() {
         "{}",
         called
     );
+}
+
+#[cfg(feature = "ts")]
+mod catalogue {
+    use rpc_toolkit::mcp::ExposeAll;
+    use rpc_toolkit::reflect_ts;
+    use rpc_toolkit::ts::handler_bindings;
+
+    use super::*;
+
+    /// Two numbers to add.
+    #[derive(Deserialize, Serialize, visit_rs::VisitFields)]
+    struct Sum {
+        a: u32,
+        b: u32,
+    }
+    reflect_ts!(Sum);
+    #[derive(Deserialize, Serialize, visit_rs::VisitFields)]
+    struct Total {
+        total: u32,
+    }
+    reflect_ts!(Total);
+    #[derive(Deserialize, Serialize, visit_rs::VisitFields)]
+    struct Scope {
+        scale: u32,
+    }
+    reflect_ts!(Scope);
+
+    fn tree() -> ParentHandler<Ctx> {
+        ParentHandler::new()
+            .subcommand(
+                "math",
+                ParentHandler::<Ctx, Scope>::new()
+                    .subcommand(
+                        "sum",
+                        from_fn(|_: Ctx, p: Sum| Ok::<_, RpcError>(Total { total: p.a + p.b }))
+                            .no_cli(),
+                    )
+                    .subcommand(
+                        "label",
+                        from_fn(|_: Ctx, _: Empty| Ok::<_, RpcError>("sum".to_owned())).no_cli(),
+                    )
+                    .no_cli(),
+            )
+            .subcommand(
+                "opaque",
+                from_fn(|_: Ctx, _: Empty| Ok::<_, RpcError>(()))
+                    .no_cli()
+                    .no_ts(),
+            )
+    }
+
+    fn generated_catalogue() -> Vec<Tool> {
+        let bindings = handler_bindings(&tree(), "Api", common::SCHEMAS)
+            .unwrap()
+            .unwrap();
+        let json = common::evaluate(
+            &bindings,
+            "process.stdout.write(JSON.stringify(schemas.toolCatalogue(schemas.Api)));",
+        );
+        serde_json::from_str(&json).unwrap()
+    }
+
+    fn required(schema: &serde_json::Value, root: &serde_json::Value) -> Vec<String> {
+        if let Some(name) = schema["$ref"].as_str() {
+            return required(&root["$defs"][name.trim_start_matches("#/$defs/")], root);
+        }
+        let mut keys: Vec<String> = schema["required"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|k| k.as_str().unwrap().to_owned())
+            .collect();
+        for part in schema["allOf"].as_array().into_iter().flatten() {
+            keys.extend(required(part, root));
+        }
+        keys.sort();
+        keys
+    }
+
+    #[test]
+    fn generated_catalogue_describes_callable_methods_with_bindings() {
+        let tools = generated_catalogue();
+        let names: Vec<_> = tools.iter().map(|t| t.name.to_string()).collect();
+        assert_eq!(names, ["math.label", "math.sum"]);
+        let sum = serde_json::to_value(&tools[1]).unwrap();
+        assert_eq!(sum["inputSchema"]["type"], "object");
+        assert_eq!(
+            required(&sum["inputSchema"], &sum["inputSchema"]),
+            ["a", "b", "scale"],
+            "{}",
+            sum
+        );
+        assert_eq!(sum["outputSchema"]["type"], "object");
+        assert_eq!(sum["outputSchema"]["required"], json!(["total"]), "{}", sum);
+        assert!(tools[0].output_schema.is_none());
+    }
+
+    #[tokio::test]
+    async fn generated_catalogue_serves_tool_calls() {
+        let mcp = McpServer::new(
+            Server::new(|| async { Ok(Ctx) }, tree()).middleware(Auth::default()),
+            generated_catalogue(),
+            ExposeAll,
+            Implementation::new("test", "0.0.0"),
+        )
+        .unwrap()
+        .service(StreamableHttpServerConfig::default());
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            axum::serve(listener, Router::new().route("/mcp", any(mcp)))
+                .await
+                .unwrap()
+        });
+        let client = Client {
+            addr,
+            token: Some("user"),
+            http: reqwest::Client::new(),
+        };
+        let sum = client
+            .call(
+                "tools/call",
+                json!({ "name": "math.sum", "arguments": { "a": 1, "b": 2, "scale": 3 } }),
+            )
+            .await;
+        assert_eq!(
+            sum["result"]["structuredContent"],
+            json!({ "total": 3 }),
+            "{}",
+            sum
+        );
+        let missing = client
+            .call(
+                "tools/call",
+                json!({ "name": "math.sum", "arguments": { "a": 1, "b": 2 } }),
+            )
+            .await;
+        assert_eq!(missing["result"]["isError"], true, "{}", missing);
+    }
 }
