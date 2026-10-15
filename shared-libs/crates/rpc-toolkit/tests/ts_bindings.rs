@@ -324,7 +324,7 @@ fn composed_output_json_schemas_allow_sibling_keys() {
                  const objects = (node) => {{ node = resolve(node); return node.allOf ? node.allOf.flatMap(objects) : [node]; }};\n\
                  const parts = objects(schema);\n\
                  const keys = parts.flatMap(object => Object.keys(object.properties));\n\
-                 assert.ok(keys.includes('kind') && keys.length >= 2, JSON.stringify(schema));\n\
+                 for (const key of Object.keys({output})) assert.ok(keys.includes(key), JSON.stringify(schema));\n\
                  for (const object of parts) {{\n\
                    assert.equal(object.type, 'object');\n\
                    assert.notEqual(object.additionalProperties, false);\n\
