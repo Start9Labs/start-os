@@ -14,4 +14,4 @@ runs:
       env:
         FORGE_TOKEN: ${{ inputs.token }}
         BASE: ${{ inputs.base }}
-      run: node "$GITHUB_ACTION_PATH/sync-next.mjs"
+      run: node "$GITHUB_ACTION_PATH/main.mjs"

@@ -7,8 +7,8 @@ import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 
 for (const [action, script, expected] of [
-  ['forgejo-release', 'release.mjs', /ENOENT/],
-  ['sync-next', 'sync-next.mjs', /Command failed: git config user.name/],
+  ['forgejo-release', 'main.mjs', /ENOENT/],
+  ['sync-next', 'main.mjs', /Command failed: git config user.name/],
 ]) {
   test(`${action} executes through a runner's symlinked action path`, t => {
     const dir = mkdtempSync(join(tmpdir(), 'action-entrypoint-'))

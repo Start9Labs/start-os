@@ -26,4 +26,4 @@ runs:
         RELEASE_BODY_PATH: ${{ inputs.body_path }}
         RELEASE_FILES: ${{ inputs.files }}
         FORGE_TOKEN: ${{ inputs.token }}
-      run: node "$GITHUB_ACTION_PATH/release.mjs"
+      run: node "$GITHUB_ACTION_PATH/main.mjs"
