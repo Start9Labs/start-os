@@ -110,8 +110,9 @@ impl<Context: crate::Context> McpServer<Context> {
         })
     }
 
-    /// The MCP endpoint, as an axum handler.
+    /// The stateless MCP endpoint, as an axum handler with JSON responses.
     ///
+    /// Overrides `config.legacy_session_mode` and `config.json_response`.
     /// `config.allowed_hosts` defaults to loopback names; a server reached by
     /// other names must list them.
     pub fn service(self, config: StreamableHttpServerConfig) -> McpService<Context> {
@@ -121,7 +122,9 @@ impl<Context: crate::Context> McpServer<Context> {
             inner: StreamableHttpService::new(
                 move || Ok(self.clone()),
                 Arc::new(NeverSessionManager::default()),
-                config,
+                config
+                    .with_legacy_session_mode(false)
+                    .with_json_response(true),
             ),
         }
     }

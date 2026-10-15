@@ -125,6 +125,7 @@ impl ToolPolicy for Policy {
 #[derive(Clone, Default)]
 struct Auth {
     user: Option<String>,
+    rpc_finished: bool,
 }
 impl Middleware<Ctx> for Auth {
     type Metadata = Value;
@@ -164,7 +165,16 @@ impl Middleware<Ctx> for Auth {
         }
         Ok(())
     }
+    async fn process_rpc_response(&mut self, _: &Ctx, _: &mut RpcResponse) {
+        self.rpc_finished = true;
+    }
     async fn process_http_response(&mut self, _: &Ctx, response: &mut Response) {
+        response.headers_mut().insert(
+            "x-rpc-finished",
+            if self.rpc_finished { "true" } else { "false" }
+                .parse()
+                .unwrap(),
+        );
         if let Some(user) = &self.user {
             response
                 .headers_mut()
@@ -174,6 +184,15 @@ impl Middleware<Ctx> for Auth {
 }
 
 async fn serve() -> SocketAddr {
+    serve_with_config(
+        StreamableHttpServerConfig::default()
+            .with_legacy_session_mode(false)
+            .with_json_response(true),
+    )
+    .await
+}
+
+async fn serve_with_config(config: StreamableHttpServerConfig) -> SocketAddr {
     let mcp = McpServer::new(
         Server::new(|| async { Ok(Ctx) }, tree()).middleware(Auth::default()),
         catalogue(),
@@ -181,11 +200,7 @@ async fn serve() -> SocketAddr {
         Implementation::new("test", "0.0.0"),
     )
     .unwrap()
-    .service(
-        StreamableHttpServerConfig::default()
-            .with_legacy_session_mode(false)
-            .with_json_response(true),
-    );
+    .service(config);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     tokio::spawn(async move {
@@ -344,8 +359,33 @@ fn catalogue_drift_is_an_error() {
 }
 
 #[tokio::test]
+async fn legacy_tool_calls_finish_before_http_response_middleware() {
+    let addr =
+        serve_with_config(StreamableHttpServerConfig::default().with_legacy_session_mode(false))
+            .await;
+    let response = reqwest::Client::new()
+        .post(format!("http://{}/mcp", addr))
+        .header("accept", "application/json, text/event-stream")
+        .header("content-type", "application/json")
+        .header("mcp-protocol-version", "2025-06-18")
+        .bearer_auth("user")
+        .body(
+            serde_json::to_vec(&json!({
+                "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                "params": { "name": "greet", "arguments": { "name": "legacy" } },
+            }))
+            .unwrap(),
+        )
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(response.headers()["x-rpc-finished"], "true");
+}
+
+#[tokio::test]
 async fn legacy_clients_initialize_then_call() {
-    let addr = serve().await;
+    let addr = serve_with_config(StreamableHttpServerConfig::default()).await;
     let http = reqwest::Client::new();
     let post = |version: Option<&'static str>, body: serde_json::Value| {
         let mut request = http
