@@ -17,9 +17,10 @@ pub fn type_helpers() -> &'static str {
     include_str!("./type-helpers.ts")
 }
 
-/// Runtime code appended to a handler tree's schema module.
-pub fn tool_catalogue() -> &'static str {
-    include_str!("./tool-catalogue.ts")
+/// Runtime code appended to a handler tree's schema module under the `mcp` feature.
+#[cfg(feature = "mcp")]
+pub fn tool_catalog() -> &'static str {
+    include_str!("./tool-catalog.ts")
 }
 
 /// Appends a binding expression in the visitor's selected direction.
@@ -335,7 +336,8 @@ where
 /// Generates the module pair for the handler tree; an opted-out root returns `None`.
 ///
 /// The type module includes the method-path inference helpers and projects the
-/// root through `RpcSchemaTree`; the schema module exports `toolCatalogue`.
+/// root through `RpcSchemaTree`; under the `mcp` feature the schema module
+/// also exports `toolCatalog`.
 pub fn handler_bindings<H: HandlerTSBindings>(
     handler: &H,
     root_name: &str,
@@ -352,11 +354,14 @@ pub fn handler_bindings<H: HandlerTSBindings>(
                 .next()
         })
     }));
-    visitor.reserve(["toolCatalogue"]);
+    #[cfg(feature = "mcp")]
+    visitor.reserve(["toolCatalog"]);
     visitor.types_prelude(type_helpers());
     ts.visit(&mut visitor);
+    #[cfg_attr(not(feature = "mcp"), allow(unused_mut))]
     let mut bindings = visitor.into_bindings(Some(root_name), schemas_specifier)?;
-    bindings.schemas.push_str(tool_catalogue());
+    #[cfg(feature = "mcp")]
+    bindings.schemas.push_str(tool_catalog());
     Ok(Some(bindings))
 }
 

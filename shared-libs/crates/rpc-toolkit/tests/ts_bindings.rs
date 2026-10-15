@@ -394,6 +394,19 @@ fn callable(_: Ctx, p: ParentParams) -> Result<String, RpcError> {
     Ok(p.token)
 }
 
+#[test]
+fn tool_catalog_follows_the_mcp_feature() {
+    let root = ParentHandler::<Ctx, Empty, Empty>::new().subcommand(
+        "leaf",
+        from_fn(|_: Ctx, _: Empty| Ok::<_, RpcError>(())).no_cli(),
+    );
+    let bindings = handler_bindings(&root, "Api", SCHEMAS).unwrap().unwrap();
+    assert_eq!(
+        bindings.schemas.contains("export function toolCatalog("),
+        cfg!(feature = "mcp")
+    );
+}
+
 #[tokio::test]
 async fn handler_tree_matches_dispatch_and_inference() {
     let parent = ParentHandler::<Ctx, ParentParams, Empty>::new()

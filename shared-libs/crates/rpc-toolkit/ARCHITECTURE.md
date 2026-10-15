@@ -57,8 +57,8 @@ Transports wrap a `Server`:
   tree as [MCP](https://modelcontextprotocol.io) tools over streamable HTTP via `rmcp`, served
   statelessly with JSON responses. The transport overrides session and response-mode
   configuration; response middleware runs after tool dispatch and before HTTP headers are sent.
-  The tools are a catalogue of `rmcp::model::Tool` descriptions — generated at build
-  time by the schema module's `toolCatalogue` (`src/tool-catalogue.ts`) — checked against the
+  The tools are a catalog of `rmcp::model::Tool` descriptions — generated at build
+  time by the schema module's `toolCatalog` (`src/tool-catalog.ts`) — checked against the
   tree at construction. A
   `ToolPolicy` decides from each method's metadata whether it is offered and which
   `ToolAnnotations` it carries. `McpService` runs the `HttpServer`'s middleware unchanged:

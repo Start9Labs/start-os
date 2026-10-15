@@ -1,9 +1,9 @@
 /**
- * MCP tool descriptions of a schema tree's callable methods, the catalogue
+ * MCP tool descriptions of a schema tree's callable methods, the catalog
  * `rpc_toolkit::mcp::McpServer` serves. Methods without bindings are omitted;
  * an `outputSchema` describes object results only, as MCP requires.
  */
-export function toolCatalogue(tree: unknown): object[] {
+export function toolCatalog(tree: unknown): object[] {
   type JsonSchema = {
     type?: unknown
     allOf?: unknown

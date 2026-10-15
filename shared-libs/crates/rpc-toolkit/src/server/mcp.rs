@@ -1,6 +1,6 @@
 //! Serves a handler tree as MCP tools over streamable HTTP.
 //!
-//! A tool is a method named in a catalogue of [`Tool`] descriptions, normally
+//! A tool is a method named in a catalog of [`Tool`] descriptions, normally
 //! generated at build time from the tree's TypeScript bindings with
 //! `z.toJSONSchema`. Each MCP request passes through the [`HttpServer`]'s
 //! middleware exactly as an RPC request does: `process_http_request` once per
@@ -36,7 +36,7 @@ use tower_service::Service;
 use crate::server::{DynMiddleware, GenericRpcMethod, HttpServer, RpcRequest};
 use crate::HandleAny;
 
-/// Chooses which catalogued methods are offered as tools and how each is described.
+/// Chooses which cataloged methods are offered as tools and how each is described.
 pub trait ToolPolicy: Send + Sync + 'static {
     /// Whether the method is offered as a tool.
     #[allow(unused_variables)]
@@ -54,13 +54,13 @@ pub trait ToolPolicy: Send + Sync + 'static {
     }
 }
 
-/// Offers every catalogued method, without annotations.
+/// Offers every cataloged method, without annotations.
 pub struct ExposeAll;
 impl ToolPolicy for ExposeAll {}
 
-/// A catalogue entry naming no method of the handler tree.
+/// A catalog entry naming no method of the handler tree.
 #[derive(Debug, thiserror::Error)]
-#[error("catalogued tool {0} names no method of the handler tree")]
+#[error("cataloged tool {0} names no method of the handler tree")]
 pub struct UnknownTool(pub String);
 
 /// The tools of a handler tree, served by [`McpServer::service`].
@@ -80,16 +80,16 @@ impl<Context: crate::Context> Clone for McpServer<Context> {
 }
 
 impl<Context: crate::Context> McpServer<Context> {
-    /// Fails when the catalogue names a method the tree lacks.
+    /// Fails when the catalog names a method the tree lacks.
     pub fn new(
         http: HttpServer<Context>,
-        catalogue: impl IntoIterator<Item = Tool>,
+        catalog: impl IntoIterator<Item = Tool>,
         policy: impl ToolPolicy,
         server_info: Implementation,
     ) -> Result<Self, UnknownTool> {
         let root = &http.inner.root_handler;
         let mut tools = BTreeMap::new();
-        for mut tool in catalogue {
+        for mut tool in catalog {
             let method = root
                 .method_from_dots(&tool.name)
                 .ok_or_else(|| UnknownTool(tool.name.to_string()))?;

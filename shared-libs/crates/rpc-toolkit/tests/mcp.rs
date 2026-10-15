@@ -95,7 +95,7 @@ fn tool(name: &str, input: serde_json::Value, output: Option<serde_json::Value>)
     tool
 }
 
-fn catalogue() -> Vec<Tool> {
+fn catalog() -> Vec<Tool> {
     let object = json!({ "type": "object" });
     vec![
         tool(
@@ -198,7 +198,7 @@ async fn serve() -> SocketAddr {
 async fn serve_with_config(config: StreamableHttpServerConfig) -> SocketAddr {
     let mcp = McpServer::new(
         Server::new(|| async { Ok(Ctx) }, tree()).middleware(Auth::default()),
-        catalogue(),
+        catalog(),
         Policy,
         Implementation::new("test", "0.0.0"),
     )
@@ -259,7 +259,7 @@ impl Client {
 }
 
 #[tokio::test]
-async fn tools_follow_the_catalogue_and_policy() {
+async fn tools_follow_the_catalog_and_policy() {
     let client = Client {
         addr: serve().await,
         token: Some("user"),
@@ -349,8 +349,8 @@ async fn http_middleware_rejects_before_mcp() {
 }
 
 #[test]
-fn catalogue_drift_is_an_error() {
-    let mut tools = catalogue();
+fn catalog_drift_is_an_error() {
+    let mut tools = catalog();
     tools.push(tool("nowhere.method", json!({ "type": "object" }), None));
     let result = McpServer::new(
         Server::new(|| async { Ok(Ctx) }, tree()).for_http(),
@@ -440,7 +440,7 @@ async fn legacy_clients_initialize_then_call() {
 }
 
 #[cfg(feature = "ts")]
-mod catalogue {
+mod catalog {
     use rpc_toolkit::mcp::ExposeAll;
     use rpc_toolkit::reflect_ts;
     use rpc_toolkit::ts::handler_bindings;
@@ -503,13 +503,13 @@ mod catalogue {
             )
     }
 
-    fn generated_catalogue() -> Vec<Tool> {
+    fn generated_catalog() -> Vec<Tool> {
         let bindings = handler_bindings(&tree(), "Api", common::SCHEMAS)
             .unwrap()
             .unwrap();
         let json = common::evaluate(
             &bindings,
-            "process.stdout.write(JSON.stringify(schemas.toolCatalogue(schemas.Api)));",
+            "process.stdout.write(JSON.stringify(schemas.toolCatalog(schemas.Api)));",
         );
         serde_json::from_str(&json).unwrap()
     }
@@ -532,8 +532,8 @@ mod catalogue {
     }
 
     #[test]
-    fn generated_catalogue_describes_callable_methods_with_bindings() {
-        let tools = generated_catalogue();
+    fn generated_catalog_describes_callable_methods_with_bindings() {
+        let tools = generated_catalog();
         let names: Vec<_> = tools.iter().map(|t| t.name.to_string()).collect();
         assert_eq!(names, ["math.label", "math.sum", "mixed.bound"]);
         let sum = serde_json::to_value(&tools[1]).unwrap();
@@ -564,10 +564,10 @@ const marker: '_OPAQUE' extends keyof Api['_CHILDREN']['mixed'] ? true : false =
     }
 
     #[tokio::test]
-    async fn generated_catalogue_serves_tool_calls() {
+    async fn generated_catalog_serves_tool_calls() {
         let mcp = McpServer::new(
             Server::new(|| async { Ok(Ctx) }, tree()).middleware(Auth::default()),
-            generated_catalogue(),
+            generated_catalog(),
             ExposeAll,
             Implementation::new("test", "0.0.0"),
         )
