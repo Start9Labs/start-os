@@ -338,6 +338,133 @@ test('Brochure serves each registry root through its own client', async () => {
   assert.equal(calls[1].url, 'https://registry.test/base/rpc/v0')
 })
 
+test('StartOS mock registry calls reach list and single-package fixtures', async () => {
+  const storage = Symbol('session storage')
+  const pkg = { categories: [], best: {}, otherVersions: {} }
+  const version = { ...pkg, best: { '1.0.0': {} } }
+  const fixtures = {
+    RegistryPackages: { example: pkg },
+    OtherPackageVersions: { example: { '=1.0.0': version } },
+  }
+  const { dependencies, tokens, load } = harness(
+    new Map([
+      ['@ng-web-apis/common', { WA_SESSION_STORAGE: storage }],
+      ['src/app/utils/acme', {}],
+      ['./api.fixures', { Mock: fixtures }],
+      ['./mock-patch', { mockPatchData: {} }],
+      ['./md-sample.md', ''],
+    ]),
+  )
+  dependencies.set(storage, null)
+  dependencies.set(tokens.AuthService, { isVerified$: of(true) })
+  const client = new (load(
+    'projects/start-os/web/ui/src/app/services/api/embassy-mock-api.service.ts',
+  ).MockApiService)()
+  const params = {
+    registry: 'https://registry.test/',
+    id: null,
+    targetVersion: null,
+    sourceVersion: null,
+    otherVersions: 'short',
+  }
+  assert.equal(
+    await client.rpc.registry.package.get(params),
+    fixtures.RegistryPackages,
+  )
+  assert.equal(
+    await client.rpc.registry.package.get({ ...params, id: 'example' }),
+    pkg,
+  )
+  assert.equal(
+    await client.rpc.registry.package.get({
+      ...params,
+      id: 'example',
+      targetVersion: '=1.0.0',
+    }),
+    version,
+  )
+})
+
+test('Brochure reports malformed registry URLs and can load the next selection', async () => {
+  const source = harness()
+  const shared = {
+    ...source.load('shared-libs/ts-modules/shared/src/util/misc.util.ts'),
+    ...source.load(
+      'shared-libs/ts-modules/shared/src/types/workspace-config.ts',
+    ),
+    ...source.load('shared-libs/ts-modules/shared/src/types/rpc.types.ts'),
+    ...source.load('shared-libs/ts-modules/shared/src/classes/rpc-error.ts'),
+    Exver: Symbol('Exver'),
+    i18nPipe: Symbol('i18nPipe'),
+    i18nService: Symbol('i18nService'),
+  }
+  const storage = Symbol('local storage')
+  const { dependencies, load } = harness(
+    new Map([
+      ['@ng-web-apis/common', { WA_LOCAL_STORAGE: storage }],
+      ['@start9labs/shared', shared],
+      [
+        '@start9labs/marketplace',
+        {
+          ...source.load('shared-libs/ts-modules/marketplace/src/types.ts'),
+          ...source.load(
+            'shared-libs/ts-modules/marketplace/src/services/abstract-marketplace.service.ts',
+          ),
+        },
+      ],
+    ]),
+  )
+  const info = { name: 'Registry', categories: {}, icon: null }
+  const Brochure = load(
+    'projects/brochure-marketplace/src/app/services/live-api.service.ts',
+  ).LiveApiService
+  const api = Object.create(Brochure.prototype)
+  api.registries = new Map()
+  api.http = {
+    rpcRequest: async ({ method }) => ({
+      body: { result: method === 'info' ? info : {} },
+    }),
+  }
+  dependencies.set(
+    load('projects/brochure-marketplace/src/app/services/api.service.ts')
+      .ApiService,
+    api,
+  )
+  dependencies.set(storage, { getItem: () => null })
+  dependencies.set(shared.Exver, {})
+  dependencies.set(shared.i18nPipe, { transform: value => value })
+  dependencies.set(shared.i18nService, { localize: value => value })
+  const service = new (load(
+    'projects/brochure-marketplace/src/app/services/marketplace.service.ts',
+  ).MarketplaceService)()
+  const failures = []
+  const errors = []
+  const registries = []
+  const subscription = service.currentRegistry$.subscribe({
+    next: registry => registries.push(registry),
+    error: error => errors.push(error),
+  })
+  service.currentRegistryUrl$.next('not-a-url')
+  const errorSubscription = service.registryError$.subscribe(url =>
+    failures.push(url),
+  )
+  try {
+    await new Promise(resolve => setImmediate(resolve))
+    assert.deepEqual(errors, [])
+    assert.deepEqual(failures, ['not-a-url'])
+    assert.equal(subscription.closed, false)
+    service.currentRegistryUrl$.next('https://registry.test/')
+    await new Promise(resolve => setImmediate(resolve))
+    assert.equal(registries.length, 1)
+    assert.equal(registries[0].url, 'https://registry.test/')
+    assert.equal(registries[0].info.name, info.name)
+    assert.equal(registries[0].packages.length, 0)
+  } finally {
+    subscription.unsubscribe()
+    errorSubscription.unsubscribe()
+  }
+})
+
 test('WRT mock mutations resolve nullable partial profile queries into full LAN references', async () => {
   const { load } = harness(
     new Map([

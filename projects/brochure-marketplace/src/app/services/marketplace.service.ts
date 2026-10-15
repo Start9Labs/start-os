@@ -22,6 +22,7 @@ import { T } from '@start9labs/start-core'
 import {
   BehaviorSubject,
   combineLatest,
+  defer,
   firstValueFrom,
   from,
   Observable,
@@ -181,7 +182,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
   }
 
   fetchInfo$(url: string): Observable<T.RegistryInfo> {
-    return from(this.api.registry(url).info({})).pipe(
+    return defer(async () => this.api.registry(url).info({})).pipe(
       map(info => localizeRegistryInfo(info, this.localize)),
       map(info => ({
         ...info,
@@ -202,7 +203,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
   }
 
   private fetchPackages$(url: string): Observable<MarketplacePkg[]> {
-    return from(
+    return defer(async () =>
       this.api
         .registry(url)
         .package.get({
@@ -236,7 +237,7 @@ export class MarketplaceService extends AbstractMarketplaceService {
     version: string | null,
     flavor: string | null,
   ): Observable<MarketplacePkg | null> {
-    return from(
+    return defer(async () =>
       this.api
         .registry(url)
         .package.get({

@@ -1468,12 +1468,8 @@ export class MockApiService extends ApiService {
     },
     'registry.package.get': async params =>
       params.id
-        ? this.handlers['registry.package.get']!(
-            params as GetRegistryPackageReq,
-          )
-        : this.handlers['registry.package.get']!(
-            params as GetRegistryPackagesReq,
-          ),
+        ? this.getRegistryPackage(params as GetRegistryPackageReq)
+        : this.getRegistryPackages(params as GetRegistryPackagesReq),
     'kiosk.enable': () => this.toggleKiosk(true),
     'kiosk.disable': () => this.toggleKiosk(false),
   }
