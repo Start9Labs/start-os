@@ -494,10 +494,10 @@ async fn get_wifi_clients() -> (HashMap<String, String>, std::collections::HashS
 
 /// Connection label for an access point's operating frequency in MHz.
 fn wifi_band_label(freq: Option<u64>) -> &'static str {
-    match freq {
-        Some(2400..=2500) => "Wi-Fi 2.4GHz",
-        Some(4900..=5924) => "Wi-Fi 5GHz",
-        Some(5925..=7125) => "Wi-Fi 6GHz",
+    match freq.and_then(crate::wifi::frequency_band) {
+        Some("2g") => "Wi-Fi 2.4GHz",
+        Some("5g") => "Wi-Fi 5GHz",
+        Some("6g") => "Wi-Fi 6GHz",
         _ => "Wi-Fi",
     }
 }
