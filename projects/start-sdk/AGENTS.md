@@ -24,14 +24,14 @@ Node.js v22+ (nvm recommended), npm, and GNU Make.
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `make node_modules`           | `npm ci`                                                                                                                                            |
 | `make bundle`                 | build only: build `@start9labs/start-core` (prerequisite), compile SDK → `dist/`. Deliberately does **not** run `test` or `check-fmt` — see Gotchas |
-| `make test`                   | consumer-check script tests + jest                                                                                                                  |
+| `make test`                   | build-tool script tests + jest                                                                                                                      |
 | `make check`                  | `tsc --noEmit`                                                                                                                                      |
 | `make fmt` / `make check-fmt` | Prettier write / check on all `.ts`                                                                                                                 |
 | `make link`                   | build + `npm link` from `dist/` for local package testing                                                                                           |
 | `make clean`                  | remove `dist/`, `node_modules`, generated test output                                                                                               |
 | `make publish`                | the raw npm step only — **not** how you cut a release (see Gotchas)                                                                                 |
 
-SDK tests are jest + ts-jest, Node only (no browser). Test files use `.test.ts` and are excluded from compilation via `tsconfig.json`. `make test` also runs the consumer-check script fixtures with Node's native test runner (`node --test tests/check-consumers.test.mjs`). Run one with `npx jest --testPathPatterns=host`. The bundled `@start9labs/start-core` has its own suite and build: `cd ../../shared-libs/ts-modules/start-core && make test` (or `make dist`). The ExVer parser is generated from that lib's `lib/exver/exver.pegjs` via Peggy (`make` runs this for you).
+SDK tests are jest + ts-jest, Node only (no browser). Test files use `.test.ts` and are excluded from compilation via `tsconfig.json`. `make test` also runs the build-tool script fixtures with Node's native test runner (`node --test tests/*.test.mjs`). Run one with `npx jest --testPathPatterns=host`. The bundled `@start9labs/start-core` has its own suite and build: `cd ../../shared-libs/ts-modules/start-core && make test` (or `make dist`). The ExVer parser is generated from that lib's `lib/exver/exver.pegjs` via Peggy (`make` runs this for you).
 
 Root `make start-sdk-test` also builds the SDK and checks editor documentation through generated core types and bundled SDK declarations.
 
