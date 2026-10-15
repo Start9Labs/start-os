@@ -8,6 +8,13 @@ export * as types from './types'
 export * as T from './types'
 export * as RPC from './osBindings/rpc'
 export * as schemas from './osBindings/schemas'
+export { createRpcClient, rpcMethodSegment, tableTransport } from './rpcClient'
+export type {
+  RpcCallOptions,
+  RpcClient,
+  RpcHandlers,
+  RpcTransport,
+} from './rpcClient'
 export * as yaml from 'yaml'
 export * as inits from './inits'
 export * as z from './z'
