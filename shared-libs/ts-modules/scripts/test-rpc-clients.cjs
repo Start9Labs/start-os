@@ -209,7 +209,7 @@ for (const [name, file, className, deauthMethod] of [
   })
 }
 
-test('StartOS confines database projection to the root and preserves action protocol values', async () => {
+test('StartOS derives the method path and forwards results untouched', async () => {
   const { load } = harness()
   const client = Object.create(
     load(
@@ -218,8 +218,6 @@ test('StartOS confines database projection to the root and preserves action prot
   )
   const value = { serverInfo: { id: 'server' }, packageData: {} }
   const dump = { guid: 'subscription', dump: { id: 3, value } }
-  const spec = { type: 'object', fields: {}, fieldOrder: [] }
-  const input = { input: null, spec, eventId: 'input-event' }
   const action = { version: '1', title: 'Done', message: null, result: null }
   const requests = []
   let response = dump
@@ -227,34 +225,32 @@ test('StartOS confines database projection to the root and preserves action prot
     requests.push(options)
     return response
   }
-  const subscribed = await client.subscribeToPatchDB()
-  assert.equal(subscribed.guid, dump.guid)
-  assert.equal(subscribed.dump.id, dump.dump.id)
-  assert.equal(subscribed.dump.value, value)
+  const rpc = load(
+    'shared-libs/ts-modules/start-core/lib/rpcClient.ts',
+  ).createRpcClient({
+    call: (method, params, options) =>
+      client.rpcRequest({ method, params, ...options }),
+  })
+  assert.equal(await rpc.db.subscribe({}), dump)
   assert.equal(requests[0].method, 'db.subscribe')
   assert.equal(Object.keys(requests[0].params).length, 0)
-  response = input
-  const received = await client.getActionInput({ id: 'demo', actionId: 'test' })
-  assert.equal(received.spec, spec)
-  assert.equal(received.eventId, input.eventId)
-  response = null
-  assert.equal(
-    await client.getActionInput({ id: 'demo', actionId: 'test' }),
-    null,
-  )
   response = action
   assert.equal(
-    await client.runAction({ id: 'demo', actionId: 'test', input: null }),
+    await rpc.package.action.run({ id: 'demo', actionId: 'test', input: null }),
     action,
   )
+  assert.equal(requests[1].method, 'package.action.run')
   response = null
   assert.equal(
-    await client.runAction({ id: 'demo', actionId: 'test', input: null }),
+    await rpc.package.action.getInput({ id: 'demo', actionId: 'test' }),
     null,
   )
+  assert.equal(requests[2].method, 'package.action.get-input')
+  await rpc.server.logs({ limit: 1 }, { timeout: 10000 })
+  assert.equal(requests[3].timeout, 10000)
 })
 
-test('Setup converts the actual JWK response and preserves installation timeout', async () => {
+test('Setup converts the actual JWK response and forwards the installation timeout', async () => {
   const { dependencies, tokens, load } = harness()
   const calls = []
   const key = {
@@ -279,7 +275,8 @@ test('Setup converts the actual JWK response and preserves installation timeout'
   const client = new (load(
     'projects/start-os/web/setup-wizard/src/app/services/live-api.service.ts',
   ).LiveApiService)()
-  await client.getPubKey()
+  await client.loadPubKey()
+  assert.equal(calls[0].method, 'setup.get-pubkey')
   assert.equal(client.pubkey.kty, 'EC')
   const encrypted = await client.encrypt('secret')
   assert.equal(typeof encrypted.encrypted, 'object')
@@ -288,48 +285,26 @@ test('Setup converts the actual JWK response and preserves installation timeout'
     osDrive: null,
     dataDrive: { stablePath: '/dev/example', wipe: true },
   }
-  assert.equal((await client.installOs(params)).guid, null)
+  assert.equal(
+    (await client.rpc.setup.installOs(params, { timeout: 5 * 60 * 1000 })).guid,
+    null,
+  )
+  assert.equal(calls[1].method, 'setup.install-os')
   assert.equal(calls[1].params, params)
   assert.equal(calls[1].timeout, 5 * 60 * 1000)
 })
 
-test('Setup normalizes every CIFS path separator before verification and restore', async () => {
-  const { dependencies, tokens, load } = harness()
-  const calls = []
-  dependencies.set(tokens.HttpService, {
-    rpcRequest: async options => {
-      calls.push(options)
-      return { body: { result: {} } }
-    },
-  })
-  const client = new (load(
-    'projects/start-os/web/setup-wizard/src/app/services/live-api.service.ts',
-  ).LiveApiService)()
-  const cifs = {
-    hostname: 'nas',
-    path: String.raw`share\nested\backups`,
-    username: 'user',
-    password: null,
-  }
-  await client.verifyCifs({ ...cifs })
-  assert.equal(calls[0].params.path, 'share/nested/backups')
-  await client.execute({
-    guid: 'data',
-    kiosk: false,
-    recoverySource: {
-      type: 'backup',
-      target: { type: 'cifs', ...cifs },
-      serverId: 'server',
-      password: { encrypted: {} },
-    },
-  })
+test('Setup normalizes every CIFS path separator', () => {
+  const { normalizeCifsPath } = harness().load(
+    'projects/start-os/web/setup-wizard/src/app/utils/cifs.ts',
+  )
   assert.equal(
-    calls[1].params.recoverySource.target.path,
+    normalizeCifsPath(String.raw`share\nested\backups`),
     'share/nested/backups',
   )
 })
 
-test('Brochure uses the direct registry root and rejects mismatched package projections', async () => {
+test('Brochure serves each registry root through its own client', async () => {
   const { dependencies, tokens, load } = harness()
   let response = { id: 'registry', name: 'Registry' }
   const calls = []
@@ -344,39 +319,23 @@ test('Brochure uses the direct registry root and rejects mismatched package proj
   ).LiveApiService
   const client = Object.create(Brochure.prototype)
   client.http = dependencies.get(tokens.HttpService)
-  assert.equal(
-    await client.getRegistryInfo('https://registry.test/base/'),
-    response,
-  )
+  client.registries = new Map()
+  const registry = client.registry('https://registry.test/base/')
+  assert.equal(await registry.info({}), response)
   assert.equal(calls[0].options.method, 'info')
   assert.equal(calls[0].url, 'https://registry.test/base/rpc/v0')
+  assert.equal(client.registry('https://registry.test/base/'), registry)
   response = { categories: [], otherVersions: {} }
-  const single = await client.getRegistryPackage(
-    'https://registry.test/',
-    'example',
-    null,
-  )
-  assert.deepEqual(single.categories, [])
-  assert.equal(calls[1].options.params.otherVersions, 'short')
-  assert.equal(calls[1].options.params.id, 'example')
-  response = { example: response }
-  assert.ok(
-    (await client.getRegistryPackages('https://registry.test/')).example,
-  )
-  await assert.rejects(
-    client.getRegistryPackage('https://registry.test/', 'example', null),
-    /single package/,
-  )
-  response = { categories: [], otherVersions: {} }
-  await assert.rejects(
-    client.getRegistryPackages('https://registry.test/'),
-    /package map/,
-  )
-  response = { categories: [] }
-  await assert.rejects(
-    client.getRegistryPackage('https://registry.test/', 'example', null),
-    /Invalid package response/,
-  )
+  const params = {
+    id: 'example',
+    targetVersion: null,
+    sourceVersion: null,
+    otherVersions: 'short',
+  }
+  assert.equal(await registry.package.get(params), response)
+  assert.equal(calls[1].options.method, 'package.get')
+  assert.equal(calls[1].options.params, params)
+  assert.equal(calls[1].url, 'https://registry.test/base/rpc/v0')
 })
 
 test('WRT mock mutations resolve nullable partial profile queries into full LAN references', async () => {
