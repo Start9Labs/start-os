@@ -149,18 +149,38 @@ pub(super) async fn from_image_archive<R: AsyncRead + Unpin + Send>(
     }
     let (manifest, config) =
         selected.ok_or_else(|| invalid("image archive has no image for the requested platform"))?;
+    let layers = manifest
+        .layers
+        .unwrap_or_default()
+        .iter()
+        .map(|path| {
+            archive_file(&archive, path)
+                .cloned()
+                .map(DynFileSource::new)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    from_layers(config, layers, platform).await
+}
+
+async fn from_layers(
+    config: ArchiveConfig,
+    layers: Vec<DynFileSource>,
+    platform: &str,
+) -> Result<(Squashfs<DynFileSource>, DockerImageConfig), Error> {
+    if !config.platform.matches(platform) {
+        return Err(invalid("image configuration does not match the requested platform").into());
+    }
     if config.rootfs.kind != "layers" {
         return Err(invalid("unsupported image rootfs type").into());
     }
-    let paths = manifest.layers.unwrap_or_default();
     let diff_ids = config.rootfs.diff_ids.unwrap_or_default();
-    if paths.len() != diff_ids.len() {
+    if layers.len() != diff_ids.len() {
         return Err(invalid("image archive layer count does not match its configuration").into());
     }
     let mut filesystem = LayerFilesystem::new();
-    for (path, diff_id) in paths.iter().zip(diff_ids) {
+    for (source, diff_id) in layers.iter().zip(diff_ids) {
         let mut reader = DigestReader {
-            reader: layer_reader(archive_file(&archive, path)?).await?,
+            reader: layer_reader(source).await?,
             hash: Sha256::new(),
         };
         filesystem.apply_tar(&mut reader).await?;
