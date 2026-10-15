@@ -1,0 +1,1 @@
+- **`s9pk edit add-image` re-signs edited packages with the workspace build key**, keeping their signatures valid.

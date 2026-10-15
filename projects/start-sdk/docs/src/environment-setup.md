@@ -11,11 +11,11 @@ You must have a computer running StartOS to test your packages. Follow the [inst
 
 ## Docker
 
-[Docker](https://docs.docker.com/get-docker/) is essential for building and managing container images that will be used for the final `.s9pk` build. It handles pulling base images and building custom container images from Dockerfiles.
+[Docker](https://docs.docker.com/get-docker/) supplies registry images and builds custom images from Dockerfiles. Packages using only local OCI layouts and legacy package conversion do not require it.
 
-Install Docker 28.1 or newer with Engine API 1.49 or newer; packaging uses platform-specific image inspection. Follow the [official Docker installation guide](https://docs.docker.com/engine/install/) for your platform.
+Install Docker with Engine API 1.48 or newer for platform-specific image export. Follow the [official Docker installation guide](https://docs.docker.com/engine/install/) for your platform.
 
-Docker must be **running** when you build a package, and your user must be able to use it:
+Docker must be **running** for `dockerTag` and `dockerBuild` image sources, and your user must be able to use it:
 
 {{#tabs global="platform"}}
 
@@ -39,6 +39,14 @@ Start Docker Desktop; it runs the daemon for you. (Docker Desktop covers Windows
 
 > [!TIP]
 > Confirm it works with `docker run --rm hello-world` before continuing.
+
+Custom `dockerBuild` images export OCI directly through Buildx. The selected builder must support the OCI exporter. If Docker's default builder uses the classic image store, create and select a container-backed builder once:
+
+```sh
+docker buildx create --name start9 --driver docker-container --use
+```
+
+An existing OCI-capable builder can be selected with `BUILDX_BUILDER`. Podman builds use its native OCI image store and OCI archive export; set `STARTOS_USE_PODMAN=1` to use Podman.
 
 ## Make
 
@@ -82,32 +90,6 @@ nvm use 22
 ```
 
 Alternatively, download Node.js v22 (or newer) directly from [nodejs.org](https://nodejs.org/) — make sure `node --version` reports v22+ afterward.
-
-## SquashFS
-
-SquashFS is used to create compressed filesystem images that package your compiled service code.
-
-{{#tabs global="platform"}}
-
-{{#tab name="Linux"}}
-
-```sh
-sudo apt install squashfs-tools squashfs-tools-ng
-```
-
-{{#endtab}}
-
-{{#tab name="Mac"}}
-
-Requires [Homebrew](https://brew.sh/):
-
-```sh
-brew install squashfs
-```
-
-{{#endtab}}
-
-{{#endtabs}}
 
 ## cURL
 
@@ -201,7 +183,6 @@ docker run --rm hello-world   # confirms the daemon is running and you have acce
 make --version
 node --version                # must be v22 or newer
 npm --version
-mksquashfs -version
 git --version
 curl --version
 jq --version

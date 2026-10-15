@@ -165,6 +165,10 @@ nom = "8.0.0"
 num = "0.4.1"
 num_cpus = "1.16.0"
 num_enum = "0.7.0"
+oci-spec = { version = "0.10.0", default-features = false, features = [
+  "distribution",
+  "image",
+] }
 once_cell = "1.19.0"
 openssh-keys = "0.6.2"
 openssl = { version = "0.10.57", features = ["vendored"] }
@@ -230,8 +234,10 @@ url = { version = "2.4.1", features = ["serde"] }
 uuid = { version = "1.4.1", features = ["v4"] }
 visit-rs = { path = "../visit-rs" }
 x25519-dalek = { version = "3.0.0-rc.1", features = ["static_secrets"] }
+xattr = "1.6.1"
 xmltree = "0.10"
 zbus = "5.1.1"
+zstd = "0.13.3"
 
 [[example]]
 name = "generate_bindings"
