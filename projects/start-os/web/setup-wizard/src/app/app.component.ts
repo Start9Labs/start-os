@@ -26,10 +26,10 @@ export class AppComponent implements OnInit {
       )
 
       // Get pubkey for encryption
-      await this.api.getPubKey()
+      await this.api.loadPubKey()
 
       // Check setup status to determine initial route
-      const status = await this.api.getStatus()
+      const status = await this.api.rpc.setup.status({})
 
       switch (status.status) {
         case 'needs-install':

@@ -691,7 +691,7 @@ pub fn lazy_display<F: Fn() -> D, D: fmt::Display>(f: F) -> LazyDisplay<F> {
 }
 
 #[derive(Debug, Clone, visit_rs::VisitVariants)]
-#[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
 #[visit(opaque, type_attributes(visit::wire))]
 pub enum PathOrUrl {
     Path(PathBuf),

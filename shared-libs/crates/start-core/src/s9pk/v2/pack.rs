@@ -1100,7 +1100,7 @@ mod test {
     #[cfg(feature = "ts")]
     #[test]
     fn image_config_input_binding_matches_the_custom_decoder() {
-        use rpc_toolkit::ts::{Direction, TSVisitor};
+        use rpc_toolkit::ts::TSVisitor;
 
         for (fields, expected) in [
             (serde_json::json!({}), false),
@@ -1141,24 +1141,28 @@ mod test {
         }
 
         let mut visitor = TSVisitor::new();
-        visitor.with_direction(Direction::Input, |visitor| {
-            visitor.append_type::<ImageConfig>()
-        });
-        let input = visitor.into_declarations().unwrap();
-        assert!(input.contains("ImageConfigReprInput"), "{input}");
-        assert!(
-            input.contains("\"emulateMissing\"?:((boolean|null))"),
-            "{input}"
-        );
-        assert!(
-            input.contains("\"emulateMissingAs\"?:((string|null))"),
-            "{input}"
-        );
-        let mut visitor = TSVisitor::new();
         visitor.append_type::<ImageConfig>();
-        let output = visitor.into_declarations().unwrap();
-        assert!(output.contains("\"emulateMissing\":(boolean)"), "{output}");
-        assert!(!output.contains("ImageConfigRepr"), "{output}");
+        let schemas = visitor.into_bindings(None, "./schemas").unwrap().schemas;
+        assert!(
+            schemas.contains("= /* @__PURE__ */ wire(ImageConfigRepr, object({"),
+            "{schemas}"
+        );
+        assert!(
+            schemas.contains("\"emulateMissing\": wire(z.boolean().nullable().optional(), z.boolean().nullable())"),
+            "{schemas}"
+        );
+        assert!(
+            schemas.contains("\"emulateMissingAs\": wire(z.string().nullable().optional(), z.string().nullable())"),
+            "{schemas}"
+        );
+        assert!(
+            schemas.contains("\"emulateMissing\": z.boolean()"),
+            "{schemas}"
+        );
+        assert!(
+            !schemas.contains("\"emulateMissingAs\": z.string()"),
+            "{schemas}"
+        );
     }
 
     #[test]

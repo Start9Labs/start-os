@@ -1,8 +1,11 @@
-import { IST, RPC, T } from '@start9labs/start-core'
+import { IST, RPC, RpcClient, T } from '@start9labs/start-core'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import { GetPackageReq, GetPackagesReq } from '@start9labs/marketplace'
 
 export type Api = RPC.StartOS | RPC.Diagnostic | RPC.Init
+export type ApiClient = RpcClient<RPC.StartOS> &
+  RpcClient<RPC.Diagnostic> &
+  RpcClient<RPC.Init>
 export type Params<M extends RPC.RpcMethod<Api>> = RPC.RpcParamType<Api, M>
 export type Result<M extends RPC.RpcMethod<Api>> = RPC.RpcReturnType<Api, M>
 export type WebsocketConfig<U> = Omit<WebSocketSubjectConfig<U>, 'url'>

@@ -120,7 +120,7 @@ impl SignatureScheme for AnyScheme {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, VisitVariants)]
-#[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
 #[non_exhaustive]
 #[visit(opaque, type_attributes(visit::wire))]
 pub enum AnySigningKey {
@@ -196,7 +196,7 @@ impl Serialize for AnySigningKey {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, VisitVariants)]
-#[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
 #[non_exhaustive]
 #[visit(opaque, type_attributes(visit::wire))]
 pub enum AnyVerifyingKey {
@@ -315,7 +315,7 @@ impl digest::Update for AnyDigest {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, VisitVariants)]
-#[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
 #[visit(opaque, type_attributes(visit::wire))]
 pub enum AnySignature {
     Ed25519(<Ed25519 as SignatureScheme>::Signature),

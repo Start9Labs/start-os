@@ -28,7 +28,7 @@ use crate::util::serde::Base64;
 #[derive(Debug, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct AddPackageParams {
-    #[visit(ts(type = "string[]"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub urls: Vec<Url>,
     #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]

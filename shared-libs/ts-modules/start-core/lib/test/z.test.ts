@@ -1,4 +1,4 @@
-import { z } from '../zExport'
+import * as z from '../z'
 
 const nested = { host: z.string(), opts: z.looseObject({ tls: z.boolean() }) }
 const extra = { host: 'h', opts: { tls: true, retries: 3 }, comment: 'keep' }
@@ -39,13 +39,16 @@ describe('the z re-export', () => {
     })
   })
 
-  test('z.deepPartial makes every level optional and loose', () => {
+  test('z.deepPartial makes every level optional and keeps each object’s unknown-key mode', () => {
     const schema = z.object({
       host: z.string(),
       opts: z.object({ tls: z.boolean() }),
     })
     expect(z.deepPartial(schema).parse({ opts: { retries: 3 } })).toEqual({
-      opts: { retries: 3 },
+      opts: {},
     })
+    expect(
+      z.deepLoose(z.deepPartial(schema)).parse({ opts: { retries: 3 } }),
+    ).toEqual({ opts: { retries: 3 } })
   })
 })

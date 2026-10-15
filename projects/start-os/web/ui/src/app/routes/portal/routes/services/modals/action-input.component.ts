@@ -7,7 +7,7 @@ import {
   i18nKey,
   i18nPipe,
 } from '@start9labs/shared'
-import { T, utils } from '@start9labs/start-core'
+import { IST, T, utils } from '@start9labs/start-core'
 import {
   TuiButton,
   TuiDialogContext,
@@ -137,11 +137,13 @@ export class ActionInputModal {
   readonly error = signal('')
   readonly res = toSignal(
     from(
-      this.api.getActionInput({
-        packageId: this.pkgInfo.id,
-        actionId: this.actionId,
-        prefill: this.prefill ?? null,
-      }),
+      this.api.rpc.package.action
+        .getInput({
+          packageId: this.pkgInfo.id,
+          actionId: this.actionId,
+          prefill: this.prefill ?? null,
+        })
+        .then(res => res && { ...res, spec: res.spec as IST.InputSpec }),
     ).pipe(
       map(res => {
         if (!res) throw new Error('Invalid response from server')

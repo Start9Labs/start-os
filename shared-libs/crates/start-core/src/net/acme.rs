@@ -648,7 +648,7 @@ fn challenge_pending(
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, VisitFields)]
-#[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
 #[visit(opaque, type_attributes(visit::wire))]
 pub struct AcmeProvider(pub Url);
 

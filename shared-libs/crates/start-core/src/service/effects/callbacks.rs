@@ -390,7 +390,9 @@ impl CallbackHandlers {
 #[derive(Debug, Clone, Serialize, Deserialize, VisitFields, Parser)]
 #[group(skip)]
 #[visit(
-    ts(type = "{ only: number[] } | { except: number[] }"),
+    ts(
+        type = "z.union([z.object({ only: z.array(z.number()) }), z.object({ except: z.array(z.number()) })])"
+    ),
     wire = "rpc_toolkit::ts::Unknown"
 )]
 #[visit(opaque, type_attributes(visit::wire))]

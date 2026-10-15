@@ -1,7 +1,10 @@
 #![cfg(feature = "ts")]
 #![allow(dead_code)]
 
-use rpc_toolkit::ts::{export_namespace, Direction, TSVisitor};
+mod common;
+
+use common::{declarations, SCHEMAS};
+use rpc_toolkit::ts::{export_namespace, TSVisitor};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Serialize, visit_rs::VisitFields)]
@@ -59,48 +62,48 @@ fn directional_field_override_matches_custom_serde() {
         assert!(serde_json::to_value(value).unwrap()["value"].is_string());
     }
     assert!(serde_json::from_str::<CustomField>(r#"{"value":2}"#).is_err());
-    for direction in [Direction::Input, Direction::Output] {
-        let mut visitor = TSVisitor::new();
-        visitor.with_direction(direction, |visitor| visitor.append_type::<CustomField>());
-        let ts = visitor.into_declarations().unwrap();
-        let mut visitor = TSVisitor::new();
-        visitor.with_direction(direction, |visitor| {
-            rpc_toolkit::ts::visit_shape::<CustomField>(visitor)
-        });
-        let shape = visitor.into_module("Direct").unwrap();
-        let expected = if direction == Direction::Input {
-            "\"value\"?:((string|null))"
-        } else {
-            "\"value\":(string)"
-        };
-        assert!(ts.contains(expected), "{}", ts);
-        assert!(shape.contains(expected), "{}", shape);
-    }
+    let expected = "wire(object({ \"value\": z.string().nullable().optional() }), object({ \"value\": z.string() }))";
+    let bindings = declarations::<CustomField>();
+    assert!(bindings.schemas.contains(expected), "{}", bindings.schemas);
+    let mut visitor = TSVisitor::new();
+    rpc_toolkit::ts::visit_shape::<CustomField>(&mut visitor);
+    assert_eq!(visitor.ts, expected);
 }
 
 #[test]
 fn container_override_reuses_the_real_deserialization_representation() {
     let value: CustomContainer = serde_json::from_str(r#"{"value":null}"#).unwrap();
     assert_eq!(serde_json::to_string(&value).unwrap(), r#"{"value":""}"#);
-    let mut visitor = TSVisitor::new();
-    visitor.with_direction(Direction::Input, |visitor| {
-        visitor.append_type::<CustomContainer>()
-    });
-    let input = visitor.into_declarations().unwrap();
-    assert!(input.contains("export type LegacyFormInput ="));
-    assert!(input.contains("\"value\"?:((string|null))"));
-    let mut visitor = TSVisitor::new();
-    visitor.append_type::<CustomContainer>();
-    let output = visitor.into_declarations().unwrap();
-    assert!(output.contains("\"value\":(string)"));
-    assert!(!output.contains("LegacyForm"));
+    let bindings = declarations::<CustomContainer>();
+    assert!(bindings.schemas.contains("export const LegacyForm: z.ZodObject<{ \"value\": z.ZodCodec<z.ZodOptional<z.ZodNullable<z.ZodString>>, z.ZodNullable<z.ZodString>> }> = /* @__PURE__ */ object({ \"value\": wire(z.string().nullable().optional(), z.string().nullable()) }).meta({\nid: \"LegacyForm\" });"));
+    assert!(bindings.schemas.contains("export const CustomContainer: z.ZodCodec<typeof LegacyForm, z.ZodObject<{ \"value\": z.ZodString }>> = /* @__PURE__ */ wire(LegacyForm, object({ \"value\": z.string() })).meta({\nid: \"CustomContainer\" });"));
+    assert!(bindings.types.contains("export type LegacyFormInput ="));
+    let earlier = bindings.schemas.find("export const LegacyForm").unwrap();
+    assert!(
+        earlier
+            < bindings
+                .schemas
+                .find("export const CustomContainer")
+                .unwrap()
+    );
 }
 
 #[test]
 fn explicit_input_alias_avoids_a_real_output_name_collision() {
-    let module = export_namespace("directional_ts", "directions").unwrap();
-    assert!(module.contains("export type Task ="));
-    assert!(module.contains("export type TaskInput ="));
-    assert!(module.contains("export type TaskParams ="));
-    assert!(module.contains("\"input\"?:((TaskInputInput|null))"));
+    let bindings = export_namespace("directional_ts", "directions", SCHEMAS).unwrap();
+    assert!(bindings
+        .types
+        .contains("export type Task = z.output<typeof schemas.Task>;"));
+    assert!(bindings
+        .types
+        .contains("export type TaskParams = z.input<typeof schemas.Task>;"));
+    assert!(bindings
+        .types
+        .contains("export type TaskInput = z.output<typeof schemas.TaskInput>;"));
+    assert!(bindings
+        .types
+        .contains("export type TaskInputInput = z.input<typeof schemas.TaskInput>;"));
+    assert!(bindings
+        .schemas
+        .contains("\"input\": wire(TaskInput.nullable().optional(), TaskInput.nullable())"));
 }

@@ -4,6 +4,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 mod normalize;
+mod render;
 mod types;
 pub use types::*;
 use visit_rs::{Static, Visit, Visitor};
@@ -30,7 +31,7 @@ where
     Box::new(|visitor| Static::<T>::new().visit(visitor))
 }
 
-/// Supplies the handler's own input shape, excluding inherited parameters.
+/// Supplies the handler's own input shape; the tree emitter folds inherited parameters in.
 pub trait ParamsTS {
     fn params_ts<'a>(&'a self) -> TSWriter<'a>;
 }
@@ -112,17 +113,29 @@ impl<'a> HandlerTS<'a> {
 }
 impl<'a> Visit<TSVisitor> for HandlerTS<'a> {
     fn visit(&self, visitor: &mut TSVisitor) -> <TSVisitor as Visitor>::Result {
-        visitor.ts.push_str("{_PARAMS:");
-        visitor.with_direction(Direction::Input, |visitor| (self.params_ts)(visitor));
+        let own = visitor.in_direction(Direction::Input, |visitor| {
+            visitor.capture(|visitor| (self.params_ts)(visitor)).value
+        });
+        let params = match visitor.inherited_params() {
+            Some(inherited) if own == "empty" => inherited.to_owned(),
+            Some(inherited) => format!("z.intersection({inherited}, {own})"),
+            None => own,
+        };
+        visitor.ts.push_str("{ _PARAMS: ");
+        visitor.ts.push_str(PURE);
+        visitor.ts.push(' ');
+        visitor.ts.push_str(&params);
         if let Some(return_ty) = &self.return_ts {
-            visitor.ts.push_str(";_RETURN:");
-            visitor.with_direction(Direction::Output, |visitor| return_ty(visitor));
+            visitor.ts.push_str(", _RETURN: ");
+            visitor.ts.push_str(PURE);
+            visitor.ts.push(' ');
+            visitor.in_direction(Direction::Output, |visitor| return_ty(visitor));
         }
         if let Some(children) = &self.children {
-            visitor.ts.push_str(";_CHILDREN:");
-            children(visitor);
+            visitor.ts.push_str(", _CHILDREN: ");
+            visitor.with_inherited_params(params, |visitor| children(visitor));
         }
-        visitor.ts.push('}');
+        visitor.ts.push_str(" }");
     }
 }
 
@@ -196,7 +209,7 @@ impl<Context, Params, InheritedParams> ReturnTS
     fn return_ts<'a>(&'a self) -> Option<Box<dyn Fn(&mut TSVisitor) + Send + Sync + 'a>> {
         match self.subcommands.0.as_ref()?.get_ts() {
             Some(ts) => ts.return_ts,
-            None => Some(Box::new(|v| v.ts.push_str("unknown"))),
+            None => Some(type_writer::<serde_json::Value>()),
         }
     }
 }
@@ -227,22 +240,29 @@ where
         use std::fmt::Write;
 
         Some(Box::new(move |visitor| {
-            visitor.ts.push('{');
-            for (name, handler) in &self.subcommands.1 {
+            visitor.ts.push_str("{ ");
+            for (index, (name, handler)) in self.subcommands.1.iter().enumerate() {
+                if index > 0 {
+                    visitor.ts.push_str(", ");
+                }
                 write!(
                     &mut visitor.ts,
-                    "{}:",
+                    "{}: ",
                     serde_json::to_string(&name.0).unwrap()
                 )
                 .ok();
                 if let Some(ts) = handler.0.get_ts() {
                     ts.visit(visitor);
                 } else {
-                    visitor.ts.push_str("{_PARAMS:unknown;_RETURN:unknown}");
+                    HandlerTS {
+                        params_ts: type_writer::<serde_json::Value>(),
+                        return_ts: Some(type_writer::<serde_json::Value>()),
+                        children: None,
+                    }
+                    .visit(visitor);
                 }
-                visitor.ts.push(';');
             }
-            visitor.ts.push('}');
+            visitor.ts.push_str(" }");
         }))
     }
 }
@@ -283,11 +303,15 @@ where
     }
 }
 
-/// Generates a module for the handler tree; an opted-out root returns `None`.
+/// Generates the module pair for the handler tree; an opted-out root returns `None`.
+///
+/// The type module includes the method-path inference helpers and projects the
+/// root through `RpcSchemaTree`.
 pub fn handler_bindings<H: HandlerTSBindings>(
     handler: &H,
     root_name: &str,
-) -> Result<Option<String>, BindingError> {
+    schemas_specifier: &str,
+) -> Result<Option<Bindings>, BindingError> {
     let Some(ts) = handler.get_ts() else {
         return Ok(None);
     };
@@ -299,10 +323,11 @@ pub fn handler_bindings<H: HandlerTSBindings>(
                 .next()
         })
     }));
+    visitor.types_prelude(type_helpers());
     ts.visit(&mut visitor);
     visitor
-        .into_module(root_name)
-        .map(|module| Some(format!("{}\n{module}", type_helpers())))
+        .into_bindings(Some(root_name), schemas_specifier)
+        .map(Some)
 }
 
 impl<A: TS, B: TS> TS for crate::util::Flat<A, B> {
