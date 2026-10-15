@@ -166,6 +166,7 @@ num = "0.4.1"
 num_cpus = "1.16.0"
 num_enum = "0.7.0"
 oci-spec = { version = "0.10.0", default-features = false, features = [
+  "distribution",
   "image",
 ] }
 once_cell = "1.19.0"

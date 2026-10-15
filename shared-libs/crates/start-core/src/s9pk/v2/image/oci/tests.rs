@@ -80,6 +80,30 @@ pub(crate) fn simple_archive(architecture: &str) -> Vec<u8> {
     fixture.archive(vec![selected])
 }
 
+pub(crate) fn legacy_docker_save_fixture(raw: &[u8]) -> Vec<u8> {
+    let mut fixture = Fixture::default();
+    let mut image = fixture.image("amd64", raw, raw.to_vec(), MediaType::ImageLayer.as_ref());
+    let image_path = Path::new("blobs/sha256").join(
+        image["digest"]
+            .as_str()
+            .unwrap()
+            .strip_prefix("sha256:")
+            .unwrap(),
+    );
+    let manifest: Value = serde_json::from_slice(&fixture.blobs[&image_path]).unwrap();
+    image["annotations"] = json!({
+        "io.containerd.image.name": "docker.io/start9/conversion-test/main:1.2.3",
+        "org.opencontainers.image.ref.name": "1.2.3",
+    });
+    let mut files = fixture.files(vec![image]);
+    files.insert("manifest.json".into(), serde_json::to_vec(&json!([{
+        "Config": format!("blobs/sha256/{}", manifest["config"]["digest"].as_str().unwrap().strip_prefix("sha256:").unwrap()),
+        "RepoTags": ["start9/conversion-test/main:1.2.3"],
+        "Layers": [format!("blobs/sha256/{}", manifest["layers"][0]["digest"].as_str().unwrap().strip_prefix("sha256:").unwrap())],
+    }])).unwrap());
+    archive(files)
+}
+
 fn layer() -> Vec<u8> {
     let mut tar = Vec::new();
     append(&mut tar, b"file", b'0', b"image content", None);
@@ -135,7 +159,10 @@ async fn references_select_one_image_and_unqualified_ambiguity_is_rejected() {
     let raw = layer();
     let mut fixture = Fixture::default();
     let mut first = fixture.image("amd64", &raw, raw.clone(), MediaType::ImageLayer.as_ref());
-    first["annotations"] = json!({"org.opencontainers.image.ref.name":"release"});
+    first["annotations"] = json!({
+        "org.opencontainers.image.ref.name": "release",
+        "io.containerd.image.name": "docker.io/start9/example/main:1.2.3",
+    });
     let mut other_raw = raw.clone();
     other_raw.extend_from_slice(&[0; 512]);
     let second = fixture.image(
@@ -156,6 +183,12 @@ async fn references_select_one_image_and_unqualified_ambiguity_is_rejected() {
     );
     assert_eq!(
         packed(&bytes, Some("release")).await.unwrap(),
+        packed(&bytes, Some(&digest)).await.unwrap()
+    );
+    assert_eq!(
+        packed(&bytes, Some("start9/example/main:1.2.3"))
+            .await
+            .unwrap(),
         packed(&bytes, Some(&digest)).await.unwrap()
     );
     assert!(
@@ -270,4 +303,47 @@ async fn local_directories_and_archives_share_the_same_importer() {
     assert_eq!(actual.into_inner(), expected);
     drop(filesystem);
     temp.gc().await.unwrap();
+}
+
+#[test]
+fn image_name_references_use_docker_qualification() {
+    let digest = format!("sha256:{}", "0".repeat(64));
+    for (reference, name) in [
+        (
+            "nginx".to_owned(),
+            "docker.io/library/nginx:latest".to_owned(),
+        ),
+        (
+            "docker.io/nginx".to_owned(),
+            "docker.io/library/nginx:latest".to_owned(),
+        ),
+        (
+            "index.docker.io/nginx".to_owned(),
+            "docker.io/library/nginx:latest".to_owned(),
+        ),
+        (
+            "start9/example/main:1.2.3".to_owned(),
+            "docker.io/start9/example/main:1.2.3".to_owned(),
+        ),
+        (
+            "ghcr.io/start9labs/example".to_owned(),
+            "ghcr.io/start9labs/example:latest".to_owned(),
+        ),
+        (
+            format!("localhost:5000/example@{digest}"),
+            format!("localhost:5000/example@{digest}"),
+        ),
+    ] {
+        let descriptor: Descriptor = serde_json::from_value(json!({
+            "mediaType": MediaType::ImageManifest, "digest": digest, "size": 0,
+            "annotations": {"io.containerd.image.name": name},
+        }))
+        .unwrap();
+        assert!(reference_matches(&descriptor, &reference), "{reference}");
+        assert!(!reference_matches(
+            &descriptor,
+            "other.invalid/unrelated:latest"
+        ));
+        assert!(!reference_matches(&descriptor, "invalid reference"));
+    }
 }

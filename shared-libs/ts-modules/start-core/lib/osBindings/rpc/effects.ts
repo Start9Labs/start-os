@@ -710,7 +710,7 @@ export type ImageSource =
       ociLayout: {
         path: string
         /**
-         * Top-level reference annotation or descriptor digest. Unset selects by platform.
+         * Top-level reference annotation, Docker image name, or descriptor digest. Unset selects by platform.
          */
         reference?: string | null
       }

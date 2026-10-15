@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use base64::Engine;
+use oci_spec::distribution::Reference;
 use oci_spec::image::{
     Descriptor, DigestAlgorithm, ImageIndex, ImageManifest, MediaType, OciLayout, ToDockerV2S2,
 };
@@ -102,12 +103,15 @@ fn parse_manifest(bytes: &[u8], expected: &MediaType) -> Result<Manifest, Error>
 }
 
 fn reference_matches(entry: &Descriptor, reference: &str) -> bool {
-    entry.digest().to_string() == reference
-        || entry
-            .annotations()
-            .as_ref()
-            .and_then(|a| a.get("org.opencontainers.image.ref.name"))
-            .is_some_and(|name| name == reference)
+    let annotation = |key| entry.annotations().as_ref().and_then(|a| a.get(key));
+    entry.digest().as_ref() == reference
+        || annotation("org.opencontainers.image.ref.name").is_some_and(|name| name == reference)
+        || annotation("io.containerd.image.name").is_some_and(|name| {
+            match (name.parse::<Reference>(), reference.parse::<Reference>()) {
+                (Ok(name), Ok(reference)) => name == reference,
+                _ => false,
+            }
+        })
 }
 
 fn layer_media_type(media_type: &MediaType) -> bool {

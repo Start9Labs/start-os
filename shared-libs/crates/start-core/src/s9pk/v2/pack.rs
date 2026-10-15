@@ -505,7 +505,7 @@ pub enum ImageSource {
     #[serde(rename_all = "camelCase")]
     OciLayout {
         path: PathBuf,
-        /// Top-level reference annotation or descriptor digest. Unset selects by platform.
+        /// Top-level reference annotation, Docker image name, or descriptor digest. Unset selects by platform.
         #[serde(skip_serializing_if = "Option::is_none")]
         reference: Option<String>,
     },

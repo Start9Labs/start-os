@@ -16,7 +16,7 @@ use crate::util::squashfs::{Entry, LayerFilesystem, Squashfs, resolve_hardlink};
 mod oci;
 
 #[cfg(test)]
-pub(crate) use oci::tests::simple_archive as oci_test_archive;
+pub(crate) use oci::tests::{legacy_docker_save_fixture, simple_archive as oci_test_archive};
 
 const ARCHITECTURES: &[(&str, &str)] = &[("x86_64", "amd64"), ("aarch64", "arm64")];
 

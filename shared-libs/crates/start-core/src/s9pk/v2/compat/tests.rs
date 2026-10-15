@@ -409,12 +409,20 @@ async fn legacy_single_arch_images_convert_without_container_tools() {
         );
     }
     docker.extend_from_slice(&[0; 1024]);
+    assert_converts_without_container_tools(&docker).await;
+    assert_converts_without_container_tools(&super::super::image::legacy_docker_save_fixture(
+        &asset_tar(),
+    ))
+    .await;
+}
+
+async fn assert_converts_without_container_tools(docker: &[u8]) {
     let mut manifest = legacy_manifest();
     manifest.main = serde_json::from_value(
         serde_json::json!({"type":"docker", "image":"main", "entrypoint":"/bin/true"}),
     )
     .unwrap();
-    let bytes = pack_legacy(&manifest, &docker, &asset_tar(), None).await;
+    let bytes = pack_legacy(&manifest, docker, &asset_tar(), None).await;
     let reader = S9pkReader::from_reader(Cursor::new(bytes), true)
         .await
         .unwrap();
