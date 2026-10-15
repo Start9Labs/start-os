@@ -1411,6 +1411,18 @@ export const ImageSource: z.ZodUnion<
       }>
     }>,
     z.ZodObject<{ dockerTag: z.ZodString }>,
+    z.ZodObject<{
+      /**
+       * A self-contained local OCI image-layout directory or tar archive.
+       */
+      ociLayout: z.ZodObject<{
+        path: z.ZodString
+        /**
+         * Top-level reference annotation, Docker image name, or descriptor digest. Unset selects by platform.
+         */
+        reference: z.ZodOptional<z.ZodNullable<z.ZodString>>
+      }>
+    }>,
   ]
 > = /* @__PURE__ */ z
   .union([
@@ -1426,6 +1438,27 @@ export const ImageSource: z.ZodUnion<
       }),
     }),
     object({ dockerTag: z.string() }),
+    object({
+      /**
+       * A self-contained local OCI image-layout directory or tar archive.
+       */
+      ociLayout: object({
+        path: z.string(),
+        /**
+         * Top-level reference annotation, Docker image name, or descriptor digest. Unset selects by platform.
+         */
+        reference: z.string().nullable().optional().meta({
+          description:
+            'Top-level reference annotation, Docker image name, or descriptor digest. Unset selects by platform.',
+        }),
+      }).meta({
+        description:
+          'A self-contained local OCI image-layout directory or tar archive.',
+      }),
+    }).meta({
+      description:
+        'A self-contained local OCI image-layout directory or tar archive.',
+    }),
   ])
   .meta({
     id: 'ImageSource',

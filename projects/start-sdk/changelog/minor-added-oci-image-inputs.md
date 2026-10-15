@@ -1,0 +1,1 @@
+- Package manifests accept local OCI image layout directories and tar archives through `source.ociLayout`, with optional reference selection. Custom Docker builds use direct OCI export and require an OCI-capable Buildx builder.

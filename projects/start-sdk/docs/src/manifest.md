@@ -153,9 +153,29 @@ images: {
 },
 ```
 
+### Local OCI Layout or Archive
+
+Use a self-contained OCI image-layout directory or tar archive already on the workstation:
+
+```typescript
+images: {
+  main: {
+    source: {
+      ociLayout: {
+        path: './image.oci.tar',
+        reference: 'release',
+      },
+    },
+    arch: ['x86_64', 'aarch64'],
+  },
+},
+```
+
+`reference` selects a top-level image-index entry by `org.opencontainers.image.ref.name` annotation, Docker image name (`io.containerd.image.name`), or manifest/index digest. Image names use Docker's normalization, including Docker Hub/library prefixes and a default `latest` tag. Omit it when platform selection identifies one image configuration. Nested indexes are supported; ambiguous matches fail. All selected blobs must be present locally or embedded in their descriptors. Descriptor sizes/digests and uncompressed layer DiffIDs are verified before packing. This source does not require Docker or Podman.
+
 ### Local Docker Build
 
-Use when building from a Dockerfile in the project:
+Use when building from a Dockerfile in the project. Docker Buildx exports OCI directly and needs an [OCI-capable builder](./environment-setup.md#docker):
 
 ```typescript
 // Dockerfile in project root
