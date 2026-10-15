@@ -1,6 +1,18 @@
 import { RPC, T } from '../index'
 
 describe('custom wire representations', () => {
+  test('OCI image sources accept directories, archives and optional references', () => {
+    const directory: T.ImageSourceInput = { ociLayout: { path: './layout' } }
+    const archive: T.ImageConfigInput = {
+      source: { ociLayout: { path: './image.oci.tar', reference: 'release' } },
+      arch: ['x86_64'],
+    }
+    expect(directory.ociLayout.path).toBe('./layout')
+    expect(archive.source).toEqual({
+      ociLayout: { path: './image.oci.tar', reference: 'release' },
+    })
+  })
+
   test('log boot selectors accept omission and null', () => {
     const omitted: T.LogsParamsInput = {}
     const request: RPC.RpcParamType<RPC.StartOS, 'server.logs'> = { boot: null }

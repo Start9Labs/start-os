@@ -135,7 +135,7 @@ rpc_toolkit::ts_export!(LogFollowResponse, namespaces = [""]);
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct LogEntry {
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     timestamp: DateTime<Utc>,
     message: String,
@@ -358,7 +358,7 @@ pub struct LogsParams<Extra: FromArgMatches + Args = Empty> {
     #[arg(short = 'b', long = "boot", help = "help.arg.log-boot")]
     #[serde(default)]
     #[visit(
-        ts(type = "number | string | null"),
+        ts(type = "z.union([z.number(), z.string()]).nullable()"),
         wire = "Option<rpc_toolkit::ts::Unknown>"
     )]
     #[visit(opaque, type_attributes(visit::wire))]
@@ -761,7 +761,7 @@ pub async fn follow_logs<Context: AsRef<RpcContinuations>>(
 
 #[cfg(all(test, feature = "ts"))]
 mod tests {
-    use rpc_toolkit::ts::{Direction, TSVisitor};
+    use rpc_toolkit::ts::TSVisitor;
 
     use super::*;
 
@@ -781,16 +781,18 @@ mod tests {
             );
         }
         assert!(serde_json::from_value::<LogsParams>(serde_json::json!({"boot": true})).is_err());
-        for direction in [Direction::Input, Direction::Output] {
-            let mut visitor = TSVisitor::new();
-            visitor.with_direction(direction, |visitor| visitor.append_type::<LogsParams>());
-            let schema = visitor.into_module("Logs").unwrap();
-            let field = if direction == Direction::Input {
-                "\"boot\"?:(number | string | null)"
-            } else {
-                "\"boot\":(number | string | null)"
-            };
-            assert!(schema.contains(field), "{schema}");
-        }
+        let mut visitor = TSVisitor::new();
+        visitor.declare::<LogsParams>("Logs");
+        let schema = visitor.into_bindings(None, "./schemas").unwrap().schemas;
+        assert!(
+            schema.contains(
+                "const literal_0 = /* @__PURE__ */ z.union([z.number(), z.string()]).nullable();\n"
+            ),
+            "{schema}"
+        );
+        assert!(
+            schema.contains("\"boot\": wire(literal_0.optional(), literal_0)"),
+            "{schema}"
+        );
     }
 }

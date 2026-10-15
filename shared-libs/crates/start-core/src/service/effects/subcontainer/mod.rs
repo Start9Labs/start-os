@@ -81,7 +81,10 @@ pub async fn destroy_subcontainer_fs(
 #[serde(rename_all = "camelCase")]
 pub struct CreateSubcontainerFsParams {
     image_id: ImageId,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     name: Option<InternedString>,
 }

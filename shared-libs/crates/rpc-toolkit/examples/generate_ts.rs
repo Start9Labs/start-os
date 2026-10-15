@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use rpc_toolkit::ts::handler_bindings;
 use rpc_toolkit::{from_fn_async, reflect_ts, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
@@ -7,12 +9,17 @@ use yajrc::RpcError;
 struct Ctx;
 impl Context for Ctx {}
 
+/// A user to create.
 #[derive(Serialize, Deserialize, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 struct CreateUser {
+    /// Display name.
     user_name: String,
     age: u32,
     email: Option<String>,
+    #[serde(default)]
+    admin: bool,
+    manager: Option<Box<CreateUser>>,
 }
 reflect_ts!(CreateUser);
 
@@ -35,7 +42,12 @@ async fn jobs_root(_: Ctx, _: Empty) -> Result<JobResult, RpcError> {
     Ok(JobResult::Pending)
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let directory = std::env::args()
+        .nth(1)
+        .ok_or("expected an output directory")?;
+    let directory = Path::new(&directory);
+    std::fs::create_dir_all(directory)?;
     let root = ParentHandler::<Ctx, Empty, Empty>::new()
         .subcommand("createUser", from_fn_async(create_user).no_cli())
         .subcommand(
@@ -45,8 +57,9 @@ fn main() {
                 .subcommand("run", from_fn_async(job).no_cli()),
         );
 
-    match handler_bindings(&root, "Api").unwrap() {
-        Some(module) => print!("{module}"),
-        None => eprintln!("root handler opted out of TS"),
-    }
+    let bindings =
+        handler_bindings(&root, "Api", "./api.schemas")?.ok_or("root handler opted out of TS")?;
+    std::fs::write(directory.join("api.ts"), bindings.types)?;
+    std::fs::write(directory.join("api.schemas.ts"), bindings.schemas)?;
+    Ok(())
 }

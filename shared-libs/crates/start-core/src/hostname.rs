@@ -13,7 +13,7 @@ use crate::util::Invoke;
 use crate::util::io::{copy_file, write_file_atomic};
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize, VisitFields)]
-#[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
 #[visit(opaque, type_attributes(visit::wire))]
 pub struct ServerHostname(InternedString);
 

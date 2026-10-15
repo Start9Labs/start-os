@@ -107,7 +107,7 @@ pub enum DnsConfig {
     Device { ip: Ipv4Addr },
     /// Forward to operator-specified upstream servers (1-3, optional `:port`).
     Custom {
-        #[visit(ts(type = "string[]"), wire = "rpc_toolkit::ts::Unknown")]
+        #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
         #[visit(opaque, type_attributes(visit::wire))]
         servers: Vec<SocketAddr>,
     },
@@ -126,14 +126,20 @@ pub struct WgSubnetConfig {
     /// SNAT this subnet's egress to this WAN IP instead of `masquerade`. `None`
     /// keeps the default masquerade; a per-device `wan_ip` overrides this.
     #[serde(default)]
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     pub wan_ip: Option<std::net::Ipv4Addr>,
     /// Routed IPv6 prefix delegated to this subnet, if any. Each host on the
     /// subnet (the server and every client) gets one `/128` out of it with its
     /// tunnel IPv4 embedded — see [`crate::tunnel::wg6`].
     #[serde(default)]
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     pub ipv6: Option<Ipv6Net>,
 }
@@ -249,7 +255,10 @@ pub struct WgConfig {
     /// SNAT this device's egress to this WAN IP, overriding the subnet's
     /// `wan_ip` / the default masquerade. `None` falls back to the subnet rule.
     #[serde(default)]
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     pub wan_ip: Option<std::net::Ipv4Addr>,
 }

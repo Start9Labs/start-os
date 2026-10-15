@@ -701,7 +701,7 @@ where
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, VisitFields)]
-#[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
 #[visit(opaque, type_attributes(visit::wire))]
 pub struct Duration(std::time::Duration);
 
@@ -1014,7 +1014,7 @@ impl<'de, K: Deserialize<'de>, V: Deserialize<'de>> Deserialize<'de> for KeyVal<
 }
 
 #[derive(VisitFields)]
-#[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
 #[visit(opaque, type_attributes(visit::wire))]
 pub struct Base16<T>(pub T);
 
@@ -1052,7 +1052,7 @@ impl<T: AsRef<[u8]>> std::fmt::Display for Base16<T> {
 }
 
 #[derive(VisitFields)]
-#[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
 #[visit(opaque, type_attributes(visit::wire))]
 pub struct Base32<T>(pub T);
 
@@ -1110,7 +1110,7 @@ pub const BASE64: base64::engine::GeneralPurpose =
     );
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, VisitFields)]
-#[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
 #[visit(opaque, type_attributes(visit::wire))]
 pub struct Base64<T>(pub T);
 
@@ -1462,7 +1462,7 @@ pub mod pem {
 #[derive(
     Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash, VisitFields,
 )]
-#[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
 #[visit(opaque, type_attributes(visit::wire))]
 pub struct Pem<T: PemEncoding>(#[serde(with = "pem")] pub T);
 
@@ -1512,7 +1512,10 @@ impl<T: PemEncoding> ValueParserFactory for Pem<T> {
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, VisitFields)]
-#[visit(ts(type = "string | number[]"), wire = "rpc_toolkit::ts::Unknown")]
+#[visit(
+    ts(type = "z.union([z.string(), z.array(z.number())])"),
+    wire = "rpc_toolkit::ts::Unknown"
+)]
 #[visit(opaque, type_attributes(visit::wire))]
 pub struct MaybeUtf8String(pub Vec<u8>);
 

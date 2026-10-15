@@ -707,7 +707,6 @@ impl Service {
         let manifest = s9pk.as_manifest().clone();
         crate::volume::ensure_volume_root(&manifest.id).await?;
         let developer_key = s9pk.as_archive().signer();
-        let icon = s9pk.icon_data_url().await?;
         let event_id = Guid::new();
         let (finalization_progress, overall_progress) = match progress {
             Some(InstallProgressHandles {
@@ -760,7 +759,6 @@ impl Service {
                     .ser(&PackageState::Installed(InstalledState { manifest }))?;
                 entry.as_s9pk_mut().ser(s9pk_path)?;
                 entry.as_developer_key_mut().ser(&Pem::new(developer_key))?;
-                entry.as_icon_mut().ser(&icon)?;
                 entry.as_registry_mut().ser(registry)?;
                 entry.as_status_info_mut().as_error_mut().ser(&None)?;
 
@@ -932,7 +930,7 @@ impl std::fmt::Display for SubcontainerInfo {
 #[serde(rename_all = "camelCase")]
 pub struct AttachParams {
     pub id: PackageId,
-    #[visit(ts(type = "string[]"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub command: Vec<OsString>,
     pub tty: bool,
@@ -942,16 +940,28 @@ pub struct AttachParams {
     #[serde(rename = "__Auth_signer")]
     #[visit(opaque, type_attributes(visit::wire))]
     signer: Option<InternedString>,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     subcontainer: Option<Guid>,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     name: Option<InternedString>,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     image_id: Option<ImageId>,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     user: Option<InternedString>,
 }

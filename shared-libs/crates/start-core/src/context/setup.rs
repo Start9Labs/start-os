@@ -43,7 +43,7 @@ lazy_static::lazy_static! {
 #[derive(Debug, Clone, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct SetupResult {
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub hostname: ServerHostname,
     pub root_ca: Pem<X509>,

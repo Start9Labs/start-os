@@ -7,7 +7,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use crate::{Id, InvalidId};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, visit_rs::VisitVariants)]
-#[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
 #[visit(opaque, type_attributes(visit::wire))]
 pub enum VolumeId {
     Backup,

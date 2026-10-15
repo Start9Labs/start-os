@@ -42,7 +42,10 @@ pub struct CifsBackupTarget {
     path: PathBuf,
     username: String,
     mountable: bool,
-    #[visit(ts(type = "number | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.number().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     available: Option<u64>,
     start_os: BTreeMap<String, StartOsRecoveryInfo>,

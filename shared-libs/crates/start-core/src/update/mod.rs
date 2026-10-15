@@ -48,7 +48,10 @@ use crate::util::io::AtomicFile;
 pub struct UpdateSystemParams {
     #[arg(help = "help.arg.registry-url")]
     registry: Url,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[arg(
         long = "to",
         value_name = "TARGET",
@@ -66,10 +69,16 @@ rpc_toolkit::ts_export!(UpdateSystemParams, namespaces = [""]);
 
 #[derive(Deserialize, Serialize, VisitFields)]
 pub struct UpdateSystemRes {
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     target: Option<Version>,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     progress: Option<Guid>,
 }

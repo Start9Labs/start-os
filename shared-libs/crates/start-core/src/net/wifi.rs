@@ -391,7 +391,10 @@ pub async fn remove(ctx: RpcContext, WifiSsidParams { ssid }: WifiSsidParams) ->
 pub struct WifiListInfo {
     ssids: HashMap<Ssid, SignalStrength>,
     connected: Option<Ssid>,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     country: Option<CountryCode>,
     ethernet: bool,
@@ -586,7 +589,7 @@ pub async fn get_available(ctx: RpcContext, _: Empty) -> Result<Vec<WifiListOut>
 #[command(rename_all = "kebab-case")]
 pub struct SetCountryParams {
     #[arg(value_parser = CountryCodeParser, help = "help.arg.wifi-country-code")]
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     country: CountryCode,
 }

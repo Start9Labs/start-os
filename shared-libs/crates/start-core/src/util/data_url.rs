@@ -13,7 +13,7 @@ use crate::util::mime::{mime, unmime};
 use crate::{Error, ErrorKind, ResultExt};
 
 #[derive(Clone, visit_rs::VisitFields, PartialEq, Eq)]
-#[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
 #[visit(opaque, type_attributes(visit::wire))]
 pub struct DataUrl<'a> {
     pub mime: InternedString,
