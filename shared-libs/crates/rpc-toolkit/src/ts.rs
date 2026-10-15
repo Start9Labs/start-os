@@ -42,6 +42,10 @@ pub trait ParamsTS {
 }
 /// Supplies an output shape for callable handlers; namespaces return `None`.
 pub trait ReturnTS {
+    /// Whether the callable method has result bindings rather than an opt-out placeholder.
+    fn return_ts_enabled(&self) -> bool {
+        true
+    }
     fn return_ts<'a>(&'a self) -> Option<TSWriter<'a>>;
 }
 /// Supplies the child method map and preserves binding opt-outs across adapters.
@@ -67,6 +71,9 @@ impl<T: ParamsTS> ParamsTS for Arc<T> {
     }
 }
 impl<T: ReturnTS> ReturnTS for Arc<T> {
+    fn return_ts_enabled(&self) -> bool {
+        self.deref().return_ts_enabled()
+    }
     fn return_ts(&self) -> Option<Box<dyn Fn(&mut TSVisitor) + Send + Sync + '_>> {
         self.deref().return_ts()
     }
@@ -85,6 +92,9 @@ impl<C, I> ParamsTS for crate::DynHandler<C, I> {
     }
 }
 impl<C, I> ReturnTS for crate::DynHandler<C, I> {
+    fn return_ts_enabled(&self) -> bool {
+        self.0.return_ts_enabled()
+    }
     fn return_ts(&self) -> Option<Box<dyn Fn(&mut TSVisitor) + Send + Sync + '_>> {
         self.0.return_ts()
     }
@@ -114,7 +124,7 @@ impl<'a> HandlerTS<'a> {
             params_ts: handler.params_ts(),
             return_ts: handler.return_ts(),
             children: handler.children_ts(),
-            opaque: false,
+            opaque: !handler.return_ts_enabled(),
         }
     }
 }
@@ -216,6 +226,11 @@ where
 impl<Context, Params, InheritedParams> ReturnTS
     for ParentHandler<Context, Params, InheritedParams>
 {
+    fn return_ts_enabled(&self) -> bool {
+        self.subcommands.0.as_ref().map_or(true, |handler| {
+            handler.get_ts().is_some_and(|ts| !ts.opaque)
+        })
+    }
     fn return_ts<'a>(&'a self) -> Option<Box<dyn Fn(&mut TSVisitor) + Send + Sync + 'a>> {
         match self.subcommands.0.as_ref()?.get_ts() {
             Some(ts) => ts.return_ts,
@@ -295,6 +310,9 @@ impl<T: PassthroughReturnTS> ReturnTS for T
 where
     T::Inner: ReturnTS,
 {
+    fn return_ts_enabled(&self) -> bool {
+        self.as_inner().return_ts_enabled()
+    }
     fn return_ts<'a>(&'a self) -> Option<Box<dyn Fn(&mut TSVisitor) + Send + Sync + 'a>> {
         self.as_inner().return_ts()
     }

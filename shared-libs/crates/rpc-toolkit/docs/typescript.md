@@ -62,7 +62,8 @@ A node's `_PARAMS` already includes every enclosing parent's parameters (`z.inte
 root itself. A namespace without a root handler and an invalid method path resolve
 to `never`. A child that opts out retains its ancestors' parameters while its own
 parameters/results remain unknown; its node carries `_OPAQUE: true`, which the type
-projection drops.
+projection drops. A parent's opted-out `root_handler` marks that callable method
+opaque while retaining bindings for its children.
 
 A handler tree's schema module also exports `toolCatalogue(tree)`, the MCP tool
 descriptions `rpc_toolkit::mcp::McpServer` serves: one per callable method with

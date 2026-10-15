@@ -487,6 +487,20 @@ mod catalogue {
                     .no_cli()
                     .no_ts(),
             )
+            .subcommand(
+                "mixed",
+                ParentHandler::<Ctx>::new()
+                    .root_handler(
+                        from_fn(|_: Ctx, _: Empty| Ok::<_, RpcError>(()))
+                            .no_cli()
+                            .no_ts(),
+                    )
+                    .subcommand(
+                        "bound",
+                        from_fn(|_: Ctx, _: Empty| Ok::<_, RpcError>("bound".to_owned())).no_cli(),
+                    )
+                    .no_cli(),
+            )
     }
 
     fn generated_catalogue() -> Vec<Tool> {
@@ -521,7 +535,7 @@ mod catalogue {
     fn generated_catalogue_describes_callable_methods_with_bindings() {
         let tools = generated_catalogue();
         let names: Vec<_> = tools.iter().map(|t| t.name.to_string()).collect();
-        assert_eq!(names, ["math.label", "math.sum"]);
+        assert_eq!(names, ["math.label", "math.sum", "mixed.bound"]);
         let sum = serde_json::to_value(&tools[1]).unwrap();
         assert_eq!(sum["inputSchema"]["type"], "object");
         assert_eq!(
@@ -533,6 +547,20 @@ mod catalogue {
         assert_eq!(sum["outputSchema"]["type"], "object");
         assert_eq!(sum["outputSchema"]["required"], json!(["total"]), "{}", sum);
         assert!(tools[0].output_schema.is_none());
+    }
+
+    #[test]
+    fn opted_out_callable_parent_preserves_type_projection() {
+        let bindings = handler_bindings(&tree(), "Api", common::SCHEMAS)
+            .unwrap()
+            .unwrap();
+        common::typecheck(
+            &bindings,
+            r#"
+const result: unknown extends RpcReturnType<Api, 'mixed'> ? true : false = true;
+const marker: '_OPAQUE' extends keyof Api['_CHILDREN']['mixed'] ? true : false = false;
+"#,
+        );
     }
 
     #[tokio::test]
