@@ -1,0 +1,1 @@
+- New service packages include Forgejo Actions workflows alongside GitHub Actions, with build artifacts, releases, registry publishing, and automatic `next` branch synchronization.
