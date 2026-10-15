@@ -259,9 +259,9 @@ export default class SystemEmailComponent {
 
     this.tasks.run(async () => {
       if (formValue['smtp'].selection === 'disabled') {
-        await this.api.clearSmtp({})
+        await this.api.rpc.server.clearSmtp({})
       } else {
-        await this.api.setSmtp(this.getSmtpValue(formValue))
+        await this.api.rpc.server.setSmtp(this.getSmtpValue(formValue))
       }
     }, 'Saving')
   }
@@ -280,7 +280,7 @@ export default class SystemEmailComponent {
       `${this.i18n.transform('A test email has been sent to')} ${address}. <i>${this.i18n.transform('Check your spam folder and mark as not spam.')}</i>` as i18nKey
 
     this.tasks.run(async () => {
-      await this.api.testSmtp({
+      await this.api.rpc.server.testSmtp({
         ...smtpValue,
         password: smtpValue.password || '',
         to: address,

@@ -330,7 +330,7 @@ export default class SystemGeneralComponent {
   private async saveKeyboard(keyboard: Keyboard) {
     this.tasks.run(
       async () =>
-        await this.api.setKeyboard({
+        await this.api.rpc.server.setKeyboard({
           layout: keyboard.layout,
           keymap: keyboard.keymap,
           model: null,
@@ -389,7 +389,7 @@ export default class SystemGeneralComponent {
 
   private async saveName(hostname: string, wasLocal = false) {
     const success = await this.tasks.run(
-      async () => await this.api.setHostname({ hostname }),
+      async () => await this.api.rpc.server.setHostname({ hostname }),
       'Saving',
     )
 
@@ -423,7 +423,7 @@ export default class SystemGeneralComponent {
       .pipe(filter(Boolean))
       .subscribe(() =>
         this.tasks.run(async () => {
-          await this.api.repairDisk({})
+          await this.api.rpc.disk.repair({})
           this.restart()
         }),
       )
@@ -470,24 +470,27 @@ export default class SystemGeneralComponent {
   }
 
   private async enableKiosk() {
-    this.tasks.run(async () => await this.api.toggleKiosk(true), 'Enabling')
+    this.tasks.run(async () => await this.api.rpc.kiosk.enable({}), 'Enabling')
   }
 
   private async enableKioskWithKeyboard(keyboard: Keyboard) {
     this.tasks.run(async () => {
-      await this.api.setKeyboard({
+      await this.api.rpc.server.setKeyboard({
         layout: keyboard.layout,
         keymap: keyboard.keymap,
         model: null,
         variant: null,
         options: [],
       })
-      await this.api.toggleKiosk(true)
+      await this.api.rpc.kiosk.enable({})
     }, 'Enabling')
   }
 
   private async disableKiosk() {
-    this.tasks.run(async () => await this.api.toggleKiosk(false), 'Disabling')
+    this.tasks.run(
+      async () => await this.api.rpc.kiosk.disable({}),
+      'Disabling',
+    )
   }
 
   private update() {
@@ -515,7 +518,7 @@ export default class SystemGeneralComponent {
 
   private async restart() {
     this.tasks.run(
-      async () => await this.api.restartServer({}),
+      async () => await this.api.rpc.server.restart({}),
       'Beginning restart',
     )
   }

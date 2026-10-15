@@ -40,7 +40,7 @@ export default class HomePage implements OnInit {
 
   async ngOnInit() {
     try {
-      const error = await this.api.diagnosticGetError()
+      const error = await this.api.rpc.diagnostic.error({})
       // incorrect drive
       if (error.code === 15) {
         this.error.set({
@@ -102,15 +102,15 @@ export default class HomePage implements OnInit {
 
   restart() {
     this.tasks.run(async () => {
-      await this.api.diagnosticRestart()
+      await this.api.rpc.diagnostic.restart({})
       this.restarted.set(true)
     }, 'Loading')
   }
 
   forgetDrive() {
     this.tasks.run(async () => {
-      await this.api.diagnosticForgetDrive()
-      await this.api.diagnosticRestart()
+      await this.api.rpc.diagnostic.disk.forget({})
+      await this.api.rpc.diagnostic.restart({})
       this.restarted.set(true)
     }, 'Loading')
   }
@@ -137,8 +137,8 @@ export default class HomePage implements OnInit {
 
   private repairDisk() {
     this.tasks.run(async () => {
-      await this.api.diagnosticRepairDisk()
-      await this.api.diagnosticRestart()
+      await this.api.rpc.diagnostic.disk.repair({})
+      await this.api.rpc.diagnostic.restart({})
       this.restarted.set(true)
     }, 'Loading')
   }
