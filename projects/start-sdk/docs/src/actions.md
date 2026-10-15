@@ -331,6 +331,8 @@ The five arguments to `withInput` are: action ID, metadata (static object or asy
 
 ### Validating Input
 
+`InputSpec` builds a Zod validator that the SDK runs before calling your handler. Rely on that validator for field types, required values, and text patterns rather than repeating those checks in the handler.
+
 A text field's `patterns` are checked before your handler runs, on **every** path into the action — the form, `start-cli package action run`, and a direct RPC call alike. A value that fails one is rejected with that pattern's `description`, so the caller sees the same message wherever they came from.
 
 ```typescript
@@ -347,12 +349,12 @@ sessionTimeout: Value.text({
 }),
 ```
 
-Two details worth knowing, both inherited from how the form has always behaved:
+Two details worth knowing:
 
 - **A pattern is anchored.** `[a-z]+` matches the whole value, not a substring — write it as though `^` and `$` were there, because they are added if you leave them off.
-- **An empty value skips its patterns**, and is left to `required`. An optional field the user leaves blank is not made invalid by a pattern it could never satisfy.
+- **An empty string skips its patterns.** For `Value.text`, `required: true` rejects a missing field or `null`, but accepts `''`.
 
-Anything a pattern can't express — a cross-field rule, a value that has to exist on disk — still belongs in the handler, where a `throw` surfaces to the caller the same way.
+Reserve handler guards for additional semantic requirements, such as a cross-field rule, a value that has to exist on disk, or a string that must be non-blank after trimming. A `throw` surfaces the error to the caller.
 
 ### Generating Values in a Form
 
