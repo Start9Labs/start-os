@@ -5449,6 +5449,7 @@ export const Api = {
         'estimate-capacity': {
           _PARAMS: /* @__PURE__ */ z.unknown(),
           _RETURN: /* @__PURE__ */ z.unknown(),
+          _OPAQUE: true as const,
         },
         history: {
           _PARAMS: /* @__PURE__ */ empty,
@@ -5456,6 +5457,7 @@ export const Api = {
             'delete-archived': {
               _PARAMS: /* @__PURE__ */ z.unknown(),
               _RETURN: /* @__PURE__ */ z.unknown(),
+              _OPAQUE: true as const,
             },
             'delete-archived-snapshots': {
               _PARAMS: /* @__PURE__ */ DeleteArchivedSnapshotsParams,
@@ -5507,6 +5509,7 @@ export const Api = {
             add: {
               _PARAMS: /* @__PURE__ */ z.unknown(),
               _RETURN: /* @__PURE__ */ z.unknown(),
+              _OPAQUE: true as const,
             },
             create: {
               _PARAMS: /* @__PURE__ */ CreateBackupJobParams,
@@ -5523,14 +5526,17 @@ export const Api = {
             disable: {
               _PARAMS: /* @__PURE__ */ z.unknown(),
               _RETURN: /* @__PURE__ */ z.unknown(),
+              _OPAQUE: true as const,
             },
             edit: {
               _PARAMS: /* @__PURE__ */ z.unknown(),
               _RETURN: /* @__PURE__ */ z.unknown(),
+              _OPAQUE: true as const,
             },
             enable: {
               _PARAMS: /* @__PURE__ */ z.unknown(),
               _RETURN: /* @__PURE__ */ z.unknown(),
+              _OPAQUE: true as const,
             },
             list: {
               _PARAMS: /* @__PURE__ */ z.intersection(
@@ -5616,6 +5622,7 @@ export const Api = {
             apply: {
               _PARAMS: /* @__PURE__ */ z.unknown(),
               _RETURN: /* @__PURE__ */ z.unknown(),
+              _OPAQUE: true as const,
             },
             estimate: {
               _PARAMS: /* @__PURE__ */ EstimateBackupCapacityParams,
@@ -5628,6 +5635,7 @@ export const Api = {
             'preview-change': {
               _PARAMS: /* @__PURE__ */ z.unknown(),
               _RETURN: /* @__PURE__ */ z.unknown(),
+              _OPAQUE: true as const,
             },
             update: {
               _PARAMS: /* @__PURE__ */ UpdateRetentionPolicyParams,
@@ -5641,6 +5649,7 @@ export const Api = {
             decide: {
               _PARAMS: /* @__PURE__ */ z.unknown(),
               _RETURN: /* @__PURE__ */ z.unknown(),
+              _OPAQUE: true as const,
             },
             list: {
               _PARAMS: /* @__PURE__ */ z.intersection(
@@ -6211,10 +6220,12 @@ export const Api = {
             'restore-checkpoint': {
               _PARAMS: /* @__PURE__ */ z.unknown(),
               _RETURN: /* @__PURE__ */ z.unknown(),
+              _OPAQUE: true as const,
             },
             'restore-mixed': {
               _PARAMS: /* @__PURE__ */ z.unknown(),
               _RETURN: /* @__PURE__ */ z.unknown(),
+              _OPAQUE: true as const,
             },
             'restore-scheduled': {
               _PARAMS: /* @__PURE__ */ RestoreScheduledPackagesParams,
