@@ -18,8 +18,8 @@ export class PlatformInfoPipe implements PipeTransform {
 
     if (!userAgent) {
       return {
-        name: 'CLI',
-        icon: '@tui.terminal',
+        name: 'API',
+        icon: '@tui.code',
       }
     }
 
