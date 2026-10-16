@@ -1,21 +1,13 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { SessionWithId } from './table.component'
 
 @Pipe({
   name: 'platformInfo',
 })
 export class PlatformInfoPipe implements PipeTransform {
-  transform({ kind, userAgent }: SessionWithId): {
+  transform(userAgent: string | null): {
     name: string
     icon: string
   } {
-    if (kind === 'token') {
-      return {
-        name: 'API',
-        icon: '@tui.code',
-      }
-    }
-
     if (!userAgent) {
       return {
         name: 'API',

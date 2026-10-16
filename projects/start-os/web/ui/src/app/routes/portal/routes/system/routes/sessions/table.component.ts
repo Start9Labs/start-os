@@ -82,7 +82,7 @@ import { i18nPipe } from '@start9labs/shared'
               {{ session.name || session.userAgent || '-' }}
             </div>
           </td>
-          @if (session | platformInfo; as platform) {
+          @if (session.userAgent | platformInfo; as platform) {
             <td class="platform">
               <tui-icon [icon]="platform.icon" />
               {{ platform.name }}
@@ -188,12 +188,12 @@ import { i18nPipe } from '@start9labs/shared'
     i18nPipe,
   ],
 })
-export class SessionsTableComponent implements OnChanges {
-  readonly sessions = input<readonly SessionWithId[] | null>(null)
+export class SessionsTableComponent<S extends T.Session> implements OnChanges {
+  readonly sessions = input<readonly S[] | null>(null)
   readonly single = input(false)
   readonly terminateSelected = output()
 
-  readonly selected = signal<readonly SessionWithId[]>([])
+  readonly selected = signal<readonly S[]>([])
   readonly all = computed(
     () =>
       !!this.selected()?.length &&
@@ -204,16 +204,11 @@ export class SessionsTableComponent implements OnChanges {
     this.selected.set([])
   }
 
-  onToggle(session: SessionWithId) {
+  onToggle(session: S) {
     if (this.selected().includes(session)) {
       this.selected.update(selected => selected.filter(s => s !== session))
     } else {
       this.selected.update(selected => [...selected, session])
     }
   }
-}
-
-export interface SessionWithId extends T.Session {
-  id: string
-  kind: 'pubkey' | 'token'
 }
