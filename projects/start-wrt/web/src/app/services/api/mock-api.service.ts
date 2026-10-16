@@ -1,6 +1,6 @@
 import type { Api, RpcParamType, RpcReturnType } from './bindings'
 import { inject, Injectable } from '@angular/core'
-import { pauseFor } from '@start9labs/shared'
+import { pauseFor, RPCErrorDetails, RpcError } from '@start9labs/shared'
 import { GIT_HASH } from 'src/app/utils/workspace-config'
 import {
   ApiService,
@@ -847,12 +847,33 @@ export class MockApiService extends ApiService {
     }
   }
 
+  /** Throws unless forced, which deletes the servers, as `guard_vpn_peers` does. */
+  private guardVpnPeers(interfaces: string[], force: boolean | undefined) {
+    const affected = this.mockVpnServers.filter(
+      s => interfaces.includes(s.profile) && s.peers.length > 0,
+    )
+    if (!affected.length) return
+    if (!force) {
+      const total = affected.reduce((n, s) => n + s.peers.length, 0)
+      const profiles = affected.map(s => s.profile).join(', ')
+      throw new RpcError({
+        code: -1,
+        message: 'General error',
+        data: `VPN Peers Would Break: VPN peers would break: ${total} peer(s) across profiles [${profiles}]`,
+      } as RPCErrorDetails)
+    }
+    this.mockVpnServers = this.mockVpnServers.filter(s => !affected.includes(s))
+    this.persistVpnServers()
+  }
+
   async profileUpdate(params: ProfileUpdateInput): Promise<ProfileId> {
     await pauseFor(250)
 
     const old = this.mockProfiles.find(
       p => p.interface === params.interface && p.vlan_tag === params.vlan_tag,
     )
+    if (old && old.gateway_ip !== params.gateway_ip)
+      this.guardVpnPeers([params.interface], params.force)
     const newFullname = params.fullname || old?.fullname || ''
 
     this.mockProfiles = this.mockProfiles.map(p =>
@@ -1247,6 +1268,8 @@ export class MockApiService extends ApiService {
 
   async lanIpv4Set(params: LanIpv4SetRequest): Promise<null> {
     await pauseFor(250)
+    if (params.address !== this.mockLanIpv4.address)
+      this.guardVpnPeers(['lan'], params.force)
     this.mockLanIpv4 = { ...this.mockLanIpv4, address: params.address }
     // Keep Admin profile gateway in sync with LAN IP
     this.mockProfiles = this.mockProfiles.map(p =>
