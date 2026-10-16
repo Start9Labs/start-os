@@ -71,7 +71,7 @@ fn match_device_patterns<'a>(path: &Path, matches: &[&'a str]) -> Option<Vec<&'a
 #[derive(
     Clone, Debug, Serialize, Deserialize, Default, PartialEq, Eq, PartialOrd, Ord, Hash, VisitFields,
 )]
-#[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
 #[visit(opaque, type_attributes(visit::wire))]
 pub struct ContainerId(InternedString);
 

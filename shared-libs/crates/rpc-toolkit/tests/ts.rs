@@ -1,8 +1,11 @@
 #![cfg(feature = "ts")]
 #![allow(dead_code)]
 
+mod common;
+
+use common::{declarations, SCHEMAS};
 use rpc_toolkit::reflect_ts;
-use rpc_toolkit::ts::{export_namespace, Direction, TSVisitor};
+use rpc_toolkit::ts::{export_namespace, TSVisitor};
 
 #[derive(visit_rs::VisitFields)]
 struct Derived {
@@ -10,7 +13,7 @@ struct Derived {
     count: u32,
     #[serde(serialize_with = "custom_hook", deserialize_with = "custom_hook")]
     #[visit(type_attributes(visit::wire))]
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque)]
     custom: NotBound,
     #[serde(skip)]
@@ -35,7 +38,10 @@ rpc_toolkit::ts_export!(Second, namespaces = ["collision"]);
 struct RequiredOption {
     #[serde(deserialize_with = "deserialize_option")]
     #[visit(type_attributes(visit::wire))]
-    #[visit(ts(type = "number|null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.int().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     amount: Option<u32>,
 }
 fn deserialize_option<'de, D: serde::Deserializer<'de>>(
@@ -52,7 +58,7 @@ struct Generic<T> {
 
 #[derive(visit_rs::VisitFields)]
 #[visit(type_attributes(visit::wire))]
-#[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
 #[visit(opaque)]
 struct Opaque<T>(T);
 
@@ -63,11 +69,16 @@ struct SharedName {
 
 #[test]
 fn one_owner_can_export_into_multiple_namespaces() {
-    let left = export_namespace("ts", "left").unwrap();
-    let right = export_namespace("ts", "right").unwrap();
+    let left = export_namespace("ts", "left", SCHEMAS).unwrap();
+    let right = export_namespace("ts", "right", SCHEMAS).unwrap();
     assert_eq!(left, right);
-    assert!(left.contains("export type SharedName ="));
-    assert!(left.contains("export type SharedNameInput ="));
+    assert!(left.schemas.contains("export const SharedName: z.ZodObject<{ \"value\": z.ZodString }> = /* @__PURE__ */ object({ \"value\": z.string() })"));
+    assert!(left
+        .types
+        .contains("export type SharedName = z.output<typeof schemas.SharedName>;"));
+    assert!(left
+        .types
+        .contains("export type SharedNameInput = z.input<typeof schemas.SharedName>;"));
 }
 
 #[derive(visit_rs::VisitFields)]
@@ -90,40 +101,45 @@ reflect_ts!(Node);
 
 #[test]
 fn standalone_declarations_do_not_require_an_rpc_tree() {
-    let mut visitor = TSVisitor::new();
-    visitor.append_type::<Node>();
-    let output = visitor.into_declarations().unwrap();
-    assert!(output.contains("export type Node ="));
-    assert!(output.contains("\"next\":((Node|null))"));
-    assert!(!output.contains("RpcHandler"));
-
-    let mut visitor = TSVisitor::new();
-    visitor.with_direction(Direction::Input, |visitor| visitor.append_type::<Node>());
-    let input = visitor.into_declarations().unwrap();
-    assert!(input.contains("export type NodeInput ="));
-    assert!(input.contains("\"next\"?:((NodeInput|null))"));
+    let bindings = declarations::<Node>();
+    assert!(bindings.schemas.contains("export const Node: z.ZodObject<{ \"value\": z.ZodString; \"next\": z.ZodCodec<z.ZodOptional<z.ZodNullable<typeof Node>>, z.ZodNullable<typeof Node>> }> = /* @__PURE__ */ object({ \"value\": z.string(), get \"next\"()"));
+    assert!(bindings.schemas.contains(
+        "get \"next\"(): z.ZodCodec<z.ZodOptional<z.ZodNullable<typeof Node>>, z.ZodNullable<typeof Node>> { return wire(Node.nullable().optional(), Node.nullable()); }"
+    ));
+    assert!(bindings
+        .schemas
+        .starts_with("import { z } from 'zod'\nconst wire ="));
+    assert!(bindings
+        .types
+        .contains("export type Node = z.output<typeof schemas.Node>;"));
+    assert!(bindings
+        .types
+        .contains("export type NodeInput = z.input<typeof schemas.Node>;"));
+    assert!(!bindings.types.contains("RpcHandler"));
+    assert!(!declarations::<SharedName>().schemas.contains("const wire"));
 }
 
 #[test]
 fn derives_share_directional_shapes_and_explicit_overrides() {
-    let mut visitor = TSVisitor::new();
-    visitor.with_direction(Direction::Input, |visitor| visitor.append_type::<Derived>());
-    let input = visitor.into_declarations().unwrap();
-    assert!(input.contains("\"count\"?:"));
-    assert!(input.contains("\"custom\":(string)"));
-    assert!(!input.contains("skipped"));
-
-    let output = export_namespace("ts", "derived").unwrap();
-    assert!(output.contains("export type Derived ="));
-    assert!(output.contains("\"count\":(number)"));
-    assert!(!output.contains("skipped"));
+    let bindings = export_namespace("ts", "derived", SCHEMAS).unwrap();
+    assert!(bindings
+        .schemas
+        .contains("\"count\": wire(z.int().optional(), z.int())"));
+    assert!(bindings
+        .schemas
+        .contains("const literal_0 = /* @__PURE__ */ z.string();\n"));
+    assert!(!bindings.schemas.contains("skipped"));
+    assert!(bindings.types.contains("export type Derived ="));
 
     let mut visitor = TSVisitor::new();
-    visitor.append_type::<Opaque<NotBound>>();
-    assert_eq!(
-        visitor.into_module("OpaqueWire").unwrap(),
-        "export type OpaqueWire = string;\n"
-    );
+    visitor.declare::<Opaque<NotBound>>("OpaqueWire");
+    assert!(visitor
+        .into_bindings(None, SCHEMAS)
+        .unwrap()
+        .schemas
+        .contains(
+        "export const OpaqueWire: typeof literal_0 = /* @__PURE__ */ literal_0.meta({\nid: \"OpaqueWire\" });\n"
+    ));
 }
 
 #[test]
@@ -134,25 +150,26 @@ fn custom_deserializers_do_not_inherit_options_missing_field_default() {
         serde_json::to_value(value).unwrap(),
         serde_json::json!({"amount":null})
     );
-    let mut visitor = TSVisitor::new();
-    visitor.with_direction(Direction::Input, |visitor| {
-        visitor.append_type::<RequiredOption>()
-    });
-    let input = visitor.into_declarations().unwrap();
-    assert!(input.contains("\"amount\":(number|null)"));
-    assert!(!input.contains("\"amount\"?:"));
+    let bindings = declarations::<RequiredOption>();
+    assert!(bindings.schemas.contains("\"amount\": literal_0 }"));
+    assert!(!bindings.schemas.contains("optional"));
 }
 
 #[test]
 fn annotated_concrete_exports_support_generic_recursion() {
-    let output = export_namespace("ts", "generic").unwrap();
-    assert!(output.contains("export type Generic ="));
-    assert!(output.contains("\"next\":((Generic|null))"));
+    let bindings = export_namespace("ts", "generic", SCHEMAS).unwrap();
+    assert!(bindings
+        .schemas
+        .contains("export const Generic: z.ZodObject<{ \"value\": z.ZodString; \"next\": z.ZodCodec<z.ZodOptional<z.ZodNullable<typeof Generic>>, z.ZodNullable<typeof Generic>> }> = /* @__PURE__ */ object("));
+    assert!(bindings.schemas.contains("get \"next\"(): z.ZodCodec<z.ZodOptional<z.ZodNullable<typeof Generic>>, z.ZodNullable<typeof Generic>>"));
+    assert!(bindings
+        .types
+        .contains("export type Generic = z.output<typeof schemas.Generic>;"));
 }
 
 #[test]
 fn collected_exports_reject_name_collisions() {
-    assert!(export_namespace("ts", "collision")
+    assert!(export_namespace("ts", "collision", SCHEMAS)
         .unwrap_err()
         .to_string()
         .contains("Conflicting"));
@@ -164,14 +181,23 @@ fn enclosing_modules_own_their_reserved_names() {
     visitor.reserve(["Node"]);
     visitor.append_type::<Node>();
     assert!(visitor
-        .into_declarations()
+        .into_bindings(None, SCHEMAS)
         .unwrap_err()
         .to_string()
         .contains("Node"));
 
     let mut visitor = TSVisitor::new();
     visitor.append_type::<String>();
-    assert!(visitor.into_module("RpcHandler").is_ok());
+    assert!(visitor.into_bindings(Some("RpcHandler"), SCHEMAS).is_ok());
+    for reserved in ["z", "wire", "object", "schemas"] {
+        let mut visitor = TSVisitor::new();
+        visitor.declare::<Node>(reserved);
+        assert!(
+            visitor.into_bindings(None, SCHEMAS).is_err(),
+            "{}",
+            reserved
+        );
+    }
 }
 
 struct Rejected;
@@ -186,8 +212,48 @@ fn custom_implementations_report_errors() {
     let mut visitor = TSVisitor::new();
     visitor.append_type::<Vec<Rejected>>();
     assert!(visitor
-        .into_declarations()
+        .into_bindings(None, SCHEMAS)
         .unwrap_err()
         .to_string()
         .contains("Rejected has no JSON form"));
+}
+
+#[derive(visit_rs::VisitFields)]
+struct Later {
+    first: Earlier,
+}
+reflect_ts!(Later);
+#[derive(visit_rs::VisitFields)]
+struct Earlier {
+    value: String,
+}
+reflect_ts!(Earlier);
+
+#[test]
+fn declarations_precede_their_eager_references() {
+    let bindings = declarations::<Later>();
+    let earlier = bindings.schemas.find("export const Earlier").unwrap();
+    let later = bindings.schemas.find("export const Later").unwrap();
+    assert!(earlier < later, "{}", bindings.schemas);
+}
+
+#[derive(visit_rs::VisitVariants)]
+#[serde(tag = "kind")]
+enum Direct {
+    Leaf,
+    Branch(Box<Direct>),
+}
+reflect_ts!(Direct);
+#[derive(visit_rs::VisitFields)]
+struct Wrapped(Vec<Wrapped>);
+reflect_ts!(Wrapped);
+
+#[test]
+fn recursion_outside_object_members_is_rejected() {
+    for error in [
+        common::rejection::<Direct>(),
+        common::rejection::<Wrapped>(),
+    ] {
+        assert!(error.contains("outside an object member"), "{}", error);
+    }
 }

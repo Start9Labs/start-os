@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core'
 import { Router } from '@angular/router'
 import { ApiService, Params } from './api.service'
+import { normalizeCifsPath } from '../utils/cifs'
 
 export type SetupType = 'fresh' | 'restore' | 'attach' | 'transfer'
 
@@ -64,7 +65,7 @@ export class StateService {
   }
 
   async attachDrive(password: string | null): Promise<void> {
-    await this.api.attach({
+    await this.api.rpc.setup.attach({
       guid: this.dataDriveGuid,
       password: password ? await this.api.encrypt(password) : null,
       kiosk: this.kiosk,
@@ -79,9 +80,13 @@ export class StateService {
       if (this.recoverySource.type === 'migrate') {
         recoverySource = this.recoverySource
       } else {
+        const target = this.recoverySource.target
         recoverySource = {
           type: 'backup',
-          target: this.recoverySource.target,
+          target:
+            target.type === 'cifs'
+              ? { ...target, path: normalizeCifsPath(target.path) }
+              : target,
           serverId: this.recoverySource.serverId,
           password: await this.api.encrypt(this.recoverySource.password),
           scheduled: this.recoverySource.scheduled,
@@ -89,7 +94,7 @@ export class StateService {
       }
     }
 
-    await this.api.execute({
+    await this.api.rpc.setup.execute({
       guid: this.dataDriveGuid,
       password: password ? await this.api.encrypt(password) : null,
       hostname,

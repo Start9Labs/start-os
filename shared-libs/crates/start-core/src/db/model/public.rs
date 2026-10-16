@@ -43,7 +43,7 @@ pub struct Public {
     pub package_data: AllPackageData,
     #[serde(default)]
     pub scheduled_backups: ScheduledBackupState,
-    #[visit(ts(type = "unknown"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.unknown()"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub ui: Value,
 }
@@ -177,20 +177,23 @@ pub struct ServerInfo {
     pub version: Version,
     pub package_version_compat: VersionRange,
     #[visit(
-        ts(type = "Record<string, unknown>"),
+        ts(type = "z.record(z.string(), z.unknown())"),
         wire = "rpc_toolkit::ts::Unknown"
     )]
     #[visit(opaque, type_attributes(visit::wire))]
     pub post_init_migration_todos: BTreeMap<Version, Value>,
     #[serde(default)]
     pub latest_migration_revision: usize,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     pub last_backup: Option<DateTime<Utc>>,
     pub network: NetworkInfo,
     #[serde(default)]
     pub status_info: ServerStatus,
-    #[visit(ts(type = "number"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.number()"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub unread_notification_count: u64,
     pub pubkey: String,
@@ -204,10 +207,10 @@ pub struct ServerInfo {
     pub epp: Option<Epp>,
     pub smtp: Option<SmtpValue>,
     #[serde(default = "default_echoip_urls")]
-    #[visit(ts(type = "string[]"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub echoip_urls: Vec<Url>,
-    #[visit(ts(type = "number"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.number()"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub ram: u64,
     pub devices: Vec<LshwDevice>,
@@ -246,7 +249,10 @@ pub struct NetworkInfo {
     #[serde(default)]
     pub dns: DnsSettings,
     #[serde(default)]
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     pub default_outbound: Option<GatewayId>,
     #[serde(default)]
@@ -260,11 +266,11 @@ rpc_toolkit::ts_export!(NetworkInfo, namespaces = [""]);
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct DnsSettings {
-    #[visit(ts(type = "string[]"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub dhcp_servers: VecDeque<SocketAddr>,
     #[visit(
-        ts(type = "string[] | null"),
+        ts(type = "z.array(z.string()).nullable()"),
         wire = "Option<rpc_toolkit::ts::Unknown>"
     )]
     #[visit(opaque, type_attributes(visit::wire))]
@@ -329,7 +335,10 @@ rpc_toolkit::ts_export!(GatewayPortMapCapabilities, namespaces = [""]);
 pub struct CapabilityVerdict {
     /// `None` = never probed.
     pub supported: Option<bool>,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     pub at: Option<DateTime<Utc>>,
 }
@@ -397,17 +406,17 @@ pub struct IpInfo {
     pub name: InternedString,
     pub scope_id: u32,
     pub device_type: Option<NetworkInterfaceType>,
-    #[visit(ts(type = "string[]"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub subnets: OrdSet<IpNet>,
-    #[visit(ts(type = "string[]"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub lan_ip: OrdSet<IpAddr>,
     pub wan_ip: Option<Ipv4Addr>,
-    #[visit(ts(type = "string[]"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub ntp_servers: OrdSet<InternedString>,
-    #[visit(ts(type = "string[]"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub dns_servers: OrdSet<IpAddr>,
 }
@@ -512,7 +521,10 @@ pub struct WifiInfo {
     pub interface: Option<GatewayId>,
     pub ssids: BTreeSet<String>,
     pub selected: Option<String>,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     pub last_region: Option<CountryCode>,
 }

@@ -1165,7 +1165,7 @@ export default class AutomaticBackups {
     this.estimates.set([])
     await this.tasks.run(async () => {
       this.estimates.set(
-        await this.api.estimateScheduledBackupCapacity({
+        await this.api.rpc.backup.policy.estimate({
           targetId: this.targetId(),
           services: this.serviceScope(),
           defaultRetention: this.policy(),
@@ -1227,7 +1227,7 @@ export default class AutomaticBackups {
     await this.tasks.run(async () => {
       const created = await this.backupService.withOriginalPassword(
         oldPassword =>
-          this.api.createScheduledBackupJob({
+          this.api.rpc.backup.job.create({
             name: 'Default',
             targetId: this.targetId(),
             services: this.serviceScope(),
@@ -1247,12 +1247,12 @@ export default class AutomaticBackups {
       const packageId = this.reviewPackageId()
       if (packageId) {
         const [jobs, reviews] = await Promise.all([
-          this.api.getScheduledBackupJobs({}),
-          this.api.getNewServiceBackupReviews({}),
+          this.api.rpc.backup.job.list({}),
+          this.api.rpc.backup.review.list({}),
         ])
         const review = reviews.find(item => item.packageId === packageId)
         if (review) {
-          await this.api.resolveNewServiceBackupReview({
+          await this.api.rpc.backup.review.resolve({
             packageId,
             decisions: Object.fromEntries(
               jobs.map(job => [job.id, job.id === created.id]),
@@ -1269,7 +1269,7 @@ export default class AutomaticBackups {
   private async validateSetup(): Promise<boolean> {
     return this.tasks.run(
       () =>
-        this.api.validateScheduledBackupJob({
+        this.api.rpc.backup.job.validate({
           id: null,
           services: this.serviceScope(),
           schedule: serializeBackupSchedule(this.editor),
@@ -1283,7 +1283,7 @@ export default class AutomaticBackups {
   protected async toggleAllJobs(enabled: boolean) {
     await this.tasks.run(
       async () => {
-        await this.api.setScheduledBackupJobsEnabled({
+        await this.api.rpc.backup.job.setEnabledBulk({
           ids: this.jobs().map(job => job.id),
           enabled,
         })

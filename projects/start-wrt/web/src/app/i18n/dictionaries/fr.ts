@@ -544,4 +544,8 @@ export default {
   566: 'Noms que cet appareil a publiés dans le routeur. Ils expirent d’eux-mêmes quand l’appareil cesse de les publier ; désactiver l’autorisation les supprime immédiatement.',
   567: 'Type',
   568: 'Pointe vers',
+  569: 'Largeur de canal',
+  570: 'Largeur 2,4 GHz',
+  571: 'Largeur 5 GHz',
+  572: 'Non connecté',
 } satisfies i18n

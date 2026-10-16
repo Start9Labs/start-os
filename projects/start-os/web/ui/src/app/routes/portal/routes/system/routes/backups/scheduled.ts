@@ -1430,8 +1430,8 @@ export class ScheduledBackups {
     this.loading.set(true)
     try {
       const [histories, reviews] = await Promise.all([
-        this.api.getScheduledBackupHistories({}),
-        this.api.getNewServiceBackupReviews({}),
+        this.api.rpc.backup.history.list({}),
+        this.api.rpc.backup.review.list({}),
       ])
       this.histories.set(histories)
       this.reviews.set(reviews)
@@ -1700,7 +1700,7 @@ export class ScheduledBackups {
     }
     const valid = await this.tasks.run(
       () =>
-        this.api.validateScheduledBackupJob({
+        this.api.rpc.backup.job.validate({
           id: form.id || null,
           services: common.services,
           schedule: common.schedule,
@@ -1717,12 +1717,12 @@ export class ScheduledBackups {
     await this.tasks.run(async () => {
       if (form.id) {
         const selectedJob = this.selectedJob()
-        await this.api.updateScheduledBackupJob({
+        await this.api.rpc.backup.job.update({
           id: form.id!,
           ...common,
         })
         for (const change of retentionChanges) {
-          await this.api.updateScheduledRetention({
+          await this.api.rpc.backup.policy.update({
             targetId: change.history.targetId,
             packageId: change.history.packageId,
             policy: change.policy,
@@ -1733,7 +1733,7 @@ export class ScheduledBackups {
         }
         this.finishSave(form.firstBackupNow ? form.id! : null)
         if (form.firstBackupNow && selectedJob && !selectedJob.enabled) {
-          await this.api.setScheduledBackupJobEnabled({
+          await this.api.rpc.backup.job.setEnabled({
             id: form.id!,
             enabled: true,
           })
@@ -1741,14 +1741,14 @@ export class ScheduledBackups {
         if (form.firstBackupNow) {
           await this.waitForRunProgress(
             form.id!,
-            this.api.runScheduledBackupJob({ id: form.id! }),
+            this.api.rpc.backup.job.runNow({ id: form.id! }),
           )
         }
         return
       } else {
         const created = await this.backupService.withOriginalPassword(
           oldPassword =>
-            this.api.createScheduledBackupJob({
+            this.api.rpc.backup.job.create({
               ...common,
               targetId: form.targetId,
               password: form.password,
@@ -1764,7 +1764,7 @@ export class ScheduledBackups {
           this.pendingReview &&
           form.packageIds.includes(this.pendingReview.packageId)
         ) {
-          await this.api.resolveNewServiceBackupReview({
+          await this.api.rpc.backup.review.resolve({
             packageId: this.pendingReview.packageId,
             decisions: Object.fromEntries([
               ...this.jobs().map(job => [job.id, false] as const),
@@ -1817,7 +1817,7 @@ export class ScheduledBackups {
         candidates.map(async ({ history, policy }) => ({
           history,
           policy,
-          preview: await this.api.previewScheduledRetention({
+          preview: await this.api.rpc.backup.policy.preview({
             targetId: history.targetId,
             packageId: history.packageId,
             policy,
@@ -1893,14 +1893,14 @@ export class ScheduledBackups {
 
   protected async runNow(job: T.BackupJob) {
     await this.performAndReload(() =>
-      this.api.runScheduledBackupJob({ id: job.id }),
+      this.api.rpc.backup.job.runNow({ id: job.id }),
     )
   }
 
   protected async setJobEnabled(job: T.BackupJob, enabled: boolean) {
     if (enabled === job.enabled && !job.pause) return
     await this.performAndReload(() =>
-      this.api.setScheduledBackupJobEnabled({
+      this.api.rpc.backup.job.setEnabled({
         id: job.id,
         enabled,
       }),
@@ -1936,7 +1936,7 @@ export class ScheduledBackups {
     if (!password) return
     await this.performAndReload(() =>
       this.backupService.withOriginalPassword(oldPassword =>
-        this.api.retryScheduledBackupTarget({
+        this.api.rpc.backup.job.retryTarget({
           targetId: job.targetId,
           password,
           oldPassword,
@@ -1972,7 +1972,7 @@ export class ScheduledBackups {
     await this.tasks.run(async () => {
       const reassigned = await this.backupService.withOriginalPassword(
         oldPassword =>
-          this.api.reassignScheduledBackupTarget({
+          this.api.rpc.backup.job.reassignTarget({
             id: job.id,
             targetId: reassign.targetId,
             password: reassign.password,
@@ -2024,7 +2024,7 @@ export class ScheduledBackups {
       this.jobs().map(job => [job.id, selected[job.id] === true]),
     )
     await this.performAndReload(() =>
-      this.api.resolveNewServiceBackupReview({
+      this.api.rpc.backup.review.resolve({
         packageId: review.packageId,
         decisions,
       }),
@@ -2141,7 +2141,7 @@ export class ScheduledBackups {
     this.estimates.set([])
     if (!form.targetId) return
     await this.tasks.run(async () => {
-      const estimates = await this.api.estimateScheduledBackupCapacity({
+      const estimates = await this.api.rpc.backup.policy.estimate({
         targetId: form.targetId,
         services: serializeBackupServiceSelection(
           form,

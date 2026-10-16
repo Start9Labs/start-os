@@ -199,7 +199,7 @@ export default class RestorePage {
     this.physicalServers.set([])
 
     try {
-      const drives = await this.api.getDisks()
+      const drives = await this.api.rpc.setup.disk.list({})
 
       this.physicalServers.set(
         drives.flatMap(drive =>

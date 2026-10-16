@@ -13,12 +13,15 @@ root and `shared-libs/` guidance first. `CLAUDE.md` imports this file.
 - `server/` owns dispatch and HTTP/socket transports; `cli.rs` owns clap and
   remote calls.
 - `ts.rs` owns handler traversal, deferred parameter/result writers and binding
-  composition. `type-helpers.ts` owns method-path parameter/return inference.
-- `rpc_toolkit::ts` owns the `TS` trait, renderer, checked declarations, scalar
-  bridges and exports. It normalizes `TypeInfo::DECLARATION.source` through pinned
-  `serde_derive_internals` for input/output layout, names, defaults and hooks;
-  handler and standalone roots share that owner. Generic reflection retains raw
-  Rust facts and opaque hints, without serde or TypeScript policy.
+  composition. `type-helpers.ts` owns method-path parameter/return inference and
+  the `RpcSchemaTree` projection of a schema tree.
+- `rpc_toolkit::ts` owns the `TS` trait, the definition registry, module
+  emission, scalar bridges and exports (`ts/types.rs`); `ts/normalize.rs` owns the
+  serde policy, one plan per direction from `TypeInfo::DECLARATION.source` through
+  pinned `serde_derive_internals`; `ts/render.rs` owns zod rendering of the plan
+  pair, joining directional differences with `wire`. Handler and standalone roots
+  share those owners. Generic reflection retains raw Rust facts and opaque hints,
+  without serde or zod policy.
 - `rpc_toolkit::reflect_ts!`, `ts_export!` and `impl_ts_shape!` are consumer-owned
   `macro_rules!` bridges. Keep them beside DTOs/standalone roots. Generic bridges
   state payload bounds, not recursive whole-root reflection bounds. Reserve
@@ -44,13 +47,16 @@ make start-core-format-check
 cargo check -p start-core
 ```
 
-`make rpc-toolkit-test` provisions the pinned TypeScript compiler and tests both
-CBOR-enabled and JSON-only configurations, including real serde fixtures,
-negative TypeScript assertions and RPC dispatch. Dispatch tests run even with
-TypeScript disabled. Changes to handler composition also need backend tests.
+`make rpc-toolkit-test` provisions the pinned TypeScript compiler, prettier and
+zod and tests both CBOR-enabled and JSON-only configurations, including real
+serde fixtures, negative TypeScript assertions, node evaluation of generated
+schema modules and RPC dispatch. Dispatch tests run even with TypeScript
+disabled. Changes to handler composition also need backend tests.
 
-This crate uses edition 2018. `cbor` is enabled by default; `ts` is opt-in.
+This crate uses edition 2018, so `assert!` messages need explicit `"{}"`
+arguments. `cbor` is enabled by default; `ts` is opt-in.
 Enabling `ts` requires registered handlers to provide bindings or use `no_ts()`.
+Generated schema modules import `zod` 4 from the consuming package.
 Without it, the bridge macros expand to nothing, `TS` and `HandlerTSBindings` are
 blanket traits and the TS builder methods return the handler unchanged. Consumers
 gate the TS-only items they implement behind their own `ts` feature; any build that

@@ -157,13 +157,13 @@ const assertNever = (
   Should be changing the type for specific properties, and this is mostly a transformation for the old return types to the newer one.
 */
 function isMatchResult(a: unknown): a is z.infer<typeof matchResult> {
-  return matchResult.safeParse(a).success
+  return matchResult.validate(a)
 }
 function isMatchError(a: unknown): a is z.infer<typeof matchError> {
-  return matchError.safeParse(a).success
+  return matchError.validate(a)
 }
 function isMatchErrorCode(a: unknown): a is z.infer<typeof matchErrorCode> {
-  return matchErrorCode.safeParse(a).success
+  return matchErrorCode.validate(a)
 }
 const fromReturnType = <A>(a: U.ResultType<A>): A => {
   if (isMatchResult(a)) {
@@ -1209,13 +1209,13 @@ const matchVariants = z.looseObject({
   variants: z.record(z.string(), z.unknown()),
 })
 function isMatchPointer(v: unknown): v is z.infer<typeof matchPointer> {
-  return matchPointer.safeParse(v).success
+  return matchPointer.validate(v)
 }
 function isMatchSpec(v: unknown): v is z.infer<typeof matchSpec> {
-  return matchSpec.safeParse(v).success
+  return matchSpec.validate(v)
 }
 function isMatchVariants(v: unknown): v is z.infer<typeof matchVariants> {
-  return matchVariants.safeParse(v).success
+  return matchVariants.validate(v)
 }
 function cleanSpecOfPointers<T>(mutSpec: T): T {
   if (typeof mutSpec !== 'object' || mutSpec === null) return mutSpec

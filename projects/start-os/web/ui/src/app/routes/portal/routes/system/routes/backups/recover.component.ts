@@ -538,7 +538,7 @@ export class BackupsRecoverComponent {
     )
     const { targetId, serverId, password } = this.context.data
     void this.tasks.run(async () => {
-      await this.api.restoreBackupSelection({
+      await this.api.rpc.package.backup.restoreSelection({
         targetId,
         manualIds: ids,
         snapshots,

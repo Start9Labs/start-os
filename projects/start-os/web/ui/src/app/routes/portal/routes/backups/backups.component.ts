@@ -822,7 +822,7 @@ export default class BackupsComponent {
     const job = this.primary()
     if (!job) return
     await this.tasks.run(
-      () => this.api.runScheduledBackupJob({ id: job.id }),
+      () => this.api.rpc.backup.job.runNow({ id: job.id }),
       'Creating automatic backup',
     )
   }
@@ -838,7 +838,7 @@ export default class BackupsComponent {
     this.changingAutomatic.set(true)
     await this.tasks.run(
       () =>
-        this.api.setScheduledBackupJobsEnabled({
+        this.api.rpc.backup.job.setEnabledBulk({
           ids: this.jobs().map(job => job.id),
           enabled,
         }),

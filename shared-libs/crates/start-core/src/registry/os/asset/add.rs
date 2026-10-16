@@ -299,11 +299,11 @@ pub async fn cli_add_asset(
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveAssetParams {
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[arg(help = "help.arg.os-version")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub version: Version,
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[arg(help = "help.arg.platform")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub platform: InternedString,

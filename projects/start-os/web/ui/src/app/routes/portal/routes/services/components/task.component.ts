@@ -256,20 +256,28 @@ export class ServiceTaskComponent {
       .subscribe(() =>
         this.tasks.run(async () => {
           if (!this.backupReview()) {
-            await this.api.clearTask({ packageId, replayId, force: false })
+            await this.api.rpc.package.action.clearTask({
+              packageId,
+              replayId,
+              force: false,
+            })
             return
           }
 
           const [jobs, reviews] = await Promise.all([
-            this.api.getScheduledBackupJobs({}),
-            this.api.getNewServiceBackupReviews({}),
+            this.api.rpc.backup.job.list({}),
+            this.api.rpc.backup.review.list({}),
           ])
           const review = reviews.find(item => item.packageId === packageId)
           if (!review) {
-            await this.api.clearTask({ packageId, replayId, force: false })
+            await this.api.rpc.package.action.clearTask({
+              packageId,
+              replayId,
+              force: false,
+            })
             return
           }
-          await this.api.resolveNewServiceBackupReview({
+          await this.api.rpc.backup.review.resolve({
             packageId,
             decisions: Object.fromEntries(jobs.map(job => [job.id, false])),
           })
@@ -284,8 +292,8 @@ export class ServiceTaskComponent {
       let reviews: T.NewServiceBackupReview[] = []
       const loaded = await this.tasks.run(async () => {
         ;[jobs, reviews] = await Promise.all([
-          this.api.getScheduledBackupJobs({}),
-          this.api.getNewServiceBackupReviews({}),
+          this.api.rpc.backup.job.list({}),
+          this.api.rpc.backup.review.list({}),
         ])
       }, 'Loading')
       if (!loaded) return
@@ -303,7 +311,7 @@ export class ServiceTaskComponent {
         )
         if (decision === 'add') {
           await this.tasks.run(async () => {
-            await this.api.resolveNewServiceBackupReview({
+            await this.api.rpc.backup.review.resolve({
               packageId: task.packageId,
               decisions: Object.fromEntries(
                 jobs.map(job => [job.id, job.id === jobs[0]!.id]),

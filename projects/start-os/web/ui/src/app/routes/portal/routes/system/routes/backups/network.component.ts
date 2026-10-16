@@ -448,7 +448,7 @@ export class BackupNetworkComponent {
             text: this.i18n.transform('Connect'),
             handler: async (value: T.CifsAddParams) =>
               this.connect(async () => {
-                const res = await this.api.updateBackupTarget({
+                const res = await this.api.rpc.backup.target.cifs.update({
                   id: target.id,
                   ...value,
                 })
@@ -478,7 +478,7 @@ export class BackupNetworkComponent {
       .pipe(filter(Boolean))
       .subscribe(() =>
         this.tasks.run(async () => {
-          await this.api.removeBackupTarget({ id: target.id })
+          await this.api.rpc.backup.target.cifs.remove({ id: target.id })
           this.service.cifs.update(cifs => cifs.filter((_, i) => i !== index))
         }, 'Removing'),
       )
@@ -486,7 +486,9 @@ export class BackupNetworkComponent {
 
   private async addTarget(v: T.CifsAddParams): Promise<boolean> {
     return this.connect(async () => {
-      const [item] = Object.entries(await this.api.addBackupTarget(v))
+      const [item] = Object.entries(
+        await this.api.rpc.backup.target.cifs.add(v),
+      )
       const [id, entry] = item || []
 
       if (!id || !entry || entry.type !== 'cifs') {

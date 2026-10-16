@@ -250,7 +250,7 @@ export default class Subnets {
       .pipe(filter(Boolean))
       .subscribe(() =>
         this.tasks.run(
-          async () => await this.api.deleteSubnet({ subnet: range }),
+          async () => await this.api.rpc.subnet.remove({ subnet: range }),
         ),
       )
   }

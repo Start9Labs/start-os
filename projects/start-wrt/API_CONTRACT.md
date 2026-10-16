@@ -356,7 +356,7 @@ Live-streaming endpoint for the web UI.
 
 ### `wan.ipv4-get`
 
-Returns WAN IPv4 configuration and the actual assigned IP.
+Returns WAN IPv4 configuration, the actual assigned IP, and whether the WAN port has link.
 
 ```rust
 // Request: {}
@@ -374,6 +374,8 @@ struct WanIpv4Response {
     mode: WanIpv4Mode,
     /// Actual assigned IP (from ubus/runtime), regardless of mode
     assigned_ip: Option<String>,
+    /// Whether the WAN port has link (from ubus `network.device` status). A failed read reports link.
+    carrier: bool,
     /// Static/PPPoE config fields (populated when relevant)
     address: Option<String>,
     netmask: Option<String>,
@@ -1466,6 +1468,9 @@ struct VpnServerPeerDeleteRequest {
 struct WifiRadio {
     band: String,       // "2g", "5g"
     channel: String,    // "auto", "1", "36", etc.
+    /// Channel width in MHz, from the radio's htmode. Null when the mode sets
+    /// none (NOHT); null on `set` keeps the current width.
+    width: Option<u32>,
     enabled: bool,
     broadcast: bool,
 }
@@ -1524,6 +1529,11 @@ struct WifiSetResult {
 // `InvalidValue` before anything is written; codes are upper-case, as in the
 // database, so `us` is rejected. `null` clears it and returns the radios to the
 // world domain.
+// A radio whose channel or width changes, or that is being enabled, is rejected
+// with `InvalidValue` unless `wifi.regulatory` lists that width for the channel
+// (`autoWidths` for "auto"), or when the radio's PHY mode cannot express the
+// width (HT stops at 40 MHz).
+// A call that changes `country` instead rejects any width above 80 MHz.
 ```
 
 ### `wifi.blackout-get`
@@ -1591,12 +1601,32 @@ struct WifiRegulatory {
     /// ISO 3166-1 alpha-2 codes the firmware's regulatory database defines —
     /// the values `wifi.set` accepts for `country`.
     countries: Vec<String>,
-    /// Channels an access point may use under the country currently in force,
+    /// What an access point may use under the country currently in force,
     /// keyed by band ("2g", "5g"). Re-read after a `wifi.set` that changes
-    /// `country`; a channel outside this list leaves that radio down.
-    channels: HashMap<String, Vec<u32>>,
+    /// `country`; a channel or width outside it leaves that radio down.
+    bands: HashMap<String, BandChannels>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BandChannels {
+    channels: Vec<ApChannel>,
+    /// Widths automatic channel selection can serve without radar-detection
+    /// channels.
+    auto_widths: Vec<u32>,  // `autoWidths`
+}
+
+#[derive(Serialize)]
+struct ApChannel {
+    channel: u32,
+    /// Widths in MHz (20, 40, 80, 160) whose every bonded 20 MHz channel is
+    /// usable, using OpenWrt's bonding for the primary channel.
+    widths: Vec<u32>,
 }
 // Response: WifiRegulatory
+// Backend: reads `iw phy <phy> channels` for every radio. A channel is usable
+// unless disabled or No IR; a width also needs the kernel's width flag on its
+// channels.
 ```
 
 ---

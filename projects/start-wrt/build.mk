@@ -9,7 +9,7 @@ STARTWRT_BIN := target/$(STARTWRT_RUST_ARCH)-unknown-linux-musl/$(PROFILE)/start
 STARTWRT_WEB_DIST := $(STARTWRT_DIR)/web/dist/startwrt/browser/immutable-assets.txt
 STARTWRT_WEB_CONFIG := $(STARTWRT_DIR)/web/config.json
 STARTWRT_BINDINGS_DIR := $(STARTWRT_DIR)/web/src/app/services/api
-STARTWRT_BINDINGS := $(STARTWRT_BINDINGS_DIR)/bindings.ts $(STARTWRT_BINDINGS_DIR)/events.ts
+STARTWRT_BINDINGS := $(STARTWRT_BINDINGS_DIR)/bindings.ts $(STARTWRT_BINDINGS_DIR)/bindings.schemas.ts $(STARTWRT_BINDINGS_DIR)/events.ts $(STARTWRT_BINDINGS_DIR)/events.schemas.ts
 STARTWRT_GIT_HASH_FILE := $(STARTWRT_DIR)/build/env/GIT_HASH.txt
 
 # Refresh GIT_HASH.txt on every make invocation (parse-time side-effect) so the

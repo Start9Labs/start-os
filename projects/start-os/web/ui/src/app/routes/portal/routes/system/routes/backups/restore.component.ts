@@ -152,8 +152,8 @@ export class BackupRestoreComponent {
         password,
       }
       const [manual, automatic] = await Promise.allSettled([
-        this.api.getBackupInfo(params),
-        this.api.discoverScheduledBackupHistories(params),
+        this.api.rpc.backup.target.info(params),
+        this.api.rpc.backup.history.discover(params),
       ])
 
       if (manual.status === 'rejected' && automatic.status === 'rejected') {

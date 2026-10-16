@@ -180,7 +180,7 @@ export class DeleteScheduleService {
   async delete(job: T.BackupJob): Promise<boolean> {
     let histories: T.ServiceTargetHistory[] = []
     const loaded = await this.tasks.run(async () => {
-      histories = await this.api.getScheduledBackupHistories({})
+      histories = await this.api.rpc.backup.history.list({})
     }, 'Loading')
     if (!loaded) return false
 
@@ -232,7 +232,7 @@ export class DeleteScheduleService {
           deleted =
             (await this.backupService.withOriginalPassword(
               async oldPassword => {
-                await this.api.deleteScheduledBackupJobWithBackups({
+                await this.api.rpc.backup.job.deleteWithBackups({
                   id: job.id,
                   password,
                   oldPassword,
@@ -241,7 +241,7 @@ export class DeleteScheduleService {
               },
             )) ?? false
         } else {
-          await this.api.deleteScheduledBackupJob({ id: job.id })
+          await this.api.rpc.backup.job.delete({ id: job.id })
           deleted = true
         }
       },

@@ -473,7 +473,7 @@ Controla a qué puede acceder el dispositivo conectado en la red. Asigna un perf
 
 ### País
 
-El país cuya normativa Wi-Fi sigue el router. Determina qué canales puede usar cada banda y cuánta potencia de transmisión está permitida. Hasta que se seleccione un país, el router funciona con un subconjunto conservador válido en todo el mundo: canales 1–11 en 2,4 GHz y canales 36–48 en 5 GHz con potencia reducida. Cambiar el país restablece la selección de canales a Auto. Elija el país en el que el router está físicamente ubicado.
+El país cuya normativa Wi-Fi sigue el router. Determina qué canales puede usar cada banda y cuánta potencia de transmisión está permitida. Hasta que se seleccione un país, el router funciona con un subconjunto conservador válido en todo el mundo: canales 1–11 en 2,4 GHz y canales 36–48 en 5 GHz con potencia reducida. Cambiar el país restablece la selección de canales a Auto y reduce a 80 MHz un ancho de canal superior a 80 MHz. Elija el país en el que el router está físicamente ubicado.
 
 ### Habilitar Wi-Fi
 
@@ -497,7 +497,11 @@ Cuando se usan ambas bandas de frecuencia, esta opción crea SSID separados para
 
 ### Canales
 
-Canales específicos dentro de cada banda de frecuencia. Selecciona «Auto» para que el router elija el mejor canal, o elige un canal específico para evitar interferencias de redes vecinas. «Auto» omite los canales con detección de radar (DFS). Puedes elegir uno manualmente, pero entonces la red de 5 GHz tarda un minuto o más en aparecer cada vez que el router se inicia, mientras escucha en busca de radares.`,
+Canales específicos dentro de cada banda de frecuencia. Selecciona «Auto» para que el router elija el mejor canal, o elige un canal específico para evitar interferencias de redes vecinas. «Auto» omite los canales con detección de radar (DFS). Puedes elegir uno manualmente, pero entonces la red de 5 GHz tarda un minuto o más en aparecer cada vez que el router se inicia, mientras escucha en busca de radares.
+
+### Ancho de canal
+
+Cuánta parte de la banda ocupa cada red. Los canales más anchos son más rápidos, pero se solapan con más redes vecinas y llegan algo menos lejos. Cada lista muestra los anchos que el canal seleccionado puede usar en el país seleccionado. En 2,4 GHz, una red de 40 MHz arranca en 20 MHz si una red vecina se solapa con ella.`,
 }
 
 export default HELP_ES

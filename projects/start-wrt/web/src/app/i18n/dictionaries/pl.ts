@@ -544,4 +544,8 @@ export default {
   566: 'Nazwy opublikowane przez to urządzenie w routerze. Wygasają samoczynnie, gdy urządzenie przestaje je publikować; wyłączenie uprawnienia usuwa je natychmiast.',
   567: 'Typ',
   568: 'Wskazuje na',
+  569: 'Szerokość kanału',
+  570: 'Szerokość 2,4 GHz',
+  571: 'Szerokość 5 GHz',
+  572: 'Nie połączono',
 } satisfies i18n

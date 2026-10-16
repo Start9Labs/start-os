@@ -260,10 +260,13 @@ async fn inner_main() -> Result<(), Error> {
         if let Err(e) = crate::init::restore_wifi_if_needed().await {
             tracing::error!("WiFi auto-restore failed: {e}");
         }
+        if let Err(e) = crate::wifi::heal_channel_widths("/etc/config").await {
+            tracing::error!("WiFi channel width repair failed: {e}");
+        }
 
         // Reassert WiFi blackout if we rebooted inside an active window. Runs
-        // *after* restore_wifi_if_needed (whose job is to restore missing AP
-        // config, applying it via `wifi reload`) so our `wifi down` is the final
+        // *after* restore_wifi_if_needed and heal_channel_widths (which apply
+        // their config via `wifi reload`) so our `wifi down` is the final
         // word and the radio ends down. Nothing after this point brings the radio
         // back up — bootstrap_admin_profile, apply_remote_access, the WAN-schedule
         // and captive-portal steps touch firewall/dnsmasq, not the wifi radios —
