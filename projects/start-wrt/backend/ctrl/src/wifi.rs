@@ -1719,7 +1719,7 @@ pub async fn blackout_set<C: CtrlContext>(
         let (day, minute) = crate::profiles::chrono_now().await;
         let radios_up = wireless_status()
             .await
-            .map_or(true, |radios| radios.values().any(|r| r.up || r.pending));
+            .map_or(true, |radios| any_radio_on(&radios));
         return Ok(BlackoutSetResult {
             pending_immediate_blackout: radios_up
                 && windows_contain_now(&parse_windows(&serialized), day, minute),
@@ -1996,6 +1996,11 @@ impl RadioStatus {
     fn enabled(&self) -> bool {
         !self.disabled && !self.config.disabled
     }
+}
+
+/// A disabled radio reports `up` while broadcasting nothing.
+fn any_radio_on(radios: &BTreeMap<String, RadioStatus>) -> bool {
+    radios.values().any(|r| r.enabled() && (r.up || r.pending))
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -2315,6 +2320,21 @@ mod tests {
     fn test_radio_action_new_enabled_radio() {
         let enabled = enabled_radios(&["radio0"]);
         assert_eq!(radio_action(&BTreeMap::new(), false, &enabled), Some("up"));
+    }
+
+    #[test]
+    fn test_any_radio_on_ignores_disabled_radios() {
+        let radios = status(
+            radio(true, false, false, true),
+            radio(true, false, false, true),
+        );
+        assert!(!any_radio_on(&radios));
+        let radios = status(radio(true, false, false, false), user_disabled());
+        assert!(any_radio_on(&radios));
+        let radios = status(radio(false, true, false, false), user_disabled());
+        assert!(any_radio_on(&radios));
+        let radios = status(radio(false, false, false, false), user_disabled());
+        assert!(!any_radio_on(&radios));
     }
 
     #[tokio::test]
