@@ -547,4 +547,7 @@ export const ENGLISH: Record<string, number> = {
   '2.4 GHz Width': 570,
   '5 GHz Width': 571,
   'Not connected': 572,
+  'Revoke DNS record publishing': 573,
+  'Updating VPN peer...': 574,
+  'VPN peer updated': 575,
 }

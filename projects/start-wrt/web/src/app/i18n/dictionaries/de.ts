@@ -542,4 +542,7 @@ export default {
   570: '2,4-GHz-Breite',
   571: '5-GHz-Breite',
   572: 'Nicht verbunden',
+  573: 'DNS-Einträge veröffentlichen widerrufen',
+  574: 'VPN-Peer wird aktualisiert...',
+  575: 'VPN-Peer aktualisiert',
 } satisfies i18n
