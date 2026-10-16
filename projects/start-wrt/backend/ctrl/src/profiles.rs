@@ -614,15 +614,18 @@ pub(crate) fn get_config(
             }
         }
     })?;
-    if other_profiles.is_empty() {
+    if other_profiles.is_empty() && (lookup.list().len() > 1 || !wip_profile.access_to_new_profiles)
+    {
         wip_profile.lan_access = LanAccess::SameProfile;
-    } else if (other_profiles.len() + 1) >= lookup.list().len() {
+        wip_profile.access_to_new_profiles = false;
+    } else if (other_profiles.len() + 1) >= lookup.list().len()
+        && wip_profile.access_to_new_profiles
+    {
         wip_profile.lan_access = LanAccess::All;
     } else {
         wip_profile.lan_access = LanAccess::OtherProfiles(other_profiles);
     }
     wip_profile.dns_source = compute_dns_source(cfgs, &wip_profile);
-    wip_profile.access_to_new_profiles = grants_access_to_new_profiles(&wip_profile);
     Ok(wip_profile)
 }
 
@@ -7760,6 +7763,105 @@ config dhcp 'guest'
     }
 
     // === Interface id allocation ===
+
+    #[tokio::test]
+    async fn whitelist_of_every_profile_keeps_new_profiles_out() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp", "wireless"],
+        )
+        .await
+        .unwrap();
+
+        let mut guest = guest_profile(LanAccess::OtherProfiles(BTreeSet::from([ProfileIdOpt {
+            fullname: None,
+            interface: Some("lan".into()),
+            vlan_tag: None,
+        }])));
+        guest.access_to_new_profiles = false;
+        set_config(ctx.clone(), &mut cfgs, &guest).unwrap();
+        let got = get_config(ctx.clone(), &cfgs, guest.id.clone()).unwrap();
+        assert!(matches!(got.lan_access, LanAccess::OtherProfiles(_)));
+        assert!(!got.access_to_new_profiles);
+
+        let third = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Third".into()),
+                interface: None,
+                vlan_tag: None,
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 102, 1),
+            ..guest_profile(LanAccess::SameProfile)
+        };
+        let third_id = create_config(ctx.clone(), &mut cfgs, &third, Some("third".into())).unwrap();
+        let third_zone = find_zone_for_interface(&cfgs, &third_id.interface);
+        cfgs["firewall"]
+            .each::<FirewallForwarding, Error>(|_, FirewallForwarding { src, dest }| {
+                assert!(!(src == "vlan_guest" && dest == third_zone));
+            })
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn sole_profile_with_access_to_new_profiles_reaches_the_next_one() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp", "wireless"],
+        )
+        .await
+        .unwrap();
+        delete_config(
+            ctx.clone(),
+            &mut cfgs,
+            &ProfileIdOpt {
+                fullname: None,
+                interface: Some("guest".into()),
+                vlan_tag: None,
+            },
+        )
+        .unwrap();
+        let admin = ProfileIdOpt {
+            fullname: None,
+            interface: Some("lan".into()),
+            vlan_tag: None,
+        };
+        let got = get_config(ctx.clone(), &cfgs, admin.clone()).unwrap();
+        assert!(matches!(got.lan_access, LanAccess::All));
+        assert!(got.access_to_new_profiles);
+
+        let second = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Second".into()),
+                interface: None,
+                vlan_tag: None,
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 102, 1),
+            ..guest_profile(LanAccess::SameProfile)
+        };
+        let second_id =
+            create_config(ctx.clone(), &mut cfgs, &second, Some("second".into())).unwrap();
+        let second_zone = find_zone_for_interface(&cfgs, &second_id.interface);
+        let admin_zone = find_zone_for_interface(&cfgs, "lan");
+        let mut admin_reaches_second = false;
+        cfgs["firewall"]
+            .each::<FirewallForwarding, Error>(|_, FirewallForwarding { src, dest }| {
+                if src == admin_zone && dest == second_zone {
+                    admin_reaches_second = true;
+                }
+            })
+            .unwrap();
+        assert!(admin_reaches_second);
+    }
 
     #[tokio::test]
     async fn test_allocate_is_random_and_well_formed() {
