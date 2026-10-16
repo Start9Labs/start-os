@@ -21,7 +21,7 @@ import { i18nPipe } from '@start9labs/shared'
     <table
       [appTable]="
         single()
-          ? ['User Agent', 'Platform', 'Last Active']
+          ? ['Name', 'Platform', 'Last Active']
           : ['Platform', 'Last Active']
       "
       [appTableSelected]="selected().length"
@@ -55,7 +55,7 @@ import { i18nPipe } from '@start9labs/shared'
               <span class="count">{{ count }} {{ 'selected' | i18n }}</span>
             </span>
           } @else {
-            {{ 'User Agent' | i18n }}
+            {{ 'Name' | i18n }}
           }
         </th>
       }
@@ -78,7 +78,9 @@ import { i18nPipe } from '@start9labs/shared'
                 (ngModelChange)="onToggle(session)"
               />
             }
-            <div tuiFade class="agent">{{ session.userAgent || '-' }}</div>
+            <div tuiFade class="agent">
+              {{ session.name || session.userAgent || '-' }}
+            </div>
           </td>
           @if (session.userAgent | platformInfo; as platform) {
             <td class="platform">

@@ -106,10 +106,12 @@ mod tests {
 
     use super::*;
     use crate::auth::{AuthKeys, CreateTokenParams, create_token};
-    use crate::middleware::auth::signature::{NonceCache, SignatureAuthContext};
+    use crate::middleware::auth::signature::{
+        AUTH_SIG_HEADER, NonceCache, SignatureAuthContext, SignatureHeader, check_enrolled,
+    };
     use crate::middleware::auth::{Auth, DbContext};
     use crate::rpc_continuations::OpenAuthedContinuations;
-    use crate::sign::AnyVerifyingKey;
+    use crate::sign::{AnySigningKey, AnyVerifyingKey};
     use crate::util::sync::SyncMutex;
 
     #[derive(Default, Deserialize, Serialize, HasModel)]
@@ -157,15 +159,18 @@ mod tests {
         async fn sig_context(
             &self,
         ) -> impl IntoIterator<Item = Result<impl AsRef<str> + Send, Error>> + Send {
-            Vec::<Result<&'static str, Error>>::new()
+            [Ok::<_, Error>("localhost")]
         }
         fn check_pubkey(
             &self,
-            _: &Model<TestDb>,
-            _: Option<&AnyVerifyingKey>,
+            db: &Model<TestDb>,
+            pubkey: Option<&AnyVerifyingKey>,
             _: Value,
         ) -> Result<(), Error> {
-            Err(Error::new(eyre!("unsigned"), ErrorKind::Authorization))
+            check_enrolled(pubkey, false, |id| {
+                Ok(db.as_session_pubkeys().as_idx(id).is_some())
+            })
+            .map(|_| ())
         }
         async fn post_auth_hook(&self, _: (), _: &RpcRequest) -> Result<(), Error> {
             Ok(())
@@ -209,27 +214,66 @@ mod tests {
                 "whoami",
                 from_fn_async(|_: TestCtx, p: WhoAmI| async move { Ok::<_, Error>(p.signer) })
                     .with_metadata("get_signer", Value::Bool(true))
-                    .no_cli(),
+                    .no_cli()
+                    .no_ts(),
             ),
         )
-        .middleware(Auth::new().with_bearer_auth())
+        .middleware(Auth::new().with_bearer_auth().with_signature_auth())
     }
 
-    async fn whoami(server: &HttpServer<TestCtx>, bearer: Option<&str>) -> serde_json::Value {
-        let mut request = http::Request::builder().method("POST").uri("/rpc/v1");
-        if let Some(bearer) = bearer {
-            request = request.header(AUTHORIZATION, format!("Bearer {bearer}"));
-        }
-        let response = server
-            .handle(
-                request
-                    .body(Body::from(
-                        r#"{"jsonrpc":"2.0","id":1,"method":"whoami","params":{}}"#,
-                    ))
-                    .unwrap(),
-            )
-            .await;
+    const WHOAMI_REQUEST: &str = r#"{"jsonrpc":"2.0","id":1,"method":"whoami","params":{}}"#;
+
+    async fn whoami(server: &HttpServer<TestCtx>, headers: http::HeaderMap) -> serde_json::Value {
+        let mut request = http::Request::builder()
+            .method("POST")
+            .uri("/rpc/v1")
+            .body(Body::from(WHOAMI_REQUEST))
+            .unwrap();
+        *request.headers_mut() = headers;
+        let response = server.handle(request).await;
         serde_json::from_slice(&response.into_body().collect().await.unwrap().to_bytes()).unwrap()
+    }
+
+    fn bearer_headers(token: &str) -> http::HeaderMap {
+        http::HeaderMap::from_iter([(AUTHORIZATION, format!("Bearer {token}").parse().unwrap())])
+    }
+
+    #[tokio::test]
+    async fn signature_replays_keep_their_error_code() {
+        let ctx = context().await;
+        let server = server(&ctx);
+        let key = AnySigningKey::Ed25519(ed25519_dalek::SigningKey::generate(
+            &mut crate::util::crypto::os_rng(),
+        ));
+        let id = key.verifying_key().interned_pem();
+        let now = chrono::Utc::now();
+        ctx.db()
+            .mutate(|db| {
+                db.as_session_pubkeys_mut().insert(
+                    &id,
+                    &crate::auth::Session {
+                        logged_in: now,
+                        last_active: now,
+                        ..Default::default()
+                    },
+                )
+            })
+            .await
+            .result
+            .unwrap();
+        let signature = SignatureHeader::sign(&key, WHOAMI_REQUEST.as_bytes(), "localhost")
+            .unwrap()
+            .to_header();
+        let mut headers = http::HeaderMap::new();
+        headers.insert(AUTH_SIG_HEADER, signature);
+        let response = whoami(&server, headers.clone()).await;
+        assert_eq!(response["result"], &*id, "{response}");
+        let replay = whoami(&server, headers).await;
+        assert_eq!(
+            replay["error"]["code"],
+            ErrorKind::InvalidSignature as i32,
+            "{replay}"
+        );
     }
 
     async fn create(ctx: &TestCtx, name: &str) -> crate::auth::CreatedToken {
@@ -268,14 +312,14 @@ mod tests {
         );
 
         let before = session.last_active;
-        let response = whoami(&server, Some(&created.token)).await;
+        let response = whoami(&server, bearer_headers(&created.token)).await;
         assert_eq!(response["result"], &*created.id, "{response}");
         let after =
             ctx.db().peek().await.into_session_pubkeys().de().unwrap().0[&created.id].last_active;
         assert!(after >= before);
 
         ctx.unenroll([created.id.clone()]).await.unwrap();
-        let response = whoami(&server, Some(&created.token)).await;
+        let response = whoami(&server, bearer_headers(&created.token)).await;
         assert!(response["error"].is_object(), "{response}");
     }
 
@@ -287,7 +331,7 @@ mod tests {
         let forged = new_token().0;
         let cookie = URL_SAFE_NO_PAD.encode(rand::random::<[u8; 32]>());
         for bearer in [None, Some(forged.as_str()), Some(cookie.as_str())] {
-            let response = whoami(&server, bearer).await;
+            let response = whoami(&server, bearer.map(bearer_headers).unwrap_or_default()).await;
             assert!(response["error"].is_object(), "{bearer:?}: {response}");
         }
     }

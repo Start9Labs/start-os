@@ -86,8 +86,8 @@ impl UiContext for RpcContext {
             .middleware(
                 Auth::new()
                     .with_local_auth()
-                    .with_signature_auth()
-                    .with_bearer_auth(),
+                    .with_bearer_auth()
+                    .with_signature_auth(),
             )
             .middleware(SyncDb::new())
     }

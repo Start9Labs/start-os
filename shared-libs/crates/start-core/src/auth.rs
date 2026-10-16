@@ -583,6 +583,7 @@ fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) -> Resul
     let mut table = Table::new();
     table.add_row(row![bc =>
         "ID",
+        "NAME",
         "LOGGED IN",
         "LAST ACTIVE",
         "USER AGENT",
@@ -590,6 +591,7 @@ fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) -> Resul
     for (id, session) in arg.sessions.0 {
         let mut row = row![
             &id,
+            session.name.as_deref().unwrap_or("N/A"),
             &format!("{}", session.logged_in),
             &format!("{}", session.last_active),
             session.user_agent.as_deref().unwrap_or("N/A"),
@@ -619,7 +621,6 @@ pub struct ListParams {
 
 rpc_toolkit::reflect_ts!(ListParams);
 
-// #[command(display(display_sessions))]
 #[instrument(skip_all)]
 pub async fn list<C: LoginContext>(
     ctx: C,
