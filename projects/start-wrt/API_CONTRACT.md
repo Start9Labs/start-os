@@ -1453,6 +1453,22 @@ struct VpnServerPeerDeleteRequest {
 // Response: null
 ```
 
+### `vpn-server.peer-rename`
+
+Changes only the peer's display name. The key, address, and WireGuard session are untouched.
+Fails with `NotFound` if the server or the peer does not exist.
+
+```rust
+#[derive(Deserialize)]
+struct VpnServerPeerRenameRequest {
+    profile: String,
+    public_key: String,
+    /// Validated like `peer-add`'s `name`.
+    name: String,
+}
+// Response: null
+```
+
 ---
 
 ## 10. WiFi
@@ -2094,6 +2110,7 @@ The daemon (`backend/ctrl/src/bins/daemon.rs`) also serves:
 | `vpn-server.delete`            | Inbound VPN     |                             |
 | `vpn-server.peer-add`          | Inbound VPN     |                             |
 | `vpn-server.peer-delete`       | Inbound VPN     |                             |
+| `vpn-server.peer-rename`       | Inbound VPN     |                             |
 | `wifi.get`                     | WiFi            |                             |
 | `wifi.set`                     | WiFi            |                             |
 | `wifi.edit`                    | WiFi            | CLI editor                  |
