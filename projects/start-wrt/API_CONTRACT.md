@@ -452,6 +452,7 @@ struct WanIpv6Response {
 struct WanIpv6SetRequest {
     mode: WanIpv6Mode,
     address: Option<String>,
+    /// SLAAC/DHCPv6: requested delegation length, e.g. "/60"; unset or empty requests auto
     prefix: Option<String>,
     gateway: Option<String>,
     /// Static mode: LAN prefix pool, e.g. "2001:db8::/48"
