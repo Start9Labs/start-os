@@ -548,4 +548,5 @@ export default {
   570: 'Largeur 2,4 GHz',
   571: 'Largeur 5 GHz',
   572: 'Non connecté',
+  576: 'Remplacez l’espace réservé PrivateKey par la clé privée de cet appareil avant d’utiliser cette configuration.',
 } satisfies i18n

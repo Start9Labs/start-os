@@ -553,4 +553,5 @@ export const ENGLISH: Record<string, number> = {
   '2.4 GHz Width': 570,
   '5 GHz Width': 571,
   'Not connected': 572,
+  'Replace the PrivateKey placeholder with the private key of this device before using this configuration.': 576,
 }

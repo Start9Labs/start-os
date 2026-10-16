@@ -17,7 +17,7 @@ import { DevicesApiService } from 'src/app/routes/devices/service'
 import { InboundService, VpnServerPeer } from '../../service'
 import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
-import { CLIENT_CONFIG } from './dialog-config'
+import { CLIENT_CONFIG, ClientConfigData } from './dialog-config'
 import { ADD_CLIENT, ClientDialogData } from './dialog-add'
 import { RENAME_CLIENT } from './dialog-rename'
 
@@ -212,13 +212,14 @@ export default class InboundClients {
       })
       .subscribe(async peer => {
         const response = await this.service.addPeer(server.profile, peer)
-        if (response?.client_config) {
+        if (response) {
           this.dialogs
             .open(CLIENT_CONFIG, {
               data: {
                 name: peer.name,
                 config: response.client_config,
-              },
+                placeholderKey: !!peer.public_key,
+              } satisfies ClientConfigData,
             })
             .subscribe()
         }
@@ -264,7 +265,8 @@ export default class InboundClients {
         data: {
           name: peer.name,
           config,
-        },
+          placeholderKey: true,
+        } satisfies ClientConfigData,
       })
       .subscribe()
   }
@@ -319,13 +321,14 @@ export default class InboundClients {
           })
           .subscribe(async newPeer => {
             const response = await this.service.addPeer(server.profile, newPeer)
-            if (response?.client_config) {
+            if (response) {
               this.dialogs
                 .open(CLIENT_CONFIG, {
                   data: {
                     name: newPeer.name,
                     config: response.client_config,
-                  },
+                    placeholderKey: !!newPeer.public_key,
+                  } satisfies ClientConfigData,
                 })
                 .subscribe()
             }
