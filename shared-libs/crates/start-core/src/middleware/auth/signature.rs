@@ -5,7 +5,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::body::Body;
 use axum::extract::Request;
-use chrono::Utc;
 use http::header::USER_AGENT;
 use http::{HeaderMap, HeaderValue};
 use itertools::Itertools;
@@ -256,27 +255,7 @@ impl SignatureAuthContext for RpcContext {
     }
     async fn post_auth_hook(&self, key: Self::CheckPubkeyRes, _: &RpcRequest) -> Result<(), Error> {
         if let Some(key) = key {
-            let ephemeral = self.ephemeral_auth_keys.mutate(|keys| {
-                if let Some(entry) = keys.0.get_mut(&*key) {
-                    entry.last_active = Utc::now();
-                    true
-                } else {
-                    false
-                }
-            });
-            if !ephemeral {
-                self.db
-                    .mutate(|db| {
-                        db.as_private_mut().as_session_pubkeys_mut().mutate(|keys| {
-                            if let Some(entry) = keys.0.get_mut(&*key) {
-                                entry.last_active = Utc::now();
-                            }
-                            Ok(())
-                        })
-                    })
-                    .await
-                    .result?;
-            }
+            crate::auth::touch_session(self, &key).await?;
         }
         Ok(())
     }

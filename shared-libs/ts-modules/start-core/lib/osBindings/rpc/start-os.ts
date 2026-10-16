@@ -113,6 +113,8 @@ export type ContactInfo = z.output<typeof schemas.ContactInfo>
 export type ContactInfoInput = z.input<typeof schemas.ContactInfo>
 export type ContainerId = z.output<typeof schemas.ContainerId>
 export type CountEntry = z.output<typeof schemas.CountEntry>
+export type CreateTokenParamsInput = z.input<typeof schemas.CreateTokenParams>
+export type CreatedToken = z.output<typeof schemas.CreatedToken>
 export type CurrentDependencyKind = z.output<
   typeof schemas.CurrentDependencyKind
 >

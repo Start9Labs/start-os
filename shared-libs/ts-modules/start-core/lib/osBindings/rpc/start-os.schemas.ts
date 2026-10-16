@@ -547,6 +547,37 @@ export const CountEntry: z.ZodObject<{ label: z.ZodString; count: z.ZodInt }> =
   /* @__PURE__ */ object({ label: z.string(), count: z.int() }).meta({
     id: 'CountEntry',
   })
+export const CreateTokenParams: z.ZodObject<{ name: z.ZodString }> =
+  /* @__PURE__ */ object({ name: z.string() }).meta({
+    id: 'CreateTokenParams',
+  })
+export const CreatedToken: z.ZodObject<{
+  /**
+   * The session id the token authenticates as, for `auth.session.kill`.
+   */
+  id: z.ZodString
+  /**
+   * The bearer secret. It is not stored and cannot be retrieved again.
+   */
+  token: z.ZodString
+}> = /* @__PURE__ */ object({
+  /**
+   * The session id the token authenticates as, for `auth.session.kill`.
+   */
+  id: z.string().meta({
+    description:
+      'The session id the token authenticates as, for `auth.session.kill`.',
+  }),
+  /**
+   * The bearer secret. It is not stored and cannot be retrieved again.
+   */
+  token: z.string().meta({
+    description:
+      'The bearer secret. It is not stored and cannot be retrieved again.',
+  }),
+}).meta({
+  id: 'CreatedToken',
+})
 export const CurrentDependencyKind: z.ZodUnion<
   readonly [
     z.ZodObject<{ kind: z.ZodLiteral<'exists'> }>,
@@ -4555,6 +4586,26 @@ export const Api = {
                 ListParams,
               ),
               _RETURN: /* @__PURE__ */ SessionList,
+            },
+          },
+        },
+        token: {
+          _PARAMS: /* @__PURE__ */ empty,
+          _CHILDREN: {
+            create: {
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(
+                  object({
+                    format: wire(
+                      IoFormat.nullable().optional(),
+                      IoFormat.nullable(),
+                    ),
+                  }),
+                  empty,
+                ),
+                CreateTokenParams,
+              ),
+              _RETURN: /* @__PURE__ */ CreatedToken,
             },
           },
         },

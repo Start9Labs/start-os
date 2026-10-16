@@ -62,6 +62,36 @@ pub trait LoginContext: SignatureAuthContext {
         async { Ok(()) }
     }
 }
+/// Records activity on an enrolled key or token, wherever it is stored.
+pub async fn touch_session<C: LoginContext>(
+    ctx: &C,
+    session: &InternedString,
+) -> Result<(), Error> {
+    let now = Utc::now();
+    let ephemeral = ctx.ephemeral_auth_keys().is_some_and(|keys| {
+        keys.mutate(|keys| {
+            keys.0
+                .get_mut(&**session)
+                .map(|entry| entry.last_active = now)
+                .is_some()
+        })
+    });
+    if !ephemeral {
+        ctx.db()
+            .mutate(|db| {
+                C::access_auth_keys(db).mutate(|keys| {
+                    if let Some(entry) = keys.0.get_mut(&**session) {
+                        entry.last_active = now;
+                    }
+                    Ok(())
+                })
+            })
+            .await
+            .result?;
+    }
+    Ok(())
+}
+
 impl LoginContext for RpcContext {
     fn access_auth_keys(db: &mut Model<Self::Database>) -> &mut Model<AuthKeys> {
         db.as_private_mut().as_session_pubkeys_mut()
@@ -211,6 +241,71 @@ where
                 .with_about("about.get-pubkey-from-server")
                 .with_call_remote::<CliContext>(),
         )
+}
+
+/// Bearer-token commands; a token is a named session, listed and revoked with `auth.session`.
+pub fn token<C: Context, AC: LoginContext>() -> ParentHandler<C>
+where
+    CliContext: CallRemote<AC>,
+{
+    ParentHandler::new().subcommand(
+        "create",
+        from_fn_async(create_token::<AC>)
+            .with_display_serializable()
+            .with_custom_display_fn(|handle, result| {
+                if let Some(format) = handle.params.format {
+                    return display_serializable(format, result);
+                }
+                println!("{}", result.token);
+                Ok(())
+            })
+            .with_about("about.create-auth-token")
+            .with_call_remote::<CliContext>(),
+    )
+}
+
+#[derive(Deserialize, Serialize, Parser, VisitFields)]
+#[group(skip)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct CreateTokenParams {
+    #[arg(long, help = "help.arg.token-name")]
+    pub name: InternedString,
+}
+
+rpc_toolkit::reflect_ts!(CreateTokenParams);
+rpc_toolkit::ts_export!(CreateTokenParams, namespaces = [""]);
+
+#[derive(Deserialize, Serialize, VisitFields)]
+#[serde(rename_all = "camelCase")]
+pub struct CreatedToken {
+    /// The session id the token authenticates as, for `auth.session.kill`.
+    pub id: InternedString,
+    /// The bearer secret. It is not stored and cannot be retrieved again.
+    pub token: String,
+}
+
+rpc_toolkit::reflect_ts!(CreatedToken);
+rpc_toolkit::ts_export!(CreatedToken, namespaces = [""]);
+
+#[instrument(skip_all)]
+pub async fn create_token<C: LoginContext>(
+    ctx: C,
+    CreateTokenParams { name }: CreateTokenParams,
+) -> Result<CreatedToken, Error> {
+    let (token, id) = crate::middleware::auth::bearer::new_token();
+    let now = Utc::now();
+    let record = Session {
+        name: Some(name),
+        logged_in: now,
+        last_active: now,
+        user_agent: None,
+    };
+    ctx.db()
+        .mutate(|db| C::access_auth_keys(db).insert(&id, &record))
+        .await
+        .result?;
+    Ok(CreatedToken { id, token })
 }
 
 #[test]
