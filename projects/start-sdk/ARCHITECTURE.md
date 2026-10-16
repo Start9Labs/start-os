@@ -316,7 +316,8 @@ health/
 
 Health checks are paired with **triggers** that control polling behavior:
 
-- `defaultTrigger` — 1 s while pending (`starting`/`waiting`/`failure`), 30 s otherwise
+- `defaultTrigger` — 1 s while `starting` or `failure`, 30 s otherwise
+- `daemonReadyTrigger` — a daemon's `ready` check without its own trigger: `defaultTrigger`, except that `loading` or `waiting` before the first `success` backs off from 1 s, doubling to 30 s (selected in `HealthDaemon`, not exported on `sdk.trigger`)
 - `cooldownTrigger` — Fixed interval between checks
 - `statusTrigger` — Per-status polling intervals with a default fallback
 
