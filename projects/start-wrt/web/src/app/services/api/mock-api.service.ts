@@ -541,6 +541,32 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async vpnServerPeerSetDnsInjection(
+    params: RpcParamType<Api, 'vpn-server.peer-set-dns-injection'>,
+  ): Promise<RpcReturnType<Api, 'vpn-server.peer-set-dns-injection'>> {
+    await pauseFor(250)
+    const allow_dns_injection = params.allow || undefined
+    this.mockVpnServers = this.mockVpnServers.map(s =>
+      s.profile === params.profile
+        ? {
+            ...s,
+            peers: s.peers.map(p =>
+              p.public_key === params.public_key
+                ? { ...p, allow_dns_injection }
+                : p,
+            ),
+          }
+        : s,
+    )
+    this.persistVpnServers()
+    this.logActivity(
+      'vpn-server',
+      'peer-dns-injection',
+      `${params.allow ? 'Enabled' : 'Disabled'} DNS injection for inbound VPN peer`,
+    )
+    return null
+  }
+
   private mockWifi: WifiConfig = {
     ssid: 'StartOS',
     broadcastSeparately: false,

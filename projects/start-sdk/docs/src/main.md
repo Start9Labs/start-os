@@ -403,7 +403,7 @@ Available on `sdk.healthCheck`:
 
 ### Polling Triggers
 
-By default, health checks poll every 1 s while the daemon is pending, then every 30 s once it reports a non-pending result (`success`, `loading`, or `disabled`). Override this with the `trigger` option on `ready`:
+By default, health checks poll every 1 s while `starting` or `failure`, and every 30 s while `success`, `loading`, `waiting`, or `disabled`. A daemon's `ready` check reporting `loading` or `waiting` before its first `success` is the exception: it backs off from 1 s, doubling to 30 s, so a daemon that `requires` it starts soon after it becomes ready. Override this with the `trigger` option on `ready`:
 
 ```typescript
 ready: {
@@ -660,7 +660,7 @@ const postgresSub = sdk.SubContainer.of(
       ])
       if (result.exitCode !== 0) {
         return {
-          result: 'loading',
+          result: 'starting',
           message: i18n('Waiting for PostgreSQL to be ready'),
         }
       }

@@ -63,7 +63,9 @@ export type RpcReturnType<
     : never
 
 export type RpcSchemaTree<Schema> = {
-  [Key in keyof Schema]: Key extends '_PARAMS'
+  [Key in keyof Schema as Key extends '_OPAQUE'
+    ? never
+    : Key]: Key extends '_PARAMS'
     ? Schema[Key] extends z.ZodType
       ? z.input<Schema[Key]>
       : never
@@ -173,6 +175,9 @@ export type OutboundVpnUpdateRequestInput = z.input<
 export type PeerAddResponse = z.output<typeof schemas.PeerAddResponse>
 export type PeerDeleteArgsInput = z.input<typeof schemas.PeerDeleteArgs>
 export type PeerRenameArgsInput = z.input<typeof schemas.PeerRenameArgs>
+export type PeerSetDnsInjectionArgsInput = z.input<
+  typeof schemas.PeerSetDnsInjectionArgs
+>
 export type ProfileId = z.output<typeof schemas.ProfileId>
 export type ProfileIdOptInput = z.input<typeof schemas.ProfileIdOpt>
 export type Protocol = z.output<typeof schemas.Protocol>

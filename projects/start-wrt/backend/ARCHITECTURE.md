@@ -86,7 +86,7 @@ wifi
 
 vpn-server              # Inbound WireGuard VPN
   ├─ list / set / delete
-  └─ peer-add / peer-delete / peer-rename
+  └─ peer-add / peer-delete / peer-rename / peer-set-dns-injection
 
 vpn-client              # Outbound WireGuard VPN
   ├─ list / create / update / delete
