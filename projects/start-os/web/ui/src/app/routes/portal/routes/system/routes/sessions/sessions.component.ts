@@ -7,7 +7,7 @@ import { TuiButton } from '@taiga-ui/core'
 import { from, map, merge, Observable, Subject } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { TitleDirective } from 'src/app/services/title.service'
-import { SessionsTableComponent } from './table.component'
+import { SessionsTableComponent, SessionWithId } from './table.component'
 
 @Component({
   template: `
@@ -70,25 +70,16 @@ export default class SystemSessionsComponent {
   private readonly sessions$ = from(this.api.rpc.auth.session.list({}))
   private readonly local$ = new Subject<readonly SessionWithId[]>()
 
-  protected sessions = viewChild<SessionsTableComponent<SessionWithId>>('table')
+  protected sessions = viewChild<SessionsTableComponent>('table')
 
   readonly current$ = this.sessions$.pipe(
-    map(s => {
-      const current = s.current
-        ? s.sessions.pubkeys[s.current] || s.sessions.tokens[s.current]
-        : undefined
-
-      return current ? [current] : []
-    }),
+    map(s => withIds(s).filter(({ id }) => id === s.current)),
   )
   readonly other$: Observable<readonly SessionWithId[]> = merge(
     this.local$,
     this.sessions$.pipe(
       map(s =>
-        [
-          ...withKind(s.sessions.pubkeys, 'pubkey'),
-          ...withKind(s.sessions.tokens, 'token'),
-        ]
+        withIds(s)
           .filter(({ id }) => id !== s.current)
           .sort(
             (a, b) =>
@@ -102,7 +93,7 @@ export default class SystemSessionsComponent {
   async terminate(all: readonly SessionWithId[]) {
     const selected = this.sessions()?.selected() || []
     const ids = selected.map(s => s.id)
-    const idsOf = (kind: SessionKind) =>
+    const idsOf = (kind: SessionWithId['kind']) =>
       selected.filter(s => s.kind === kind).map(s => s.id)
 
     this.tasks.run(async () => {
@@ -116,20 +107,12 @@ export default class SystemSessionsComponent {
   }
 }
 
-type SessionKind = 'pubkey' | 'token'
+function withIds({ sessions }: T.SessionList): SessionWithId[] {
+  const rows = (kind: SessionWithId['kind'], of: Record<string, T.Session>) =>
+    Object.entries(of).map(([id, session]) => ({ id, kind, ...session }))
 
-interface SessionWithId extends T.Session {
-  id: string
-  kind: SessionKind
-}
-
-function withKind(
-  sessions: Record<string, T.Session>,
-  kind: SessionKind,
-): SessionWithId[] {
-  return Object.entries(sessions).map(([id, session]) => ({
-    id,
-    kind,
-    ...session,
-  }))
+  return [
+    ...rows('pubkey', sessions.pubkeys),
+    ...rows('token', sessions.tokens),
+  ]
 }
