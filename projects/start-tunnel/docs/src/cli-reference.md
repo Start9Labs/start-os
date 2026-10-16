@@ -122,16 +122,18 @@ its subnet's setting.
 
 Display the WireGuard configuration file for a device.
 
-- `--endpoint-ip <IP>` — An IPv4 or IPv6 address used only for the returned config's WireGuard `Endpoint`. This does not change the device's WAN assignment, SNAT, or published ports.
+- `--endpoint <HOST>` — An IPv4 address, IPv6 address, or DNS name used only for the returned config's WireGuard `Endpoint`. Supply the host without a scheme, port, or path; the configured WireGuard port is retained. This does not change the device's WAN assignment, SNAT, or published ports. `--endpoint-ip` is an alias.
 
-Without `--endpoint-ip`, a public device or subnet WAN override supplies the
+Without `--endpoint`, a public device or subnet WAN override supplies the
 endpoint. With neither override, StartTunnel uses a suitable address from the
 request, then the configured webserver listen address, then a detected public address. A non-public WAN override
-requires an explicit `--endpoint-ip` instead of generating a private endpoint.
+requires an explicit `--endpoint` instead of generating a private endpoint.
+The UI config dialog supplies the browser URL's host by default and lets you edit it.
 
 ```bash
-start-tunnel device show-config 10.59.0.1/24 10.59.0.2 --endpoint-ip 203.0.113.10
-start-tunnel device show-config 10.59.0.1/24 10.59.0.2 --endpoint-ip 2001:db8::10
+start-tunnel device show-config 10.59.0.1/24 10.59.0.2 --endpoint 203.0.113.10
+start-tunnel device show-config 10.59.0.1/24 10.59.0.2 --endpoint 2001:db8::10
+start-tunnel device show-config 10.59.0.1/24 10.59.0.2 --endpoint vpn.example.com
 ```
 
 ## Port Forwarding

@@ -1200,6 +1200,14 @@ pub async fn list_devices(
         .de()
 }
 
+fn parse_endpoint_host(value: &str) -> Result<String, url::ParseError> {
+    if let Ok(ip) = value.parse::<Ipv6Addr>() {
+        Ok(format!("[{ip}]"))
+    } else {
+        url::Host::parse(value).map(|host| host.to_string())
+    }
+}
+
 #[derive(Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
@@ -1209,9 +1217,9 @@ pub struct ShowConfigParams {
     subnet: Ipv4Net,
     ip: Ipv4Addr,
     /// Overrides the generated WireGuard endpoint without changing the WAN assignment.
-    #[serde(default)]
-    #[arg(long, value_name = "IP", help = "help.arg.endpoint-ip")]
-    endpoint_ip: Option<IpAddr>,
+    #[serde(default, alias = "endpointIp")]
+    #[arg(long, visible_alias = "endpoint-ip", value_name = "HOST", help = "help.arg.endpoint", value_parser = parse_endpoint_host)]
+    endpoint: Option<String>,
     #[serde(rename = "__ConnectInfo_local_addr")]
     #[arg(skip)]
     #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
@@ -1241,7 +1249,7 @@ fn render_device_config(
     ShowConfigParams {
         subnet,
         ip,
-        endpoint_ip,
+        endpoint,
         local_addr,
     }: ShowConfigParams,
     interface_wan: impl FnOnce() -> Option<IpAddr>,
@@ -1254,38 +1262,48 @@ fn render_device_config(
         .as_idx(&ip)
         .or_not_found(&ip)?
         .de()?;
-    let wan_ip = if let Some(ip) = endpoint_ip {
-        ip
-    } else if let Some(wan_ip) = match client.wan_ip {
-        Some(ip) => Some(ip),
-        None => subnet_model.as_wan_ip().de()?,
-    } {
-        if !crate::net::port_map::upnp::is_wan_candidate(wan_ip) {
-            return Err(Error::new(
-                eyre!(t!("tunnel.api.endpoint-ip-required", wan_ip = wan_ip)),
+    let port = wg.as_port().de()?;
+    let server_addr = if let Some(endpoint) = endpoint {
+        let host = parse_endpoint_host(&endpoint).map_err(|_| {
+            Error::new(
+                eyre!(t!("tunnel.api.invalid-endpoint")),
                 ErrorKind::InvalidRequest,
-            ));
-        }
-        IpAddr::V4(wan_ip)
-    } else if let Some(ip) = local_addr.map(|a| a.ip()).filter(|ip| {
-        !ip.is_loopback()
-            && !match ip {
-                IpAddr::V4(ipv4) => ipv4.is_private() || ipv4.is_link_local(),
-                IpAddr::V6(ipv6) => ipv6.is_unique_local() || ipv6.is_unicast_link_local(),
-            }
-    }) {
-        ip
-    } else if let Some(webserver) = peek.as_webserver().as_listen().de()? {
-        webserver.ip()
+            )
+        })?;
+        format!("{host}:{port}")
     } else {
-        interface_wan().or_not_found("a public IP address")?
+        let wan_ip = if let Some(wan_ip) = match client.wan_ip {
+            Some(ip) => Some(ip),
+            None => subnet_model.as_wan_ip().de()?,
+        } {
+            if !crate::net::port_map::upnp::is_wan_candidate(wan_ip) {
+                return Err(Error::new(
+                    eyre!(t!("tunnel.api.endpoint-ip-required", wan_ip = wan_ip)),
+                    ErrorKind::InvalidRequest,
+                ));
+            }
+            IpAddr::V4(wan_ip)
+        } else if let Some(ip) = local_addr.map(|a| a.ip()).filter(|ip| {
+            !ip.is_loopback()
+                && !match ip {
+                    IpAddr::V4(ipv4) => ipv4.is_private() || ipv4.is_link_local(),
+                    IpAddr::V6(ipv6) => ipv6.is_unique_local() || ipv6.is_unicast_link_local(),
+                }
+        }) {
+            ip
+        } else if let Some(webserver) = peek.as_webserver().as_listen().de()? {
+            webserver.ip()
+        } else {
+            interface_wan().or_not_found("a public IP address")?
+        };
+        SocketAddr::new(wan_ip, port).to_string()
     };
     Ok(client
         .client_config(
             ip,
             subnet,
             wg.as_key().de()?.verifying_key(),
-            (wan_ip, wg.as_port().de()?).into(),
+            server_addr,
             subnet_v6
                 .map(|p| Ipv6Net::new_assert(crate::tunnel::wg6::host_v6(p, ip), p.prefix_len())),
         )
@@ -1945,7 +1963,7 @@ mod tests {
         ShowConfigParams {
             subnet: "10.59.0.1/24".parse().unwrap(),
             ip: "10.59.0.2".parse().unwrap(),
-            endpoint_ip: endpoint.map(|ip| ip.parse().unwrap()),
+            endpoint: endpoint.map(str::to_owned),
             local_addr: local.map(|addr| addr.parse().unwrap()),
         }
     }
@@ -1965,14 +1983,20 @@ mod tests {
                     panic!("unexpected discovery")
                 })
                 .unwrap();
-            for endpoint in ["8.8.8.8", "2606:4700:4700::1111", "10.0.0.3", "fd00::1"] {
+            for (endpoint, socket) in [
+                ("8.8.8.8", "8.8.8.8:51820"),
+                ("2606:4700:4700::1111", "[2606:4700:4700::1111]:51820"),
+                ("[2606:4700:4700::1111]", "[2606:4700:4700::1111]:51820"),
+                ("10.0.0.3", "10.0.0.3:51820"),
+                ("fd00::1", "[fd00::1]:51820"),
+                ("vpn.example.com", "vpn.example.com:51820"),
+            ] {
                 let output = render_device_config(
                     &snapshot,
                     config_params(Some(endpoint), Some("9.9.9.9:80")),
                     || panic!("unexpected discovery"),
                 )
                 .unwrap();
-                let socket = SocketAddr::new(endpoint.parse().unwrap(), 51820);
                 assert_eq!(
                     output,
                     baseline.replace("Endpoint = 1.1.1.1:51820", &format!("Endpoint = {socket}"))
@@ -1986,6 +2010,41 @@ mod tests {
                 serde_json::to_value(snapshot.de().unwrap()).unwrap()
             );
         }
+    }
+
+    #[test]
+    fn show_config_endpoint_keeps_server_port_and_rejects_invalid_hosts() {
+        let mut db = config_fixture(Some("10.0.0.2"), None);
+        db.wg.port = 41999;
+        let snapshot = Model::new(&db).unwrap();
+        let output = render_device_config(
+            &snapshot,
+            config_params(Some("vpn.example.com"), None),
+            || panic!("unexpected discovery"),
+        )
+        .unwrap();
+        assert!(output.contains("Endpoint = vpn.example.com:41999"));
+        for endpoint in [
+            "",
+            "https://vpn.example.com",
+            "vpn.example.com:443",
+            "host/path",
+            "host name",
+            "host\n[Peer]",
+            "[bad-ip]",
+        ] {
+            let error =
+                render_device_config(&snapshot, config_params(Some(endpoint), None), || {
+                    panic!("unexpected discovery")
+                })
+                .unwrap_err();
+            assert_eq!(error.kind, ErrorKind::InvalidRequest);
+        }
+        let params: ShowConfigParams = serde_json::from_value(serde_json::json!({
+            "subnet": "10.59.0.1/24", "ip": "10.59.0.2", "endpointIp": "8.8.8.8"
+        }))
+        .unwrap();
+        assert_eq!(params.endpoint.as_deref(), Some("8.8.8.8"));
     }
 
     #[test]
@@ -2008,7 +2067,7 @@ mod tests {
                 )
                 .unwrap_err();
                 assert_eq!(error.kind, ErrorKind::InvalidRequest);
-                assert!(error.to_string().contains("--endpoint-ip"));
+                assert!(error.to_string().contains("--endpoint"));
             }
         }
     }
@@ -2096,7 +2155,7 @@ mod tests {
             "subnet": "10.59.0.1/24", "ip": "10.59.0.2"
         }))
         .unwrap();
-        assert!(params.endpoint_ip.is_none());
+        assert!(params.endpoint.is_none());
         assert!(params.local_addr.is_none());
         let snapshot = Model::new(&config_fixture(Some("9.9.9.9"), None)).unwrap();
         assert!(

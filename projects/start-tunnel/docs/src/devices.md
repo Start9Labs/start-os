@@ -25,7 +25,7 @@ Every device on a StartTunnel subnet gets its own WireGuard configuration. Devic
    - **Laptop or desktop**: Download the config and import it into the [WireGuard app](https://www.wireguard.com/install/).
 
 > [!NOTE]
-> The config's `Endpoint` — the address the device connects to — uses the device's [outbound IP](#outbound-ip) override, otherwise its subnet's. With neither override, StartTunnel uses a suitable address from the request, then the configured webserver listen address, then a detected public address. Use CLI `device show-config --endpoint-ip` to supply an IPv4 or IPv6 endpoint explicitly; it affects only the returned config. A non-public WAN override requires this option. The endpoint must be reachable from the device; see [Hosting behind NAT](#hosting-behind-nat).
+> The **WireGuard endpoint** in the config dialog defaults to the host in your browser's URL, independently of the [outbound IP](#outbound-ip). Edit it to an IPv4 address, IPv6 address, or DNS name reachable from the device, then click **Generate config**. The file, clipboard copy, and QR code use the same generated config. An HTTPS reverse proxy may not forward WireGuard UDP: choose the tunnel host's reachable address in that case. The configured WireGuard port is retained; the browser's HTTP port is not used. The endpoint affects only the generated config, not WAN assignments or forwarding. For CLI use, supply `device show-config --endpoint <HOST>`; see [Hosting behind NAT](#hosting-behind-nat).
 
 ## Server capabilities
 
@@ -54,7 +54,7 @@ StartTunnel host:
 
 ```bash
 start-tunnel subnet 10.59.0.1/24 set-wan --wan-ip 192.168.1.10
-start-tunnel device show-config 10.59.0.1/24 10.59.0.2 --endpoint-ip 203.0.113.10
+start-tunnel device show-config 10.59.0.1/24 10.59.0.2 --endpoint 203.0.113.10
 ```
 
 To assign only this peer instead of the whole subnet, use
@@ -62,7 +62,9 @@ To assign only this peer instead of the whole subnet, use
 The WAN assignment controls both outbound SNAT and the local address used for
 published-port keys. Set it to the host's assigned local address, not the public
 address held by the upstream router. The endpoint override is supplied each time
-you generate a config and leaves that WAN assignment unchanged.
+you generate a config and leaves that WAN assignment unchanged. You can also
+use the UI config dialog, which starts with the browser URL's host and lets
+you edit it before downloading or scanning the config.
 
 On the upstream router, forward the configured WireGuard UDP port to
 `192.168.1.10` on the same port. The generated config retains that WireGuard port.

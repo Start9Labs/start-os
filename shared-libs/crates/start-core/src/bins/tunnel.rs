@@ -293,6 +293,22 @@ fn tunnel_wan_endpoint_cli_native() {
             "--endpoint-ip",
             "10.0.0.3",
         ],
+        vec![
+            "device",
+            "show-config",
+            "10.59.0.1/24",
+            "10.59.0.2",
+            "--endpoint",
+            "vpn.example.com",
+        ],
+        vec![
+            "device",
+            "show-config",
+            "10.59.0.1/24",
+            "10.59.0.2",
+            "--endpoint",
+            "[2001:db8::1]",
+        ],
     ] {
         let args: Vec<_> = ["start-tunnel"].into_iter().chain(command).collect();
         app().into_command().try_get_matches_from(args).unwrap();
@@ -305,7 +321,7 @@ fn tunnel_wan_endpoint_cli_native() {
             "10.59.0.1/24",
             "10.59.0.2",
             "--endpoint-ip",
-            "not-an-ip",
+            "https://vpn.example.com",
         ])
         .collect();
     assert!(app().into_command().try_get_matches_from(args).is_err());

@@ -125,6 +125,22 @@ fn tunnel_wan_endpoint_cli_remote() {
             "--endpoint-ip",
             "10.0.0.3",
         ],
+        vec![
+            "device",
+            "show-config",
+            "10.59.0.1/24",
+            "10.59.0.2",
+            "--endpoint",
+            "vpn.example.com",
+        ],
+        vec![
+            "device",
+            "show-config",
+            "10.59.0.1/24",
+            "10.59.0.2",
+            "--endpoint",
+            "[2001:db8::1]",
+        ],
     ] {
         let args: Vec<_> = ["start-cli", "--tunnel", "1.1.1.1:443", "tunnel"]
             .into_iter()
@@ -140,7 +156,7 @@ fn tunnel_wan_endpoint_cli_remote() {
             "10.59.0.1/24",
             "10.59.0.2",
             "--endpoint-ip",
-            "not-an-ip",
+            "https://vpn.example.com",
         ])
         .collect();
     assert!(app().into_command().try_get_matches_from(args).is_err());
