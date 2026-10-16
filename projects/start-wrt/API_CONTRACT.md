@@ -356,7 +356,7 @@ Live-streaming endpoint for the web UI.
 
 ### `wan.ipv4-get`
 
-Returns WAN IPv4 configuration and the actual assigned IP.
+Returns WAN IPv4 configuration, the actual assigned IP, and whether the WAN port has link.
 
 ```rust
 // Request: {}
@@ -374,6 +374,8 @@ struct WanIpv4Response {
     mode: WanIpv4Mode,
     /// Actual assigned IP (from ubus/runtime), regardless of mode
     assigned_ip: Option<String>,
+    /// Whether the WAN port has link (from ubus `network.device` status). A failed read reports link.
+    carrier: bool,
     /// Static/PPPoE config fields (populated when relevant)
     address: Option<String>,
     netmask: Option<String>,
@@ -1069,20 +1071,23 @@ protocol client can't be asked.
 Validation (errors with `MissingDeviceAddress`, rejecting the whole request):
 
 - An enabled `ipv4` port whose device has no resolvable IPv4 address.
-- An enabled `ipv6` port when IPv6 publishing is impossible — any of:
-  the router has no global IPv6 prefix delegated; the device resolved to a ULA
-  address; or the device is online but has only a link-local address. ULA and
-  link-local are unreachable from the WAN, so the request is rejected rather than
-  silently saving a dead IPv6 forward. Only a _genuinely offline_ device (no IPv6
-  seen at all) on a GUA-capable router is not rejected; its IPv6 rule is deferred
-  by the rule-creation GUA guard so a briefly-offline device doesn't fail an
-  otherwise-valid save.
+- An enabled `ipv6` port when the router has no global IPv6 prefix delegated.
+- An enabled `ipv6` port whose device has no GUA — it is offline, or has only a
+  ULA or link-local address — unless the port already has an IPv6 rule for the
+  same `id` and `device_mac`. A new IPv6 port, one newly switched to IPv6, or
+  one moved to another device needs the device online with a GUA.
 
 An `ipv6` port's rule pins the tracker-elected stable GUA the device holds
 within a currently-assigned prefix; with none (e.g. saved mid-prefix-rotation),
 the resolved address is used as-is and the tracker's reconcile retargets the
-rule within seconds of the device acquiring an in-prefix address. There is no
-DHCP `hostid` pinning (devices choose their own IPv6 addresses; odhcpd also
+rule within seconds of the device acquiring an in-prefix address. With neither
+(the device has no GUA), the rule keeps the `dest_ip` its existing rule for the
+same `id` and `device_mac` held, as an fw4 rule keeps its address while the
+host is away, and keeps that rule's `dest` zone when the device's zone cannot
+be resolved either; this holds for disabled ports and in configs-only mode too. A
+disabled port, or any port in configs-only mode (neither is validated), with no
+such rule and no address writes no IPv6 rule and reads back with `ipv6: false`.
+There is no DHCP `hostid` pinning (devices choose their own IPv6 addresses; odhcpd also
 misparses colon-separated hostids) — `reconcile` keeps the rule current
 instead. Legacy hostids written by older releases are left in place and still
 serve as a last-resort reconcile fallback.
@@ -1466,6 +1471,9 @@ struct VpnServerPeerDeleteRequest {
 struct WifiRadio {
     band: String,       // "2g", "5g"
     channel: String,    // "auto", "1", "36", etc.
+    /// Channel width in MHz, from the radio's htmode. Null when the mode sets
+    /// none (NOHT); null on `set` keeps the current width.
+    width: Option<u32>,
     enabled: bool,
     broadcast: bool,
 }
@@ -1524,6 +1532,11 @@ struct WifiSetResult {
 // `InvalidValue` before anything is written; codes are upper-case, as in the
 // database, so `us` is rejected. `null` clears it and returns the radios to the
 // world domain.
+// A radio whose channel or width changes, or that is being enabled, is rejected
+// with `InvalidValue` unless `wifi.regulatory` lists that width for the channel
+// (`autoWidths` for "auto"), or when the radio's PHY mode cannot express the
+// width (HT stops at 40 MHz).
+// A call that changes `country` instead rejects any width above 80 MHz.
 ```
 
 ### `wifi.blackout-get`
@@ -1591,12 +1604,32 @@ struct WifiRegulatory {
     /// ISO 3166-1 alpha-2 codes the firmware's regulatory database defines —
     /// the values `wifi.set` accepts for `country`.
     countries: Vec<String>,
-    /// Channels an access point may use under the country currently in force,
+    /// What an access point may use under the country currently in force,
     /// keyed by band ("2g", "5g"). Re-read after a `wifi.set` that changes
-    /// `country`; a channel outside this list leaves that radio down.
-    channels: HashMap<String, Vec<u32>>,
+    /// `country`; a channel or width outside it leaves that radio down.
+    bands: HashMap<String, BandChannels>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BandChannels {
+    channels: Vec<ApChannel>,
+    /// Widths automatic channel selection can serve without radar-detection
+    /// channels.
+    auto_widths: Vec<u32>,  // `autoWidths`
+}
+
+#[derive(Serialize)]
+struct ApChannel {
+    channel: u32,
+    /// Widths in MHz (20, 40, 80, 160) whose every bonded 20 MHz channel is
+    /// usable, using OpenWrt's bonding for the primary channel.
+    widths: Vec<u32>,
 }
 // Response: WifiRegulatory
+// Backend: reads `iw phy <phy> channels` for every radio. A channel is usable
+// unless disabled or No IR; a width also needs the kernel's width flag on its
+// channels.
 ```
 
 ---

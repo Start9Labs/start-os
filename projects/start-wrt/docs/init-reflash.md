@@ -92,10 +92,11 @@ The same charset is enforced by:
 
 ## Captive Portal Mechanism
 
-Both first-time setup (Part 2) and reflash (Part 3) use the same two-layer mechanism:
+Both first-time setup (Part 2) and reflash (Part 3) use the same three-layer mechanism:
 
 1. **DNS hijacking** — `dnsmasq` configured with `address=/#/<router IP>` makes all DNS queries resolve to the router.
 2. **Captive portal detection** — Modern OSes probe known URLs on network join. When DNS hijacking redirects these probes, the OS detects a captive portal and auto-opens a browser pointed at the router's setup page.
+3. **Host gate** — While the portal is active, the web server answers a request for any name other than `router.lan` or an address literal with a redirect to `http://router.lan/`, and declines the TLS handshake for any other SNI rather than presenting the `router.lan` certificate. A website typed into a browser therefore lands on the setup page under the router's own name, and the OS probes receive the redirect that signals a portal.
 
 Both scenarios use the same `StartWRT` SSID and the same EEPROM-derived WiFi password. They differ only in what the setup page does.
 
@@ -121,7 +122,7 @@ After unboxing or factory reset, WiFi works immediately but no admin password is
 
 The captive portal ensures the admin password cannot be ignored — all internet access is blocked until setup is complete. If the user dismisses the captive portal popup, native apps and browsing remain broken until they open a browser and reach the setup page.
 
-Implementation: `dnsmasq` `address=/#/<router IP>` when no root hash in `/etc/shadow`. Removed after password is set. Unlike the reflash captive portal, `max_num_sta` is not restricted — the device is already on a private network protected by the sticker password.
+Implementation: while `/etc/shadow` holds no root hash, dnsmasq resolves every name to the router (`address=/#/<router IP>`) and the nftables table `inet startwrt_captive` rejects forwarded traffic and redirects port 53 to the router. Both are removed once the password is set. Unlike the reflash captive portal, `max_num_sta` is not restricted — the device is already on a private network protected by the sticker password.
 
 > **Note**: After a reflash, the admin password is set in the captive portal wizard (Part 3), so this flow only applies to unboxing and factory reset.
 
