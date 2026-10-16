@@ -131,20 +131,15 @@ pub fn is_admin_password_set() -> Result<bool, Error> {
             ErrorKind::Filesystem,
         )
     })?;
+    Ok(root_password_set(&shadow))
+}
 
-    for line in shadow.lines() {
-        let parts: Vec<&str> = line.split(':').collect();
-        if parts.len() >= 2 && parts[0] == "root" {
-            let hash = parts[1];
-            // Empty, *, !, or x means no password set
-            if hash.is_empty() || hash == "*" || hash == "!" || hash == "x" {
-                return Ok(false);
-            }
-            return Ok(true);
-        }
-    }
-
-    Ok(false)
+pub(crate) fn root_password_set(shadow: &str) -> bool {
+    shadow
+        .lines()
+        .map(|line| line.split(':').collect::<Vec<_>>())
+        .find(|parts| parts.len() >= 2 && parts[0] == "root")
+        .is_some_and(|parts| !matches!(parts[1], "" | "*" | "!" | "x"))
 }
 
 /// Evaluate current state and enable/disable captive portal accordingly.
@@ -215,4 +210,35 @@ async fn restart_dnsmasq() -> Result<(), Error> {
         ));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::root_password_set;
+
+    #[test]
+    fn root_hash_counts_as_set() {
+        assert!(root_password_set(
+            "root:$6$salt$hash:19000:0:99999:7:::\ndaemon:*:0:0:99999:7:::\n"
+        ));
+    }
+
+    #[test]
+    fn factory_shadow_has_no_password() {
+        assert!(!root_password_set(
+            "root:::0:99999:7:::\ndaemon:*:0:0:99999:7:::\n"
+        ));
+    }
+
+    #[test]
+    fn locked_root_has_no_password() {
+        for hash in ["*", "!", "x"] {
+            assert!(!root_password_set(&format!("root:{hash}:0:0:99999:7:::\n")));
+        }
+    }
+
+    #[test]
+    fn other_users_do_not_count() {
+        assert!(!root_password_set("daemon:$6$salt$hash:0:0:99999:7:::\n"));
+    }
 }
