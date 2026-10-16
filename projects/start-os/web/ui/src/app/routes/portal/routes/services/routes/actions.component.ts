@@ -229,7 +229,7 @@ export default class ServiceActionsRoute {
             handler: async (input: typeof spec._TYPE) =>
               this.tasks.run(
                 async () =>
-                  await this.api.setServiceOutbound({
+                  await this.api.rpc.package.setOutboundGateway({
                     package: pkg.manifest.id,
                     gateway:
                       input.gateway === SYSTEM_KEY ? null : input.gateway,

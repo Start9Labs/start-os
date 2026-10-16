@@ -1,8 +1,11 @@
 #![cfg(feature = "ts")]
 #![allow(dead_code)]
 
+mod common;
+
+use common::{declarations, module, rejection};
 use rpc_toolkit::reflect_ts;
-use rpc_toolkit::ts::{Direction, TSVisitor, TS};
+use rpc_toolkit::ts::TS;
 use serde::{Deserialize, Serialize};
 use visit_rs::reflection::TypeInfo;
 use visit_rs::{Named, Static, Visit, VisitFieldsStaticNamed, Visitor};
@@ -31,11 +34,6 @@ struct Original {
     presentation_skipped: bool,
 }
 reflect_ts!(Original);
-fn module<T: TS>(direction: Direction) -> String {
-    let mut visitor = TSVisitor::new();
-    visitor.with_direction(direction, |v| v.append_type::<T>());
-    visitor.into_module("Fixture").unwrap()
-}
 #[test]
 fn raw_inventory_does_not_apply_consumer_renames_or_skips() {
     let mut raw = RawRecorder::default();
@@ -64,11 +62,14 @@ fn raw_inventory_does_not_apply_consumer_renames_or_skips() {
     );
     let decoded: Original = serde_json::from_str(r#"{"old":7}"#).unwrap();
     assert_eq!(decoded.original, 7);
-    let input = module::<Original>(Direction::Input);
-    assert!(input.contains("\"wire\"") && input.contains("\"old\""));
-    let output = module::<Original>(Direction::Output);
-    assert!(output.contains("\"wire\"") && !output.contains("\"old\""));
-    assert!(!input.contains("original") && !input.contains("skipped"));
+    let bindings = module::<Original>();
+    let schemas = &bindings.schemas;
+    assert!(schemas.contains("export const TestType: z.ZodCodec<z.ZodIntersection<z.ZodObject<{ \"old\": z.ZodOptional<z.ZodInt>; \"wire\": z.ZodOptional<z.ZodInt> }>, z.ZodUnion<readonly [z.ZodObject<{ \"old\": z.ZodInt }>, z.ZodObject<{ \"wire\": z.ZodInt }>]>>, z.ZodObject<{ \"wire\": z.ZodInt }>> = /* @__PURE__ */ wire(z.intersection(object({ \"old\": z.int().optional(), \"wire\": z.int().optional() }), z.union([object({ \"old\": z.int() }), object({ \"wire\": z.int() })])), object({ \"wire\": z.int() })).meta({\nid: \"TestType\" });"), "{}", schemas);
+    assert!(!schemas.contains("original") && !schemas.contains("skipped"));
+    common::typecheck(
+        &bindings,
+        "const canonical: TestTypeInput = { wire: 7 };\nconst legacy: TestTypeInput = { old: 7 };\n// @ts-expect-error\nconst missing: TestTypeInput = {};\n// @ts-expect-error\nconst output: TestType = { old: 7 };",
+    );
 }
 struct Hidden;
 #[derive(visit_rs::VisitFields)]
@@ -96,44 +97,43 @@ struct Bypass {
     b: Hidden,
 }
 reflect_ts!(Bypass);
-fn rejection<T: TS>(direction: Direction) -> String {
-    let mut visitor = TSVisitor::new();
-    visitor.with_direction(direction, |v| v.append_type::<T>());
-    visitor.into_declarations().unwrap_err().to_string()
-}
 #[test]
 fn unsupported_shapes_fail_without_unknown_fallback() {
-    for direction in [Direction::Input, Direction::Output] {
-        let opaque = rejection::<OpaqueLiteral>(direction);
-        assert!(opaque.contains("Opaque field value requires a typed optionality fact"));
-        assert!(opaque.contains("Opaque field option requires a typed optionality fact"));
-        assert!(rejection::<UnselectedLiteral>(direction)
-            .contains("Missing selected type metadata callback"));
-        assert!(module::<OpaqueContainerLiteral>(direction).contains(" = number;"));
-    }
-    assert!(rejection::<OpaqueRequired>(Direction::Output).contains("Opaque field hidden"));
-    assert!(rejection::<MissingSelector>(Direction::Input)
-        .contains("Missing selected type metadata callback"));
-    assert!(rejection::<Invalid>(Direction::Output).contains("transparent"));
-    assert!(module::<Bypass>(Direction::Input).contains("BypassInput = string"));
+    let opaque = rejection::<OpaqueLiteral>();
+    assert!(opaque.contains("Opaque field value requires a typed optionality fact"));
+    assert!(opaque.contains("Opaque field option requires a typed optionality fact"));
+    assert!(rejection::<UnselectedLiteral>().contains("Missing selected type metadata callback"));
+    assert!(declarations::<OpaqueContainerLiteral>()
+        .schemas
+        .contains("const literal_0 = /* @__PURE__ */ z.number();\nexport const OpaqueContainerLiteral: typeof literal_0 = /* @__PURE__ */ literal_0.meta({\nid: \"OpaqueContainerLiteral\" });"));
+    assert!(rejection::<OpaqueRequired>().contains("Opaque field hidden"));
+    assert!(rejection::<MissingSelector>().contains("Missing selected type metadata callback"));
+    assert!(rejection::<Invalid>().contains("transparent"));
+    let bypass = declarations::<Bypass>();
+    assert!(bypass.schemas.contains(
+        "export const Bypass: z.ZodString = /* @__PURE__ */ z.string().meta({\nid: \"Bypass\" });"
+    ));
+    assert!(bypass
+        .types
+        .contains("export type BypassInput = z.input<typeof schemas.Bypass>;"));
 }
 
 #[derive(visit_rs::VisitFields)]
 struct OpaqueLiteral {
-    #[visit(opaque, ts(type = "number|null"))]
+    #[visit(opaque, ts(type = "z.number().nullable()"))]
     value: Hidden,
-    #[visit(opaque, ts(type = "null"))]
+    #[visit(opaque, ts(type = "z.null()"))]
     option: Option<Hidden>,
 }
 reflect_ts!(OpaqueLiteral);
 #[derive(visit_rs::VisitFields)]
 struct UnselectedLiteral {
-    #[visit(wire = "Maybe", ts(type = "number|null"))]
+    #[visit(wire = "Maybe", ts(type = "z.number().nullable()"))]
     value: bool,
 }
 reflect_ts!(UnselectedLiteral);
 #[derive(visit_rs::VisitFields)]
-#[visit(opaque, ts(type = "number"))]
+#[visit(opaque, ts(type = "z.number()"))]
 struct OpaqueContainerLiteral(Hidden);
 reflect_ts!(OpaqueContainerLiteral);
 
@@ -177,11 +177,20 @@ fn private_targets_and_mixed_conversion_roles_use_compiler_selected_callbacks() 
         serde_json::to_value(root).unwrap(),
         serde_json::json!({"text":"17"})
     );
-    let input = module::<owner::Root>(Direction::Input);
-    let output = module::<owner::Root>(Direction::Output);
-    assert!(input.contains("\"count\":(number)") && !input.contains("\"text\""));
-    assert!(output.contains("\"text\":(string)") && !output.contains("\"count\""));
+    let bindings = declarations::<owner::Root>();
+    let schemas = &bindings.schemas;
+    assert!(schemas.contains(
+        "export const Input: z.ZodObject<{ \"count\": z.ZodInt }> = /* @__PURE__ */ object({ \"count\": z.int() }).meta({\nid: \"Input\" });"
+    ));
+    assert!(schemas.contains(
+        "export const Output: z.ZodObject<{ \"text\": z.ZodString }> = /* @__PURE__ */ object({ \"text\": z.string() }).meta({\nid: \"Output\" });"
+    ));
+    assert!(schemas.contains("export const Root: z.ZodCodec<typeof Input, typeof Output> = /* @__PURE__ */ wire(Input, Output).meta({\nid: \"Root\" });"));
     assert!(!<owner::Root as TS>::IS_OPTION);
+    common::typecheck(
+        &bindings,
+        "const input: RootInput = { count: 1 };\nconst output: Root = { text: '1' };\n// @ts-expect-error\nconst wrong: RootInput = { text: '1' };",
+    );
 }
 
 type Maybe = Option<String>;
@@ -197,11 +206,15 @@ struct WrappedOptions<'a> {
 reflect_ts!(impl ['a] for WrappedOptions<'a>);
 #[test]
 fn typed_option_identity_survives_aliases_and_pointer_wrappers() {
-    let input = module::<WrappedOptions<'_>>(Direction::Input);
-    let output = module::<WrappedOptions<'_>>(Direction::Output);
+    let bindings = declarations::<WrappedOptions<'_>>();
     for name in ["alias", "reference", "boxed", "arc", "rc", "cow"] {
-        assert!(input.contains(&format!("\"{name}\"?:")), "{}", input);
-        assert!(output.contains(&format!("\"{name}\":")), "{}", output);
+        assert!(
+            bindings.schemas.contains(&format!(
+                "\"{name}\": wire(z.string().nullable().optional(), z.string().nullable())"
+            )),
+            "{}",
+            bindings.schemas
+        );
     }
 }
 
@@ -231,11 +244,10 @@ fn selected_option_alias_combines_with_hook_and_default_rules() {
         serde_json::json!({"value":false})
     );
     assert!(serde_json::from_str::<DefaultHookOption>("{}").is_ok());
-    let required = module::<HookOption>(Direction::Input);
-    assert!(required.contains("\"value\":((string|null))"));
-    assert!(!required.contains("\"value\"?:"));
-    assert!(module::<DefaultHookOption>(Direction::Input).contains("\"value\"?:((string|null))"));
-    assert!(module::<HookOption>(Direction::Output).contains("\"value\":(boolean)"));
+    let required = declarations::<HookOption>().schemas;
+    assert!(required.contains("wire(object({ \"value\": z.string().nullable() }), object({ \"value\": z.boolean() }))"), "{}", required);
+    let defaulted = declarations::<DefaultHookOption>().schemas;
+    assert!(defaulted.contains("wire(object({ \"value\": z.string().nullable().optional() }), object({ \"value\": z.boolean() }))"), "{}", defaulted);
 }
 #[derive(visit_rs::VisitFields)]
 struct Unselected {
@@ -250,27 +262,21 @@ struct LazyTargets {
     #[visit(
         wire = "Option<Unselected>",
         type_attributes(visit::wire),
-        ts(type = "number|null")
+        ts(type = "z.number().nullable()")
     )]
     replaced: u32,
-    #[visit(ts(type = "number|null"))]
+    #[visit(ts(type = "z.number().nullable()"))]
     alias_literal: Maybe,
 }
 reflect_ts!(LazyTargets);
 #[test]
 fn unselected_and_literal_replaced_targets_never_register_definitions() {
-    for direction in [Direction::Input, Direction::Output] {
-        let module = module::<LazyTargets>(direction);
-        assert!(!module.contains("Unselected"));
-        assert!(module.contains(if direction == Direction::Input {
-            "\"alias_literal\"?:(number|null)"
-        } else {
-            "\"alias_literal\":(number|null)"
-        }));
-        assert!(module.contains(if direction == Direction::Input {
-            "\"replaced\"?:(number|null)"
-        } else {
-            "\"replaced\":(number|null)"
-        }));
-    }
+    let schemas = declarations::<LazyTargets>().schemas;
+    assert!(!schemas.contains("Unselected"), "{}", schemas);
+    assert!(
+        schemas.contains("const literal_0 = /* @__PURE__ */ z.number().nullable();\n"),
+        "{}",
+        schemas
+    );
+    assert!(schemas.contains("wire(object({ \"replaced\": literal_0.optional(), \"alias_literal\": literal_0.optional() }), object({ \"skipped\": z.boolean(), \"replaced\": literal_0, \"alias_literal\": literal_0 }))"), "{}", schemas);
 }

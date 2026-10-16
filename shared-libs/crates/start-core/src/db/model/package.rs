@@ -403,23 +403,32 @@ pub struct PackageDataEntry {
     pub state_info: PackageState,
     pub s9pk: PathBuf,
     pub status_info: StatusInfo,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     pub registry: Option<Url>,
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub developer_key: Pem<ed25519_dalek::VerifyingKey>,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     pub last_backup: Option<DateTime<Utc>>,
     pub current_dependencies: CurrentDependencies,
     pub actions: BTreeMap<ActionId, ActionMetadata>,
     pub tasks: BTreeMap<ReplayId, TaskEntry>,
     pub hosts: Hosts,
-    #[visit(ts(type = "string[]"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub store_exposed_dependents: Vec<JsonPointer>,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     pub outbound_gateway: Option<GatewayId>,
     #[serde(default)]
@@ -506,7 +515,7 @@ pub enum CurrentDependencyKind {
     #[serde(rename_all = "camelCase")]
     Running {
         #[serde(default)]
-        #[visit(ts(type = "string[]"), wire = "rpc_toolkit::ts::Unknown")]
+        #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
         #[visit(opaque, type_attributes(visit::wire))]
         health_checks: BTreeSet<HealthCheckId>,
     },
@@ -601,13 +610,13 @@ rpc_toolkit::ts_export!(TaskCondition, namespaces = [""]);
 pub enum TaskInput {
     Partial {
         #[visit(
-            ts(type = "Record<string, unknown>[]"),
+            ts(type = "z.array(z.record(z.string(), z.unknown()))"),
             wire = "rpc_toolkit::ts::Unknown"
         )]
         #[visit(opaque, type_attributes(visit::wire))]
         accept: Vec<Value>,
         #[visit(
-            ts(type = "Record<string, unknown>"),
+            ts(type = "z.record(z.string(), z.unknown())"),
             wire = "rpc_toolkit::ts::Unknown"
         )]
         #[visit(opaque, type_attributes(visit::wire))]

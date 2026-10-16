@@ -28,13 +28,13 @@ const matchRpcError = z.looseObject({
   }),
 })
 function testRpcError(v: unknown): v is RpcError {
-  return matchRpcError.safeParse(v).success
+  return matchRpcError.validate(v)
 }
 const matchRpcResult = z.looseObject({
   result: z.unknown(),
 })
 function testRpcResult(v: unknown): v is z.infer<typeof matchRpcResult> {
-  return matchRpcResult.safeParse(v).success
+  return matchRpcResult.validate(v)
 }
 type RpcError = z.infer<typeof matchRpcError>
 

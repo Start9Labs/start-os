@@ -1,5 +1,8 @@
 use std::fs;
 use std::path::Path;
+use std::process::Stdio;
+
+use tokio::io::AsyncWriteExt;
 
 use crate::prelude::*;
 
@@ -8,6 +11,28 @@ const CAPTIVE_CONTENT: &str = "\
     address=/#/192.168.0.1\n\
     address=/#/::\n\
     dhcp-option=114,http://192.168.0.1/\n";
+
+/// Outside `inet fw4`, which fw4 reloads replace.
+const BLOCK_RULESET: &str = "\
+table inet startwrt_captive
+delete table inet startwrt_captive
+table inet startwrt_captive {
+\tchain forward {
+\t\ttype filter hook forward priority filter - 10; policy accept;
+\t\tmeta l4proto tcp reject with tcp reset
+\t\treject with icmpx type admin-prohibited
+\t}
+\tchain dstnat {
+\t\ttype nat hook prerouting priority dstnat - 10; policy accept;
+\t\tmeta l4proto { tcp, udp } th dport 53 redirect to :53
+\t}
+}
+";
+
+const UNBLOCK_RULESET: &str = "\
+table inet startwrt_captive
+delete table inet startwrt_captive
+";
 
 /// Find the dnsmasq instance conf-dir from the generated config.
 ///
@@ -49,11 +74,19 @@ pub fn is_captive_portal_active() -> bool {
         .unwrap_or(false)
 }
 
-/// Enable captive portal DNS hijacking.
-///
-/// Drops a dnsmasq conf file that redirects all DNS queries to the router's
-/// IP, then restarts dnsmasq to pick up the change.
 pub async fn enable_captive_portal() -> Result<(), Error> {
+    apply_ruleset(BLOCK_RULESET).await?;
+    enable_dns_hijack().await
+}
+
+/// Unblocks forwarding even when restoring DNS fails.
+pub async fn disable_captive_portal() -> Result<(), Error> {
+    let unblocked = apply_ruleset(UNBLOCK_RULESET).await;
+    disable_dns_hijack().await?;
+    unblocked
+}
+
+async fn enable_dns_hijack() -> Result<(), Error> {
     let dir = find_dnsmasq_conf_dir()?;
     let conf = Path::new(&dir).join(CAPTIVE_CONF_NAME);
 
@@ -72,10 +105,7 @@ pub async fn enable_captive_portal() -> Result<(), Error> {
     restart_dnsmasq().await
 }
 
-/// Disable captive portal DNS hijacking.
-///
-/// Removes the dnsmasq conf file and restarts dnsmasq to resume normal DNS.
-pub async fn disable_captive_portal() -> Result<(), Error> {
+async fn disable_dns_hijack() -> Result<(), Error> {
     let dir = find_dnsmasq_conf_dir()?;
     let conf = Path::new(&dir).join(CAPTIVE_CONF_NAME);
 
@@ -127,17 +157,45 @@ pub async fn ensure_captive_portal_state() -> Result<(), Error> {
     let password_set = is_admin_password_set()?;
 
     if password_set {
+        apply_ruleset(UNBLOCK_RULESET).await?;
         if is_captive_portal_active() {
             tracing::info!("admin password set, disabling captive portal");
-            disable_captive_portal().await?;
+            disable_dns_hijack().await?;
         }
     } else {
+        apply_ruleset(BLOCK_RULESET).await?;
         if !is_captive_portal_active() {
             tracing::info!("no admin password set, enabling captive portal");
-            enable_captive_portal().await?;
+            enable_dns_hijack().await?;
         }
     }
 
+    Ok(())
+}
+
+async fn apply_ruleset(ruleset: &str) -> Result<(), Error> {
+    let nft_err = |e: std::io::Error| Error::new(eyre!("nft: {e}"), ErrorKind::Network);
+    let mut child = tokio::process::Command::new("nft")
+        .args(["-f", "-"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(nft_err)?;
+    if let Some(mut stdin) = child.stdin.take() {
+        stdin.write_all(ruleset.as_bytes()).await.map_err(nft_err)?;
+    }
+    let output = child.wait_with_output().await.map_err(nft_err)?;
+    if !output.status.success() {
+        return Err(Error::new(
+            eyre!(
+                "nft exited {}: {}",
+                output.status,
+                String::from_utf8_lossy(&output.stderr).trim()
+            ),
+            ErrorKind::Network,
+        ));
+    }
     Ok(())
 }
 

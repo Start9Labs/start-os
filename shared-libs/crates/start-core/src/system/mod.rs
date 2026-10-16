@@ -446,7 +446,7 @@ pub struct MetricLeaf<T> {
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, VisitFields)]
 #[visit(
-    ts(type = "{ value: string, unit: string }"),
+    ts(type = "z.object({ value: z.string(), unit: z.string() })"),
     wire = "rpc_toolkit::ts::Unknown"
 )]
 #[visit(opaque, type_attributes(visit::wire))]
@@ -481,7 +481,7 @@ impl<'de> Deserialize<'de> for Celsius {
 }
 #[derive(Clone, Debug, PartialEq, PartialOrd, VisitFields)]
 #[visit(
-    ts(type = "{ value: string, unit: string }"),
+    ts(type = "z.object({ value: z.string(), unit: z.string() })"),
     wire = "rpc_toolkit::ts::Unknown"
 )]
 #[visit(opaque, type_attributes(visit::wire))]
@@ -514,7 +514,7 @@ impl<'de> Deserialize<'de> for Percentage {
 
 #[derive(Clone, Debug, VisitFields)]
 #[visit(
-    ts(type = "{ value: string, unit: string }"),
+    ts(type = "z.object({ value: z.string(), unit: z.string() })"),
     wire = "rpc_toolkit::ts::Unknown"
 )]
 #[visit(opaque, type_attributes(visit::wire))]
@@ -547,7 +547,7 @@ impl<'de> Deserialize<'de> for MebiBytes {
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, VisitFields)]
 #[visit(
-    ts(type = "{ value: string, unit: string }"),
+    ts(type = "z.object({ value: z.string(), unit: z.string() })"),
     wire = "rpc_toolkit::ts::Unknown"
 )]
 #[visit(opaque, type_attributes(visit::wire))]

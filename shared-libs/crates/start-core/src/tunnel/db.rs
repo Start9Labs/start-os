@@ -236,7 +236,7 @@ impl PortForward {
 #[serde(rename_all = "camelCase")]
 pub struct HttpRedirects {
     #[serde(default)]
-    #[visit(ts(type = "string[]"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub disabled: BTreeSet<Ipv4Addr>,
 }

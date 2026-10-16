@@ -544,4 +544,8 @@ export default {
   566: 'Namen, die dieses Gerät im Router veröffentlicht hat. Sie laufen von selbst ab, wenn das Gerät sie nicht mehr veröffentlicht; wird die Berechtigung deaktiviert, werden sie sofort entfernt.',
   567: 'Typ',
   568: 'Verweist auf',
+  569: 'Kanalbreite',
+  570: '2,4-GHz-Breite',
+  571: '5-GHz-Breite',
+  572: 'Nicht verbunden',
 } satisfies i18n

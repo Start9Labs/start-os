@@ -94,6 +94,27 @@ import {
   mockDhcpLeasesOutput,
 } from 'src/app/routes/devices/uci/mocks'
 
+// Mirrors the backend's bonding: every channel in the block must be listed.
+function mockWidths(band: string, channel: number, listed: number[]): number[] {
+  const blocks = [40, 80, 160].map(width => {
+    const span = width / 20
+    if (band === '2g') {
+      return span === 2
+        ? [channel, channel < 7 ? channel + 4 : channel - 4]
+        : []
+    }
+    const base = channel >= 149 ? 149 : 36
+    const start = base + Math.floor((channel - base) / 4 / span) * span * 4
+    return Array.from({ length: span }, (_, i) => start + i * 4)
+  })
+  return [
+    20,
+    ...[40, 80, 160].filter(
+      (_, i) => blocks[i].length && blocks[i].every(c => listed.includes(c)),
+    ),
+  ]
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -501,12 +522,14 @@ export class MockApiService extends ApiService {
       default_radio0: {
         band: '2g',
         channel: 'auto',
+        width: 20,
         enabled: true,
         broadcast: true,
       },
       default_radio1: {
         band: '5g',
         channel: 'auto',
+        width: 80,
         enabled: true,
         broadcast: true,
       },
@@ -562,18 +585,32 @@ export class MockApiService extends ApiService {
   async wifiRegulatory(): Promise<WifiRegulatory> {
     await pauseFor(100)
     const world = this.mockWifi.country === null
+    const channels24 = world
+      ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+      : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+    const channels5 = world
+      ? [36, 40, 44, 48]
+      : [
+          36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124,
+          128, 132, 136, 140, 144, 149, 153, 157, 161, 165,
+        ]
     return {
       countries: ['CA', 'CR', 'DE', 'FR', 'GB', 'MX', 'US'],
-      channels: {
-        '2g': world
-          ? [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-          : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
-        '5g': world
-          ? [36, 40, 44, 48]
-          : [
-              36, 40, 44, 48, 52, 56, 60, 64, 100, 104, 108, 112, 116, 120, 124,
-              128, 132, 136, 140, 144, 149, 153, 157, 161, 165,
-            ],
+      bands: {
+        '2g': {
+          channels: channels24.map(channel => ({
+            channel,
+            widths: mockWidths('2g', channel, channels24),
+          })),
+          autoWidths: [20, 40],
+        },
+        '5g': {
+          channels: channels5.map(channel => ({
+            channel,
+            widths: mockWidths('5g', channel, channels5),
+          })),
+          autoWidths: [20, 40, 80],
+        },
       },
     }
   }
@@ -1192,6 +1229,7 @@ export class MockApiService extends ApiService {
   private mockWanIpv4: WanIpv4Response = {
     mode: 'dhcp',
     assigned_ip: '203.0.113.45',
+    carrier: true,
     address: null,
     netmask: null,
     gateway: null,

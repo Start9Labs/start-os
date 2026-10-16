@@ -29,12 +29,12 @@ export type RpcParamType<
     ? Method extends `${infer Head}.${infer Tail}`
       ? Head extends keyof Children
         ? Children[Head] extends RpcHandler
-          ? Root['_PARAMS'] & RpcParamType<Children[Head], Tail>
+          ? RpcParamType<Children[Head], Tail>
           : never
         : never
       : Method extends keyof Children
         ? Children[Method] extends RpcHandler
-          ? Root['_PARAMS'] & RpcParamType<Children[Method], ''>
+          ? RpcParamType<Children[Method], ''>
           : never
         : never
     : never
@@ -59,3 +59,17 @@ export type RpcReturnType<
           : never
         : never
     : never
+
+export type RpcSchemaTree<Schema> = {
+  [Key in keyof Schema]: Key extends '_PARAMS'
+    ? Schema[Key] extends z.ZodType
+      ? z.input<Schema[Key]>
+      : never
+    : Key extends '_RETURN'
+      ? Schema[Key] extends z.ZodType
+        ? z.output<Schema[Key]>
+        : never
+      : Key extends '_CHILDREN'
+        ? { [Name in keyof Schema[Key]]: RpcSchemaTree<Schema[Key][Name]> }
+        : never
+}

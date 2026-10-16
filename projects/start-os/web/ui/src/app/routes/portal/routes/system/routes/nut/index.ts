@@ -190,7 +190,7 @@ export default class Nut {
     this.refreshing.set(true)
 
     try {
-      const status = await this.api.getNutStatus({})
+      const status = await this.api.rpc.server.nutStatus({})
       if (generation === this.refreshGeneration) this.status.set(status)
     } catch (error: unknown) {
       if (generation === this.refreshGeneration) {
@@ -212,7 +212,8 @@ export default class Nut {
             text: this.i18n.transform('Save'),
             handler: (value: NutForm) =>
               this.tasks.run(
-                () => this.api.setNut({ config: toNutConfig(value) }),
+                () =>
+                  this.api.rpc.server.setNut({ config: toNutConfig(value) }),
                 'Saving',
               ),
           },

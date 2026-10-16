@@ -121,7 +121,7 @@ After unboxing or factory reset, WiFi works immediately but no admin password is
 
 The captive portal ensures the admin password cannot be ignored — all internet access is blocked until setup is complete. If the user dismisses the captive portal popup, native apps and browsing remain broken until they open a browser and reach the setup page.
 
-Implementation: `dnsmasq` `address=/#/<router IP>` when no root hash in `/etc/shadow`. Removed after password is set. Unlike the reflash captive portal, `max_num_sta` is not restricted — the device is already on a private network protected by the sticker password.
+Implementation: while `/etc/shadow` holds no root hash, dnsmasq resolves every name to the router (`address=/#/<router IP>`) and the nftables table `inet startwrt_captive` rejects forwarded traffic and redirects port 53 to the router. Both are removed once the password is set. Unlike the reflash captive portal, `max_num_sta` is not restricted — the device is already on a private network protected by the sticker password.
 
 > **Note**: After a reflash, the admin password is set in the captive portal wizard (Part 3), so this flow only applies to unboxing and factory reset.
 

@@ -165,7 +165,8 @@ export class GatewaysItemComponent {
       .pipe(filter(Boolean))
       .subscribe(() =>
         this.tasks.run(
-          async () => await this.api.removeTunnel({ id: this.gateway().id }),
+          async () =>
+            await this.api.rpc.net.tunnel.remove({ id: this.gateway().id }),
           'Deleting',
         ),
       )
@@ -239,7 +240,7 @@ export class GatewaysItemComponent {
             handler: async (input: typeof spec._TYPE) =>
               this.tasks.run(
                 async () =>
-                  await this.api.updateTunnelConfig({
+                  await this.api.rpc.net.tunnel.update({
                     id,
                     config:
                       input.config.selection === 'paste'
@@ -256,7 +257,7 @@ export class GatewaysItemComponent {
 
   private async update(id: string, name: string): Promise<boolean> {
     return this.tasks.run(
-      async () => await this.api.updateTunnel({ id, name }),
+      async () => await this.api.rpc.net.gateway.setName({ id, name }),
       'Saving',
     )
   }

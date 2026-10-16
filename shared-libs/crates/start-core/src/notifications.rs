@@ -79,11 +79,17 @@ pub fn notification<C: Context>() -> ParentHandler<C> {
 #[command(rename_all = "kebab-case")]
 pub struct ListNotificationParams {
     #[arg(help = "help.arg.notification-before-id")]
-    #[visit(ts(type = "number | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.number().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     before: Option<u32>,
     #[arg(help = "help.arg.notification-limit")]
-    #[visit(ts(type = "number | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
+    #[visit(
+        ts(type = "z.number().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
     #[visit(opaque, type_attributes(visit::wire))]
     limit: Option<usize>,
 }
@@ -150,7 +156,7 @@ pub async fn list(
 #[command(rename_all = "kebab-case")]
 pub struct ModifyNotificationParams {
     #[arg(help = "help.arg.notification-ids")]
-    #[visit(ts(type = "number[]"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.array(z.number())"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     ids: Vec<u32>,
 }
@@ -190,7 +196,7 @@ pub async fn remove(
 #[command(rename_all = "kebab-case")]
 pub struct ModifyNotificationBeforeParams {
     #[arg(help = "help.arg.notification-before-id")]
-    #[visit(ts(type = "number"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.number()"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     before: u32,
 }
@@ -424,7 +430,7 @@ impl Map for Notifications {
 #[model = "Model<Self>"]
 pub struct Notification {
     pub package_id: Option<PackageId>,
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[visit(opaque, type_attributes(visit::wire))]
     pub created_at: DateTime<Utc>,
     pub code: u32,
