@@ -419,9 +419,8 @@ export type ApplyWithPathParamsInput = z.input<
 export type AttachParamsInput = z.input<typeof schemas.AttachParams>
 
 /**
- * The server's enrolled auth keys, keyed by their PEM encoding. Each enrolled
- * key is a sign-in: it carries the same metadata a session used to (when it
- * was created, when it was last used, and the user agent that enrolled it).
+ * Sessions keyed by their credential: an enrolled key's PEM encoding, or a
+ * bearer token's hash.
  */
 export type AuthKeys = z.output<typeof schemas.AuthKeys>
 export type CancelInstallParamsInput = z.input<
@@ -611,7 +610,11 @@ export type ResetPasswordParamsInput = z.input<
   typeof schemas.ResetPasswordParams
 >
 export type ServiceInterface = z.output<typeof schemas.ServiceInterface>
-export type SessionList = z.output<typeof schemas.SessionList>
+
+/**
+ * The server's sessions, by credential type.
+ */
+export type Sessions = z.output<typeof schemas.Sessions>
 export type WgSubnetClients = z.output<typeof schemas.WgSubnetClients>
 export type WifiListInfo = z.output<typeof schemas.WifiListInfo>
 export type AddSslOptions = z.output<typeof schemas.AddSslOptions>
@@ -630,6 +633,7 @@ export type MetricsFollowResponse = z.output<
 >
 export type OsIndex = z.output<typeof schemas.OsIndex>
 export type PackageVersionInfo = z.output<typeof schemas.PackageVersionInfo>
+export type SessionList = z.output<typeof schemas.SessionList>
 export type WgSubnetConfig = z.output<typeof schemas.WgSubnetConfig>
 export type BindOptions = z.output<typeof schemas.BindOptions>
 export type GetPackageResponse = z.output<typeof schemas.GetPackageResponse>

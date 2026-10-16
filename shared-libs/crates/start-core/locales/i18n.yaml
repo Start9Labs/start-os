@@ -3295,6 +3295,13 @@ auth.malformed-etc-shadow:
   fr_FR: "/etc/shadow mal formé"
   pl_PL: "zniekształcony /etc/shadow"
 
+auth.tokens-unsupported:
+  en_US: "Bearer tokens are not supported here"
+  de_DE: "Bearer-Token werden hier nicht unterstützt"
+  es_ES: "Los tokens de portador no se admiten aquí"
+  fr_FR: "Les jetons d'accès ne sont pas pris en charge ici"
+  pl_PL: "Tokeny okaziciela nie są tutaj obsługiwane"
+
 auth.couldnt-decode-password:
   en_US: "Couldn't decode password"
   de_DE: "Passwort konnte nicht dekodiert werden"
@@ -4816,12 +4823,19 @@ help.arg.s9pk-file-paths:
   fr_FR: "Chemins vers les fichiers de paquet s9pk"
   pl_PL: "Ścieżki do plików pakietów s9pk"
 
-help.arg.session-ids:
-  en_US: "Session identifiers"
-  de_DE: "Sitzungskennungen"
-  es_ES: "Identificadores de sesión"
-  fr_FR: "Identifiants de session"
-  pl_PL: "Identyfikatory sesji"
+help.arg.session-pubkeys:
+  en_US: "Enrolled key of a session to terminate"
+  de_DE: "Registrierter Schlüssel einer zu beendenden Sitzung"
+  es_ES: "Clave registrada de una sesión a terminar"
+  fr_FR: "Clé enregistrée d'une session à terminer"
+  pl_PL: "Zarejestrowany klucz sesji do zakończenia"
+
+help.arg.session-tokens:
+  en_US: "ID of a bearer token to revoke"
+  de_DE: "ID eines zu widerrufenden Bearer-Tokens"
+  es_ES: "ID de un token de portador a revocar"
+  fr_FR: "ID d'un jeton d'accès à révoquer"
+  pl_PL: "Identyfikator tokenu okaziciela do unieważnienia"
 
 help.arg.signer-id:
   en_US: "Signer identifier"

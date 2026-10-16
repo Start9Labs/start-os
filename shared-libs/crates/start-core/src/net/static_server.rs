@@ -456,10 +456,10 @@ async fn if_authorized<
                 .peek()
                 .await
                 .as_private()
-                .as_session_pubkeys()
-                .de()?
-                .0
-                .contains_key(&*key);
+                .as_sessions()
+                .as_pubkeys()
+                .as_idx(&key)
+                .is_some();
         if !enrolled {
             return Err(Error::new(
                 eyre!("{}", t!("middleware.auth.unauthorized")),

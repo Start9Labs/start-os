@@ -494,16 +494,14 @@ export type AttachParams = z.output<typeof schemas.AttachParams>
 export type AttachParamsInput = z.input<typeof schemas.AttachParams>
 
 /**
- * The server's enrolled auth keys, keyed by their PEM encoding. Each enrolled
- * key is a sign-in: it carries the same metadata a session used to (when it
- * was created, when it was last used, and the user agent that enrolled it).
+ * Sessions keyed by their credential: an enrolled key's PEM encoding, or a
+ * bearer token's hash.
  */
 export type AuthKeys = z.output<typeof schemas.AuthKeys>
 
 /**
- * The server's enrolled auth keys, keyed by their PEM encoding. Each enrolled
- * key is a sign-in: it carries the same metadata a session used to (when it
- * was created, when it was last used, and the user agent that enrolled it).
+ * Sessions keyed by their credential: an enrolled key's PEM encoding, or a
+ * bearer token's hash.
  */
 export type AuthKeysInput = z.input<typeof schemas.AuthKeys>
 export type BackupReport = z.output<typeof schemas.BackupReport>
@@ -1054,8 +1052,16 @@ export type ServerStatus = z.output<typeof schemas.ServerStatus>
 export type ServerStatusInput = z.input<typeof schemas.ServerStatus>
 export type ServiceInterface = z.output<typeof schemas.ServiceInterface>
 export type ServiceInterfaceInput = z.input<typeof schemas.ServiceInterface>
-export type SessionList = z.output<typeof schemas.SessionList>
-export type SessionListInput = z.input<typeof schemas.SessionList>
+
+/**
+ * The server's sessions, by credential type.
+ */
+export type Sessions = z.output<typeof schemas.Sessions>
+
+/**
+ * The server's sessions, by credential type.
+ */
+export type SessionsInput = z.input<typeof schemas.Sessions>
 export type SetDependenciesParams = z.output<
   typeof schemas.SetDependenciesParams
 >
@@ -1118,6 +1124,8 @@ export type OsIndex = z.output<typeof schemas.OsIndex>
 export type OsIndexInput = z.input<typeof schemas.OsIndex>
 export type PackageVersionInfo = z.output<typeof schemas.PackageVersionInfo>
 export type PackageVersionInfoInput = z.input<typeof schemas.PackageVersionInfo>
+export type SessionList = z.output<typeof schemas.SessionList>
+export type SessionListInput = z.input<typeof schemas.SessionList>
 export type SetBackupProgress = z.output<typeof schemas.SetBackupProgress>
 export type SetBackupProgressInput = z.input<typeof schemas.SetBackupProgress>
 export type SetInitProgress = z.output<typeof schemas.SetInitProgress>

@@ -4,11 +4,10 @@ use http::header::AUTHORIZATION;
 use rpc_toolkit::{Middleware, RpcRequest, RpcResponse};
 use serde::Deserialize;
 
-use crate::auth::{LoginContext, touch_session};
+use crate::auth::{LoginContext, touch_token};
 use crate::prelude::*;
 
 const TOKEN_PREFIX: &str = "startos_";
-const SESSION_PREFIX: &str = "token:";
 
 /// A new bearer token: the secret to hand the client once, and the session id
 /// it authenticates as.
@@ -21,12 +20,9 @@ pub fn new_token() -> (String, InternedString) {
     (secret, id)
 }
 
-/// The session id a bearer token authenticates as; the secret itself is never stored.
+/// The id a bearer token is stored under; the secret itself is never stored.
 pub fn token_session_id(secret: &str) -> InternedString {
-    InternedString::from_display(&lazy_format!(
-        "{SESSION_PREFIX}{}",
-        URL_SAFE_NO_PAD.encode(blake3::hash(secret.as_bytes()).as_bytes())
-    ))
+    InternedString::intern(URL_SAFE_NO_PAD.encode(blake3::hash(secret.as_bytes()).as_bytes()))
 }
 
 #[derive(Deserialize)]
@@ -75,9 +71,8 @@ impl<C: LoginContext> Middleware<C> for BearerAuth {
                     ErrorKind::Authorization,
                 )
             })?;
-            let enrolled = C::access_auth_keys(&mut context.db().peek().await)
-                .as_idx(&session)
-                .is_some();
+            let enrolled = C::access_tokens(&mut context.db().peek().await)
+                .is_some_and(|tokens| tokens.as_idx(&session).is_some());
             if !enrolled {
                 return Err(Error::new(
                     eyre!("{}", t!("middleware.auth.key-not-authorized")),
@@ -87,7 +82,7 @@ impl<C: LoginContext> Middleware<C> for BearerAuth {
             if metadata.get_signer {
                 request.params["__Auth_signer"] = to_value(&session)?;
             }
-            touch_session(context, &session).await
+            touch_token(context, &session).await
         }
         .await
         .map_err(|e: Error| RpcResponse::from_result(Err(e)))
@@ -105,7 +100,7 @@ mod tests {
     use serde::Serialize;
 
     use super::*;
-    use crate::auth::{AuthKeys, CreateTokenParams, create_token};
+    use crate::auth::{AuthKeys, CreateTokenParams, Sessions, create_token, revoke_tokens};
     use crate::middleware::auth::signature::{
         AUTH_SIG_HEADER, NonceCache, SignatureAuthContext, SignatureHeader, check_enrolled,
     };
@@ -118,7 +113,7 @@ mod tests {
     #[serde(rename_all = "camelCase")]
     #[model = "Model<Self>"]
     struct TestDb {
-        session_pubkeys: AuthKeys,
+        sessions: Sessions,
     }
 
     #[derive(Clone)]
@@ -152,7 +147,7 @@ mod tests {
             keys: &BTreeSet<InternedString>,
         ) -> Result<(), Error> {
             for key in keys {
-                db.as_session_pubkeys_mut().remove(key)?;
+                db.as_sessions_mut().as_pubkeys_mut().remove(key)?;
             }
             Ok(())
         }
@@ -168,7 +163,7 @@ mod tests {
             _: Value,
         ) -> Result<(), Error> {
             check_enrolled(pubkey, false, |id| {
-                Ok(db.as_session_pubkeys().as_idx(id).is_some())
+                Ok(db.as_sessions().as_pubkeys().as_idx(id).is_some())
             })
             .map(|_| ())
         }
@@ -178,7 +173,10 @@ mod tests {
     }
     impl LoginContext for TestCtx {
         fn access_auth_keys(db: &mut Model<TestDb>) -> &mut Model<AuthKeys> {
-            db.as_session_pubkeys_mut()
+            db.as_sessions_mut().as_pubkeys_mut()
+        }
+        fn access_tokens(db: &mut Model<TestDb>) -> Option<&mut Model<AuthKeys>> {
+            Some(db.as_sessions_mut().as_tokens_mut())
         }
         fn check_password(_: &Model<TestDb>, _: &str) -> Result<(), Error> {
             Ok(())
@@ -249,7 +247,7 @@ mod tests {
         let now = chrono::Utc::now();
         ctx.db()
             .mutate(|db| {
-                db.as_session_pubkeys_mut().insert(
+                db.as_sessions_mut().as_pubkeys_mut().insert(
                     &id,
                     &crate::auth::Session {
                         logged_in: now,
@@ -292,7 +290,6 @@ mod tests {
         let (secret, id) = new_token();
         assert!(secret.starts_with(TOKEN_PREFIX));
         assert_eq!(id, token_session_id(&secret));
-        assert!(id.starts_with(SESSION_PREFIX));
         assert!(!id.contains(&secret[TOKEN_PREFIX.len()..]));
         assert_ne!(new_token().1, id);
     }
@@ -302,8 +299,9 @@ mod tests {
         let ctx = context().await;
         let server = server(&ctx);
         let created = create(&ctx, "claude").await;
-        let sessions = ctx.db().peek().await.into_session_pubkeys().de().unwrap();
-        let session = &sessions.0[&created.id];
+        let sessions = ctx.db().peek().await.into_sessions().de().unwrap();
+        assert!(sessions.pubkeys.0.is_empty());
+        let session = &sessions.tokens.0[&created.id];
         assert_eq!(session.name.as_deref(), Some("claude"));
         assert!(
             !serde_json::to_string(&sessions)
@@ -314,11 +312,22 @@ mod tests {
         let before = session.last_active;
         let response = whoami(&server, bearer_headers(&created.token)).await;
         assert_eq!(response["result"], &*created.id, "{response}");
-        let after =
-            ctx.db().peek().await.into_session_pubkeys().de().unwrap().0[&created.id].last_active;
-        assert!(after >= before);
+        let tokens = ctx
+            .db()
+            .peek()
+            .await
+            .into_sessions()
+            .into_tokens()
+            .de()
+            .unwrap();
+        assert!(tokens.0[&created.id].last_active >= before);
 
-        ctx.unenroll([created.id.clone()]).await.unwrap();
+        let continuations = &ctx.0.continuations;
+        ctx.db()
+            .mutate(|db| revoke_tokens::<TestCtx>(continuations, db, [created.id.clone()]))
+            .await
+            .result
+            .unwrap();
         let response = whoami(&server, bearer_headers(&created.token)).await;
         assert!(response["error"].is_object(), "{response}");
     }

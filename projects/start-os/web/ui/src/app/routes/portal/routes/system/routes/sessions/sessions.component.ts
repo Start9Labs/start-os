@@ -74,7 +74,9 @@ export default class SystemSessionsComponent {
 
   readonly current$ = this.sessions$.pipe(
     map(s => {
-      const current = s.current ? s.sessions[s.current] : undefined
+      const current = s.current
+        ? s.sessions.pubkeys[s.current] || s.sessions.tokens[s.current]
+        : undefined
 
       return current ? [current] : []
     }),
@@ -83,12 +85,11 @@ export default class SystemSessionsComponent {
     this.local$,
     this.sessions$.pipe(
       map(s =>
-        Object.entries(s.sessions)
-          .filter(([id, _]) => id !== s.current)
-          .map(([id, session]) => ({
-            id,
-            ...session,
-          }))
+        [
+          ...withKind(s.sessions.pubkeys, 'pubkey'),
+          ...withKind(s.sessions.tokens, 'token'),
+        ]
+          .filter(({ id }) => id !== s.current)
           .sort(
             (a, b) =>
               new Date(b.lastActive).valueOf() -
@@ -99,19 +100,36 @@ export default class SystemSessionsComponent {
   )
 
   async terminate(all: readonly SessionWithId[]) {
-    const ids =
-      this.sessions()
-        ?.selected()
-        .map(s => s.id) || []
+    const selected = this.sessions()?.selected() || []
+    const ids = selected.map(s => s.id)
+    const idsOf = (kind: SessionKind) =>
+      selected.filter(s => s.kind === kind).map(s => s.id)
 
     this.tasks.run(async () => {
-      await this.api.rpc.auth.session.kill({ ids })
+      await this.api.rpc.auth.session.kill({
+        pubkeys: idsOf('pubkey'),
+        tokens: idsOf('token'),
+      })
       this.local$.next(all.filter(s => !ids.includes(s.id)))
       this.sessions()?.selected.set([])
     }, 'Terminating sessions')
   }
 }
 
+type SessionKind = 'pubkey' | 'token'
+
 interface SessionWithId extends T.Session {
   id: string
+  kind: SessionKind
+}
+
+function withKind(
+  sessions: Record<string, T.Session>,
+  kind: SessionKind,
+): SessionWithId[] {
+  return Object.entries(sessions).map(([id, session]) => ({
+    id,
+    kind,
+    ...session,
+  }))
 }

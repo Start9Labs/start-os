@@ -833,10 +833,21 @@ export const KeyboardOptions: z.ZodObject<{
 }).meta({
   id: 'KeyboardOptions',
 })
-export const KillParams: z.ZodObject<{ ids: z.ZodArray<z.ZodString> }> =
-  /* @__PURE__ */ object({ ids: z.array(z.string()) }).meta({
-    id: 'KillParams',
-  })
+export const KillParams: z.ZodObject<{
+  pubkeys: z.ZodCodec<
+    z.ZodOptional<z.ZodArray<z.ZodString>>,
+    z.ZodArray<z.ZodString>
+  >
+  tokens: z.ZodCodec<
+    z.ZodOptional<z.ZodArray<z.ZodString>>,
+    z.ZodArray<z.ZodString>
+  >
+}> = /* @__PURE__ */ object({
+  pubkeys: wire(z.array(z.string()).optional(), z.array(z.string())),
+  tokens: wire(z.array(z.string()).optional(), z.array(z.string())),
+}).meta({
+  id: 'KillParams',
+})
 export const ListNotificationParams: z.ZodObject<{
   before: z.ZodCodec<z.ZodOptional<typeof literal_9>, typeof literal_9>
   limit: z.ZodCodec<z.ZodOptional<typeof literal_9>, typeof literal_9>
@@ -2030,15 +2041,14 @@ export const AttachParams: z.ZodObject<{
 })
 
 /**
- * The server's enrolled auth keys, keyed by their PEM encoding. Each enrolled
- * key is a sign-in: it carries the same metadata a session used to (when it
- * was created, when it was last used, and the user agent that enrolled it).
+ * Sessions keyed by their credential: an enrolled key's PEM encoding, or a
+ * bearer token's hash.
  */
 export const AuthKeys: z.ZodRecord<z.ZodString, typeof Session> =
   /* @__PURE__ */ z.record(z.string(), Session).meta({
     id: 'AuthKeys',
     description:
-      "The server's enrolled auth keys, keyed by their PEM encoding. Each enrolled\nkey is a sign-in: it carries the same metadata a session used to (when it\nwas created, when it was last used, and the user agent that enrolled it).",
+      "Sessions keyed by their credential: an enrolled key's PEM encoding, or a\nbearer token's hash.",
   })
 export const BackupReport: z.ZodObject<{
   server: typeof ServerBackupReport
@@ -4491,14 +4501,16 @@ export const ServiceInterface: z.ZodObject<{
 }).meta({
   id: 'ServiceInterface',
 })
-export const SessionList: z.ZodObject<{
-  current: z.ZodCodec<z.ZodOptional<typeof literal_6>, typeof literal_6>
-  sessions: typeof AuthKeys
-}> = /* @__PURE__ */ object({
-  current: wire(literal_6.optional(), literal_6),
-  sessions: AuthKeys,
-}).meta({
-  id: 'SessionList',
+
+/**
+ * The server's sessions, by credential type.
+ */
+export const Sessions: z.ZodObject<{
+  pubkeys: typeof AuthKeys
+  tokens: typeof AuthKeys
+}> = /* @__PURE__ */ object({ pubkeys: AuthKeys, tokens: AuthKeys }).meta({
+  id: 'Sessions',
+  description: "The server's sessions, by credential type.",
 })
 export const SetDependenciesParams: z.ZodObject<{
   dependencies: z.ZodArray<typeof DependencyRequirement>
@@ -5001,6 +5013,15 @@ export const PackageVersionInfo: z.ZodIntersection<
   .meta({
     id: 'PackageVersionInfo',
   })
+export const SessionList: z.ZodObject<{
+  current: z.ZodCodec<z.ZodOptional<typeof literal_6>, typeof literal_6>
+  sessions: typeof Sessions
+}> = /* @__PURE__ */ object({
+  current: wire(literal_6.optional(), literal_6),
+  sessions: Sessions,
+}).meta({
+  id: 'SessionList',
+})
 export const SetBackupProgress: z.ZodObject<{ progress: typeof Progress }> =
   /* @__PURE__ */ object({ progress: Progress }).meta({
     id: 'SetBackupProgress',
