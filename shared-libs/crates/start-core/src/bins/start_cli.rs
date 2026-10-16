@@ -83,3 +83,8 @@ fn no_shadowed_args_start_cli() {
 fn export_manpage_start_cli() {
     super::export_manpages(app().into_command(), "start-cli", super::cli_version());
 }
+
+#[test]
+fn cli_version_matches_manifest() {
+    assert_eq!(super::cli_version(), super::manifest_version("start-cli"));
+}
