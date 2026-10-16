@@ -92,7 +92,7 @@ The IP address or domain name where the VPN server can be reached by clients con
 
 ### Security Profile
 
-The initial set of access rights and restrictions assigned to clients when they connect to the VPN server. Select a previously created profile or schedule, or create a new one.
+The initial set of access rights and restrictions assigned to clients when they connect to the VPN server. Select a previously created profile or schedule, or create a new one. The profile is fixed once the server is created; to move a VPN to another profile, delete it and add a new one.
 
 ### Port
 

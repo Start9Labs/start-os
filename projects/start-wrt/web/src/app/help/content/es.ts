@@ -92,7 +92,7 @@ La dirección IP o el nombre de dominio donde los clientes que se conectan a tra
 
 ### Perfil de seguridad
 
-El conjunto inicial de derechos de acceso y restricciones asignados a los clientes cuando se conectan al servidor VPN. Selecciona un perfil o un apagado creado previamente, o crea uno nuevo.
+El conjunto inicial de derechos de acceso y restricciones asignados a los clientes cuando se conectan al servidor VPN. Selecciona un perfil o un apagado creado previamente, o crea uno nuevo. El perfil queda fijado una vez creado el servidor; para mover una VPN a otro perfil, elimínala y añade una nueva.
 
 ### Puerto
 

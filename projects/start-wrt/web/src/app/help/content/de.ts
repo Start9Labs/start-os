@@ -92,7 +92,7 @@ Die IP-Adresse oder der Domänenname, unter dem der VPN-Server von Clients errei
 
 ### Sicherheitsprofil
 
-Der anfängliche Satz an Zugriffsrechten und Einschränkungen, der Clients zugewiesen wird, wenn sie sich mit dem VPN-Server verbinden. Wählen Sie ein zuvor erstelltes Profil oder einen Zeitplan, oder erstellen Sie ein neues.
+Der anfängliche Satz an Zugriffsrechten und Einschränkungen, der Clients zugewiesen wird, wenn sie sich mit dem VPN-Server verbinden. Wählen Sie ein zuvor erstelltes Profil oder einen Zeitplan, oder erstellen Sie ein neues. Das Profil steht nach dem Erstellen des Servers fest; um ein VPN in ein anderes Profil zu verschieben, löschen Sie es und fügen Sie ein neues hinzu.
 
 ### Port
 

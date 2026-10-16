@@ -92,7 +92,7 @@ Adres IP lub nazwa domeny, pod którą serwer VPN jest osiągalny dla klientów 
 
 ### Profil bezpieczeństwa
 
-Początkowy zestaw praw dostępu i ograniczeń przypisany klientom, gdy łączą się z serwerem VPN. Wybierz wcześniej utworzony profil lub harmonogram, albo utwórz nowy.
+Początkowy zestaw praw dostępu i ograniczeń przypisany klientom, gdy łączą się z serwerem VPN. Wybierz wcześniej utworzony profil lub harmonogram, albo utwórz nowy. Profil jest ustalony po utworzeniu serwera; aby przenieść VPN do innego profilu, usuń go i dodaj nowy.
 
 ### Port
 
