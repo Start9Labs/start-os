@@ -106,7 +106,7 @@ fn tunnel_wan_endpoint_cli_remote() {
             "show-config",
             "10.59.0.1/24",
             "10.59.0.2",
-            "--endpoint-ip",
+            "--endpoint",
             "8.8.8.8",
         ],
         vec![
@@ -114,7 +114,7 @@ fn tunnel_wan_endpoint_cli_remote() {
             "show-config",
             "10.59.0.1/24",
             "10.59.0.2",
-            "--endpoint-ip",
+            "--endpoint",
             "2606:4700:4700::1111",
         ],
         vec![
@@ -122,7 +122,7 @@ fn tunnel_wan_endpoint_cli_remote() {
             "show-config",
             "10.59.0.1/24",
             "10.59.0.2",
-            "--endpoint-ip",
+            "--endpoint",
             "10.0.0.3",
         ],
         vec![
@@ -155,7 +155,7 @@ fn tunnel_wan_endpoint_cli_remote() {
             "show-config",
             "10.59.0.1/24",
             "10.59.0.2",
-            "--endpoint-ip",
+            "--endpoint",
             "https://vpn.example.com",
         ])
         .collect();

@@ -557,58 +557,27 @@ export const SetSubnetWanParams: z.ZodObject<{
 }).meta({
   id: 'SetSubnetWanParams',
 })
-export const ShowConfigParams: z.ZodCodec<
-  z.ZodObject<{
-    subnet: typeof literal_0
-    ip: z.ZodString
-    /**
-     * Overrides the generated WireGuard endpoint without changing the WAN assignment.
-     */
-    endpoint: z.ZodOptional<z.ZodNullable<z.ZodString>>
-    /**
-     * Overrides the generated WireGuard endpoint without changing the WAN assignment.
-     */
-    endpointIp: z.ZodOptional<z.ZodNullable<z.ZodString>>
-  }>,
-  z.ZodObject<{
-    subnet: typeof literal_0
-    ip: z.ZodString
-    /**
-     * Overrides the generated WireGuard endpoint without changing the WAN assignment.
-     */
-    endpoint: z.ZodNullable<z.ZodString>
-  }>
-> = /* @__PURE__ */ wire(
-  object({
-    subnet: literal_0,
-    ip: z.string(),
-    /**
-     * Overrides the generated WireGuard endpoint without changing the WAN assignment.
-     */
-    endpoint: z.string().nullable().optional().meta({
-      description:
-        'Overrides the generated WireGuard endpoint without changing the WAN assignment.',
-    }),
-    /**
-     * Overrides the generated WireGuard endpoint without changing the WAN assignment.
-     */
-    endpointIp: z.string().nullable().optional().meta({
-      description:
-        'Overrides the generated WireGuard endpoint without changing the WAN assignment.',
-    }),
+export const ShowConfigParams: z.ZodObject<{
+  subnet: typeof literal_0
+  ip: z.ZodString
+  /**
+   * Overrides the generated WireGuard endpoint without changing the WAN assignment.
+   */
+  endpoint: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodString>>,
+    z.ZodNullable<z.ZodString>
+  >
+}> = /* @__PURE__ */ object({
+  subnet: literal_0,
+  ip: z.string(),
+  /**
+   * Overrides the generated WireGuard endpoint without changing the WAN assignment.
+   */
+  endpoint: wire(z.string().nullable().optional(), z.string().nullable()).meta({
+    description:
+      'Overrides the generated WireGuard endpoint without changing the WAN assignment.',
   }),
-  object({
-    subnet: literal_0,
-    ip: z.string(),
-    /**
-     * Overrides the generated WireGuard endpoint without changing the WAN assignment.
-     */
-    endpoint: z.string().nullable().meta({
-      description:
-        'Overrides the generated WireGuard endpoint without changing the WAN assignment.',
-    }),
-  }),
-).meta({
+}).meta({
   id: 'ShowConfigParams',
 })
 export const SubnetParams: z.ZodObject<{ subnet: typeof literal_0 }> =

@@ -3330,7 +3330,7 @@ auth.passwords-do-not-match:
   fr_FR: "Les mots de passe ne correspondent pas"
   pl_PL: "Hasła nie pasują do siebie"
 
-tunnel.api.endpoint-ip-required:
+tunnel.api.endpoint-required:
   en_US: 'WAN IP %{wan_ip} is not public; supply --endpoint <HOST> with the address the device uses to reach this tunnel server'
   de_DE: 'Die WAN-IP %{wan_ip} ist nicht öffentlich; geben Sie mit --endpoint <HOST> die Adresse an, über die das Gerät diesen Tunnelserver erreicht'
   es_ES: 'La IP WAN %{wan_ip} no es pública; indique con --endpoint <HOST> la dirección que usa el dispositivo para llegar a este servidor de túnel'
