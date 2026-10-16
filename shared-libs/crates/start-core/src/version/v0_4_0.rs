@@ -94,14 +94,14 @@ fn migrated_through_beta_10(db: &Value) -> bool {
 /// `update_details/v0_4_0_highlights.md` describes. `from_0_4_0_beta` is the flag threaded
 /// through `up`'s output.
 ///
-/// A revision release still counts as landing on 0.4.0 — once 0.4.0.1 is `Current`, 0.4.0 is
-/// necessarily an intermediate hop, and these highlights are new to every beta arrival either
-/// way. A prerelease never counts: its digits alias the release it precedes.
+/// Any later 0.4 release still counts as landing on 0.4.0 — once 0.4.0.1 or 0.4.1 is `Current`,
+/// 0.4.0 is necessarily an intermediate hop, and these highlights are new to every beta arrival
+/// either way. A prerelease never counts: its digits alias the release it precedes.
 fn should_welcome_to_release(version: impl VersionT, from_0_4_0_beta: bool) -> bool {
     let landing = Current::default().semver();
     let version = version.semver();
     version.prerelease().is_empty()
-        && landing.number().starts_with(version.number())
+        && landing.number().get(..2) == version.number().get(..2)
         && from_0_4_0_beta
 }
 
