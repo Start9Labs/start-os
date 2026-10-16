@@ -553,4 +553,7 @@ export const ENGLISH: Record<string, number> = {
   '2.4 GHz Width': 570,
   '5 GHz Width': 571,
   'Not connected': 572,
+  'Turn off Wi-Fi now?': 573,
+  'A blackout window covers the current time, so saving turns Wi-Fi off immediately for every device on it, including this one if it is connected over Wi-Fi.': 574,
+  'Turn off Wi-Fi': 575,
 }

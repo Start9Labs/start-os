@@ -548,4 +548,7 @@ export default {
   570: 'Ancho de 2,4 GHz',
   571: 'Ancho de 5 GHz',
   572: 'No conectado',
+  573: '¿Apagar el Wi-Fi ahora?',
+  574: 'Una ventana de apagado incluye la hora actual, así que al guardar el Wi-Fi se apaga de inmediato para todos los dispositivos conectados, incluido este si está conectado por Wi-Fi.',
+  575: 'Apagar el Wi-Fi',
 } satisfies i18n

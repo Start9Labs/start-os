@@ -548,4 +548,7 @@ export default {
   570: '2,4-GHz-Breite',
   571: '5-GHz-Breite',
   572: 'Nicht verbunden',
+  573: 'WLAN jetzt ausschalten?',
+  574: 'Ein Sperrfenster umfasst die aktuelle Uhrzeit. Beim Speichern wird das WLAN daher sofort für jedes verbundene Gerät ausgeschaltet, auch für dieses, falls es über WLAN verbunden ist.',
+  575: 'WLAN ausschalten',
 } satisfies i18n

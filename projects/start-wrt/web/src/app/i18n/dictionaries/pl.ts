@@ -548,4 +548,7 @@ export default {
   570: 'Szerokość 2,4 GHz',
   571: 'Szerokość 5 GHz',
   572: 'Nie połączono',
+  573: 'Wyłączyć Wi-Fi teraz?',
+  574: 'Okno wyłączenia obejmuje bieżącą godzinę, więc zapisanie od razu wyłączy Wi-Fi dla każdego połączonego urządzenia, także tego, jeśli jest połączone przez Wi-Fi.',
+  575: 'Wyłącz Wi-Fi',
 } satisfies i18n

@@ -548,4 +548,7 @@ export default {
   570: 'Largeur 2,4 GHz',
   571: 'Largeur 5 GHz',
   572: 'Non connecté',
+  573: 'Éteindre le Wi-Fi maintenant ?',
+  574: 'Une fenêtre d’extinction couvre l’heure actuelle : l’enregistrement éteint donc immédiatement le Wi-Fi pour tous les appareils connectés, y compris celui-ci s’il est connecté en Wi-Fi.',
+  575: 'Éteindre le Wi-Fi',
 } satisfies i18n
