@@ -1,0 +1,1 @@
+- `s9pk pack` accepts container images whose layers store absolute paths, such as Tailscale's.

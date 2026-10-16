@@ -368,8 +368,32 @@ async fn forward_chained_and_cyclic_hardlinks() {
 }
 
 #[tokio::test]
+async fn leading_slashes_are_root_relative() {
+    let mut tar = Vec::new();
+    append(
+        &mut tar,
+        b"pax",
+        b'x',
+        &pax(&[(b"path", b"/usr/bin/file")]),
+        None,
+    );
+    append(&mut tar, b"file", b'0', b"data", None);
+    let link = pax(&[
+        (b"path", b"//usr/bin/hard"),
+        (b"linkpath", b"/usr/bin/file"),
+    ]);
+    append(&mut tar, b"pax", b'x', &link, None);
+    append(&mut tar, b"hard", b'1', b"", Some(b"file"));
+    finish(&mut tar);
+    let tmp = TmpDir::new().await.unwrap();
+    let image = Squashfs::from_tar(tar.as_slice()).await.unwrap();
+    assert_eq!(file_bytes(&image, "usr/bin/file").await, b"data");
+    assert_eq!(external(&image, &tmp, b"usr/bin/hard").await, b"data");
+}
+
+#[tokio::test]
 async fn unsafe_paths_truncation_dangling_and_sparse_maps() {
-    for path in [b"../escape".as_slice(), b"/absolute", b"a/../../escape"] {
+    for path in [b"../escape".as_slice(), b"/../escape", b"a/../../escape"] {
         let mut tar = Vec::new();
         append(&mut tar, b"pax", b'x', &pax(&[(b"path", path)]), None);
         append(&mut tar, b"file", b'0', b"", None);
