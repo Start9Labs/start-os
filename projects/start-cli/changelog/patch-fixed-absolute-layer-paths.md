@@ -1,1 +1,1 @@
-- `s9pk pack` accepts container images whose layers store absolute paths, such as Tailscale's.
+- `s9pk pack` accepts container images whose layers store absolute or `..` paths, such as Tailscale's, resolving them against the image root.

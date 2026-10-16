@@ -113,8 +113,6 @@ fn raw_path(bytes: &[u8]) -> std::io::Result<PathBuf> {
     if bytes.contains(&0) {
         return Err(invalid("NUL in archive path"));
     }
-    // Member names are root-relative; a leading '/' is dropped.
-    let bytes = &bytes[bytes.iter().take_while(|b| **b == b'/').count()..];
     normalize_path(Path::new(&OsString::from_vec(bytes.to_vec())))
 }
 
