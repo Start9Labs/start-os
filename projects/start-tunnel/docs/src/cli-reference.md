@@ -122,7 +122,7 @@ its subnet's setting.
 
 Display the WireGuard configuration file for a device.
 
-- `--endpoint <HOST>` — An IPv4 address, IPv6 address, or DNS name used only for the returned config's WireGuard `Endpoint`. Supply the host without a scheme, port, or path; the configured WireGuard port is retained. This does not change the device's WAN assignment, SNAT, or published ports. `--endpoint-ip` is an alias.
+- `--endpoint <HOST>` — An IPv4 address, IPv6 address, or DNS name used only for the returned config's WireGuard `Endpoint`. Supply the host without a scheme, port, or path; the configured WireGuard port is retained. This does not change the device's WAN assignment, SNAT, or published ports.
 
 Without `--endpoint`, a public device or subnet WAN override supplies the
 endpoint. With neither override, StartTunnel uses a suitable address from the

@@ -1217,8 +1217,8 @@ pub struct ShowConfigParams {
     subnet: Ipv4Net,
     ip: Ipv4Addr,
     /// Overrides the generated WireGuard endpoint without changing the WAN assignment.
-    #[serde(default, alias = "endpointIp")]
-    #[arg(long, visible_alias = "endpoint-ip", value_name = "HOST", help = "help.arg.endpoint", value_parser = parse_endpoint_host)]
+    #[serde(default)]
+    #[arg(long, value_name = "HOST", help = "help.arg.endpoint", value_parser = parse_endpoint_host)]
     endpoint: Option<String>,
     #[serde(rename = "__ConnectInfo_local_addr")]
     #[arg(skip)]
@@ -1278,7 +1278,7 @@ fn render_device_config(
         } {
             if !crate::net::port_map::upnp::is_wan_candidate(wan_ip) {
                 return Err(Error::new(
-                    eyre!(t!("tunnel.api.endpoint-ip-required", wan_ip = wan_ip)),
+                    eyre!(t!("tunnel.api.endpoint-required", wan_ip = wan_ip)),
                     ErrorKind::InvalidRequest,
                 ));
             }
@@ -2040,11 +2040,6 @@ mod tests {
                 .unwrap_err();
             assert_eq!(error.kind, ErrorKind::InvalidRequest);
         }
-        let params: ShowConfigParams = serde_json::from_value(serde_json::json!({
-            "subnet": "10.59.0.1/24", "ip": "10.59.0.2", "endpointIp": "8.8.8.8"
-        }))
-        .unwrap();
-        assert_eq!(params.endpoint.as_deref(), Some("8.8.8.8"));
     }
 
     #[test]
