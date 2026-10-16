@@ -542,5 +542,8 @@ export default {
   570: 'Szerokość 2,4 GHz',
   571: 'Szerokość 5 GHz',
   572: 'Nie połączono',
+  573: 'Cofnij zezwolenie na publikowanie rekordów DNS',
+  574: 'Aktualizowanie węzła VPN...',
+  575: 'Zaktualizowano węzeł VPN',
   576: 'Przed użyciem tej konfiguracji zastąp symbol zastępczy PrivateKey kluczem prywatnym tego urządzenia.',
 } satisfies i18n

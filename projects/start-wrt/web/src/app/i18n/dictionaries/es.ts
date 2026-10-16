@@ -542,5 +542,8 @@ export default {
   570: 'Ancho de 2,4 GHz',
   571: 'Ancho de 5 GHz',
   572: 'No conectado',
+  573: 'Revocar publicación de registros DNS',
+  574: 'Actualizando par VPN...',
+  575: 'Par VPN actualizado',
   576: 'Sustituya el marcador de posición de PrivateKey por la clave privada de este dispositivo antes de usar esta configuración.',
 } satisfies i18n

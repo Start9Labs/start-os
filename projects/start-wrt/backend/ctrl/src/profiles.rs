@@ -283,14 +283,17 @@ fn has_effective_dns(cfgs: &Configs, profile: &Profile) -> bool {
         || (profile.outbound != "wan" && !get_vpn_dns(cfgs, &profile.outbound).is_empty())
 }
 
-/// Whether any device may inject DNS records. Box-wide: a device's profile is
-/// a runtime fact. Separate from `has_effective_dns`, which also gates the
-/// `DNS-Override` redirect.
+/// Whether any device or inbound-VPN peer may inject DNS records. Box-wide: a
+/// device's profile is a runtime fact. Separate from `has_effective_dns`,
+/// which also gates the `DNS-Override` redirect.
 fn has_dns_injection(cfgs: &Configs) -> bool {
     cfgs["dhcp"].sections.iter().any(|s| {
         s.get::<DhcpHost>()
             .is_ok_and(|h| h._allow_dns_inject.as_deref() == Some("1"))
-    })
+    }) || cfgs["network"]
+        .sections
+        .iter()
+        .any(|s| s.ty().starts_with("wireguard_") && crate::dns_inject::peer_allows_dns_inject(s))
 }
 
 /// Rewrite DNS forwarding (dnsmasq sections) for ALL profiles.
@@ -6820,6 +6823,45 @@ config zone
                 .iter()
                 .any(|s| s.name().is_some_and(|n| n.starts_with("dns_"))),
             "ISP mode without injection keeps the single main instance"
+        );
+    }
+
+    #[tokio::test]
+    async fn permitted_vpn_peer_alone_serves_injected_records() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_isp_mode_configs(dir.path(), false);
+        let mut network = std::fs::read_to_string(dir.path().join("network")).unwrap();
+        network.push_str(
+            "
+config interface 'wg_lan'
+\toption proto 'wireguard'
+
+config wireguard_wg_lan 'wg_lan_0'
+\toption public_key 'peer-pub'
+\toption _allow_dns_inject '1'
+\tlist allowed_ips '192.168.1.200/32'
+",
+        );
+        std::fs::write(dir.path().join("network"), network).unwrap();
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            dir.path(),
+            &arena,
+            &["startwrt", "network", "dhcp", "firewall"],
+        )
+        .await
+        .unwrap();
+        rewrite_all_dns_forwarding(&mut cfgs).unwrap();
+        let section = cfgs["dhcp"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("dns_lan"))
+            .expect("a permitted peer needs the profile instance with no LAN device toggled")
+            .get::<ProfileDnsmasq>()
+            .unwrap();
+        assert_eq!(
+            section.addnhosts,
+            vec![crate::dns_inject::inject_hosts_path("lan")]
         );
     }
 

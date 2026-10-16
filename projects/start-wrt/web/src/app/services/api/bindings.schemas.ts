@@ -834,6 +834,41 @@ export const PeerDeleteArgs: z.ZodObject<{
 }).meta({
   id: 'PeerDeleteArgs',
 })
+export const PeerSetDnsInjectionArgs: z.ZodObject<{
+  /**
+   * Profile interface name
+   */
+  profile: z.ZodString
+  /**
+   * Public key of the peer
+   */
+  public_key: z.ZodString
+  /**
+   * Grant rather than revoke the permission
+   */
+  allow: z.ZodBoolean
+}> = /* @__PURE__ */ object({
+  /**
+   * Profile interface name
+   */
+  profile: z.string().meta({
+    description: 'Profile interface name',
+  }),
+  /**
+   * Public key of the peer
+   */
+  public_key: z.string().meta({
+    description: 'Public key of the peer',
+  }),
+  /**
+   * Grant rather than revoke the permission
+   */
+  allow: z.boolean().meta({
+    description: 'Grant rather than revoke the permission',
+  }),
+}).meta({
+  id: 'PeerSetDnsInjectionArgs',
+})
 export const ProfileId: z.ZodObject<{
   fullname: z.ZodString
   interface: z.ZodString
@@ -1194,6 +1229,10 @@ export const VpnServerPeer: z.ZodObject<{
    * Route all traffic (LAN + WAN) through the tunnel. Default (false/absent) = split tunnel (LAN only).
    */
   route_all: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>
+  /**
+   * May publish DNS records into the router's resolver. Default (false/absent) = denied.
+   */
+  allow_dns_injection: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>
 }> = /* @__PURE__ */ object({
   /**
    * Human-readable name for the peer
@@ -1227,6 +1266,13 @@ export const VpnServerPeer: z.ZodObject<{
   route_all: z.boolean().nullable().optional().meta({
     description:
       'Route all traffic (LAN + WAN) through the tunnel. Default (false/absent) = split tunnel (LAN only).',
+  }),
+  /**
+   * May publish DNS records into the router's resolver. Default (false/absent) = denied.
+   */
+  allow_dns_injection: z.boolean().nullable().optional().meta({
+    description:
+      "May publish DNS records into the router's resolver. Default (false/absent) = denied.",
   }),
 }).meta({
   id: 'VpnServerPeer',
@@ -1390,7 +1436,8 @@ export const Device: z.ZodObject<{
   allow_auto_port_forward: z.ZodBoolean
   /**
    * Whether this device may publish DNS records into the router's resolver
-   * (`devices set-dns-injection`).
+   * (`devices set-dns-injection`; `vpn-server peer-set-dns-injection` for a
+   * VPN peer).
    */
   allow_dns_injection: z.ZodBoolean
   security_profile: z.ZodCodec<
@@ -1449,11 +1496,12 @@ export const Device: z.ZodObject<{
   }),
   /**
    * Whether this device may publish DNS records into the router's resolver
-   * (`devices set-dns-injection`).
+   * (`devices set-dns-injection`; `vpn-server peer-set-dns-injection` for a
+   * VPN peer).
    */
   allow_dns_injection: z.boolean().meta({
     description:
-      "Whether this device may publish DNS records into the router's resolver\n(`devices set-dns-injection`).",
+      "Whether this device may publish DNS records into the router's resolver\n(`devices set-dns-injection`; `vpn-server peer-set-dns-injection` for a\nVPN peer).",
   }),
   security_profile: wire(
     z.string().nullable().optional(),
@@ -3363,6 +3411,10 @@ export const Api = {
             ),
             PeerDeleteArgs,
           ),
+          _RETURN: /* @__PURE__ */ z.null(),
+        },
+        'peer-set-dns-injection': {
+          _PARAMS: /* @__PURE__ */ PeerSetDnsInjectionArgs,
           _RETURN: /* @__PURE__ */ z.null(),
         },
         set: {

@@ -799,8 +799,8 @@ struct Device {
     /// VPN peers (no MAC to authorize).
     allow_auto_port_forward: bool,
     /// Whether this device may publish DNS records into the router's resolver
-    /// (`devices.set-dns-injection`). Always false for a VPN peer, which is
-    /// admitted on its TSIG signature.
+    /// (`devices.set-dns-injection`; `vpn-server.peer-set-dns-injection` for a
+    /// VPN peer).
     allow_dns_injection: bool,
     security_profile: Option<String>,
     /// Live throughput (MB/s, 1 decimal), computed from conntrack byte deltas
@@ -1071,20 +1071,23 @@ protocol client can't be asked.
 Validation (errors with `MissingDeviceAddress`, rejecting the whole request):
 
 - An enabled `ipv4` port whose device has no resolvable IPv4 address.
-- An enabled `ipv6` port when IPv6 publishing is impossible — any of:
-  the router has no global IPv6 prefix delegated; the device resolved to a ULA
-  address; or the device is online but has only a link-local address. ULA and
-  link-local are unreachable from the WAN, so the request is rejected rather than
-  silently saving a dead IPv6 forward. Only a _genuinely offline_ device (no IPv6
-  seen at all) on a GUA-capable router is not rejected; its IPv6 rule is deferred
-  by the rule-creation GUA guard so a briefly-offline device doesn't fail an
-  otherwise-valid save.
+- An enabled `ipv6` port when the router has no global IPv6 prefix delegated.
+- An enabled `ipv6` port whose device has no GUA — it is offline, or has only a
+  ULA or link-local address — unless the port already has an IPv6 rule for the
+  same `id` and `device_mac`. A new IPv6 port, one newly switched to IPv6, or
+  one moved to another device needs the device online with a GUA.
 
 An `ipv6` port's rule pins the tracker-elected stable GUA the device holds
 within a currently-assigned prefix; with none (e.g. saved mid-prefix-rotation),
 the resolved address is used as-is and the tracker's reconcile retargets the
-rule within seconds of the device acquiring an in-prefix address. There is no
-DHCP `hostid` pinning (devices choose their own IPv6 addresses; odhcpd also
+rule within seconds of the device acquiring an in-prefix address. With neither
+(the device has no GUA), the rule keeps the `dest_ip` its existing rule for the
+same `id` and `device_mac` held, as an fw4 rule keeps its address while the
+host is away, and keeps that rule's `dest` zone when the device's zone cannot
+be resolved either; this holds for disabled ports and in configs-only mode too. A
+disabled port, or any port in configs-only mode (neither is validated), with no
+such rule and no address writes no IPv6 rule and reads back with `ipv6: false`.
+There is no DHCP `hostid` pinning (devices choose their own IPv6 addresses; odhcpd also
 misparses colon-separated hostids) — `reconcile` keeps the rule current
 instead. Legacy hostids written by older releases are left in place and still
 serve as a last-resort reconcile fallback.
@@ -1376,6 +1379,8 @@ struct VpnServerPeer {
     preshared_key: Option<String>,
     /// Route all traffic (LAN + WAN) through tunnel. Default/absent = split tunnel (LAN only).
     route_all: Option<bool>,
+    /// May publish DNS records into the router's resolver. Default/absent = denied.
+    allow_dns_injection: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -1431,6 +1436,8 @@ struct VpnServerPeerInput {
     preshared_key: Option<String>,
     /// Route all traffic (LAN + WAN) through tunnel. Default/absent = split tunnel (LAN only).
     route_all: Option<bool>,
+    /// May publish DNS records into the router's resolver. Default/absent = denied.
+    allow_dns_injection: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -1451,6 +1458,22 @@ struct VpnServerPeerDeleteRequest {
     public_key: String,
 }
 // Response: null
+```
+
+### `vpn-server.peer-set-dns-injection`
+
+```rust
+#[derive(Deserialize)]
+struct VpnServerPeerSetDnsInjectionRequest {
+    profile: String,
+    public_key: String,
+    allow: bool,
+}
+// Response: null
+// Backend: stores `_allow_dns_inject` on the peer's `wireguard_wg_<profile>`
+// section, rewrites the per-profile dnsmasq instances, and applies the change
+// immediately. A peer's signed updates are refused without it. `allow: false`
+// also drops the records the peer has published.
 ```
 
 ---
@@ -1983,9 +2006,9 @@ struct DiagnosticsCreateRes {
 ### `dns.injected-list`
 
 The DNS records permitted devices have published into the router's resolver
-(see `devices.set-dns-injection`). Read-only: the device re-asserts or
-withdraws its own records, and the router drops a record whose owner loses the
-address it published from.
+(see `devices.set-dns-injection` and `vpn-server.peer-set-dns-injection`).
+Read-only: the device re-asserts or withdraws its own records, and the router
+drops a record whose owner loses the address it published from.
 
 ```rust
 // Request: {}
@@ -2036,91 +2059,92 @@ The daemon (`backend/ctrl/src/bins/daemon.rs`) also serves:
 
 ## Endpoint Summary
 
-| RPC Method                     | Category        | Notes                       |
-| ------------------------------ | --------------- | --------------------------- |
-| `auth.login`                   | Auth            | Rate-limited                |
-| `auth.logout`                  | Auth            |                             |
-| `auth.verify-password`         | Auth            |                             |
-| `auth.set-password`            | Auth            |                             |
-| `auth.check-initialized`       | Auth            | No auth                     |
-| `auth.set-initial-password`    | Auth            | No session; rate-limited    |
-| `system.info`                  | System          | No auth                     |
-| `system.newer-versions`        | System          | No auth                     |
-| `system.update`                | System          |                             |
-| `system.restart`               | System          |                             |
-| `system.factory-reset`         | System          |                             |
-| `system.set-preferences`       | System          |                             |
-| `system.apply-remote-access`   | System          | Internal, hotplug           |
-| `system.set-timezone`          | System          |                             |
-| `system.get-timezones`         | System          | No auth                     |
-| `system.logs`                  | System          |                             |
-| `setup.status`                 | Setup           | No auth                     |
-| `wan.ipv4-get`                 | WAN             |                             |
-| `wan.ipv4-set`                 | WAN             |                             |
-| `wan.ipv6-get`                 | WAN             |                             |
-| `wan.ipv6-set`                 | WAN             |                             |
-| `wan.mac-get`                  | WAN             |                             |
-| `wan.mac-set`                  | WAN             |                             |
-| `wan.dns-get`                  | WAN             |                             |
-| `wan.dns-set`                  | WAN             |                             |
-| `wan.ddns-get`                 | WAN             |                             |
-| `wan.ddns-set`                 | WAN             |                             |
-| `lan.ipv4-get`                 | LAN             |                             |
-| `lan.ipv4-set`                 | LAN             |                             |
-| `lan.ipv6-get`                 | LAN             |                             |
-| `lan.ipv6-set`                 | LAN             |                             |
-| `ethernet.get`                 | Ethernet        |                             |
-| `ethernet.set`                 | Ethernet        |                             |
-| `ethernet.edit`                | Ethernet        | CLI editor                  |
-| `devices.list`                 | Devices         |                             |
-| `devices.update`               | Devices         |                             |
-| `devices.set-auto-forward`     | Devices         |                             |
-| `devices.set-dns-injection`    | Devices         |                             |
-| `devices.forget`               | Devices         |                             |
-| `devices.data-usage`           | Devices         |                             |
-| `published-ports.list`         | Published Ports |                             |
-| `published-ports.set`          | Published Ports |                             |
-| `published-ports.auto-list`    | Published Ports | Automatic PCP/UPnP forwards |
-| `published-ports.reconcile`    | Published Ports | Internal, hotplug           |
-| `published-ports.wan-changed`  | Published Ports | Internal, hotplug           |
-| `published-ports.sync-hairpin` | Published Ports | Internal, WAN-schedule cron |
-| `vpn-client.list`              | Outbound VPN    |                             |
-| `vpn-client.create`            | Outbound VPN    |                             |
-| `vpn-client.update`            | Outbound VPN    |                             |
-| `vpn-client.delete`            | Outbound VPN    |                             |
-| `vpn-client.set-enabled`       | Outbound VPN    |                             |
-| `vpn-server.list`              | Inbound VPN     |                             |
-| `vpn-server.set`               | Inbound VPN     |                             |
-| `vpn-server.delete`            | Inbound VPN     |                             |
-| `vpn-server.peer-add`          | Inbound VPN     |                             |
-| `vpn-server.peer-delete`       | Inbound VPN     |                             |
-| `wifi.get`                     | WiFi            |                             |
-| `wifi.set`                     | WiFi            |                             |
-| `wifi.edit`                    | WiFi            | CLI editor                  |
-| `wifi.blackout-get`            | WiFi            |                             |
-| `wifi.blackout-set`            | WiFi            |                             |
-| `wifi.generate-password`       | WiFi            |                             |
-| `wifi.regulatory`              | WiFi            |                             |
-| `profiles.list`                | Profiles        |                             |
-| `profiles.get`                 | Profiles        |                             |
-| `profiles.create`              | Profiles        |                             |
-| `profiles.set`                 | Profiles        |                             |
-| `profiles.delete`              | Profiles        |                             |
-| `profiles.edit`                | Profiles        | CLI editor                  |
-| `profiles.schedule-get`        | Profiles        |                             |
-| `profiles.schedule-set`        | Profiles        |                             |
-| `ssh-keys.list`                | SSH Keys        |                             |
-| `ssh-keys.add`                 | SSH Keys        |                             |
-| `ssh-keys.delete`              | SSH Keys        |                             |
-| `activity.list`                | Activity        |                             |
-| `activity.delete`              | Activity        |                             |
-| `activity.clear`               | Activity        |                             |
-| `backup.create`                | Backup          |                             |
-| `backup.restore`               | Backup          |                             |
-| `diagnostics.create`           | Diagnostics     |                             |
-| `dns.injected-list`            | DNS Injection   |                             |
+| RPC Method                          | Category        | Notes                       |
+| ----------------------------------- | --------------- | --------------------------- |
+| `auth.login`                        | Auth            | Rate-limited                |
+| `auth.logout`                       | Auth            |                             |
+| `auth.verify-password`              | Auth            |                             |
+| `auth.set-password`                 | Auth            |                             |
+| `auth.check-initialized`            | Auth            | No auth                     |
+| `auth.set-initial-password`         | Auth            | No session; rate-limited    |
+| `system.info`                       | System          | No auth                     |
+| `system.newer-versions`             | System          | No auth                     |
+| `system.update`                     | System          |                             |
+| `system.restart`                    | System          |                             |
+| `system.factory-reset`              | System          |                             |
+| `system.set-preferences`            | System          |                             |
+| `system.apply-remote-access`        | System          | Internal, hotplug           |
+| `system.set-timezone`               | System          |                             |
+| `system.get-timezones`              | System          | No auth                     |
+| `system.logs`                       | System          |                             |
+| `setup.status`                      | Setup           | No auth                     |
+| `wan.ipv4-get`                      | WAN             |                             |
+| `wan.ipv4-set`                      | WAN             |                             |
+| `wan.ipv6-get`                      | WAN             |                             |
+| `wan.ipv6-set`                      | WAN             |                             |
+| `wan.mac-get`                       | WAN             |                             |
+| `wan.mac-set`                       | WAN             |                             |
+| `wan.dns-get`                       | WAN             |                             |
+| `wan.dns-set`                       | WAN             |                             |
+| `wan.ddns-get`                      | WAN             |                             |
+| `wan.ddns-set`                      | WAN             |                             |
+| `lan.ipv4-get`                      | LAN             |                             |
+| `lan.ipv4-set`                      | LAN             |                             |
+| `lan.ipv6-get`                      | LAN             |                             |
+| `lan.ipv6-set`                      | LAN             |                             |
+| `ethernet.get`                      | Ethernet        |                             |
+| `ethernet.set`                      | Ethernet        |                             |
+| `ethernet.edit`                     | Ethernet        | CLI editor                  |
+| `devices.list`                      | Devices         |                             |
+| `devices.update`                    | Devices         |                             |
+| `devices.set-auto-forward`          | Devices         |                             |
+| `devices.set-dns-injection`         | Devices         |                             |
+| `devices.forget`                    | Devices         |                             |
+| `devices.data-usage`                | Devices         |                             |
+| `published-ports.list`              | Published Ports |                             |
+| `published-ports.set`               | Published Ports |                             |
+| `published-ports.auto-list`         | Published Ports | Automatic PCP/UPnP forwards |
+| `published-ports.reconcile`         | Published Ports | Internal, hotplug           |
+| `published-ports.wan-changed`       | Published Ports | Internal, hotplug           |
+| `published-ports.sync-hairpin`      | Published Ports | Internal, WAN-schedule cron |
+| `vpn-client.list`                   | Outbound VPN    |                             |
+| `vpn-client.create`                 | Outbound VPN    |                             |
+| `vpn-client.update`                 | Outbound VPN    |                             |
+| `vpn-client.delete`                 | Outbound VPN    |                             |
+| `vpn-client.set-enabled`            | Outbound VPN    |                             |
+| `vpn-server.list`                   | Inbound VPN     |                             |
+| `vpn-server.set`                    | Inbound VPN     |                             |
+| `vpn-server.delete`                 | Inbound VPN     |                             |
+| `vpn-server.peer-add`               | Inbound VPN     |                             |
+| `vpn-server.peer-delete`            | Inbound VPN     |                             |
+| `vpn-server.peer-set-dns-injection` | Inbound VPN     |                             |
+| `wifi.get`                          | WiFi            |                             |
+| `wifi.set`                          | WiFi            |                             |
+| `wifi.edit`                         | WiFi            | CLI editor                  |
+| `wifi.blackout-get`                 | WiFi            |                             |
+| `wifi.blackout-set`                 | WiFi            |                             |
+| `wifi.generate-password`            | WiFi            |                             |
+| `wifi.regulatory`                   | WiFi            |                             |
+| `profiles.list`                     | Profiles        |                             |
+| `profiles.get`                      | Profiles        |                             |
+| `profiles.create`                   | Profiles        |                             |
+| `profiles.set`                      | Profiles        |                             |
+| `profiles.delete`                   | Profiles        |                             |
+| `profiles.edit`                     | Profiles        | CLI editor                  |
+| `profiles.schedule-get`             | Profiles        |                             |
+| `profiles.schedule-set`             | Profiles        |                             |
+| `ssh-keys.list`                     | SSH Keys        |                             |
+| `ssh-keys.add`                      | SSH Keys        |                             |
+| `ssh-keys.delete`                   | SSH Keys        |                             |
+| `activity.list`                     | Activity        |                             |
+| `activity.delete`                   | Activity        |                             |
+| `activity.clear`                    | Activity        |                             |
+| `backup.create`                     | Backup          |                             |
+| `backup.restore`                    | Backup          |                             |
+| `diagnostics.create`                | Diagnostics     |                             |
+| `dns.injected-list`                 | DNS Injection   |                             |
 
-**Totals:** 79 RPC methods across 17 categories, plus the HTTP/WebSocket routes
+**Totals:** 82 RPC methods across 17 categories, plus the HTTP/WebSocket routes
 table above and the deprecated generic endpoints below.
 
 ---

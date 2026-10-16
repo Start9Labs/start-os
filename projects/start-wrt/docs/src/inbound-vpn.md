@@ -75,6 +75,10 @@ A client's routing is set when it is created. To change it, delete the client an
 
 Select "Rename" from the client's actions menu to change its display name.
 
+### Allowing DNS Record Publishing
+
+Select "Allow DNS record publishing" from the client's actions menu to let it publish DNS names into the router, with the same rules as the [device permission](devices.md#device-detail-page). It is off by default, and enabling asks for confirmation; grant it only to a client you trust. "Revoke DNS record publishing" removes the client's published names immediately.
+
 ### Removing a Client
 
 Select "Delete" from the client's actions menu. The client's WireGuard configuration is immediately invalidated.

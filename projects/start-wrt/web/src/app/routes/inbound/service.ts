@@ -75,6 +75,27 @@ export class InboundService extends FormService<VpnServer[]> {
     return response
   }
 
+  async setPeerDnsInjection(
+    profile: string,
+    public_key: string,
+    allow: boolean,
+  ) {
+    await this.actions.run(
+      async () => {
+        await this.api.vpnServerPeerSetDnsInjection({
+          profile,
+          public_key,
+          allow,
+        })
+        this.refresh()
+      },
+      {
+        loading: this.i18n.transform('Updating VPN peer...'),
+        success: this.i18n.transform('VPN peer updated'),
+      },
+    )
+  }
+
   async deletePeer(profile: string, public_key: string) {
     await this.actions.run(
       async () => {
