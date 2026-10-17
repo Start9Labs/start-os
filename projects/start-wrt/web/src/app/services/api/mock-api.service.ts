@@ -1315,10 +1315,16 @@ export class MockApiService extends ApiService {
 
   async wanIpv6Set(params: WanIpv6SetRequest): Promise<null> {
     await pauseFor(250)
+    const requested = params.prefix?.replace(/^\//, '') ?? ''
     this.mockWanIpv6 = {
       mode: params.mode,
       address: params.address ?? null,
-      prefix: params.prefix ?? null,
+      prefix:
+        params.mode === 'slaac' || params.mode === 'dhcpv6'
+          ? requested
+            ? `/${requested}`
+            : null
+          : (params.prefix ?? null),
       gateway: params.gateway ?? null,
       ip6prefix: params.ip6prefix ?? null,
       ip6prefixlen: params.ip6prefixlen ?? null,
