@@ -1461,6 +1461,22 @@ struct VpnServerPeerDeleteRequest {
 // Response: null
 ```
 
+### `vpn-server.peer-rename`
+
+Changes only the peer's display name. The key, address, and WireGuard session are untouched.
+Fails with `NotFound` if the server or the peer does not exist.
+
+```rust
+#[derive(Deserialize)]
+struct VpnServerPeerRenameRequest {
+    profile: String,
+    public_key: String,
+    /// Validated like `peer-add`'s `name`.
+    name: String,
+}
+// Response: null
+```
+
 ### `vpn-server.peer-set-dns-injection`
 
 ```rust
@@ -2118,6 +2134,7 @@ The daemon (`backend/ctrl/src/bins/daemon.rs`) also serves:
 | `vpn-server.delete`                 | Inbound VPN     |                             |
 | `vpn-server.peer-add`               | Inbound VPN     |                             |
 | `vpn-server.peer-delete`            | Inbound VPN     |                             |
+| `vpn-server.peer-rename`            | Inbound VPN     |                             |
 | `vpn-server.peer-set-dns-injection` | Inbound VPN     |                             |
 | `wifi.get`                          | WiFi            |                             |
 | `wifi.set`                          | WiFi            |                             |
@@ -2145,7 +2162,7 @@ The daemon (`backend/ctrl/src/bins/daemon.rs`) also serves:
 | `diagnostics.create`                | Diagnostics     |                             |
 | `dns.injected-list`                 | DNS Injection   |                             |
 
-**Totals:** 82 RPC methods across 17 categories, plus the HTTP/WebSocket routes
+**Totals:** 83 RPC methods across 17 categories, plus the HTTP/WebSocket routes
 table above and the deprecated generic endpoints below.
 
 ---

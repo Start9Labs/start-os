@@ -25,6 +25,7 @@ import {
   VpnServerPeerAddArgs,
   VpnServerPeerAddResponse,
   VpnServerPeerDeleteArgs,
+  VpnServerPeerRenameArgs,
   VpnServerSetArgs,
   VpnServers,
   WifiConfig,
@@ -511,6 +512,32 @@ export class MockApiService extends ApiService {
         'updated',
         `Removed peer '${peer.name}' from inbound VPN`,
       )
+    return null
+  }
+
+  async vpnServerPeerRename(params: VpnServerPeerRenameArgs): Promise<null> {
+    await pauseFor(250)
+    const server = this.mockVpnServers.find(s => s.profile === params.profile)
+    const peer = server?.peers.find(p => p.public_key === params.public_key)
+    if (!peer) throw new Error(`Peer ${params.public_key} not found`)
+    this.mockVpnServers = this.mockVpnServers.map(s =>
+      s.profile === params.profile
+        ? {
+            ...s,
+            peers: s.peers.map(p =>
+              p.public_key === params.public_key
+                ? { ...p, name: params.name }
+                : p,
+            ),
+          }
+        : s,
+    )
+    this.persistVpnServers()
+    this.logActivity(
+      'vpn-server',
+      'updated',
+      `Renamed peer to '${params.name}' on inbound VPN`,
+    )
     return null
   }
 
