@@ -92,7 +92,7 @@ L’adresse IP ou le nom de domaine où le serveur VPN peut être joint par les 
 
 ### Profil de sécurité
 
-L’ensemble initial de droits d’accès et de restrictions attribué aux clients lorsqu’ils se connectent au serveur VPN. Sélectionnez un profil ou un planning déjà créé, ou créez-en un nouveau.
+L’ensemble initial de droits d’accès et de restrictions attribué aux clients lorsqu’ils se connectent au serveur VPN. Sélectionnez un profil ou un planning déjà créé, ou créez-en un nouveau. Le profil est fixé une fois le serveur créé ; pour déplacer un VPN vers un autre profil, supprimez-le et ajoutez-en un nouveau.
 
 ### Port
 
