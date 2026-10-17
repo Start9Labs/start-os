@@ -172,6 +172,15 @@ export class LiveApiService extends ApiService {
     return this.rpc.request({ method: 'vpn-server.peer-delete', params })
   }
 
+  async vpnServerPeerSetDnsInjection(
+    params: RpcParamType<Api, 'vpn-server.peer-set-dns-injection'>,
+  ): Promise<RpcReturnType<Api, 'vpn-server.peer-set-dns-injection'>> {
+    return this.rpc.request({
+      method: 'vpn-server.peer-set-dns-injection',
+      params,
+    })
+  }
+
   async wifiGet(): Promise<WifiConfig> {
     return this.rpc.request({ method: 'wifi.get', params: {} })
   }
