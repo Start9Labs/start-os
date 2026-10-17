@@ -307,10 +307,17 @@ fn list_conffiles(rootfs_mount: &str) -> HashSet<String> {
             if name.to_string_lossy().ends_with(".conffiles_static") {
                 if let Ok(content) = fs::read_to_string(entry.path()) {
                     for line in content.lines() {
-                        let line = line.trim();
-                        if !line.is_empty() {
-                            files.insert(line.to_string());
+                        let mut fields = line.split_whitespace();
+                        let Some(path) = fields.next() else {
+                            continue;
+                        };
+                        // An unchanged package default is left to the new image.
+                        if let Some(recorded) = fields.next() {
+                            if conffile_unchanged(&format!("{rootfs_mount}{path}"), recorded) {
+                                continue;
+                            }
                         }
+                        files.insert(path.to_string());
                     }
                 }
             }
@@ -323,6 +330,15 @@ fn list_conffiles(rootfs_mount: &str) -> HashSet<String> {
     }
 
     files
+}
+
+/// Matches the sha256 a package recorded for its conffile.
+fn conffile_unchanged(full_path: &str, recorded_sha256: &str) -> bool {
+    use sha2::{Digest, Sha256};
+
+    fs::read(full_path).is_ok_and(|contents| {
+        format!("{:x}", Sha256::digest(&contents)).eq_ignore_ascii_case(recorded_sha256)
+    })
 }
 
 /// Recursively enumerate all regular files under `dir`, returning their paths
@@ -962,19 +978,31 @@ Conffiles:
     }
 
     #[test]
-    fn list_conffiles_apk() {
+    fn list_conffiles_apk_skips_unchanged_defaults() {
+        use sha2::{Digest, Sha256};
+
         let dir = TempDir::new().unwrap();
         let root = dir.path();
         fs::create_dir_all(root.join("lib/apk/packages")).unwrap();
+        fs::create_dir_all(root.join("etc/smartdns")).unwrap();
+        fs::write(root.join("etc/apk.conf"), "default\n").unwrap();
+        fs::write(root.join("etc/smartdns/smartdns.conf"), "edited\n").unwrap();
+        fs::write(root.join("etc/bare.conf"), "bare\n").unwrap();
+        let default_sum = format!("{:x}", Sha256::digest(b"default\n"));
         fs::write(
             root.join("lib/apk/packages/base-files.conffiles_static"),
-            "/etc/apk.conf\n/etc/apk2.conf\n",
+            format!(
+                "/etc/apk.conf {default_sum}\n\n/etc/smartdns/smartdns.conf {default_sum}\n/etc/bare.conf\n/etc/missing.conf {default_sum}\n",
+            ),
         )
         .unwrap();
 
         let files = list_conffiles(root.to_str().unwrap());
-        assert!(files.contains("/etc/apk.conf"));
-        assert!(files.contains("/etc/apk2.conf"));
+        assert!(!files.contains("/etc/apk.conf"));
+        assert!(files.contains("/etc/smartdns/smartdns.conf"));
+        assert!(files.contains("/etc/bare.conf"));
+        assert!(files.contains("/etc/missing.conf"));
+        assert_eq!(files.len(), 3);
     }
 
     #[test]
