@@ -486,6 +486,23 @@ async fn write_admin_password(rootfs_mount: &str, password: &str) -> Result<(), 
     Ok(())
 }
 
+/// Writes the EEPROM sticker password into the mounted root's Wi-Fi config.
+/// A board without one keeps its factory Wi-Fi config.
+async fn write_sticker_wifi(merged_mount: &str) -> Result<(), Error> {
+    let password = match crate::eeprom::read_wifi_password() {
+        Ok(Some(p)) => p,
+        Ok(None) => {
+            tracing::warn!("no valid WiFi password in EEPROM; eMMC Wi-Fi left unconfigured");
+            return Ok(());
+        }
+        Err(e) => {
+            tracing::warn!("EEPROM read failed; eMMC Wi-Fi left unconfigured: {e}");
+            return Ok(());
+        }
+    };
+    crate::init::configure_wifi(&format!("{merged_mount}/etc/config"), &password, None).await
+}
+
 /// Write the chosen timezone into the eMMC `/etc/config/system` on the mounted
 /// merged overlay (`merged_mount`, e.g. `/mnt/emmc_merged`). Resolves the POSIX
 /// TZ string from the running (microSD) system's LuCI zoneinfo table — the same
@@ -650,7 +667,7 @@ async fn run_setup_flash_inner(
     }
 
     // Update: backup conffiles before flash (mount old eMMC squashfs + overlay)
-    let conffiles_backup = if mode == FlashMode::Update {
+    let (conffiles_backup, emmc_had_admin_password) = if mode == FlashMode::Update {
         let _ = tx
             .send(SetupEvent::Status {
                 message: "Backing up configuration...".into(),
@@ -684,13 +701,15 @@ async fn run_setup_flash_inner(
         // Mount squashfs + overlay to get merged view of old config
         mount_emmc_overlayfs(&rootfs_dev, &rootfs_data_dev).await?;
         let backup = backup_conffiles(EMMC_MERGED_MOUNT);
+        let had_admin_password = fs::read_to_string(format!("{EMMC_MERGED_MOUNT}/etc/shadow"))
+            .is_ok_and(|shadow| crate::captive::root_password_set(&shadow));
         if let Err(e) = umount_emmc_overlayfs().await {
             eprintln!("WARNING: first umount_emmc_overlayfs failed: {e}");
         }
 
-        Some(backup)
+        (Some(backup), had_admin_password)
     } else {
-        None
+        (None, false)
     };
 
     // ── Step 2: Flashing eMMC ──────────────────────────────────────────
@@ -768,9 +787,10 @@ async fn run_setup_flash_inner(
         }
     }
 
-    // WiFi config is intentionally not written here. The post-reboot daemon
-    // resolves the WiFi password from EEPROM (tag 0x2F) via
-    // restore_wifi_if_needed() and brings up the AP from there.
+    // Boot skips the sticker restore once an admin password exists.
+    if mode == FlashMode::FreshStart || !emmc_had_admin_password {
+        write_sticker_wifi(EMMC_MERGED_MOUNT).await?;
+    }
 
     // Mark overlay as FS_STATE_READY so mount_root doesn't wipe it on first boot
     mark_overlay_ready(EMMC_OVERLAY_MOUNT)?;

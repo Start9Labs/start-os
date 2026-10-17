@@ -1841,7 +1841,7 @@ pub(crate) async fn regenerate_blackout_crontab(ctx: &impl CtrlContext) -> Resul
 /// re-enable a radio the user disabled. Asserting only the "down" side keeps this
 /// idempotent and avoids that footgun. Call this *after* `restore_wifi_if_needed`
 /// (and after any other boot step that touches the radios) so this `wifi down` is
-/// the final word — `restore_wifi_if_needed` restores missing AP config and
+/// the final word — `restore_wifi_if_needed` restores the sticker AP config and
 /// applies it with `wifi reload`, which would otherwise re-raise the radio.
 ///
 /// TODO: This closes the *steady-state* gap (radio staying up for the rest of the

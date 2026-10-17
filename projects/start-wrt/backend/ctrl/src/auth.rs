@@ -221,12 +221,7 @@ pub async fn check_password(password: &str) -> Result<(), Error> {
 
     match hash {
         None => {
-            /*
-                start-wrt will be initialized with a password which will persist across factory resets.
-
-                However in the case of a reflash, the root user will have no password;
-                Which is the default for openwrt
-            */
+            // Root has no password until setup sets one; a factory reset clears it.
             println!("No password has been set. Please set a password.");
             Ok(())
         }
