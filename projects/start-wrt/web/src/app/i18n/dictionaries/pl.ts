@@ -542,10 +542,10 @@ export default {
   570: 'Szerokość 2,4 GHz',
   571: 'Szerokość 5 GHz',
   572: 'Nie połączono',
+  577: 'Wyłączyć Wi-Fi teraz?',
+  578: 'Okno wyłączenia obejmuje bieżącą godzinę, więc zapisanie od razu wyłączy Wi-Fi dla każdego połączonego urządzenia, także tego, jeśli jest połączone przez Wi-Fi.',
+  579: 'Wyłącz Wi-Fi',
   573: 'Cofnij zezwolenie na publikowanie rekordów DNS',
   574: 'Aktualizowanie węzła VPN...',
   575: 'Zaktualizowano węzeł VPN',
-  576: 'Wyłączyć Wi-Fi teraz?',
-  577: 'Okno wyłączenia obejmuje bieżącą godzinę, więc zapisanie od razu wyłączy Wi-Fi dla każdego połączonego urządzenia, także tego, jeśli jest połączone przez Wi-Fi.',
-  578: 'Wyłącz Wi-Fi',
 } satisfies i18n
