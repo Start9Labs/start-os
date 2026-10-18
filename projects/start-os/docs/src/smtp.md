@@ -49,11 +49,9 @@ New SES accounts start in the _sandbox_, which can only send to addresses you ha
 
 {{#tab name="Forward Email"}}
 
-To use Forward Email you will need a domain name on a Forward Email paid plan, which includes outbound SMTP. Forward Email's own guide is [Send Email with Custom Domain](https://forwardemail.net/en/guides/send-email-with-custom-domain-smtp).
+To use Forward Email you will need a domain name on a Forward Email paid plan, which includes outbound SMTP.
 
-1. In Forward Email, go to **My Account > Domains** and click **Settings** next to your domain. In the **Outbound SMTP Configuration** card, click **Complete Setup** and add the DNS records it lists. Forward Email approves each domain before it can send: many are approved as soon as their DNS records verify, and the rest are usually reviewed within 24 hours.
-
-1. Go to **My Account > Domains > Aliases** and create an alias to send from, such as `no-reply@yourdomain.com`. Click **Generate Password** next to the alias, and save the password somewhere secure, such as your Vaultwarden password manager.
+1. Follow Forward Email's [Send Email with Custom Domain](https://forwardemail.net/en/guides/send-email-with-custom-domain-smtp) guide until it has you configure an email application. By then your domain is set up for outbound SMTP and you have an alias to send from, such as `no-reply@yourdomain.com`, and its generated password.
 
 1. In StartOS, go to **System > SMTP**, select **Forward Email** as the provider, and enter the values below. Choosing Forward Email pre-fills the host and defaults to TLS on port 465.
 
@@ -67,7 +65,7 @@ To use Forward Email you will need a domain name on a Forward Email paid plan, w
    | Password            | the alias's password (from above) |
 
    > [!NOTE]
-   > The **From Address** must be the alias in **Username**; Forward Email rejects mail sent from any other address. To send from any address on your domain, generate a password in the **Catch-all Passwords** card on the domain's **Settings** page and use it as the **Password**. The **From Address** may optionally include a display name, e.g. `Your Name <no-reply@yourdomain.com>`. If your network blocks port 465, set **Connection Security** to **STARTTLS** with port **587** or **2525**.
+   > The **From Address** must be the alias in **Username**; Forward Email rejects mail sent from any other address. It may optionally include a display name, e.g. `Your Name <no-reply@yourdomain.com>`.
 
 {{#endtab}}
 
