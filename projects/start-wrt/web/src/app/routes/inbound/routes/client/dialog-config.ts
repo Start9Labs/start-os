@@ -69,6 +69,10 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
     }
   `,
   styles: `
+    header {
+      flex-wrap: wrap;
+    }
+
     .masked {
       filter: blur(8px);
       pointer-events: none;
