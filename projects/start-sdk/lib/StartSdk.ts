@@ -51,7 +51,7 @@ import { checkPortListening } from './health/checkFns/checkPortListening'
 import { setupMain } from './mainFn'
 import { Daemon, Daemons } from './mainFn/Daemons'
 import { Mounts } from './mainFn/Mounts'
-import { cooldownTrigger, statusTrigger } from './trigger'
+import { cooldownTrigger, onceTrigger, statusTrigger } from './trigger'
 import { defaultTrigger } from './trigger/defaultTrigger'
 import {
   GetOutboundGateway,
@@ -848,18 +848,23 @@ export class StartSdk<Manifest extends T.SDKManifest> {
        * Built-in trigger strategies that control how often a health check polls.
        *
        * Pass any of these to the `trigger` field on a {@link Ready} config.
-       * If omitted, health checks use `defaultTrigger` (1 s while pending, 30 s
-       * once healthy).
+       * If omitted, health checks use `defaultTrigger`, except that a daemon's
+       * `loading` or `waiting` before its first `success` backs off from 1 s,
+       * doubling to 30 s.
        */
       trigger: {
         /**
-         * The default trigger: 1 s while the daemon is still pending
-         * (`starting`/`waiting`/`failure`), then 30 s once the first
-         * non-pending result (`success`, `loading`, `disabled`) is observed.
+         * Every 1 s while `starting` or `failure`; every 30 s while `success`,
+         * `loading`, `waiting` or `disabled`.
          */
         defaultTrigger,
         /** Fixed interval between checks. Use for a simple, constant polling rate. */
         cooldownTrigger,
+        /**
+         * One check at start. Pair with `gracePeriod: 0`, or the single
+         * result is reported as `starting`.
+         */
+        onceTrigger,
         /**
          * Per-status polling intervals. Map each health status (`success`,
          * `loading`, `starting`, `failure`, etc.) to a cooldown in

@@ -29,6 +29,10 @@ export abstract class ApiService {
     params: VpnServerPeerAddArgs,
   ): Promise<VpnServerPeerAddResponse>
   abstract vpnServerPeerDelete(params: VpnServerPeerDeleteArgs): Promise<null>
+  abstract vpnServerPeerRename(params: VpnServerPeerRenameArgs): Promise<null>
+  abstract vpnServerPeerSetDnsInjection(
+    params: RpcParamType<Api, 'vpn-server.peer-set-dns-injection'>,
+  ): Promise<RpcReturnType<Api, 'vpn-server.peer-set-dns-injection'>>
   abstract wifiGet(): Promise<WifiConfig>
   abstract wifiSet(params: WifiConfig): Promise<WifiSetResult>
   abstract wifiGeneratePassword(): Promise<string>
@@ -217,6 +221,11 @@ export type VpnServerPeerAddArgs = RpcParamType<Api, 'vpn-server.peer-add'>
 export type VpnServerPeerDeleteArgs = RpcParamType<
   Api,
   'vpn-server.peer-delete'
+>
+
+export type VpnServerPeerRenameArgs = RpcParamType<
+  Api,
+  'vpn-server.peer-rename'
 >
 
 export type VpnServerPeerAddResponse = RpcReturnType<Api, 'vpn-server.peer-add'>

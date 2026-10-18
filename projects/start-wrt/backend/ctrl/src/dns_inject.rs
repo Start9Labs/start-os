@@ -6,11 +6,12 @@
 //! connection's queries pass through to it. Accepted records are rendered
 //! into per-profile addn-hosts files that dnsmasq re-reads on SIGHUP.
 //!
-//! `policy` decides two tiers. A TSIG-signed UPDATE (an inbound WireGuard
-//! peer, key derived from its PSK) may publish any A/AAAA/CNAME/TXT record.
-//! An unsigned one (a LAN device with the permission) must arrive over TCP
-//! and may publish A/AAAA records. Both are refused a name under `lan.`.
-//! A name belongs to the first owner that claims it.
+//! Only a LAN device or an inbound WireGuard peer holding the permission may
+//! publish. `policy` decides two tiers. A TSIG-signed UPDATE (a peer, key
+//! derived from its PSK) may publish any A/AAAA/CNAME/TXT record. An unsigned
+//! one (a LAN device) must arrive over TCP and may publish A/AAAA records.
+//! Both are refused a name under `lan.`. A name belongs to the first owner
+//! that claims it.
 //!
 //! Listeners bind each profile's gateway address and outlive the interface
 //! being recreated. Records, ownership and the directory live in memory;
@@ -39,7 +40,7 @@ use tokio::sync::Semaphore;
 use tokio::task::JoinSet;
 use tokio_util::sync::CancellationToken;
 use uciedit::openwrt::{DhcpHost, FirewallForwarding, FirewallZone, NetworkInterface};
-use uciedit::{dump_all, parse_all, Arena, Configs, Line};
+use uciedit::{dump_all, parse_all, Arena, Configs, Line, LineComment, Section, Token};
 
 use crate::error::ErrorKind;
 use crate::invoke::Invoke;
@@ -74,6 +75,29 @@ pub static DNS_INJECT: OnceLock<Arc<DnsInject>> = OnceLock::new();
 /// rewritten in place.
 pub(crate) fn inject_hosts_path(interface: &str) -> String {
     format!("/tmp/{INJECT_FILE_PREFIX}{interface}")
+}
+
+const ALLOW_OPTION: &str = "_allow_dns_inject";
+
+pub(crate) fn peer_allows_dns_inject(section: &Section) -> bool {
+    section.lines.iter().any(|line| {
+        matches!(line, Line::Option { option, value, .. }
+            if option.as_str() == ALLOW_OPTION && value.as_str() == "1")
+    })
+}
+
+pub(crate) fn set_peer_dns_inject(section: &mut Section, allow: bool) {
+    section.lines.retain(
+        |line| !matches!(line, Line::Option { option, .. } if option.as_str() == ALLOW_OPTION),
+    );
+    if allow {
+        let arena = section.arena;
+        section.lines.push(Line::Option {
+            option: Token::from_str(ALLOW_OPTION, arena),
+            value: Token::from_str("1", arena),
+            comment: LineComment::None,
+        });
+    }
 }
 
 /// Who injected a record: a LAN MAC, or an inbound WireGuard peer's public key.
@@ -128,7 +152,8 @@ struct NetSnapshot {
     allowed_macs: BTreeSet<String>,
     /// Uppercase MAC → static reservation IP.
     reserved: HashMap<String, Ipv4Addr>,
-    /// Inbound-WG peer tunnel IP → (public key, derived TSIG key, profile).
+    /// Permitted inbound-WG peer tunnel IP → (public key, derived TSIG key,
+    /// profile).
     wg_peers: BTreeMap<Ipv4Addr, (String, [u8; 32], String)>,
 }
 
@@ -243,6 +268,39 @@ async fn refresh(di: &Arc<DnsInject>) -> Result<(), Error> {
         .and_then(|out| String::from_utf8(out).ok())
         .unwrap_or_default();
     let neighbors = crate::devices::parse_neigh_output(&neigh);
+    let (by_ip, wg_keys) = injectors(&snapshot, &leases, &neighbors);
+
+    // The sweep runs under the same lock that publishes the directory.
+    let stale = di.directory.mutate(|d| {
+        d.by_ip = by_ip;
+        d.wg_keys = wg_keys;
+        d.profiles = snapshot.profiles.clone();
+        d.reach = snapshot.reach.clone();
+        sweep_owners(d, &snapshot, &leases, &neighbors, &di.injector.list())
+    });
+    // The daemon's default filter is `warn`.
+    for (name, rtype) in stale {
+        tracing::warn!(
+            "DNS-inject sweep dropped {name} {rtype}: its owner no longer holds \
+             the permission or the address it published from"
+        );
+        di.injector.delete(&Name::from(name), Some(rtype));
+    }
+
+    // The rendered files encode the directory too; the renderer's content
+    // diff keeps a quiet pass free.
+    di.render_tx.send_replace(di.injector.list());
+
+    sync_listeners(di, &snapshot.profiles).await;
+    Ok(())
+}
+
+/// The addresses allowed to inject, and the TSIG keys of the peers among them.
+fn injectors(
+    snapshot: &NetSnapshot,
+    leases: &HashMap<String, String>,
+    neighbors: &[crate::devices::ArpEntry],
+) -> (BTreeMap<IpAddr, Injector>, BTreeMap<IpAddr, [u8; 32]>) {
     // Candidate addresses per allowed MAC: reservation, lease, neighbor entry.
     let mut by_ip: BTreeMap<IpAddr, Injector> = BTreeMap::new();
     let mut wg_keys = BTreeMap::new();
@@ -254,7 +312,7 @@ async fn refresh(di: &Arc<DnsInject>) -> Result<(), Error> {
         if let Some(ip) = leases.get(mac).and_then(|ip| ip.parse().ok()) {
             addrs.insert(ip);
         }
-        for entry in &neighbors {
+        for entry in neighbors {
             if entry.mac.eq_ignore_ascii_case(mac) {
                 if let Ok(ip) = entry.ip.parse::<Ipv4Addr>() {
                     addrs.insert(ip);
@@ -283,30 +341,7 @@ async fn refresh(di: &Arc<DnsInject>) -> Result<(), Error> {
         );
         wg_keys.insert(IpAddr::V4(*ip), *key);
     }
-
-    // The sweep runs under the same lock that publishes the directory.
-    let stale = di.directory.mutate(|d| {
-        d.by_ip = by_ip;
-        d.wg_keys = wg_keys;
-        d.profiles = snapshot.profiles.clone();
-        d.reach = snapshot.reach.clone();
-        sweep_owners(d, &snapshot, &leases, &neighbors, &di.injector.list())
-    });
-    // The daemon's default filter is `warn`.
-    for (name, rtype) in stale {
-        tracing::warn!(
-            "DNS-inject sweep dropped {name} {rtype}: its owner no longer holds \
-             the permission or the address it published from"
-        );
-        di.injector.delete(&Name::from(name), Some(rtype));
-    }
-
-    // The rendered files encode the directory too; the renderer's content
-    // diff keeps a quiet pass free.
-    di.render_tx.send_replace(di.injector.list());
-
-    sync_listeners(di, &snapshot.profiles).await;
-    Ok(())
+    (by_ip, wg_keys)
 }
 
 /// The (name, rtype) rrsets whose owner lost the permission, the peer entry,
@@ -415,12 +450,12 @@ fn read_snapshot(cfgs: &Configs) -> Result<NetSnapshot, Error> {
         }
     })?;
 
-    // `wireguard_wg_<iface>` peer sections: public key, PSK, tunnel /32.
+    // Permitted `wireguard_wg_<iface>` peer sections: public key, PSK, tunnel /32.
     for p in &snapshot.profiles {
         let Some(wg) = &p.wg_device else { continue };
         let peer_ty = format!("wireguard_{wg}");
         for section in &cfgs["network"].sections {
-            if section.ty() != peer_ty {
+            if section.ty() != peer_ty || !peer_allows_dns_inject(section) {
                 continue;
             }
             let mut pubkey = None;
@@ -1059,7 +1094,9 @@ pub async fn set_dns_injection<C: CtrlContext>(
         .await
         .inspect_err(|err| log_failure(err))?;
     if written {
-        rewrite_instances(&ctx).await.inspect_err(log_failure)?;
+        apply_permission_change(&ctx)
+            .await
+            .inspect_err(log_failure)?;
         crate::activity::log(
             "device",
             "dns-injection",
@@ -1070,14 +1107,20 @@ pub async fn set_dns_injection<C: CtrlContext>(
             ),
             None,
         );
-        // A reload, not a SIGHUP: instances may have been created or removed.
-        if ctx.effectful() {
-            crate::devices::reload_dnsmasq();
-        }
-        // A revocation drops the device's records on this pass.
-        if let Some(di) = DNS_INJECT.get() {
-            di.invalidate();
-        }
+    }
+    Ok(())
+}
+
+/// Brings dnsmasq and the directory in line with a changed permission. A
+/// revocation drops the owner's records on this pass.
+pub(crate) async fn apply_permission_change<C: CtrlContext>(ctx: &C) -> Result<(), Error> {
+    rewrite_instances(ctx).await?;
+    // A reload, not a SIGHUP: instances may have been created or removed.
+    if ctx.effectful() {
+        crate::devices::reload_dnsmasq();
+    }
+    if let Some(di) = DNS_INJECT.get() {
+        di.invalidate();
     }
     Ok(())
 }
@@ -1576,7 +1619,7 @@ mod tests {
             vec![(name.clone(), RecordType::A)]
         );
 
-        // A WireGuard owner lives exactly as long as its peer config.
+        // A WireGuard owner lives exactly as long as its permitted peer entry.
         d.owners
             .insert((name.clone(), RecordType::A), Owner::WgPeer("pk".into()));
         let mut with_peer = snapshot_with(&[]);
@@ -1672,7 +1715,7 @@ mod tests {
         }
     }
 
-    /// A `wireguard_wg_<iface>` peer section yields a directory entry keyed
+    /// A permitted `wireguard_wg_<iface>` peer section yields a directory entry keyed
     /// by its tunnel /32, carrying the TSIG key derived from its PSK.
     #[tokio::test]
     async fn snapshot_derives_wg_peer_tsig_keys() {
@@ -1690,8 +1733,8 @@ mod tests {
             format!(
                 "config interface 'lan'\n\toption proto 'static'\n\toption ipaddr '192.168.1.1'\n\toption device 'br-lan.1'\n\n\
                  config interface 'wg_lan'\n\toption proto 'wireguard'\n\n\
-                 config wireguard_wg_lan\n\toption public_key 'peer-pub'\n\toption preshared_key '{psk_b64}'\n\tlist allowed_ips '10.59.0.2/32'\n\n\
-                 config wireguard_wg_lan\n\toption public_key 'broken'\n\toption preshared_key 'not-base64!'\n\tlist allowed_ips '10.59.0.3/32'\n"
+                 config wireguard_wg_lan\n\toption public_key 'peer-pub'\n\toption preshared_key '{psk_b64}'\n\toption _allow_dns_inject '1'\n\tlist allowed_ips '10.59.0.2/32'\n\n\
+                 config wireguard_wg_lan\n\toption public_key 'broken'\n\toption preshared_key 'not-base64!'\n\toption _allow_dns_inject '1'\n\tlist allowed_ips '10.59.0.3/32'\n"
             ),
         )
         .unwrap();
@@ -1730,6 +1773,131 @@ mod tests {
         assert!(
             !snapshot.wg_peers.contains_key(&Ipv4Addr::new(10, 59, 0, 3)),
             "a peer whose PSK cannot decode contributes no key"
+        );
+    }
+
+    /// One profile with an inbound VPN and two peers: `.201` never holds the
+    /// permission, `.200` holds it when `permitted`.
+    async fn snapshot_with_two_peers(permitted: bool) -> NetSnapshot {
+        use base64::Engine;
+        let b64 = |b: u8| base64::engine::general_purpose::STANDARD.encode([b; 32]);
+        let allow = if permitted {
+            "\toption _allow_dns_inject '1'\n"
+        } else {
+            ""
+        };
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("startwrt"),
+            "config profile lan\n\toption fullname 'Admin'\n\toption interface 'lan'\n\toption vlan_tag '1'\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.path().join("network"),
+            format!(
+                "config interface 'lan'\n\toption proto 'static'\n\toption ipaddr '192.168.1.1'\n\toption device 'br-lan.1'\n\n\
+                 config interface 'wg_lan'\n\toption proto 'wireguard'\n\n\
+                 config wireguard_wg_lan\n\toption public_key 'permitted'\n\toption preshared_key '{}'\n{allow}\tlist allowed_ips '192.168.1.200/32'\n\n\
+                 config wireguard_wg_lan\n\toption public_key 'unpermitted'\n\toption preshared_key '{}'\n\tlist allowed_ips '192.168.1.201/32'\n",
+                b64(7),
+                b64(8),
+            ),
+        )
+        .unwrap();
+        std::fs::write(dir.path().join("dhcp"), "").unwrap();
+        std::fs::write(dir.path().join("firewall"), "").unwrap();
+        let arena = Arena::new();
+        let cfgs = parse_all(
+            dir.path(),
+            &arena,
+            &["startwrt", "network", "dhcp", "firewall"],
+        )
+        .await
+        .unwrap();
+        read_snapshot(&cfgs).unwrap()
+    }
+
+    fn signed_cname_update(key: [u8; 32]) -> Vec<u8> {
+        use hickory_server::proto::op::update_message::append;
+        use hickory_server::proto::rr::RecordSet;
+
+        let record = Record::from_rdata(
+            fqdn("service.example.com"),
+            300,
+            RData::CNAME(CNAME(fqdn("nas.internal"))),
+        );
+        let mut rrset = RecordSet::new(record.name.clone(), record.record_type(), 0);
+        rrset.insert(record, 0);
+        let mut update = append(rrset, fqdn("example.com"), false, false);
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        let signer = hickory_server::proto::rr::TSigner::new(
+            key.to_vec(),
+            hickory_server::proto::rr::rdata::tsig::TsigAlgorithm::HmacSha256,
+            fqdn("startos-dns-update"),
+            300,
+        )
+        .unwrap();
+        update.finalize(&signer, now).unwrap();
+        update.to_vec().unwrap()
+    }
+
+    /// A peer's valid signature alone does not admit it.
+    #[tokio::test]
+    async fn peer_publishes_only_with_the_permission() {
+        use hickory_server::proto::op::Message;
+
+        let snapshot = snapshot_with_two_peers(true).await;
+        let root = tempfile::tempdir().unwrap();
+        let di = DnsInject::new(root.path().to_path_buf());
+        let (by_ip, wg_keys) = injectors(&snapshot, &HashMap::new(), &[]);
+        di.directory.mutate(|d| {
+            d.by_ip = by_ip;
+            d.wg_keys = wg_keys;
+        });
+        let answer = |host: u8, psk: u8| {
+            let di = di.clone();
+            async move {
+                let response = di
+                    .injector
+                    .answer_update(
+                        IpAddr::V4(lan_ip(host)),
+                        &signed_cname_update(derive_tsig_key(&[psk; 32])),
+                        false,
+                    )
+                    .await
+                    .unwrap();
+                Message::from_vec(&response).unwrap().metadata.response_code
+            }
+        };
+        assert_eq!(
+            answer(201, 8).await,
+            ResponseCode::Refused,
+            "an unpermitted peer is refused despite signing with its own PSK"
+        );
+        assert!(di.injector.list().is_empty());
+        assert_eq!(answer(200, 7).await, ResponseCode::NoError);
+        assert_eq!(di.injector.list().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn revoking_a_peer_sweeps_its_records() {
+        let mut d = Directory::default();
+        let name = LowerName::from(&fqdn("nas.example.com"));
+        let records = vec![injected("nas.example.com", lan_ip(200), lan_ip(200))];
+        d.owners.insert(
+            (name.clone(), RecordType::A),
+            Owner::WgPeer("permitted".into()),
+        );
+        let granted = snapshot_with_two_peers(true).await;
+        assert!(sweep_owners(&mut d, &granted, &HashMap::new(), &[], &records).is_empty());
+        let revoked = snapshot_with_two_peers(false).await;
+        assert_eq!(
+            sweep_owners(&mut d, &revoked, &HashMap::new(), &[], &records),
+            vec![(name, RecordType::A)],
+            "the peer config remains, but its permission is gone"
         );
     }
 

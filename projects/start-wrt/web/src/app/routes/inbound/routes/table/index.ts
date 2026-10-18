@@ -301,7 +301,9 @@ export default class InboundTable {
 
   edit(data?: VpnServer) {
     const isEdit = !!data
-    const profiles = isEdit ? this.profiles() : this.availableProfiles()
+    const profiles = isEdit
+      ? this.profiles().filter(p => p.interface === data.profile)
+      : this.availableProfiles()
 
     if (!profiles.length) return
 

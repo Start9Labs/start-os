@@ -21,6 +21,7 @@ import {
   VpnServerPeerAddArgs,
   VpnServerPeerAddResponse,
   VpnServerPeerDeleteArgs,
+  VpnServerPeerRenameArgs,
   VpnServerSetArgs,
   VpnServers,
   WifiConfig,
@@ -168,6 +169,19 @@ export class LiveApiService extends ApiService {
 
   async vpnServerPeerDelete(params: VpnServerPeerDeleteArgs): Promise<null> {
     return this.rpc.request({ method: 'vpn-server.peer-delete', params })
+  }
+
+  async vpnServerPeerRename(params: VpnServerPeerRenameArgs): Promise<null> {
+    return this.rpc.request({ method: 'vpn-server.peer-rename', params })
+  }
+
+  async vpnServerPeerSetDnsInjection(
+    params: RpcParamType<Api, 'vpn-server.peer-set-dns-injection'>,
+  ): Promise<RpcReturnType<Api, 'vpn-server.peer-set-dns-injection'>> {
+    return this.rpc.request({
+      method: 'vpn-server.peer-set-dns-injection',
+      params,
+    })
   }
 
   async wifiGet(): Promise<WifiConfig> {
