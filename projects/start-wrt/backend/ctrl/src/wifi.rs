@@ -275,6 +275,15 @@ struct IwChannel {
     widths: Vec<String>,
 }
 
+pub(crate) fn frequency_band(mhz: u64) -> Option<&'static str> {
+    match mhz {
+        2400..=2499 => Some("2g"),
+        5000..=5924 => Some("5g"),
+        5925..=7199 => Some("6g"),
+        _ => None,
+    }
+}
+
 /// Reads the per-channel entries of `iw phy <phy> channels`, keyed by band.
 fn parse_iw_channels(iw: &str) -> BTreeMap<&'static str, BTreeMap<u32, IwChannel>> {
     let mut bands: BTreeMap<&'static str, BTreeMap<u32, IwChannel>> = BTreeMap::new();
@@ -292,11 +301,8 @@ fn parse_iw_channels(iw: &str) -> BTreeMap<&'static str, BTreeMap<u32, IwChannel
             let (Ok(mhz), Ok(channel)) = (mhz.parse::<u32>(), channel.parse::<u32>()) else {
                 continue;
             };
-            let band = match mhz {
-                2400..=2499 => "2g",
-                5000..=5924 => "5g",
-                5925..=7199 => "6g",
-                _ => continue,
+            let Some(band) = frequency_band(u64::from(mhz)) else {
+                continue;
             };
             let usable = !flags.contains("disabled");
             bands.entry(band).or_default().insert(
@@ -1835,7 +1841,7 @@ pub(crate) async fn regenerate_blackout_crontab(ctx: &impl CtrlContext) -> Resul
 /// re-enable a radio the user disabled. Asserting only the "down" side keeps this
 /// idempotent and avoids that footgun. Call this *after* `restore_wifi_if_needed`
 /// (and after any other boot step that touches the radios) so this `wifi down` is
-/// the final word — `restore_wifi_if_needed` restores missing AP config and
+/// the final word — `restore_wifi_if_needed` restores the sticker AP config and
 /// applies it with `wifi reload`, which would otherwise re-raise the radio.
 ///
 /// TODO: This closes the *steady-state* gap (radio staying up for the rest of the
@@ -1891,6 +1897,20 @@ mod tests {
     use tokio::runtime::Runtime;
 
     use super::*;
+
+    #[test]
+    fn frequency_band_boundaries() {
+        assert_eq!(frequency_band(2399), None);
+        assert_eq!(frequency_band(2400), Some("2g"));
+        assert_eq!(frequency_band(2499), Some("2g"));
+        assert_eq!(frequency_band(2500), None);
+        assert_eq!(frequency_band(4999), None);
+        assert_eq!(frequency_band(5000), Some("5g"));
+        assert_eq!(frequency_band(5924), Some("5g"));
+        assert_eq!(frequency_band(5925), Some("6g"));
+        assert_eq!(frequency_band(7199), Some("6g"));
+        assert_eq!(frequency_band(7200), None);
+    }
 
     /// Test shim: the production `set` now takes a `WifiSetRequest` and returns
     /// `WifiSetResult`; these tests predate that and pass a bare `Wifi`. Wrap it
