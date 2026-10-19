@@ -287,25 +287,40 @@ assets.
 
 ### Gitea Actions
 
-The package workflows support GitHub and Forgejo, not Gitea Actions. Verification
-against Gitea 28.1.0 with Gitea Runner 5.1.1 found that default workflow discovery
-prefers `.gitea/workflows/`, falls back to `.github/workflows/`, and ignores
-`.forgejo/workflows/`. An unchanged template therefore selects the GitHub callers,
-whose unqualified reusable-workflow imports resolve on the Gitea instance rather
-than GitHub.
+Gitea users can opt into self-contained versions of the five package workflows.
+They live in the guide's `projects/start-sdk/docs/gitea-workflows/`, outside the
+package template, so scaffolding does not enable Gitea CI. The supported baseline
+is Gitea 28.1.0 with Gitea Runner 5.1.1 (formerly act_runner).
 
-Copying the Forgejo callers into `.gitea/workflows/` is insufficient: Gitea
-[restricts reusable-workflow URLs to the same instance](https://github.com/go-gitea/gitea/blob/v28.1.0/services/actions/reusable_workflow.go#L443-L464)
-and rejects their `https://github.com/...` imports before scheduling jobs. Build,
-release, registry publishing, and `syncNext` are blocked at that boundary.
+From a package directly inside a packaging workspace, copy them before enabling
+[Actions on the Gitea repository](https://docs.gitea.com/usage/actions/overview):
 
-Isolated jobs passed the Forgejo v4 artifact upload/download round-trip and used
-the automatic token for checkout, tag pushes, and release creation/update with
-asset replacement (with `contents: write` permission). These successful primitive
-checks do not establish compatibility of the package workflows.
+```bash
+mkdir -p .gitea/workflows
+cp ../start-technologies/projects/start-sdk/docs/gitea-workflows/*.yml .gitea/workflows/
+```
 
-Run the template's CI on GitHub or Forgejo. Keep Actions disabled on a Gitea mirror
-of a scaffolded package; renaming workflow directories alone does not enable it.
+Commit these files and adjust the base-branch lists for the package, just as for
+the GitHub workflows. Gitea prefers `.gitea/workflows/` over `.github/workflows/`
+and ignores `.forgejo/workflows/` by default; the other workflow directories can
+remain in the repo.
+
+Use the isolated `ubuntu-latest` runner environment, registry variables, and
+signing/S3 secrets described in the Forgejo section above. Gitea enforces job
+`permissions:` within the repository/owner token policy; allow the requested
+repository write and pull-request access for release and sync jobs. PR builds
+receive no signing key. The automatic token handles checkout, tag pushes,
+releases, and sync pull requests. Artifact upload/download and in-place release
+asset replacement use the same actions as Forgejo, with the same 2 GiB per-asset
+ceiling and S3 alternative. The Gitea instance's upload limit must also permit the
+release assets.
+
+Gitea restricts reusable-workflow imports to its own instance. These generated
+files therefore embed all shared jobs, including the nested tag-and-release
+pipeline, while step-level actions still use full remote URLs. After syncing the
+guide, copy the files again to pick up shared workflow fixes and reapply any
+package-specific branch filters. Unlike the GitHub/Forgejo callers' `@master`
+imports, the embedded jobs update only when the package's copies are refreshed.
 
 ### AGENTS.md and CLAUDE.md
 
