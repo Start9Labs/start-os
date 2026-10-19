@@ -308,6 +308,11 @@ the GitHub workflows. Gitea prefers `.gitea/workflows/` over `.github/workflows/
 and ignores `.forgejo/workflows/` by default; the other workflow directories can
 remain in the repo.
 
+On Gitea, `pr-retarget.yml` also rebuilds non-draft PRs after title/body edits.
+Gitea reports draft readiness as an ordinary edit without previous draft state.
+Retargets share the normal PR build's concurrency group; other edits use a separate
+group and leave an active normal build alone.
+
 Use the isolated `ubuntu-latest` runner environment, registry variables, and
 signing/S3 secrets described in the Forgejo section above. Gitea enforces job
 `permissions:` within the repository/owner token policy; allow the requested

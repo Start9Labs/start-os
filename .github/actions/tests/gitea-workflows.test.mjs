@@ -35,8 +35,18 @@ test('Gitea workflows are opt-in copies rather than active package-template file
       ),
     )
     assert.deepEqual(document(filename).on, source.on)
-    if (source.concurrency)
+    if (source.concurrency && filename !== 'pr-retarget')
       assert.deepEqual(document(filename).concurrency, source.concurrency)
+    const forgejo = yaml.load(
+      outputs.get(
+        `projects/start-sdk/docs/package-template/.forgejo/workflows/${filename}.yml`,
+      ),
+    )
+    assert.deepEqual(forgejo.concurrency, source.concurrency)
+    assert.deepEqual(
+      Object.values(forgejo.jobs).map(job => job.if),
+      Object.values(source.jobs).map(job => job.if),
+    )
   }
 })
 
@@ -70,7 +80,7 @@ test('Gitea jobs are self-contained and retain their dependency graph', () => {
   assert.equal(document('syncNext').concurrency['cancel-in-progress'], false)
 })
 
-test('PR builds retain draft and retarget gates without exposing signing secrets', () => {
+test('PR builds withhold signing secrets and Gitea edits retain draft gating', () => {
   for (const job of Object.values(document('build').jobs)) {
     assert.match(
       job.if,
@@ -79,11 +89,16 @@ test('PR builds retain draft and retarget gates without exposing signing secrets
     assert.equal(job.permissions.contents, 'read')
     assert.doesNotMatch(JSON.stringify(job), /secrets\./)
   }
-  for (const job of Object.values(document('pr-retarget').jobs)) {
-    assert.match(
-      job.if,
-      /github\.event\.changes\.base && github\.event\.pull_request\.draft == false/,
-    )
+  const edits = document('pr-retarget')
+  assert.equal(edits.name, 'Rebuild after PR edit')
+  assert.equal(
+    edits.concurrency.group,
+    "package-build-${{ github.event.changes.ref && github.event.pull_request.number || format('metadata-{0}', github.event.pull_request.number) }}",
+  )
+  for (const job of Object.values(edits.jobs)) {
+    assert.match(job.if, /github\.event\.pull_request\.draft == false/)
+    assert.doesNotMatch(job.if, /changes\./)
+    assert.doesNotMatch(JSON.stringify(job), /secrets\./)
   }
 })
 

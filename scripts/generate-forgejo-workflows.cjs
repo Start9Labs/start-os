@@ -109,12 +109,25 @@ async function generate(root) {
   }
   for (const [file, document] of [...outputs]) {
     if (!file.startsWith(`${template}/.forgejo/workflows/`)) continue
+    const caller = structuredClone(document)
+    if (file.endsWith('/pr-retarget.yml')) {
+      const baseChange = 'github.event.changes.base'
+      caller.name = 'Rebuild after PR edit'
+      caller.concurrency.group = caller.concurrency.group.replaceAll(
+        baseChange,
+        'github.event.changes.ref',
+      )
+      // Gitea reports draft readiness as an undifferentiated PR edit.
+      for (const job of Object.values(caller.jobs)) {
+        job.if = job.if.replace(`${baseChange} && `, '')
+      }
+    }
     outputs.set(
       file.replace(
         `${template}/.forgejo/workflows`,
         'projects/start-sdk/docs/gitea-workflows',
       ),
-      inlinePackageWorkflow(document, reference => {
+      inlinePackageWorkflow(caller, reference => {
         const prefix = `https://github.com/${upstream}`
         const source = reference.slice(prefix.length, -'@master'.length)
         if (!reference.startsWith(prefix) || !outputs.has(source)) {
