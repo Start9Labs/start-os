@@ -550,4 +550,9 @@ export const ENGLISH: Record<string, number> = {
   'Revoke DNS record publishing': 573,
   'Updating VPN peer...': 574,
   'VPN peer updated': 575,
+  'DNS servers': 576,
+  'No DNS servers: profiles using this VPN resolve through your ISP, outside the tunnel, unless system DNS uses custom servers.': 577,
+  'Resolvers reached through the tunnel by profiles using this VPN that have no DNS of their own. Separate with commas.': 578,
+  'Enter IP addresses separated by commas': 579,
+  'System (outside VPN)': 580,
 }

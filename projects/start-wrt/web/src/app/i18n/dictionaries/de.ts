@@ -545,4 +545,9 @@ export default {
   573: 'DNS-Einträge veröffentlichen widerrufen',
   574: 'VPN-Peer wird aktualisiert...',
   575: 'VPN-Peer aktualisiert',
+  576: 'DNS-Server',
+  577: 'Keine DNS-Server: Profile, die dieses VPN nutzen, lösen Namen über Ihren Internetanbieter außerhalb des Tunnels auf, sofern das System-DNS keine benutzerdefinierten Server verwendet.',
+  578: 'Resolver, die Profile mit diesem VPN ohne eigenes DNS durch den Tunnel erreichen. Durch Kommas trennen.',
+  579: 'IP-Adressen durch Kommas getrennt eingeben',
+  580: 'System (außerhalb des VPN)',
 } satisfies i18n

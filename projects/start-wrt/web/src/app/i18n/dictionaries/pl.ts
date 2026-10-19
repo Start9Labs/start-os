@@ -545,4 +545,9 @@ export default {
   573: 'Cofnij zezwolenie na publikowanie rekordów DNS',
   574: 'Aktualizowanie węzła VPN...',
   575: 'Zaktualizowano węzeł VPN',
+  576: 'Serwery DNS',
+  577: 'Brak serwerów DNS: profile korzystające z tej sieci VPN rozwiązują nazwy przez dostawcę internetu, poza tunelem, chyba że systemowy DNS używa własnych serwerów.',
+  578: 'Serwery, z którymi profile korzystające z tej sieci VPN bez własnego DNS łączą się przez tunel. Oddziel przecinkami.',
+  579: 'Wprowadź adresy IP oddzielone przecinkami',
+  580: 'System (poza VPN)',
 } satisfies i18n

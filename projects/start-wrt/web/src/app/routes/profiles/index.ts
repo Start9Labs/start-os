@@ -193,6 +193,8 @@ class Profiles {
         return 'VPN'
       case 'custom':
         return 'Custom'
+      case 'system-outside-vpn':
+        return 'System (outside VPN)'
       default:
         return 'System'
     }

@@ -44,6 +44,9 @@ pub struct OutboundVpn {
     pub mtu: Option<u16>,
     /// The server is named by hostname; only `Internet` is a valid target.
     pub hostname_endpoint: bool,
+    /// Resolvers reached through the tunnel. Empty leaves profiles routed through
+    /// this VPN on the system DNS servers, or on the ISP's outside the tunnel.
+    pub dns: Vec<IpAddr>,
 }
 rpc_toolkit::reflect_ts!(OutboundVpn);
 
@@ -53,6 +56,9 @@ pub struct OutboundVpnCreateRequest {
     pub target: String,
     /// Raw WireGuard .conf file contents
     pub config: String,
+    /// Replaces the config's `DNS =` servers. Absent keeps them.
+    #[serde(default)]
+    pub dns: Option<Vec<IpAddr>>,
 }
 rpc_toolkit::reflect_ts!(OutboundVpnCreateRequest);
 
@@ -71,6 +77,9 @@ pub struct OutboundVpnUpdateRequest {
     /// chain MTU for a VPN connecting through another, else the kernel's.
     #[serde(default)]
     pub mtu: Option<u16>,
+    /// Replaces the resolvers reached through the tunnel. Absent keeps them.
+    #[serde(default)]
+    pub dns: Option<Vec<IpAddr>>,
 }
 rpc_toolkit::reflect_ts!(OutboundVpnUpdateRequest);
 
@@ -94,7 +103,7 @@ rpc_toolkit::reflect_ts!(OutboundVpnSetEnabledRequest);
 struct ParsedWgConfig {
     private_key: String,
     addresses: Vec<String>,
-    dns: Vec<String>,
+    dns: Vec<IpAddr>,
     mtu: Option<u16>,
     public_key: String,
     preshared_key: Option<String>,
@@ -377,7 +386,13 @@ fn parse_wireguard_config(config: &str) -> Result<ParsedWgConfig, Error> {
             "interface" => match key.as_str() {
                 "privatekey" => private_key = value.to_string(),
                 "address" => addresses = value.split(',').map(|s| s.trim().to_string()).collect(),
-                "dns" => dns = value.split(',').map(|s| s.trim().to_string()).collect(),
+                // Non-address entries are wg-quick search domains.
+                "dns" => {
+                    dns = value
+                        .split(',')
+                        .filter_map(|s| s.trim().parse().ok())
+                        .collect()
+                }
                 "mtu" => {
                     let parsed = value.parse::<u32>().map_err(|_| {
                         Error::new(
@@ -750,6 +765,10 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<OutboundVpn>, Error> {
 
             let used_by = get_used_by_profiles(&cfgs, &meta.interface);
             let hostname_endpoint = has_hostname_endpoint(&cfgs, &meta.interface);
+            let dns = crate::dns::vpn_dns_servers(&cfgs, &meta.interface)
+                .iter()
+                .filter_map(|s| s.parse().ok())
+                .collect();
 
             Some(OutboundVpn {
                 id: meta.interface.clone(),
@@ -760,6 +779,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<OutboundVpn>, Error> {
                 supports_ipv6,
                 mtu,
                 hostname_endpoint,
+                dns,
             })
         })
         .collect();
@@ -775,7 +795,10 @@ pub async fn create(
 ) -> Result<OutboundVpnCreateResponse, Error> {
     validate_label(&req.label)?;
 
-    let parsed = parse_wireguard_config(&req.config)?;
+    let mut parsed = parse_wireguard_config(&req.config)?;
+    if let Some(dns) = req.dns {
+        parsed.dns = dns;
+    }
     let interface_name = sanitize_interface_name(&req.label)?;
 
     let mut retries = 4;
@@ -879,7 +902,12 @@ pub async fn update(
     let mut retries = 4;
     loop {
         let arena = Arena::new();
-        let mut cfgs = parse_all("/etc/config", &arena, &["network", "startwrt"]).await?;
+        let mut cfgs = parse_all(
+            "/etc/config",
+            &arena,
+            &["network", "startwrt", "firewall", "dhcp"],
+        )
+        .await?;
 
         let old_target = update_client_metadata(&mut cfgs, &req.id, &req.label, &req.target)?;
         // Only on an actual retarget, mirroring guard_subnet_collision: a
@@ -894,6 +922,13 @@ pub async fn update(
 
         let mtu = req.mtu.or_else(|| chain_mtu(&cfgs, &req.id));
         let mtu_changed = set_interface_mtu(&mut cfgs, &req.id, mtu, &arena);
+        let dns_changed = match &req.dns {
+            Some(dns) => set_interface_dns(&mut cfgs, &req.id, dns, &arena),
+            None => false,
+        };
+        if dns_changed {
+            crate::profiles::rewrite_all_dns_forwarding(&mut cfgs)?;
+        }
 
         rewrite_vpn_chain_routes(&mut cfgs)?;
 
@@ -918,6 +953,9 @@ pub async fn update(
                 // don't need this).
                 if mtu_changed {
                     restart_wireguard_interface(&req.id).await?;
+                }
+                if dns_changed {
+                    crate::dns::heal_smartdns_conf("/etc/config").await?;
                 }
                 reload_system().await?;
                 crate::activity::log(
@@ -1105,6 +1143,7 @@ pub async fn delete(ctx: ServerContext, args: OutboundVpnDeleteRequest) -> Resul
                 return Err(err.into());
             }
             Ok(()) => {
+                crate::dns::heal_smartdns_conf("/etc/config").await?;
                 // network reload will see the WG interface is gone from config
                 // and tear it down atomically — no separate ifdown needed.
                 reload_system().await?;
@@ -1293,6 +1332,7 @@ pub async fn set_enabled(
                         tokio::process::Command::new("ifdown").arg(interface_name),
                     )
                     .await;
+                    crate::dns::heal_smartdns_conf("/etc/config").await?;
                 }
                 reload_system().await?;
                 let action = if req.enabled { "enabled" } else { "disabled" };
@@ -1887,6 +1927,55 @@ fn set_mtu_option<'a>(section: &mut Section<'a>, mtu: Option<u16>, arena: &'a Ar
     true
 }
 
+/// Replace the `dns` list on a WG interface section. Returns `true` when it changed.
+fn set_dns_list<'a>(section: &mut Section<'a>, dns: &[IpAddr], arena: &'a Arena) -> bool {
+    let current: Vec<String> = section
+        .lines
+        .iter()
+        .filter_map(|line| match line {
+            Line::List { list, item, .. } if list.as_str() == "dns" => {
+                Some(item.as_str().to_string())
+            }
+            _ => None,
+        })
+        .collect();
+    let desired: Vec<String> = dns.iter().map(|ip| ip.to_string()).collect();
+    if current == desired {
+        return false;
+    }
+
+    section
+        .lines
+        .retain(|line| !matches!(line, Line::List { list, .. } if list.as_str() == "dns"));
+    for ip in desired {
+        let ip_str: &str = arena.alloc(ip);
+        section.lines.push(Line::List {
+            list: Token::from_str("dns", arena),
+            item: Token::from_str(ip_str, arena),
+            comment: LineComment::None,
+        });
+    }
+    true
+}
+
+/// Set the `dns` list on a WG client interface. Returns `true` when it changed.
+fn set_interface_dns<'a>(
+    cfgs: &mut Configs<'a>,
+    interface: &str,
+    dns: &[IpAddr],
+    arena: &'a Arena,
+) -> bool {
+    cfgs["network"]
+        .sections
+        .iter_mut()
+        .find(|s| {
+            s.name().as_deref() == Some(interface)
+                && s.get::<WgInterface>()
+                    .is_ok_and(|iface| iface.is_wireguard())
+        })
+        .is_some_and(|section| set_dns_list(section, dns, arena))
+}
+
 /// Create a WireGuard client interface section in network config
 fn create_wg_client_interface<'a>(
     cfgs: &mut Configs<'a>,
@@ -1966,17 +2055,8 @@ fn create_wg_client_interface<'a>(
         });
     }
 
-    // dns (list) — stored for reference but peerdns=0 prevents global use
-    for dns_entry in &parsed.dns {
-        let dns_str: &str = arena.alloc(dns_entry.clone());
-        lines.push(Line::List {
-            list: Token::from_str("dns", arena),
-            item: Token::from_str(dns_str, arena),
-            comment: LineComment::None,
-        });
-    }
-
-    let section = Section { arena, lines };
+    let mut section = Section { arena, lines };
+    set_dns_list(&mut section, &parsed.dns, arena);
     cfgs["network"].sections.push(section);
 
     Ok(())
@@ -2128,6 +2208,11 @@ mod tests {
              AllowedIPs = 0.0.0.0/0, ::/0\n\
              PersistentKeepalive = 25\n"
         )
+    }
+
+    /// `wg_conf` without its `DNS =` line.
+    fn wg_conf_no_dns(private_key: &str, public_key: &str) -> String {
+        wg_conf(private_key, public_key).replace("DNS = 10.2.0.1\n", "")
     }
 
     /// Write base configs: two profiles (Admin/lan/vlan99, Guest/guest/vlan101)
@@ -2355,7 +2440,7 @@ config interface 'wg_guest'
         assert_eq!(parsed.private_key, privkey);
         assert_eq!(parsed.public_key, pubkey);
         assert_eq!(parsed.addresses, vec!["10.2.0.2/32"]);
-        assert_eq!(parsed.dns, vec!["10.2.0.1"]);
+        assert_eq!(parsed.dns, vec![IpAddr::from([10, 2, 0, 1])]);
         assert_eq!(parsed.endpoint_host.as_deref(), Some("vpn.example.com"));
         assert_eq!(parsed.endpoint_port.as_deref(), Some("51820"));
         assert_eq!(parsed.allowed_ips, vec!["0.0.0.0/0", "::/0"]);
@@ -2363,6 +2448,49 @@ config interface 'wg_guest'
         assert!(parsed.preshared_key.is_none());
         // wg_conf() omits MTU → inherit default
         assert_eq!(parsed.mtu, None);
+    }
+
+    #[test]
+    fn test_parse_wg_config_without_dns() {
+        let conf = wg_conf_no_dns(&gen_key(), &gen_key());
+        assert!(!conf.contains("DNS"));
+        assert!(parse_wireguard_config(&conf).unwrap().dns.is_empty());
+    }
+
+    #[test]
+    fn test_parse_wg_config_dns_drops_search_domains() {
+        let conf = wg_conf(&gen_key(), &gen_key())
+            .replace("DNS = 10.2.0.1", "DNS = 10.2.0.1, fd00::1, corp.example");
+        assert_eq!(
+            parse_wireguard_config(&conf).unwrap().dns,
+            vec![
+                IpAddr::from([10, 2, 0, 1]),
+                "fd00::1".parse::<IpAddr>().unwrap()
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn test_create_wg_client_interface_without_dns_writes_no_dns_list() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_base_configs(dir.path());
+        let arena = Arena::new();
+        let mut cfgs = parse_all(dir.path(), &arena, &["network", "startwrt"])
+            .await
+            .unwrap();
+        let parsed = parse_wireguard_config(&wg_conf_no_dns(&gen_key(), &gen_key())).unwrap();
+        create_wg_client_interface(&mut cfgs, "wg_test", &parsed, &arena).unwrap();
+        assert!(crate::dns::vpn_dns_servers(&cfgs, "wg_test").is_empty());
+
+        let dns = [IpAddr::from([1, 1, 1, 1])];
+        assert!(set_interface_dns(&mut cfgs, "wg_test", &dns, &arena));
+        assert!(!set_interface_dns(&mut cfgs, "wg_test", &dns, &arena));
+        assert_eq!(
+            crate::dns::vpn_dns_servers(&cfgs, "wg_test"),
+            vec!["1.1.1.1"]
+        );
+        assert!(set_interface_dns(&mut cfgs, "wg_test", &[], &arena));
+        assert!(crate::dns::vpn_dns_servers(&cfgs, "wg_test").is_empty());
     }
 
     #[test]
@@ -4439,6 +4567,7 @@ config wireguard_wg_inner 'in_peer0'
                     supports_ipv6: wg.addresses.iter().any(|a| a.contains(':')),
                     mtu: wg.mtu,
                     hostname_endpoint: has_hostname_endpoint(&cfgs, &meta.interface),
+                    dns: vec![],
                 })
             })
             .collect();

@@ -545,4 +545,9 @@ export default {
   573: 'Revocar publicación de registros DNS',
   574: 'Actualizando par VPN...',
   575: 'Par VPN actualizado',
+  576: 'Servidores DNS',
+  577: 'Sin servidores DNS: los perfiles que usan esta VPN resuelven a través de su proveedor de Internet, fuera del túnel, a menos que el DNS del sistema use servidores personalizados.',
+  578: 'Resolutores a los que acceden a través del túnel los perfiles que usan esta VPN sin DNS propio. Sepárelos con comas.',
+  579: 'Introduzca direcciones IP separadas por comas',
+  580: 'Sistema (fuera de la VPN)',
 } satisfies i18n

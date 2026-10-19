@@ -1240,6 +1240,8 @@ struct OutboundVpn {
     /// True when the peer Endpoint is a hostname. Such a VPN can only target
     /// "Internet"; the web UI offers no other target for it.
     hostname_endpoint: bool,
+    /// Resolvers reached through the tunnel (the interface's `list dns`).
+    dns: Vec<IpAddr>,
 }
 // Response: Vec<OutboundVpn>
 ```
@@ -1253,6 +1255,9 @@ struct OutboundVpnCreateRequest {
     target: String,
     /// Raw WireGuard .conf file contents
     config: String,
+    /// Replaces the .conf's `DNS =` servers. null/absent keeps them.
+    #[serde(default)]
+    dns: Option<Vec<IpAddr>>,
 }
 
 #[derive(Serialize)]
@@ -1264,6 +1269,16 @@ struct OutboundVpnCreateResponse {
 // An uncommented `MTU` in the .conf (1280–1500) becomes `option mtu`; a
 // commented `#MTU` is ignored. The dedicated vpn_<X> egress zone also gets
 // `option mtu_fix 1` (TCP MSS clamp) as a backstop against too-high MTU.
+// The address entries of the .conf's `DNS =` line (or `dns`, when given)
+// become `list dns`; search-domain entries are dropped.
+//
+// DNS for a profile routed through the VPN, first match wins: the profile's
+// custom servers, then the VPN's `list dns`, then the system custom servers —
+// all reached through the tunnel and failing closed with it (dnsmasq
+// `server <ip>@<iface>` for the VPN's own servers, a per-profile SmartDNS group
+// with `-interface <iface>` upstreams otherwise). With none of them, the
+// profile resolves through the ISP's servers outside the tunnel and reports
+// `dns_source = "system-outside-vpn"`.
 //
 // Validation (InvalidValue on failure): the config MUST be a WireGuard .conf —
 // it requires `[Interface]` + `[Peer]` headers, a valid PrivateKey/PublicKey
@@ -1314,10 +1329,14 @@ struct OutboundVpnUpdateRequest {
     /// submits the field's current value.
     #[serde(default)]
     mtu: Option<u16>,
+    /// Replaces the interface's `list dns`. null/absent keeps it.
+    #[serde(default)]
+    dns: Option<Vec<IpAddr>>,
 }
 // Response: null
-// Backend: updates label+target metadata and the interface `mtu` option.
-// Bounces the WG interface only when the MTU actually changed.
+// Backend: updates label+target metadata and the interface `mtu` and `dns`
+// options. Bounces the WG interface only when the MTU actually changed; a DNS
+// change rewrites the DNS forwarding of the profiles routed through it.
 //
 // Validation: same `target` rules as vpn-client.create, except the disabled
 // and chained-endpoint checks run ONLY when `target` differs from the stored
@@ -1720,7 +1739,8 @@ struct SecurityProfile {
     /// Always present in responses — an empty array when unset, never null
     #[serde(default)]
     dns_override: Vec<DnsServer>,
-    /// "system", "custom", or "vpn"
+    /// "system", "custom", "vpn", or "system-outside-vpn" (a VPN-routed profile
+    /// resolving through the ISP outside the tunnel)
     dns_source: String,
 }
 // Response: SecurityProfile

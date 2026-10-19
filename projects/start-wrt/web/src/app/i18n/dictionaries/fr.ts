@@ -545,4 +545,9 @@ export default {
   573: 'Révoquer la publication d’enregistrements DNS',
   574: 'Mise à jour du pair VPN…',
   575: 'Pair VPN mis à jour',
+  576: 'Serveurs DNS',
+  577: 'Aucun serveur DNS : les profils utilisant ce VPN résolvent via votre fournisseur d’accès, hors du tunnel, sauf si le DNS système utilise des serveurs personnalisés.',
+  578: 'Résolveurs joints via le tunnel par les profils utilisant ce VPN sans DNS propre. Séparez-les par des virgules.',
+  579: 'Saisissez des adresses IP séparées par des virgules',
+  580: 'Système (hors VPN)',
 } satisfies i18n

@@ -256,36 +256,13 @@ fn wan_access_destinations(wa: &WanAccess) -> Vec<String> {
     }
 }
 
-fn get_vpn_dns(cfgs: &Configs, vpn_interface: &str) -> Vec<String> {
-    for section in &cfgs["network"].sections {
-        if let Ok(iface) = section.get::<NetworkInterface>() {
-            if section.name().as_deref() == Some(vpn_interface) && !iface.dns.is_empty() {
-                return iface.dns.iter().map(|s| s.to_string()).collect();
-            }
-        }
-    }
-    Vec::new()
-}
-
-fn compute_dns_source(cfgs: &Configs, profile: &Profile) -> String {
-    if !profile.dns_override.is_empty() {
-        "custom".into()
-    } else if profile.outbound != "wan" && !get_vpn_dns(cfgs, &profile.outbound).is_empty() {
-        "vpn".into()
-    } else {
-        "system".into()
-    }
-}
-
-/// Returns true if the profile has non-system DNS (custom override or VPN DNS).
-fn has_effective_dns(cfgs: &Configs, profile: &Profile) -> bool {
-    !profile.dns_override.is_empty()
-        || (profile.outbound != "wan" && !get_vpn_dns(cfgs, &profile.outbound).is_empty())
+fn profile_dns(cfgs: &Configs, profile: &Profile) -> dns::ProfileDns {
+    dns::profile_dns(cfgs, &profile.outbound, &profile.dns_override)
 }
 
 /// Whether any device or inbound-VPN peer may inject DNS records. Box-wide: a
-/// device's profile is a runtime fact. Separate from `has_effective_dns`,
-/// which also gates the `DNS-Override` redirect.
+/// device's profile is a runtime fact. Separate from `ProfileDns::redirects`,
+/// which gates the `DNS-Override` redirect.
 fn has_dns_injection(cfgs: &Configs) -> bool {
     cfgs["dhcp"].sections.iter().any(|s| {
         s.get::<DhcpHost>()
@@ -367,7 +344,7 @@ fn rewrite_dns_redirect(cfgs: &mut Configs, profile: &Profile) -> Result<(), Err
     });
 
     // Add redirect if this profile needs DNS hijacking
-    if has_effective_dns(cfgs, profile) || !dns::get_system_dns_servers(cfgs).is_empty() {
+    if profile_dns(cfgs, profile).redirects() {
         cfgs["firewall"].append(
             &FirewallRedirect {
                 name: format!("DNS-Override-{}", profile.id.fullname.replace(" ", "-"),),
@@ -410,34 +387,17 @@ pub(crate) fn rewrite_dns_forwarding(cfgs: &mut Configs, profile: &Profile) -> R
         }
     }
 
-    // Determine the dnsmasq server list based on DNS source:
-    // 1. Custom DNS → SmartDNS profile group
-    // 2. VPN DNS → dnsmasq server IP@interface directly (SmartDNS can't bind to VPN iface)
-    // 3. System DNS (custom) → SmartDNS system group
-    // 4. System DNS (ISP) → no per-profile dnsmasq (uses default resolvfile)
-    let servers: Vec<String> = if !profile.dns_override.is_empty() {
-        // Custom DNS: route through SmartDNS profile group
-        let port = dns::smartdns_port_for_vlan(profile.id.vlan_tag);
-        vec![format!("127.0.0.1#{}", port)]
-    } else if profile.outbound != "wan" {
-        // VPN DNS: use dnsmasq server IP@interface directly
-        let vpn_dns = get_vpn_dns(cfgs, &profile.outbound);
-        if vpn_dns.is_empty() {
-            vec![]
-        } else {
-            vpn_dns
-                .into_iter()
-                .map(|ip| format!("{}@{}", ip, profile.outbound))
-                .collect()
-        }
-    } else {
-        // System DNS: route through SmartDNS system group if configured
-        let system_dns = dns::get_system_dns_servers(cfgs);
-        if !system_dns.is_empty() {
-            vec![format!("127.0.0.1#{}", dns::SMARTDNS_SYSTEM_PORT)]
-        } else {
-            vec![] // ISP mode — no per-profile dnsmasq needed
-        }
+    let servers: Vec<String> = match profile_dns(cfgs, profile) {
+        dns::ProfileDns::Group { .. } => vec![format!(
+            "127.0.0.1#{}",
+            dns::smartdns_port_for_vlan(profile.id.vlan_tag)
+        )],
+        dns::ProfileDns::Vpn { servers, via } => servers
+            .into_iter()
+            .map(|ip| format!("{ip}@{via}"))
+            .collect(),
+        dns::ProfileDns::System => vec![format!("127.0.0.1#{}", dns::SMARTDNS_SYSTEM_PORT)],
+        dns::ProfileDns::Isp | dns::ProfileDns::IspOutsideVpn => vec![],
     };
 
     // Injection needs an instance even in ISP mode; with no `server` list and
@@ -616,7 +576,7 @@ pub(crate) fn get_config(
     } else {
         wip_profile.lan_access = LanAccess::OtherProfiles(other_profiles);
     }
-    wip_profile.dns_source = compute_dns_source(cfgs, &wip_profile);
+    wip_profile.dns_source = profile_dns(cfgs, &wip_profile).source().into();
     Ok(wip_profile)
 }
 
@@ -674,11 +634,7 @@ pub async fn delete<C: CtrlContext>(ctx: C, id: ProfileIdOpt) -> Result<(), Erro
                 if ctx.effectful() {
                     // Regenerate SmartDNS config after UCI dump so the deleted
                     // profile's group is removed.
-                    let smartdns_groups = {
-                        let arena2 = Arena::new();
-                        let cfgs2 = parse_all(ctx.uci_root(), &arena2, &["startwrt"]).await?;
-                        dns::collect_smartdns_groups(&cfgs2)
-                    };
+                    let smartdns_groups = dns::load_smartdns_groups(ctx.uci_root()).await?;
                     dns::apply_smartdns_groups(smartdns_groups).await?;
 
                     // Bring down the WireGuard interface before reloading services.
@@ -1207,11 +1163,7 @@ pub async fn set<C: CtrlContext>(
                 if ctx.effectful() {
                     // Regenerate SmartDNS config after UCI dump so it reflects
                     // any dns_override changes on this profile.
-                    let smartdns_groups = {
-                        let arena2 = Arena::new();
-                        let cfgs2 = parse_all(ctx.uci_root(), &arena2, &["startwrt"]).await?;
-                        dns::collect_smartdns_groups(&cfgs2)
-                    };
+                    let smartdns_groups = dns::load_smartdns_groups(ctx.uci_root()).await?;
                     dns::apply_smartdns_groups(smartdns_groups).await?;
 
                     if admin_ip_changed {
@@ -1637,11 +1589,7 @@ pub async fn create<C: CtrlContext>(
                 if ctx.effectful() {
                     // Regenerate SmartDNS config after UCI dump so it reflects
                     // any dns_override on the new profile.
-                    let smartdns_groups = {
-                        let arena2 = Arena::new();
-                        let cfgs2 = parse_all(ctx.uci_root(), &arena2, &["startwrt"]).await?;
-                        dns::collect_smartdns_groups(&cfgs2)
-                    };
+                    let smartdns_groups = dns::load_smartdns_groups(ctx.uci_root()).await?;
                     dns::apply_smartdns_groups(smartdns_groups).await?;
 
                     // Full network restart (not reload) so netifd re-runs IPv6
@@ -1989,7 +1937,7 @@ fn rewrite_firewall(
     // DNS hijacking: redirect all port 53 traffic to the profile's gateway,
     // where per-profile dnsmasq handles .lan locally and forwards the rest
     // via SmartDNS (for custom/system DNS) or directly (for VPN DNS).
-    if has_effective_dns(cfgs, profile) || !dns::get_system_dns_servers(cfgs).is_empty() {
+    if profile_dns(cfgs, profile).redirects() {
         cfgs["firewall"].append(
             &FirewallRedirect {
                 name: format!("DNS-Override-{}", profile.id.fullname.replace(" ", "-"),),
@@ -7667,5 +7615,194 @@ config dhcp 'guest'
         // From network interface sections and startwrt profiles.
         assert!(reserved.contains("lan"));
         assert!(reserved.contains("guest"));
+    }
+
+    fn guest_via(outbound: &str, dns_override: Vec<dns::DnsServer>) -> Profile<ProfileIdOpt> {
+        Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: outbound.into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override,
+            dns_source: String::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        }
+    }
+
+    fn append(dir: &std::path::Path, config: &str, text: &str) {
+        let mut contents = std::fs::read_to_string(dir.join(config)).unwrap();
+        contents.push_str(text);
+        std::fs::write(dir.join(config), contents).unwrap();
+    }
+
+    fn plain(address: &str) -> dns::DnsServer {
+        dns::DnsServer {
+            address: address.into(),
+            ssl: false,
+        }
+    }
+
+    fn guest_dnsmasq_servers(cfgs: &Configs) -> Option<Vec<String>> {
+        cfgs["dhcp"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some("dns_guest"))
+            .map(|s| s.get::<ProfileDnsmasq>().unwrap().server)
+    }
+
+    fn guest_redirected(cfgs: &Configs) -> bool {
+        cfgs["firewall"].sections.iter().any(|s| {
+            s.get::<FirewallRedirect>()
+                .is_ok_and(|r| r.name == "DNS-Override-Guest")
+        })
+    }
+
+    fn guest_group(cfgs: &Configs) -> Option<dns::SmartDnsGroup> {
+        dns::collect_smartdns_groups(cfgs)
+            .into_iter()
+            .find(|g| g.name == "profile_guest")
+    }
+
+    #[tokio::test]
+    async fn test_vpn_profile_without_any_dns_reports_outside_vpn() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs_with_ipv6_vpn(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+        set_config(ctx.clone(), &mut cfgs, &guest_via("wg_v4", Vec::new())).unwrap();
+
+        assert_eq!(guest_dnsmasq_servers(&cfgs), None);
+        assert!(!guest_redirected(&cfgs));
+        let guest = get_config(ctx, &cfgs, guest_via("wg_v4", Vec::new()).id).unwrap();
+        assert_eq!(guest.dns_source, "system-outside-vpn");
+    }
+
+    #[tokio::test]
+    async fn test_vpn_profile_uses_vpn_dns_through_interface() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs_with_ipv6_vpn(dir.path());
+        let network = std::fs::read_to_string(dir.path().join("network")).unwrap();
+        std::fs::write(
+            dir.path().join("network"),
+            network.replace(
+                "\tlist addresses '10.3.0.2/32'\n",
+                "\tlist addresses '10.3.0.2/32'\n\tlist dns '10.3.0.1'\n",
+            ),
+        )
+        .unwrap();
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+        set_config(ctx.clone(), &mut cfgs, &guest_via("wg_v4", Vec::new())).unwrap();
+
+        let servers = guest_dnsmasq_servers(&cfgs).expect("per-profile dnsmasq");
+        assert!(servers.contains(&"10.3.0.1@wg_v4".to_string()));
+        assert!(guest_redirected(&cfgs));
+        assert!(guest_group(&cfgs).is_none());
+        let guest = get_config(ctx, &cfgs, guest_via("wg_v4", Vec::new()).id).unwrap();
+        assert_eq!(guest.dns_source, "vpn");
+    }
+
+    #[tokio::test]
+    async fn test_vpn_profile_custom_dns_resolves_through_tunnel() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs_with_ipv6_vpn(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+        let profile = guest_via("wg_v4", vec![plain("1.1.1.1")]);
+        set_config(ctx.clone(), &mut cfgs, &profile).unwrap();
+
+        let servers = guest_dnsmasq_servers(&cfgs).expect("per-profile dnsmasq");
+        assert!(servers.contains(&format!("127.0.0.1#{}", dns::smartdns_port_for_vlan(101))));
+        let group = guest_group(&cfgs).expect("profile SmartDNS group");
+        assert_eq!(group.interface.as_deref(), Some("wg_v4"));
+        assert_eq!(group.servers, vec![plain("1.1.1.1")]);
+    }
+
+    #[tokio::test]
+    async fn test_wan_profile_custom_dns_is_not_bound() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs_with_ipv6_vpn(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+        set_config(ctx, &mut cfgs, &guest_via("wan", vec![plain("1.1.1.1")])).unwrap();
+
+        assert_eq!(guest_group(&cfgs).expect("profile group").interface, None);
+    }
+
+    #[tokio::test]
+    async fn test_vpn_profile_without_vpn_dns_uses_system_dns_through_tunnel() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs_with_ipv6_vpn(dir.path());
+        append(
+            dir.path(),
+            "startwrt",
+            "\nconfig system_dns system_dns\n\tlist servers '{\"address\":\"9.9.9.9\",\"ssl\":true}'\n",
+        );
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+        set_config(ctx.clone(), &mut cfgs, &guest_via("wg_v4", Vec::new())).unwrap();
+
+        // The redirect is installed, so the instance must have an upstream.
+        assert!(guest_redirected(&cfgs));
+        let servers = guest_dnsmasq_servers(&cfgs).expect("per-profile dnsmasq");
+        assert!(servers.contains(&format!("127.0.0.1#{}", dns::smartdns_port_for_vlan(101))));
+        assert!(!servers.contains(&format!("127.0.0.1#{}", dns::SMARTDNS_SYSTEM_PORT)));
+        let group = guest_group(&cfgs).expect("profile SmartDNS group");
+        assert_eq!(group.interface.as_deref(), Some("wg_v4"));
+        assert_eq!(
+            group.servers,
+            vec![dns::DnsServer {
+                address: "9.9.9.9".into(),
+                ssl: true
+            }]
+        );
+        let guest = get_config(ctx, &cfgs, guest_via("wg_v4", Vec::new()).id).unwrap();
+        assert_eq!(guest.dns_source, "system");
     }
 }
