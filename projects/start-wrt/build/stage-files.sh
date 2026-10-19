@@ -187,6 +187,13 @@ rm -f /etc/nftables.d/10-startwrt-dnat-mark.nft \
 	/etc/nftables.d/13-startwrt-dns-update-divert.nft
 NFTEOF
 
+cat > "${FILES_DIR}/etc/uci-defaults/91-startwrt-pppoe-ipv6" << 'PPPOEEOF'
+#!/bin/sh
+[ "$(uci -q get network.wan.proto)" = pppoe ] || exit 0
+[ -z "$(uci -q get network.wan.ipv6)" ] || exit 0
+uci set network.wan.ipv6=1
+PPPOEEOF
+
 # sysupgrade keep.d — additional files to include in config backups
 mkdir -p "${FILES_DIR}/lib/upgrade/keep.d"
 cat > "${FILES_DIR}/lib/upgrade/keep.d/startwrt" << 'KEEPEOF'
