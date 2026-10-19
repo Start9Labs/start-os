@@ -1,2 +1,0 @@
-- A daemon that `requires` another starts soon after that daemon becomes ready, even when its ready check reported `loading` while starting.
-- Health checks reporting `waiting` poll every 30 seconds by default, with faster polling while a daemon first becomes ready.

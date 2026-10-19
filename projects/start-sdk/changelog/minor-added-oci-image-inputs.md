@@ -1,1 +1,0 @@
-- Package manifests accept local OCI image layout directories and tar archives through `source.ociLayout`, with optional reference selection.

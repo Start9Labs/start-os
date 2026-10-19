@@ -1,1 +1,0 @@
-- A health check with `gracePeriod: 0` reports its first result as returned, never as `starting`.

@@ -1,1 +1,0 @@
-- **`schemas` exports zod validators for every OS type.** `schemas.Manifest.parse(...)` and friends validate values against the same shapes as the `T` types; `schemas.RPC` holds the StartOS and effects API trees, and `z.toJSONSchema(schema, { io: 'input' | 'output' })` renders JSON Schema for either wire direction. Schemas a package never imports are dropped from its bundle.
