@@ -853,6 +853,41 @@ export const PeerDeleteArgs: z.ZodObject<{
 }).meta({
   id: 'PeerDeleteArgs',
 })
+export const PeerRenameArgs: z.ZodObject<{
+  /**
+   * Profile interface name
+   */
+  profile: z.ZodString
+  /**
+   * Public key of the peer to rename
+   */
+  public_key: z.ZodString
+  /**
+   * New human-readable name for the peer
+   */
+  name: z.ZodString
+}> = /* @__PURE__ */ object({
+  /**
+   * Profile interface name
+   */
+  profile: z.string().meta({
+    description: 'Profile interface name',
+  }),
+  /**
+   * Public key of the peer to rename
+   */
+  public_key: z.string().meta({
+    description: 'Public key of the peer to rename',
+  }),
+  /**
+   * New human-readable name for the peer
+   */
+  name: z.string().meta({
+    description: 'New human-readable name for the peer',
+  }),
+}).meta({
+  id: 'PeerRenameArgs',
+})
 export const PeerSetDnsInjectionArgs: z.ZodObject<{
   /**
    * Profile interface name
@@ -3457,6 +3492,21 @@ export const Api = {
               empty,
             ),
             PeerDeleteArgs,
+          ),
+          _RETURN: /* @__PURE__ */ z.null(),
+        },
+        'peer-rename': {
+          _PARAMS: /* @__PURE__ */ z.intersection(
+            z.intersection(
+              object({
+                format: wire(
+                  IoFormat.nullable().optional(),
+                  IoFormat.nullable(),
+                ),
+              }),
+              empty,
+            ),
+            PeerRenameArgs,
           ),
           _RETURN: /* @__PURE__ */ z.null(),
         },

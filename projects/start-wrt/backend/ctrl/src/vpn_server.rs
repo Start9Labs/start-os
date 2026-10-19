@@ -176,6 +176,20 @@ pub struct PeerDeleteArgs {
 rpc_toolkit::reflect_ts!(PeerDeleteArgs);
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, visit_rs::VisitFields)]
+pub struct PeerRenameArgs {
+    /// Profile interface name
+    #[clap(short, long)]
+    pub profile: String,
+    /// Public key of the peer to rename
+    #[clap(long)]
+    pub public_key: String,
+    /// New human-readable name for the peer
+    #[clap(long)]
+    pub name: String,
+}
+rpc_toolkit::reflect_ts!(PeerRenameArgs);
+
+#[derive(Debug, Clone, Serialize, Deserialize, Parser, visit_rs::VisitFields)]
 pub struct PeerSetDnsInjectionArgs {
     /// Profile interface name
     #[clap(short, long)]
@@ -237,6 +251,12 @@ pub fn vpn_server<C: CtrlContext>() -> ParentHandler<C> {
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
+            "peer-rename",
+            from_fn_async_local(peer_rename)
+                .with_display_serializable()
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
             "peer-set-dns-injection",
             from_fn_async_local(peer_set_dns_injection::<C>).no_display(),
         )
@@ -287,8 +307,9 @@ fn validate_endpoint(endpoint: &str) -> Result<(), Error> {
 }
 
 /// Validate that a peer name is safe for use in UCI config and WireGuard client configs.
+/// A blank name is written as a valueless option that the config parser rejects.
 fn validate_peer_name(name: &str) -> Result<(), Error> {
-    if name.contains('\n') || name.contains('\r') {
+    if name.trim().is_empty() || name.contains('\n') || name.contains('\r') {
         return Err(Error::new(
             eyre!("invalid name: {name}"),
             ErrorKind::InvalidValue,
@@ -1679,6 +1700,83 @@ pub async fn peer_delete(ctx: ServerContext, args: PeerDeleteArgs) -> Result<(),
     }
 }
 
+/// Rename a peer of a VPN server
+#[instrument(skip_all)]
+pub async fn peer_rename(_ctx: ServerContext, args: PeerRenameArgs) -> Result<(), Error> {
+    validate_peer_name(&args.name)?;
+
+    let profile_interface = &args.profile;
+    let wg_interface_name = format!("wg_{}", profile_interface);
+
+    let mut retries = 4;
+    loop {
+        let arena = Arena::new();
+        let mut cfgs = parse_all("/etc/config", &arena, &["network", "startwrt"]).await?;
+
+        let profile_name = {
+            let profile_lookup = profiles::Lookup::parse(ServerContext::default(), &cfgs)?;
+            profile_lookup
+                .from_interface(profile_interface)
+                .map(|p| p.fullname.clone())
+                .unwrap_or_else(|| profile_interface.clone())
+        };
+
+        let vpn_exists = cfgs["startwrt"]
+            .sections
+            .iter()
+            .filter_map(|s| s.get::<UciVpnServer>().ok())
+            .any(|meta| meta.interface == wg_interface_name);
+
+        if !vpn_exists {
+            return Err(Error::new(
+                eyre!("VPN server not found for profile: {}", profile_interface),
+                ErrorKind::NotFound,
+            ));
+        }
+
+        rename_peer_section(
+            &mut cfgs,
+            &arena,
+            &wg_interface_name,
+            &args.public_key,
+            &args.name,
+        )?;
+
+        match dump_all("/etc/config", cfgs).await {
+            Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
+                retries -= 1;
+                continue;
+            }
+            Err(err) => {
+                crate::activity::log(
+                    "vpn-server",
+                    "updated",
+                    false,
+                    &format!(
+                        "Failed to rename peer of inbound VPN for profile '{}'",
+                        profile_name
+                    ),
+                    Some(&err.to_string()),
+                );
+                return Err(err.into());
+            }
+            Ok(()) => {
+                crate::activity::log(
+                    "vpn-server",
+                    "updated",
+                    true,
+                    &format!(
+                        "Renamed peer to '{}' on inbound VPN for profile '{}'",
+                        args.name, profile_name
+                    ),
+                    None,
+                );
+                return Ok(());
+            }
+        }
+    }
+}
+
 /// Sets an inbound peer's DNS-injection permission on its WireGuard peer
 /// section. Revoking it drops the records the peer has published.
 #[instrument(skip_all)]
@@ -1758,6 +1856,48 @@ pub async fn peer_set_dns_injection<C: CtrlContext>(
 }
 
 // === Helper Functions ===
+
+/// Sets the `description` of the peer with the given public key.
+fn rename_peer_section<'a>(
+    cfgs: &mut Configs<'a>,
+    arena: &'a Arena,
+    interface_name: &str,
+    public_key: &str,
+    name: &str,
+) -> Result<(), Error> {
+    let peer_type = format!("wireguard_{}", interface_name);
+    let section = cfgs["network"]
+        .sections
+        .iter_mut()
+        .filter(|s| s.ty() == peer_type)
+        .find(|s| {
+            s.lines.iter().any(|line| {
+                matches!(line, Line::Option { option, value, .. }
+                    if option.as_str() == "public_key" && value.as_str() == public_key)
+            })
+        })
+        .ok_or_else(|| {
+            Error::new(
+                eyre!("Peer with public key {} not found", public_key),
+                ErrorKind::NotFound,
+            )
+        })?;
+
+    let name_str: &'a str = arena.alloc(name.to_string());
+    let existing = section.lines.iter_mut().find_map(|line| match line {
+        Line::Option { option, value, .. } if option.as_str() == "description" => Some(value),
+        _ => None,
+    });
+    match existing {
+        Some(value) => *value = Token::from_str(name_str, arena),
+        None => section.lines.push(Line::Option {
+            option: Token::from_str("description", arena),
+            value: Token::from_str(name_str, arena),
+            comment: LineComment::None,
+        }),
+    }
+    Ok(())
+}
 
 fn add_single_peer<'a>(
     cfgs: &mut Configs<'a>,
@@ -2489,6 +2629,8 @@ config dhcp 'guest'
     #[test]
     fn test_validate_peer_name_invalid() {
         assert!(validate_peer_name("has\nnewline").is_err());
+        assert!(validate_peer_name("").is_err());
+        assert!(validate_peer_name("   ").is_err());
     }
 
     #[test]
@@ -3211,6 +3353,34 @@ config dhcp 'guest'
             .iter()
             .any(|s| s.name().as_deref() == Some("wg_guest_1"));
         assert!(has_1, "wg_guest_1 should still exist");
+    }
+
+    #[tokio::test]
+    async fn test_rename_peer_section() {
+        let dir = tempfile::tempdir().unwrap();
+        let (_, peer0_key, _) = setup_with_vpn_server(dir.path());
+
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            dir.path(),
+            &arena,
+            &["network", "startwrt", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+        let before = get_peers_for_interface(&cfgs, "wg_guest");
+
+        rename_peer_section(&mut cfgs, &arena, "wg_guest", &peer0_key, "Work Phone").unwrap();
+
+        let after = get_peers_for_interface(&cfgs, "wg_guest");
+        assert_eq!(after.len(), 2);
+        assert_eq!(after[0].name, "Work Phone");
+        assert_eq!(after[0].public_key, before[0].public_key);
+        assert_eq!(after[0].ip, before[0].ip);
+        assert_eq!(after[1].name, before[1].name);
+
+        let missing = rename_peer_section(&mut cfgs, &arena, "wg_guest", &gen_key(), "Ghost");
+        assert!(missing.is_err());
     }
 
     #[tokio::test]

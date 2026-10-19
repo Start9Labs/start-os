@@ -33,7 +33,7 @@ Each VPN server row has an actions menu:
 
 - **Enable** / **Disable** — Toggle the server without deleting it. While disabled, clients cannot connect.
 - **Manage clients** — Open the client management page (see below).
-- **Edit** — Change the label, endpoint, Security Profile, or port, then click "Save VPN".
+- **Edit** — Change the label, endpoint, or port, then click "Save VPN". A VPN server belongs to its Security Profile, so moving it to another profile means deleting it and adding a new one.
 - **Delete** — Remove the server (see [Removing a VPN Server](#removing-a-vpn-server)).
 
 ## Managing Clients

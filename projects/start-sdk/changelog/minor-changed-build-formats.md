@@ -1,1 +1,0 @@
-- `make` formats `startos/` instead of rejecting unformatted source. A `Makefile` that overrode `FORMAT_CHECK` overrides `FORMAT` instead.

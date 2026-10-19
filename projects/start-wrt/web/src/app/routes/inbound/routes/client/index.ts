@@ -206,15 +206,16 @@ export default class InboundClients {
 
   rename(peer: VpnServerPeer) {
     const profile = this.server()?.profile
-    if (!profile) return
+    const publicKey = peer.public_key
+    if (!profile || !publicKey) return
 
     this.dialogs
       .open<string>(RENAME_CLIENT, {
         label: this.i18n.transform('Rename Device'),
         data: peer.name,
       })
-      .subscribe(newName => {
-        this.service.addPeer(profile, { ...peer, name: newName })
+      .subscribe(name => {
+        this.service.renamePeer(profile, publicKey, name)
       })
   }
 

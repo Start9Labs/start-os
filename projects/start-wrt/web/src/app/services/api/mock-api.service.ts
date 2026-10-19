@@ -25,6 +25,7 @@ import {
   VpnServerPeerAddArgs,
   VpnServerPeerAddResponse,
   VpnServerPeerDeleteArgs,
+  VpnServerPeerRenameArgs,
   VpnServerSetArgs,
   VpnServers,
   WifiConfig,
@@ -514,6 +515,32 @@ export class MockApiService extends ApiService {
         'updated',
         `Removed peer '${peer.name}' from inbound VPN`,
       )
+    return null
+  }
+
+  async vpnServerPeerRename(params: VpnServerPeerRenameArgs): Promise<null> {
+    await pauseFor(250)
+    const server = this.mockVpnServers.find(s => s.profile === params.profile)
+    const peer = server?.peers.find(p => p.public_key === params.public_key)
+    if (!peer) throw new Error(`Peer ${params.public_key} not found`)
+    this.mockVpnServers = this.mockVpnServers.map(s =>
+      s.profile === params.profile
+        ? {
+            ...s,
+            peers: s.peers.map(p =>
+              p.public_key === params.public_key
+                ? { ...p, name: params.name }
+                : p,
+            ),
+          }
+        : s,
+    )
+    this.persistVpnServers()
+    this.logActivity(
+      'vpn-server',
+      'updated',
+      `Renamed peer to '${params.name}' on inbound VPN`,
+    )
     return null
   }
 
@@ -1327,10 +1354,16 @@ export class MockApiService extends ApiService {
 
   async wanIpv6Set(params: WanIpv6SetRequest): Promise<null> {
     await pauseFor(250)
+    const requested = params.prefix?.replace(/^\//, '') ?? ''
     this.mockWanIpv6 = {
       mode: params.mode,
       address: params.address ?? null,
-      prefix: params.prefix ?? null,
+      prefix:
+        params.mode === 'slaac' || params.mode === 'dhcpv6'
+          ? requested
+            ? `/${requested}`
+            : null
+          : (params.prefix ?? null),
       gateway: params.gateway ?? null,
       ip6prefix: params.ip6prefix ?? null,
       ip6prefixlen: params.ip6prefixlen ?? null,

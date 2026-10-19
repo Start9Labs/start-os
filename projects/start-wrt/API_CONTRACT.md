@@ -452,6 +452,7 @@ struct WanIpv6Response {
 struct WanIpv6SetRequest {
     mode: WanIpv6Mode,
     address: Option<String>,
+    /// SLAAC/DHCPv6: requested delegation length, e.g. "/60"; unset or empty requests auto
     prefix: Option<String>,
     gateway: Option<String>,
     /// Static mode: LAN prefix pool, e.g. "2001:db8::/48"
@@ -1460,6 +1461,22 @@ struct VpnServerPeerDeleteRequest {
 // Response: null
 ```
 
+### `vpn-server.peer-rename`
+
+Changes only the peer's display name. The key, address, and WireGuard session are untouched.
+Fails with `NotFound` if the server or the peer does not exist.
+
+```rust
+#[derive(Deserialize)]
+struct VpnServerPeerRenameRequest {
+    profile: String,
+    public_key: String,
+    /// Validated like `peer-add`'s `name`.
+    name: String,
+}
+// Response: null
+```
+
 ### `vpn-server.peer-set-dns-injection`
 
 ```rust
@@ -2146,6 +2163,7 @@ The daemon (`backend/ctrl/src/bins/daemon.rs`) also serves:
 | `vpn-server.delete`                 | Inbound VPN     |                             |
 | `vpn-server.peer-add`               | Inbound VPN     |                             |
 | `vpn-server.peer-delete`            | Inbound VPN     |                             |
+| `vpn-server.peer-rename`            | Inbound VPN     |                             |
 | `vpn-server.peer-set-dns-injection` | Inbound VPN     |                             |
 | `wifi.get`                          | WiFi            |                             |
 | `wifi.set`                          | WiFi            |                             |
