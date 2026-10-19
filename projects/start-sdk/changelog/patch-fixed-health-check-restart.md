@@ -1,1 +1,0 @@
-- Health checks created with `health.HealthCheck` poll again after stop/start, including checks using `onceTrigger`, and respect the trigger's initial delay.

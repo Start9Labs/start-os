@@ -1,5 +1,42 @@
 # Changelog
 
+## [3.1.0]
+
+### Added
+
+- New service packages include Forgejo Actions workflows alongside GitHub Actions, with build artifacts, releases, registry publishing, and automatic `next` branch synchronization.
+
+- Forward Email is a provider preset in the SMTP input spec, and the presets are listed alphabetically.
+
+- Package manifests accept local OCI image layout directories and tar archives through `source.ociLayout`, with optional reference selection.
+
+- **`sdk.trigger.onceTrigger` runs a health check once, when it starts.** Use it with `gracePeriod: 0` for a check whose result cannot change until `main` restarts.
+
+- **`schemas` exports zod validators for every OS type.** `schemas.Manifest.parse(...)` and friends validate values against the same shapes as the `T` types; `schemas.RPC` holds the StartOS and effects API trees, and `z.toJSONSchema(schema, { io: 'input' | 'output' })` renders JSON Schema for either wire direction. Schemas a package never imports are dropped from its bundle.
+
+### Changed
+
+- `make` formats `startos/` instead of rejecting unformatted source. A `Makefile` that overrode `FORMAT_CHECK` overrides `FORMAT` instead.
+
+- **zod `4.4.3` → `4.6.7`.** `z.deepPartial` is now zod's own: it keeps each object's unknown-key mode but re-unions a discriminated union without its discriminator, as upstream documents; the `zod-deep-partial` dependency is gone and `z.deepLoose` is unchanged. `InputSpec.partialValidator` keeps its own contract (discriminators required, enum-keyed records partial). Also from upstream: `z.compile()` and `.validate()`, `.exactPartial()`, string length bounds counted in code points, and `z.toJSONSchema` merging object intersections and referencing a registered root through `$defs`.
+
+### Fixed
+
+- A daemon that `requires` another starts soon after that daemon becomes ready, even when its ready check reported `loading` while starting.
+- Health checks reporting `waiting` poll every 30 seconds by default, with faster polling while a daemon first becomes ready.
+
+- Health checks created with `health.HealthCheck` poll again after stop/start, including checks using `onceTrigger`, and respect the trigger's initial delay.
+
+- `make install` builds the current variant for the target server's architecture when needed and installs that exact package.
+
+- Keep running daemons' lazy subcontainers alive through dynamic reconciles while their filesystems are still being prepared.
+
+- An action input field that is not required accepts an omitted key, read as `null`, so a service calling the action need not send it.
+
+- `cooldownTrigger` and `statusTrigger` wait out an interval longer than about 24.8 days instead of polling every millisecond, and an interval of `Infinity` stops polling.
+
+- A health check with `gracePeriod: 0` reports its first result as returned, never as `starting`.
+
 ## [3.0.6]
 
 ### Fixed

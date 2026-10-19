@@ -1,1 +1,0 @@
-- An action input field that is not required accepts an omitted key, read as `null`, so a service calling the action need not send it.
