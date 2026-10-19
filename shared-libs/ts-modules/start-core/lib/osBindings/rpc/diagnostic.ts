@@ -78,6 +78,9 @@ export type RpcSchemaTree<Schema> = {
         : never
 }
 export type ApiState = z.output<typeof schemas.ApiState>
+export type DiagnosticUpdateSystemParamsInput = z.input<
+  typeof schemas.DiagnosticUpdateSystemParams
+>
 export type Guid = z.output<typeof schemas.Guid>
 export type HostIdInput = z.input<typeof schemas.HostId>
 export type IoFormatInput = z.input<typeof schemas.IoFormat>
@@ -91,7 +94,6 @@ export type QueryDnsParamsInput = z.input<typeof schemas.QueryDnsParams>
  * IPv4 and an `AAAA` at the box's IPv6 GUA. Either may be absent.
  */
 export type QueryDnsRes = z.output<typeof schemas.QueryDnsRes>
-export type UpdateSystemParamsInput = z.input<typeof schemas.UpdateSystemParams>
 export type UpdateSystemRes = z.output<typeof schemas.UpdateSystemRes>
 export type LogFollowResponse = z.output<typeof schemas.LogFollowResponse>
 export type LogResponse = z.output<typeof schemas.LogResponse>

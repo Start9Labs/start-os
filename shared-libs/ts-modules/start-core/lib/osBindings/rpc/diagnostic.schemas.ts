@@ -14,6 +14,15 @@ export const ApiState: z.ZodEnum<{
 }> = /* @__PURE__ */ z.enum(['error', 'initializing', 'running']).meta({
   id: 'ApiState',
 })
+export const DiagnosticUpdateSystemParams: z.ZodObject<{
+  targetVersion: z.ZodCodec<z.ZodOptional<typeof literal_2>, typeof literal_2>
+  progress: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
+}> = /* @__PURE__ */ object({
+  targetVersion: wire(literal_2.optional(), literal_2),
+  progress: wire(z.boolean().optional(), z.boolean()),
+}).meta({
+  id: 'DiagnosticUpdateSystemParams',
+})
 export const Guid: typeof literal_1 = /* @__PURE__ */ literal_1.meta({
   id: 'Guid',
 })
@@ -66,17 +75,6 @@ export const QueryDnsRes: z.ZodObject<{
   id: 'QueryDnsRes',
   description:
     "What a public domain currently resolves to, per address family. A public\ndomain is DualStack: the operator points an `A` record at the gateway's WAN\nIPv4 and an `AAAA` at the box's IPv6 GUA. Either may be absent.",
-})
-export const UpdateSystemParams: z.ZodObject<{
-  registry: z.ZodString
-  targetVersion: z.ZodCodec<z.ZodOptional<typeof literal_2>, typeof literal_2>
-  progress: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
-}> = /* @__PURE__ */ object({
-  registry: z.string(),
-  targetVersion: wire(literal_2.optional(), literal_2),
-  progress: wire(z.boolean().optional(), z.boolean()),
-}).meta({
-  id: 'UpdateSystemParams',
 })
 export const UpdateSystemRes: z.ZodObject<{
   target: z.ZodCodec<z.ZodOptional<typeof literal_2>, typeof literal_2>
@@ -249,7 +247,7 @@ export const Api = {
           _RETURN: /* @__PURE__ */ z.null(),
         },
         update: {
-          _PARAMS: /* @__PURE__ */ UpdateSystemParams,
+          _PARAMS: /* @__PURE__ */ DiagnosticUpdateSystemParams,
           _RETURN: /* @__PURE__ */ UpdateSystemRes,
         },
       },

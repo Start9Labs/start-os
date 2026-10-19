@@ -1,0 +1,1 @@
+- Diagnostic mode has an **Update server** button that downloads the latest StartOS release, or reinstalls the current one, to apply on restart.
