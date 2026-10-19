@@ -10,7 +10,7 @@ const require = createRequire(import.meta.url)
 const yaml = require('js-yaml')
 const workflow = yaml.load(
   readFileSync(
-    new URL('../../.github/workflows/live-docs-guard.yml', import.meta.url),
+    new URL('../../workflows/live-docs-guard.yml', import.meta.url),
     'utf8',
   ),
 )
