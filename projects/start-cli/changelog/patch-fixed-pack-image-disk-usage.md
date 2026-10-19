@@ -1,0 +1,1 @@
+- `s9pk pack` needs less free disk space to import a container image from a tag or OCI layout.
