@@ -26,18 +26,21 @@ const DDNS_SECTION: &str = "wan";
 
 // ── IPv4 types ──────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, visit_rs::VisitVariants)]
 #[serde(rename_all = "lowercase")]
 pub enum WanIpv4Mode {
     Dhcp,
     Static,
     Pppoe,
 }
+rpc_toolkit::reflect_ts!(WanIpv4Mode);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct WanIpv4Response {
     pub mode: WanIpv4Mode,
     pub assigned_ip: Option<String>,
+    /// Whether the WAN port has link. A failed read reports link.
+    pub carrier: bool,
     pub address: Option<String>,
     pub netmask: Option<String>,
     pub gateway: Option<String>,
@@ -45,8 +48,9 @@ pub struct WanIpv4Response {
     pub password: Option<String>,
     pub device: Option<String>,
 }
+rpc_toolkit::reflect_ts!(WanIpv4Response);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct WanIpv4SetRequest {
     pub mode: WanIpv4Mode,
     pub address: Option<String>,
@@ -56,10 +60,11 @@ pub struct WanIpv4SetRequest {
     pub password: Option<String>,
     pub device: Option<String>,
 }
+rpc_toolkit::reflect_ts!(WanIpv4SetRequest);
 
 // ── IPv6 types ──────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, visit_rs::VisitVariants)]
 #[serde(rename_all = "lowercase")]
 pub enum WanIpv6Mode {
     Disabled,
@@ -70,8 +75,9 @@ pub enum WanIpv6Mode {
     #[serde(rename = "6rd")]
     SixRd,
 }
+rpc_toolkit::reflect_ts!(WanIpv6Mode);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct WanIpv6Response {
     pub mode: WanIpv6Mode,
     pub address: Option<String>,
@@ -85,8 +91,9 @@ pub struct WanIpv6Response {
     /// Static mode: LAN prefix pool for sub-delegation, e.g. "2001:db8:abcd::/48"
     pub lan_prefix: Option<String>,
 }
+rpc_toolkit::reflect_ts!(WanIpv6Response);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct WanIpv6SetRequest {
     pub mode: WanIpv6Mode,
     pub address: Option<String>,
@@ -99,53 +106,60 @@ pub struct WanIpv6SetRequest {
     /// Static mode: LAN prefix pool for sub-delegation, e.g. "2001:db8:abcd::/48"
     pub lan_prefix: Option<String>,
 }
+rpc_toolkit::reflect_ts!(WanIpv6SetRequest);
 
 // ── MAC types ───────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, visit_rs::VisitVariants)]
 #[serde(rename_all = "lowercase")]
 pub enum MacStrategy {
     Router,
     Custom,
 }
+rpc_toolkit::reflect_ts!(MacStrategy);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct WanMacResponse {
     pub strategy: MacStrategy,
     pub mac: String,
     pub default_mac: String,
 }
+rpc_toolkit::reflect_ts!(WanMacResponse);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct WanMacSetRequest {
     pub strategy: MacStrategy,
     pub mac: Option<String>,
 }
+rpc_toolkit::reflect_ts!(WanMacSetRequest);
 
 // ── DNS types ───────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, visit_rs::VisitVariants)]
 #[serde(rename_all = "lowercase")]
 pub enum DnsMode {
     Isp,
     Custom,
 }
+rpc_toolkit::reflect_ts!(DnsMode);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct WanDnsResponse {
     pub mode: DnsMode,
     pub servers: Vec<DnsServer>,
 }
+rpc_toolkit::reflect_ts!(WanDnsResponse);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct WanDnsSetRequest {
     pub mode: DnsMode,
     pub servers: Option<Vec<DnsServer>>,
 }
+rpc_toolkit::reflect_ts!(WanDnsSetRequest);
 
 // ── DDNS types ──────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, visit_rs::VisitVariants)]
 #[serde(rename_all = "lowercase")]
 pub enum DdnsProvider {
     Dyndns,
@@ -154,8 +168,9 @@ pub enum DdnsProvider {
     Duckdns,
     Freedns,
 }
+rpc_toolkit::reflect_ts!(DdnsProvider);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct WanDdnsResponse {
     pub enabled: bool,
     pub provider: DdnsProvider,
@@ -165,8 +180,9 @@ pub struct WanDdnsResponse {
     pub token: Option<String>,
     pub zone: Option<String>,
 }
+rpc_toolkit::reflect_ts!(WanDdnsResponse);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct WanDdnsSetRequest {
     pub enabled: bool,
     pub provider: DdnsProvider,
@@ -176,6 +192,7 @@ pub struct WanDdnsSetRequest {
     pub token: Option<String>,
     pub zone: Option<String>,
 }
+rpc_toolkit::reflect_ts!(WanDdnsSetRequest);
 
 // ── Provider mapping ────────────────────────────────────────
 
@@ -265,6 +282,25 @@ async fn get_assigned_wan_ip() -> Option<String> {
         .map(|s| s.to_string())
 }
 
+async fn get_wan_carrier(device: &str) -> bool {
+    let Ok(output) = tokio::process::Command::new("ubus")
+        .args([
+            "call",
+            "network.device",
+            "status",
+            &serde_json::json!({ "name": device }).to_string(),
+        ])
+        .invoke(ErrorKind::Network.into())
+        .await
+    else {
+        return true;
+    };
+    serde_json::from_slice::<serde_json::Value>(&output)
+        .ok()
+        .and_then(|json| json.get("carrier")?.as_bool())
+        .unwrap_or(true)
+}
+
 async fn get_default_mac(dev_name: &str) -> String {
     // Read the hardware MAC from the WAN device via ip link
     let output = tokio::process::Command::new("ip")
@@ -319,14 +355,18 @@ pub async fn ipv4_get<C: CtrlContext>(ctx: C) -> Result<WanIpv4Response, Error> 
 
     match result {
         Some((mode, iface)) => {
-            let assigned_ip = if effectful {
-                get_assigned_wan_ip().await
+            let (assigned_ip, carrier) = if effectful {
+                (
+                    get_assigned_wan_ip().await,
+                    get_wan_carrier(&iface.device).await,
+                )
             } else {
-                None
+                (None, true)
             };
             Ok(WanIpv4Response {
                 mode,
                 assigned_ip,
+                carrier,
                 address: iface.ipaddr.map(|ip| ip.to_string()),
                 netmask: iface.netmask.map(|m| m.to_string()),
                 gateway: iface.gateway,
@@ -1213,6 +1253,7 @@ config service 'wan'
         let res = ipv4_get(ctx).await.unwrap();
         assert_eq!(res.mode, WanIpv4Mode::Dhcp);
         assert!(res.assigned_ip.is_none()); // effectful=false
+        assert!(res.carrier);
     }
 
     #[tokio::test]

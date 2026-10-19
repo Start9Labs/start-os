@@ -92,7 +92,7 @@ Adres IP lub nazwa domeny, pod którą serwer VPN jest osiągalny dla klientów 
 
 ### Profil bezpieczeństwa
 
-Początkowy zestaw praw dostępu i ograniczeń przypisany klientom, gdy łączą się z serwerem VPN. Wybierz wcześniej utworzony profil lub harmonogram, albo utwórz nowy.
+Początkowy zestaw praw dostępu i ograniczeń przypisany klientom, gdy łączą się z serwerem VPN. Wybierz wcześniej utworzony profil lub harmonogram, albo utwórz nowy. Profil jest ustalony po utworzeniu serwera; aby przenieść VPN do innego profilu, usuń go i dodaj nowy.
 
 ### Port
 
@@ -111,7 +111,7 @@ Przypisany adres IP w sieci lokalnej. Został on skonfigurowany podczas konfigur
 
 ### Routing
 
-Pokazuje tryb routingu ruchu klienta. „Cały ruch” kieruje cały ruch internetowy przez tunel VPN. „Tylko LAN” kieruje przez tunel jedynie ruch sieci lokalnej. Użyj menu akcji, aby przełączać się między trybami.`,
+Pokazuje tryb routingu ruchu klienta. „Cały ruch” kieruje cały ruch internetowy przez tunel VPN. „Tylko LAN” kieruje przez tunel jedynie ruch sieci lokalnej. Aby go zmienić, usuń klienta i dodaj go ponownie z wybranym trybem routingu.`,
   '/inbound/client/dialog-add': `## Przychodzące VPN
 
 ### Etykieta
@@ -473,7 +473,7 @@ Kontroluje, do czego podłączone urządzenie może mieć dostęp w sieci. Przyp
 
 ### Kraj
 
-Kraj, którego przepisy dotyczące Wi-Fi obowiązują router. Decyduje o tym, jakich kanałów może używać każde pasmo i jaka moc nadawania jest dozwolona. Do czasu wybrania kraju router działa w ostrożnym podzbiorze obowiązującym na całym świecie: kanały 1–11 w paśmie 2,4 GHz i kanały 36–48 w paśmie 5 GHz z obniżoną mocą. Zmiana kraju przywraca wybór kanałów na Auto. Wybierz kraj, w którym router fizycznie się znajduje.
+Kraj, którego przepisy dotyczące Wi-Fi obowiązują router. Decyduje o tym, jakich kanałów może używać każde pasmo i jaka moc nadawania jest dozwolona. Do czasu wybrania kraju router działa w ostrożnym podzbiorze obowiązującym na całym świecie: kanały 1–11 w paśmie 2,4 GHz i kanały 36–48 w paśmie 5 GHz z obniżoną mocą. Zmiana kraju przywraca wybór kanałów na Auto i zmniejsza szerokość kanału powyżej 80 MHz do 80 MHz. Wybierz kraj, w którym router fizycznie się znajduje.
 
 ### Włącz Wi-Fi
 
@@ -497,7 +497,11 @@ Podczas korzystania z obu pasm częstotliwości ta opcja tworzy osobne SSID dla 
 
 ### Kanały
 
-Konkretne kanały w obrębie każdego pasma częstotliwości. Wybierz „Auto”, aby router wybrał najlepszy kanał, lub wybierz konkretny kanał, aby uniknąć zakłóceń od sąsiednich sieci. „Auto” pomija kanały z wykrywaniem radaru (DFS). Możesz wybrać taki kanał ręcznie, ale wtedy sieć 5 GHz pojawia się dopiero po minucie lub dłużej przy każdym uruchomieniu routera, gdy nasłuchuje on radaru.`,
+Konkretne kanały w obrębie każdego pasma częstotliwości. Wybierz „Auto”, aby router wybrał najlepszy kanał, lub wybierz konkretny kanał, aby uniknąć zakłóceń od sąsiednich sieci. „Auto” pomija kanały z wykrywaniem radaru (DFS). Możesz wybrać taki kanał ręcznie, ale wtedy sieć 5 GHz pojawia się dopiero po minucie lub dłużej przy każdym uruchomieniu routera, gdy nasłuchuje on radaru.
+
+### Szerokość kanału
+
+Jaką część pasma zajmuje każda sieć. Szersze kanały są szybsze, ale nakładają się na więcej sąsiednich sieci i mają nieco mniejszy zasięg. Każda lista pokazuje szerokości, których wybrany kanał może używać w wybranym kraju. W paśmie 2,4 GHz sieć 40 MHz startuje zamiast tego z szerokością 20 MHz, jeśli nakłada się na nią sąsiednia sieć.`,
 }
 
 export default HELP_PL

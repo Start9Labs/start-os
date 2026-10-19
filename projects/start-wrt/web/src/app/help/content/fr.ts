@@ -92,7 +92,7 @@ L’adresse IP ou le nom de domaine où le serveur VPN peut être joint par les 
 
 ### Profil de sécurité
 
-L’ensemble initial de droits d’accès et de restrictions attribué aux clients lorsqu’ils se connectent au serveur VPN. Sélectionnez un profil ou un planning déjà créé, ou créez-en un nouveau.
+L’ensemble initial de droits d’accès et de restrictions attribué aux clients lorsqu’ils se connectent au serveur VPN. Sélectionnez un profil ou un planning déjà créé, ou créez-en un nouveau. Le profil est fixé une fois le serveur créé ; pour déplacer un VPN vers un autre profil, supprimez-le et ajoutez-en un nouveau.
 
 ### Port
 
@@ -111,7 +111,7 @@ L’adresse IP attribuée sur le réseau local. Elle a été configurée lors de
 
 ### Acheminement
 
-Affiche le mode d’acheminement du trafic du client. « Tout le trafic » achemine tout le trafic Internet par le tunnel VPN. « LAN uniquement » achemine seulement le trafic du réseau local par le tunnel. Utilisez le menu d’actions pour basculer entre les modes.`,
+Affiche le mode d’acheminement du trafic du client. « Tout le trafic » achemine tout le trafic Internet par le tunnel VPN. « LAN uniquement » achemine seulement le trafic du réseau local par le tunnel. Pour le modifier, supprimez le client et ajoutez-le de nouveau avec l’acheminement souhaité.`,
   '/inbound/client/dialog-add': `## VPN entrants
 
 ### Étiquette
@@ -473,7 +473,7 @@ Contrôle ce à quoi l’appareil connecté peut accéder sur le réseau. Attrib
 
 ### Pays
 
-Le pays dont le routeur suit la réglementation Wi-Fi. Il détermine les canaux que chaque bande peut utiliser et la puissance d’émission autorisée. Tant qu’aucun pays n’est sélectionné, le routeur fonctionne avec un sous-ensemble prudent valable dans le monde entier : canaux 1–11 en 2,4 GHz et canaux 36–48 en 5 GHz à puissance réduite. Changer de pays réinitialise la sélection des canaux sur Auto. Choisissez le pays où le routeur se trouve physiquement.
+Le pays dont le routeur suit la réglementation Wi-Fi. Il détermine les canaux que chaque bande peut utiliser et la puissance d’émission autorisée. Tant qu’aucun pays n’est sélectionné, le routeur fonctionne avec un sous-ensemble prudent valable dans le monde entier : canaux 1–11 en 2,4 GHz et canaux 36–48 en 5 GHz à puissance réduite. Changer de pays réinitialise la sélection des canaux sur Auto et ramène à 80 MHz une largeur de canal supérieure à 80 MHz. Choisissez le pays où le routeur se trouve physiquement.
 
 ### Activer le Wi-Fi
 
@@ -497,7 +497,11 @@ Lors de l’utilisation des deux bandes de fréquence, cette option crée des SS
 
 ### Canaux
 
-Canaux spécifiques au sein de chaque bande de fréquence. Sélectionnez « Auto » pour que le routeur choisisse le meilleur canal, ou choisissez un canal spécifique pour éviter les interférences des réseaux voisins. « Auto » ignore les canaux à détection radar (DFS). Vous pouvez en choisir un manuellement, mais le réseau 5 GHz met alors une minute ou plus à apparaître à chaque démarrage du routeur, le temps qu’il écoute les radars.`,
+Canaux spécifiques au sein de chaque bande de fréquence. Sélectionnez « Auto » pour que le routeur choisisse le meilleur canal, ou choisissez un canal spécifique pour éviter les interférences des réseaux voisins. « Auto » ignore les canaux à détection radar (DFS). Vous pouvez en choisir un manuellement, mais le réseau 5 GHz met alors une minute ou plus à apparaître à chaque démarrage du routeur, le temps qu’il écoute les radars.
+
+### Largeur de canal
+
+La part de la bande qu’occupe chaque réseau. Les canaux plus larges sont plus rapides, mais chevauchent davantage de réseaux voisins et portent un peu moins loin. Chaque liste indique les largeurs que le canal sélectionné peut utiliser dans le pays sélectionné. En 2,4 GHz, un réseau de 40 MHz démarre plutôt à 20 MHz si un réseau voisin le chevauche.`,
 }
 
 export default HELP_FR

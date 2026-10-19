@@ -318,6 +318,8 @@ pub struct WifiDevice {
     pub band: String,
     #[uci(inpt)]
     pub channel: WifiChannel,
+    /// PHY mode and channel width, e.g. `HE80` or `HT40+`.
+    pub htmode: Option<String>,
     pub country: Option<String>,
     /// Keeps automatic channel selection off radar-detection channels.
     pub acs_exclude_dfs: Option<bool>,
@@ -499,6 +501,9 @@ pub struct ProfileDnsmasq {
     pub local: Option<String>,
     #[uci(default)]
     pub dhcpscript: Option<String>,
+    /// Extra hosts files; dnsmasq re-reads them on SIGHUP.
+    #[uci(default)]
+    pub addnhosts: Vec<String>,
 }
 
 #[derive(Debug, TypedSection, Default)]
@@ -518,6 +523,11 @@ pub struct DhcpHost {
     /// (startwrt metadata; dnsmasq ignores unknown options). Absent = denied.
     #[uci(default)]
     pub _allow_pcp: Option<String>,
+    /// "1" when this device may publish DNS records into the router's
+    /// resolver (startwrt metadata; dnsmasq ignores unknown options). Absent =
+    /// denied.
+    #[uci(default)]
+    pub _allow_dns_inject: Option<String>,
 }
 
 #[derive(Debug, TypedSection, Default)]

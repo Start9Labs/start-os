@@ -1,0 +1,1 @@
+- Added in-memory database support to patch-db for ephemeral application state.
