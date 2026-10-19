@@ -22,6 +22,8 @@ fn serde_name(v: &impl Serialize) -> String {
 
 pub const WAN_INTERFACE: &str = "wan";
 pub const WAN6_INTERFACE: &str = "wan6";
+/// netifd alias for the `wan` interface's layer-3 device.
+pub const WAN6_DEVICE: &str = "@wan";
 const DDNS_SECTION: &str = "wan";
 
 // ── IPv4 types ──────────────────────────────────────────────
@@ -622,14 +624,14 @@ pub async fn ipv6_set<C: CtrlContext>(
 
             let new_iface = match &req.mode {
                 WanIpv6Mode::Slaac => NetworkInterface {
-                    device: "@wan".to_string(),
+                    device: WAN6_DEVICE.to_string(),
                     proto: InterfaceProto::DHCPV6,
                     reqaddress: Some("try".to_string()),
                     reqprefix: Some(reqprefix.unwrap_or_else(|| "auto".to_string())),
                     ..Default::default()
                 },
                 WanIpv6Mode::Dhcpv6 => NetworkInterface {
-                    device: "@wan".to_string(),
+                    device: WAN6_DEVICE.to_string(),
                     proto: InterfaceProto::DHCPV6,
                     reqaddress: Some("force".to_string()),
                     reqprefix: Some(reqprefix.unwrap_or_else(|| "auto".to_string())),
@@ -644,7 +646,7 @@ pub async fn ipv6_set<C: CtrlContext>(
                     // Parse lan_prefix "addr/len" into ip6prefix for odhcpd distribution
                     let ip6prefix = req.lan_prefix.clone();
                     NetworkInterface {
-                        device: "@wan".to_string(),
+                        device: WAN6_DEVICE.to_string(),
                         proto: InterfaceProto::STATIC,
                         ip6addr,
                         ip6gw: req.gateway.clone(),
@@ -653,7 +655,7 @@ pub async fn ipv6_set<C: CtrlContext>(
                     }
                 }
                 WanIpv6Mode::SixRd => NetworkInterface {
-                    device: "@wan".to_string(),
+                    device: WAN6_DEVICE.to_string(),
                     proto: InterfaceProto::SIXRD,
                     peeraddr: req.border_relay.clone(),
                     ip6prefix: req.ip6prefix.clone(),

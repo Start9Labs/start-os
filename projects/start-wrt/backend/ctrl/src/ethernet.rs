@@ -13,6 +13,7 @@ use crate::invoke::Invoke;
 use crate::prelude::*;
 use crate::profiles::{self, ProfileId, ProfileIdOpt};
 use crate::utils::{DeserializeStdin, HandlerExtSerde};
+use crate::wan::WAN6_DEVICE;
 use crate::CtrlContext;
 
 pub const DEFAULT_LAN_BRIDGE: &str = "br-lan";
@@ -515,11 +516,9 @@ fn set_config(
                 && section.name().as_deref() == Some(DEFAULT_WAN6_INTERFACE)
             {
                 pending_ipv6 = false;
-                if let Some(wan_port) = &ethernet.wan_port {
-                    if ethernet.wan_ipv6 {
-                        iface.device = wan_port.clone();
-                        section.set(&iface)?;
-                    }
+                if ethernet.wan_port.is_some() && ethernet.wan_ipv6 && iface.device != WAN6_DEVICE {
+                    iface.device = WAN6_DEVICE.to_string();
+                    section.set(&iface)?;
                 }
             }
         }
@@ -558,7 +557,7 @@ fn set_config(
         if pending_ipv6 {
             cfgs["network"].append(
                 &NetworkInterface {
-                    device: wan_port.clone(),
+                    device: WAN6_DEVICE.to_string(),
                     proto: InterfaceProto::DHCPV6,
                     ..Default::default()
                 },
@@ -1417,7 +1416,7 @@ config interface 'wan'
         .await
         .unwrap();
 
-        let after = get(ctx).await.unwrap();
+        let after = get(ctx.clone()).await.unwrap();
         assert_eq!(
             after.wan_port.as_deref(),
             Some("eth2"),
@@ -1430,6 +1429,21 @@ config interface 'wan'
         assert!(
             after.ports.contains_key("eth2"),
             "WAN port should appear in ports map"
+        );
+
+        let arena = Arena::new();
+        let cfgs = parse_all(ctx.uci_root(), &arena, &["network"])
+            .await
+            .unwrap();
+        let wan6 = cfgs["network"]
+            .sections
+            .iter()
+            .find(|s| s.name().as_deref() == Some(DEFAULT_WAN6_INTERFACE))
+            .and_then(|s| s.get_typed::<NetworkInterface>().unwrap())
+            .expect("wan6 should survive the round-trip");
+        assert_eq!(
+            wan6.device, WAN6_DEVICE,
+            "wan6 should follow the wan interface"
         );
     }
 
@@ -1643,7 +1657,7 @@ config interface 'guest'
                 if section.name().as_deref() == Some("wan6")
                     && iface.proto == InterfaceProto::DHCPV6
                 {
-                    assert_eq!(iface.device, "eth1");
+                    assert_eq!(iface.device, WAN6_DEVICE);
                     found_wan6 = true;
                 }
             }
