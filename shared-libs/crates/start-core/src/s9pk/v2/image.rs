@@ -100,12 +100,23 @@ fn digest_matches(expected: &str, digest: impl AsRef<[u8]>) -> bool {
     expected.strip_prefix("sha256:") == Some(hex::encode(digest).as_str())
 }
 
-struct DigestReader<R> {
+struct DigestReader<R, H> {
     reader: R,
-    hash: Sha256,
+    hash: H,
+    size: u64,
 }
 
-impl<R: AsyncRead + Unpin> AsyncRead for DigestReader<R> {
+impl<R, H> DigestReader<R, H> {
+    fn new(reader: R, hash: H) -> Self {
+        Self {
+            reader,
+            hash,
+            size: 0,
+        }
+    }
+}
+
+impl<R: AsyncRead + Unpin, H: Digest + Unpin> AsyncRead for DigestReader<R, H> {
     fn poll_read(
         self: Pin<&mut Self>,
         cx: &mut Context<'_>,
@@ -115,7 +126,9 @@ impl<R: AsyncRead + Unpin> AsyncRead for DigestReader<R> {
         let start = buf.filled().len();
         match Pin::new(&mut this.reader).poll_read(cx, buf) {
             Poll::Ready(Ok(())) => {
-                this.hash.update(&buf.filled()[start..]);
+                let read = &buf.filled()[start..];
+                this.hash.update(read);
+                this.size += read.len() as u64;
                 Poll::Ready(Ok(()))
             }
             result => result,
@@ -123,10 +136,9 @@ impl<R: AsyncRead + Unpin> AsyncRead for DigestReader<R> {
     }
 }
 
-async fn layer_reader(
-    source: &impl FileSource,
-) -> Result<Box<dyn AsyncRead + Unpin + Send>, Error> {
-    let mut reader = source.reader().await?;
+async fn layer_reader<'a>(
+    mut reader: impl AsyncRead + Unpin + Send + 'a,
+) -> Result<Box<dyn AsyncRead + Unpin + Send + 'a>, Error> {
     let mut magic = [0; 4];
     reader.read_exact(&mut magic).await?;
     let reader = BufReader::new(Cursor::new(magic).chain(reader));
@@ -218,15 +230,28 @@ pub(super) async fn from_archive<S: FileSource + Clone>(
         .map(|path| {
             archive_file(&archive, path)
                 .cloned()
-                .map(DynFileSource::new)
+                .map(|source| (DynFileSource::new(source), None))
         })
         .collect::<Result<Vec<_>, _>>()?;
     from_layers(config, layers, platform).await
 }
 
+async fn apply_layer(
+    filesystem: &mut LayerFilesystem,
+    reader: impl AsyncRead + Unpin + Send,
+    diff_id: &str,
+) -> Result<(), Error> {
+    let mut reader = DigestReader::new(layer_reader(reader).await?, Sha256::new());
+    filesystem.apply_tar(&mut reader).await?;
+    if !digest_matches(diff_id, reader.hash.finalize()) {
+        return Err(invalid("image layer does not match its configured digest").into());
+    }
+    Ok(())
+}
+
 async fn from_layers(
     config: ArchiveConfig,
-    layers: Vec<DynFileSource>,
+    layers: Vec<(DynFileSource, Option<oci_spec::image::Descriptor>)>,
     platform: &str,
 ) -> Result<(Squashfs<DynFileSource>, DockerImageConfig), Error> {
     if !config.platform.matches(platform) {
@@ -240,14 +265,13 @@ async fn from_layers(
         return Err(invalid("image archive layer count does not match its configuration").into());
     }
     let mut filesystem = LayerFilesystem::new();
-    for (source, diff_id) in layers.iter().zip(diff_ids) {
-        let mut reader = DigestReader {
-            reader: layer_reader(source).await?,
-            hash: Sha256::new(),
-        };
-        filesystem.apply_tar(&mut reader).await?;
-        if !digest_matches(&diff_id, reader.hash.finalize()) {
-            return Err(invalid("image layer does not match its configured digest").into());
+    for ((source, blob), diff_id) in layers.into_iter().zip(diff_ids) {
+        let reader = source.reader().await?;
+        match blob {
+            Some(descriptor) => {
+                oci::apply_blob(&mut filesystem, reader, &diff_id, &descriptor).await?
+            }
+            None => apply_layer(&mut filesystem, reader, &diff_id).await?,
         }
     }
     Ok((

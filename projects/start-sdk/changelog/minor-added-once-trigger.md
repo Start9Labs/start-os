@@ -1,1 +1,0 @@
-- **`sdk.trigger.onceTrigger` runs a health check once, when it starts.** Use it with `gracePeriod: 0` for a check whose result cannot change until `main` restarts.
