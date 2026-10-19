@@ -25,7 +25,7 @@ use crate::context::config::{CONFIG_PATH, ContextConfig};
 use crate::context::{CliContext, RpcContext};
 use crate::middleware::auth::DbContext;
 use crate::middleware::auth::local::{LocalAuthContext, dial_addr, is_loopback, local_auth_header};
-use crate::middleware::auth::signature::{NonceCache, SignatureAuthContext};
+use crate::middleware::auth::signature::{NonceCache, SignatureAuthContext, SignatureAuthMetadata};
 use crate::prelude::*;
 use crate::registry::RegistryDatabase;
 use crate::registry::device_info::{DEVICE_INFO_HEADER, DeviceInfo};
@@ -339,6 +339,8 @@ pub struct RegistryAuthMetadata {
     #[serde(default)]
     admin: bool,
 }
+
+impl SignatureAuthMetadata for RegistryAuthMetadata {}
 
 #[derive(Serialize, Deserialize, VisitFields)]
 pub struct AdminLogRecord {

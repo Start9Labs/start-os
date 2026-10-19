@@ -1,0 +1,2 @@
+- Isolate login rate limits by server address, ingress gateway, and public or private access. Log the client IP, gateway, and address on the first blocked attempt per throttle window.
+- Reject remote requests using unconfigured loopback signing addresses.

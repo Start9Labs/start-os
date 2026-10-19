@@ -20,6 +20,7 @@ use crate::auth::AuthKeys;
 use crate::context::{CliContext, RpcContext};
 use crate::middleware::auth::DbContext;
 use crate::net::http::request_authority;
+use crate::net::request_origin::RequestOrigin;
 use crate::prelude::*;
 use crate::rpc_continuations::OpenAuthedContinuations;
 use crate::sign::commitment::Commitment;
@@ -30,11 +31,7 @@ use crate::util::sync::SyncMutex;
 
 pub const AUTH_SIG_HEADER: &str = "X-Start-Auth-Sig";
 
-/// Upper bound on how much we pre-reserve for a request body from the
-/// attacker-controlled `commitment.size`. A forged self-signature can carry any
-/// size, so an unbounded `with_capacity` would let one tiny request drive a huge
-/// allocation before enrollment is ever checked; the verifier still enforces the
-/// true size/hash as the body streams in, so a larger legitimate body just grows.
+/// Maximum initial allocation from an untrusted commitment size.
 const MAX_BODY_PREALLOC: u64 = 16 * 1024 * 1024;
 
 /// RPC-metadata fields understood by [`SignatureAuth`] when layered over an
@@ -47,10 +44,21 @@ pub struct LoginMetadata {
     pub login: bool,
 }
 
-/// Shared body of the [`SignatureAuthContext::check_pubkey`] impls: reject an
-/// unsigned request, let an as-yet-unenrolled key through the login endpoint,
-/// and otherwise require the key to be enrolled per the context's `is_enrolled`
-/// lookup. Returns the enrolled key so `post_auth_hook` needn't re-encode it.
+/// Identifies password-enrollment requests for login throttling.
+pub trait SignatureAuthMetadata {
+    /// Whether the request enrolls a signer by password.
+    fn is_login(&self) -> bool {
+        false
+    }
+}
+
+impl SignatureAuthMetadata for LoginMetadata {
+    fn is_login(&self) -> bool {
+        self.login
+    }
+}
+
+/// Returns the enrolled key, or `None` for signed login requests.
 pub(crate) fn check_enrolled(
     pubkey: Option<&AnyVerifyingKey>,
     login: bool,
@@ -77,7 +85,7 @@ pub(crate) fn check_enrolled(
 }
 
 pub trait SignatureAuthContext: DbContext {
-    type AdditionalMetadata: DeserializeOwned + Send;
+    type AdditionalMetadata: DeserializeOwned + SignatureAuthMetadata + Send;
     type CheckPubkeyRes: Send;
     fn mutate_nonce_cache<F: FnOnce(&mut NonceCache) -> T, T>(&self, f: F) -> T;
     /// Whether the clock can be trusted - otherwise nonces are LRU evicted
@@ -282,8 +290,7 @@ impl SignatureAuthContext for RpcContext {
     }
 }
 
-/// Format an IP the way `url::Url::host_str` (and `location.hostname`) renders
-/// it, so signature contexts match regardless of how the server was addressed.
+/// Formats an IP as `url::Url::host_str` renders it.
 pub(crate) fn url_host_str(ip: IpAddr) -> InternedString {
     match ip {
         IpAddr::V4(ip) => InternedString::from_display(&ip),
@@ -291,8 +298,14 @@ pub(crate) fn url_host_str(ip: IpAddr) -> InternedString {
     }
 }
 
-/// The loopback IP a request was addressed to, formatted as a signing identity.
+/// A loopback signing identity for requests from a loopback peer.
 fn loopback_identity(request: &Request) -> Option<InternedString> {
+    if !RequestOrigin::from_extensions(request.extensions())
+        .peer_ip
+        .is_some_and(|ip| ip.is_loopback())
+    {
+        return None;
+    }
     let ip: IpAddr = request_authority(request)?
         .host()
         .trim_start_matches('[')
@@ -332,14 +345,16 @@ pub struct Metadata<Additional> {
 
 #[derive(Clone)]
 pub struct SignatureAuth {
-    signer: Option<Result<AnyVerifyingKey, RpcError>>,
+    signer: Option<Result<(AnyVerifyingKey, InternedString), RpcError>>,
     user_agent: Option<HeaderValue>,
+    origin: RequestOrigin,
 }
 impl SignatureAuth {
     pub fn new() -> Self {
         Self {
             signer: None,
             user_agent: None,
+            origin: RequestOrigin::default(),
         }
     }
 }
@@ -393,11 +408,16 @@ pub async fn verify_request_signature<C: SignatureAuthContext>(
     context: &C,
     request: &mut Request,
 ) -> Result<AnyVerifyingKey, Error> {
-    let SignatureHeader {
-        commitment,
-        signer,
-        signature,
-    } = SignatureHeader::from_header(
+    verify_request_signature_with_address(context, request)
+        .await
+        .map(|(signer, _)| signer)
+}
+
+async fn verify_request_signature_with_address<C: SignatureAuthContext>(
+    context: &C,
+    request: &mut Request,
+) -> Result<(AnyVerifyingKey, InternedString), Error> {
+    let header = SignatureHeader::from_header(
         request
             .headers()
             .get(AUTH_SIG_HEADER)
@@ -411,13 +431,16 @@ pub async fn verify_request_signature<C: SignatureAuthContext>(
         .into_iter()
         .collect::<Result<Vec<_>, _>>()?;
     let loopback = loopback_identity(request);
-    let verify =
-        |sig_context: &str| verify_request(&signer, &commitment, sig_context, &signature).is_ok();
-    let verified =
-        sig_contexts.iter().any(|c| verify(c.as_ref())) || loopback.as_deref().is_some_and(verify);
-    if !verified {
+    let address = verified_address(
+        &header,
+        sig_contexts
+            .iter()
+            .map(|c| c.as_ref())
+            .chain(loopback.as_deref()),
+    );
+    let Some(address) = address else {
         tracing::debug!(
-            ?signer,
+            signer = ?header.signer,
             contexts = ?sig_contexts.iter().map(|c| c.as_ref()).collect::<Vec<_>>(),
             "request signature failed verification for every known server identity"
         );
@@ -425,7 +448,10 @@ pub async fn verify_request_signature<C: SignatureAuthContext>(
             eyre!("{}", t!("middleware.auth.invalid-request-signature")),
             ErrorKind::Authorization,
         ));
-    }
+    };
+    let SignatureHeader {
+        commitment, signer, ..
+    } = header;
 
     let now = if context.clock_synced().await {
         let now = SystemTime::now()
@@ -448,7 +474,23 @@ pub async fn verify_request_signature<C: SignatureAuthContext>(
     commitment.copy_to(request, &mut body).await?;
     *request.body_mut() = Body::from(body);
 
-    Ok(signer)
+    Ok((signer, address))
+}
+
+fn verified_address(
+    header: &SignatureHeader,
+    contexts: impl IntoIterator<Item = impl AsRef<str>>,
+) -> Option<InternedString> {
+    contexts.into_iter().find_map(|context| {
+        verify_request(
+            &header.signer,
+            &header.commitment,
+            context.as_ref(),
+            &header.signature,
+        )
+        .is_ok()
+        .then(|| InternedString::from(context.as_ref()))
+    })
 }
 
 pub struct SignatureHeader {
@@ -562,9 +604,10 @@ impl<C: SignatureAuthContext> Middleware<C> for SignatureAuth {
         request: &mut Request,
     ) -> Result<(), axum::response::Response> {
         self.user_agent = request.headers().get(USER_AGENT).cloned();
+        self.origin = RequestOrigin::from_extensions(request.extensions());
         if request.headers().contains_key(AUTH_SIG_HEADER) {
             self.signer = Some(
-                verify_request_signature(context, request)
+                verify_request_signature_with_address(context, request)
                     .await
                     .map_err(RpcError::from),
             );
@@ -578,9 +621,10 @@ impl<C: SignatureAuthContext> Middleware<C> for SignatureAuth {
         request: &mut RpcRequest,
     ) -> Result<(), RpcResponse> {
         async {
-            let signer = self.signer.take().transpose()?;
+            let verified = self.signer.take().transpose()?;
+            let signer = verified.as_ref().map(|(signer, _)| signer);
             if metadata.get_signer {
-                if let Some(signer) = &signer {
+                if let Some(signer) = signer {
                     request.params["__Auth_signer"] = to_value(signer)?;
                 }
             }
@@ -589,8 +633,14 @@ impl<C: SignatureAuthContext> Middleware<C> for SignatureAuth {
                     request.params["__Auth_userAgent"] = to_value(&user_agent)?;
                 }
             }
+            let login = metadata.additional.is_login();
             let db = context.db().peek().await;
-            let res = context.check_pubkey(&db, signer.as_ref(), metadata.additional)?;
+            let res = context.check_pubkey(&db, signer, metadata.additional)?;
+            if login {
+                if let Some((_, address)) = verified {
+                    super::login_rate_limit::check(address, &self.origin)?;
+                }
+            }
             context.post_auth_hook(res, request).await?;
             Ok(())
         }
@@ -722,12 +772,17 @@ mod tests {
     #[test]
     fn loopback_identity_is_the_addressed_loopback_ip() {
         let addressed_to = |host: &str| {
-            loopback_identity(
-                &http::Request::builder()
-                    .header(http::header::HOST, host)
-                    .body(Body::empty())
-                    .unwrap(),
-            )
+            let mut request = http::Request::builder()
+                .header(http::header::HOST, host)
+                .body(Body::empty())
+                .unwrap();
+            request
+                .extensions_mut()
+                .insert(crate::net::web_server::TcpMetadata {
+                    peer_addr: "127.0.0.1:1234".parse().unwrap(),
+                    local_addr: "127.0.0.1:8989".parse().unwrap(),
+                });
+            loopback_identity(&request)
         };
         assert_eq!(
             addressed_to("127.1.1.19:8989").as_deref(),
@@ -738,8 +793,36 @@ mod tests {
         assert_eq!(addressed_to("localhost:8989"), None);
     }
 
-    /// The compact wire form (bare base64 DER, no PEM armor) round-trips and
-    /// verifies.
+    #[test]
+    fn remote_requests_cannot_supply_loopback_signing_identities() {
+        let mut request = http::Request::builder()
+            .header(http::header::HOST, "127.8.9.10:80")
+            .body(Body::empty())
+            .unwrap();
+        request
+            .extensions_mut()
+            .insert(crate::net::web_server::TcpMetadata {
+                peer_addr: "203.0.113.7:1234".parse().unwrap(),
+                local_addr: "192.168.1.2:80".parse().unwrap(),
+            });
+        assert_eq!(loopback_identity(&request), None);
+    }
+
+    #[test]
+    fn login_address_is_the_verified_configured_identity() {
+        let key = AnySigningKey::Ed25519(ed25519_dalek::SigningKey::from_bytes(&[7; 32]));
+        let header = SignatureHeader::sign(&key, BODY, "server.example").unwrap();
+        assert_eq!(
+            verified_address(&header, ["other.example", "server.example"]).as_deref(),
+            Some("server.example")
+        );
+        let unconfigured = SignatureHeader::sign(&key, BODY, "attacker.example").unwrap();
+        assert_eq!(
+            verified_address(&unconfigured, ["other.example", "server.example"]),
+            None
+        );
+    }
+
     #[test]
     fn compact_header_round_trip() {
         let key = AnySigningKey::Ed25519(ed25519_dalek::SigningKey::from_bytes(&[7; 32]));
