@@ -236,8 +236,8 @@ Cargo workspace.
 cargo build -p startwrt-core --bin startwrt                     # host build of the daemon+CLI binary
 cargo check -p startwrt-core --bin startwrt                     # fast type-check
 cargo test  -p startwrt-core -p uciedit -p uciedit_macros       # all start-wrt unit tests
-make start-wrt-test                                          # staging-script tests + containerized Rust tests
-bash projects/start-wrt/build/stage-files.test.sh             # staging-script tests only; no build dependencies
+make start-wrt-test                                             # staging-script tests + containerized Rust tests
+bash projects/start-wrt/build/stage-files.test.sh               # staging-script tests only; no build dependencies
 ```
 
 `startwrt-core` depends on the shared `start-core` crate (aliased as `startos`), plus the
