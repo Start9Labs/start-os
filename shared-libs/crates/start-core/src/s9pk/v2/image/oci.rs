@@ -8,9 +8,6 @@ use oci_spec::image::{
 use sha2::{Digest, Sha256, Sha384, Sha512};
 
 use super::*;
-use crate::s9pk::merkle_archive::source::TmpSource;
-use crate::util::HashWriter;
-use crate::util::io::{TmpDir, create_file};
 
 #[cfg(test)]
 pub(super) mod tests;
@@ -35,32 +32,32 @@ fn blob_path(descriptor: &Descriptor) -> PathBuf {
         .join(descriptor.digest().digest())
 }
 
-async fn checked_copy<H: Digest + Unpin>(
-    source: DynFileSource,
-    descriptor: &Descriptor,
-) -> Result<DynFileSource, Error> {
-    let limit = descriptor
+fn blob_limit(descriptor: &Descriptor) -> Result<u64, Error> {
+    Ok(descriptor
         .size()
         .checked_add(1)
-        .ok_or_else(|| invalid("OCI blob size overflow"))?;
-    let temp = std::sync::Arc::new(TmpDir::new().await?);
-    let path = temp.join("blob");
-    let mut writer = HashWriter::new(H::new(), create_file(&path).await?);
-    let size = tokio::io::copy(&mut source.reader().await?.take(limit), &mut writer).await?;
+        .ok_or_else(|| invalid("OCI blob size overflow"))?)
+}
+
+fn verify_blob(descriptor: &Descriptor, size: u64, digest: impl AsRef<[u8]>) -> Result<(), Error> {
     if size != descriptor.size() {
         return Err(invalid("OCI blob does not match its descriptor size").into());
     }
-    if hex::encode(writer.finish().0.finalize()) != descriptor.digest().digest() {
+    if hex::encode(digest) != descriptor.digest().digest() {
         return Err(invalid("OCI blob does not match its descriptor digest").into());
     }
-    Ok(TmpSource::new(temp, path).into())
+    Ok(())
 }
 
-async fn checked_blob<S: FileSource + Clone>(
+fn unsupported_digest() -> Error {
+    invalid("unsupported OCI digest algorithm").into()
+}
+
+fn blob_source<S: FileSource + Clone>(
     archive: &Squashfs<S>,
     descriptor: &Descriptor,
 ) -> Result<DynFileSource, Error> {
-    let source = if let Some(data) = descriptor.data() {
+    Ok(if let Some(data) = descriptor.data() {
         DynFileSource::new(std::sync::Arc::<[u8]>::from(
             base64::prelude::BASE64_STANDARD
                 .decode(data)
@@ -68,12 +65,60 @@ async fn checked_blob<S: FileSource + Clone>(
         ))
     } else {
         DynFileSource::new(archive_file(archive, &blob_path(descriptor))?.clone())
+    })
+}
+
+async fn checked_blob<S: FileSource + Clone>(
+    archive: &Squashfs<S>,
+    descriptor: &Descriptor,
+) -> Result<Vec<u8>, Error> {
+    let mut bytes = Vec::new();
+    blob_source(archive, descriptor)?
+        .reader()
+        .await?
+        .take(blob_limit(descriptor)?)
+        .read_to_end(&mut bytes)
+        .await?;
+    let digest = match descriptor.digest().algorithm() {
+        DigestAlgorithm::Sha256 => Sha256::digest(&bytes).to_vec(),
+        DigestAlgorithm::Sha384 => Sha384::digest(&bytes).to_vec(),
+        DigestAlgorithm::Sha512 => Sha512::digest(&bytes).to_vec(),
+        _ => return Err(unsupported_digest()),
     };
+    verify_blob(descriptor, bytes.len() as u64, digest)?;
+    Ok(bytes)
+}
+
+async fn apply_verified<H: Digest + Unpin + Send>(
+    filesystem: &mut LayerFilesystem,
+    reader: impl AsyncRead + Unpin + Send,
+    diff_id: &str,
+    descriptor: &Descriptor,
+) -> Result<(), Error> {
+    let mut raw = DigestReader::new(reader.take(blob_limit(descriptor)?), H::new());
+    let applied = apply_layer(filesystem, &mut raw, diff_id).await;
+    tokio::io::copy(&mut raw, &mut tokio::io::sink()).await?;
+    verify_blob(descriptor, raw.size, raw.hash.finalize())?;
+    applied
+}
+
+pub(super) async fn apply_blob(
+    filesystem: &mut LayerFilesystem,
+    reader: impl AsyncRead + Unpin + Send,
+    diff_id: &str,
+    descriptor: &Descriptor,
+) -> Result<(), Error> {
     match descriptor.digest().algorithm() {
-        DigestAlgorithm::Sha256 => checked_copy::<Sha256>(source, descriptor).await,
-        DigestAlgorithm::Sha384 => checked_copy::<Sha384>(source, descriptor).await,
-        DigestAlgorithm::Sha512 => checked_copy::<Sha512>(source, descriptor).await,
-        _ => Err(invalid("unsupported OCI digest algorithm").into()),
+        DigestAlgorithm::Sha256 => {
+            apply_verified::<Sha256>(filesystem, reader, diff_id, descriptor).await
+        }
+        DigestAlgorithm::Sha384 => {
+            apply_verified::<Sha384>(filesystem, reader, diff_id, descriptor).await
+        }
+        DigestAlgorithm::Sha512 => {
+            apply_verified::<Sha512>(filesystem, reader, diff_id, descriptor).await
+        }
+        _ => Err(unsupported_digest()),
     }
 }
 
@@ -190,9 +235,8 @@ pub(super) async fn from_layout<S: FileSource + Clone>(
                     if !visited.insert(entry.digest().to_string()) {
                         continue;
                     }
-                    let source = checked_blob(archive, entry).await?;
                     pending.push(parse_manifest(
-                        &source.to_vec(None).await?,
+                        &checked_blob(archive, entry).await?,
                         entry.media_type(),
                     )?);
                 }
@@ -203,9 +247,9 @@ pub(super) async fn from_layout<S: FileSource + Clone>(
                 {
                     continue;
                 }
-                let source = checked_blob(archive, image.config()).await?;
-                let config: ArchiveConfig = serde_json::from_slice(&source.to_vec(None).await?)
-                    .with_kind(ErrorKind::Deserialization)?;
+                let config: ArchiveConfig =
+                    serde_json::from_slice(&checked_blob(archive, image.config()).await?)
+                        .with_kind(ErrorKind::Deserialization)?;
                 if config.platform.matches(platform) {
                     images
                         .entry(image.config().digest().to_string())
@@ -226,7 +270,7 @@ pub(super) async fn from_layout<S: FileSource + Clone>(
         if !layer_media_type(descriptor.media_type()) {
             return Err(invalid("unsupported OCI layer media type").into());
         }
-        layers.push(checked_blob(archive, &descriptor).await?);
+        layers.push((blob_source(archive, &descriptor)?, Some(descriptor)));
     }
     from_layers(config, layers, platform).await
 }
