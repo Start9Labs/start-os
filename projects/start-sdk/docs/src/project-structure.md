@@ -262,8 +262,11 @@ and signing/S3 secrets described above. The workflows target Forgejo 16 with
 Forgejo Runner 13 or newer. Use isolated x86-64 Ubuntu runner environments labeled
 `ubuntu-latest`, with Node.js 24 for the imported JavaScript actions, Git, npm,
 jq, curl, and passwordless sudo. Build jobs install their Rust, Docker/Buildx,
-QEMU, and squashfs tooling; container-backed runners need privileged Docker
-access. Keep `FREE_DISK_SPACE` disabled on shared hosts: that optional action
+QEMU, and squashfs tooling. Container-backed runners need privileged Docker
+access and a dedicated Docker volume mounted at the job user's
+`$HOME/setup-docker-action` (for example, `/root/setup-docker-action` for root).
+The nested daemon's snapshotter data must be outside the job's overlay filesystem.
+Keep `FREE_DISK_SPACE` disabled on shared hosts: that optional action
 removes host tools and prunes Docker images.
 
 Cross-host reusable calls execute within the selected runner rather than expanding
