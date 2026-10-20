@@ -466,7 +466,7 @@ export default {
   487: 'Nazwa jest za długa (maks. ~12 znaków)',
   488: 'Wprowadź prawidłowy adres MAC (np. AA:BB:CC:DD:EE:FF)',
   489: 'Nieprawidłowy format prefiksu',
-  490: 'Wartość musi być mniejsza niż 128.',
+  490: 'Wprowadź wartość od 48 do 64.',
   491: 'Brama musi być w tej samej podsieci co adres IP WAN',
   492: 'Brama musi być inna niż adres IP WAN',
   493: 'Godzina zakończenia musi być późniejsza niż rozpoczęcia',
@@ -482,7 +482,7 @@ export default {
   503: 'Port jest już używany',
   504: 'Minimalna wartość to {min}',
   505: 'Maksymalna wartość to {max}',
-  506: 'Twój prefiks WAN to /{wanPrefix}. Wprowadź wartość większą niż {wanPrefix} i mniejszą niż 128.',
+  506: 'Dostawca delegował prefiks /{delegatedPrefix}. Wprowadź wartość od {delegatedPrefix} do 64.',
   507: 'Wprowadź wartość z zakresu od {min} do {max}',
   508: 'Klient',
   509: 'Nowy adres IP zacznie obowiązywać przy następnym żądaniu adresu przez to urządzenie od routera — router nie może go wymusić na podłączonym urządzeniu. Najszybszym sposobem na jego zastosowanie jest rozłączenie i ponowne podłączenie urządzenia (Wi-Fi lub Ethernet) albo jego ponowne uruchomienie; zwykle to działa, ale natychmiastowy skutek nie jest gwarantowany. W przeciwnym razie urządzenie samo pobierze nowy adres w ciągu maksymalnie 12 godzin.',
@@ -545,4 +545,5 @@ export default {
   573: 'Cofnij zezwolenie na publikowanie rekordów DNS',
   574: 'Aktualizowanie węzła VPN...',
   575: 'Zaktualizowano węzeł VPN',
+  576: 'Delegowany prefiks',
 } satisfies i18n

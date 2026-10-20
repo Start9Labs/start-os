@@ -471,7 +471,7 @@ export const ENGLISH: Record<string, number> = {
   'Label is too long (max ~12 characters)': 487,
   'Enter a valid MAC address (e.g. AA:BB:CC:DD:EE:FF)': 488,
   'Invalid prefix format': 489,
-  'Value must be less than 128.': 490,
+  'Enter a value from 48 to 64.': 490,
   'Gateway must be on the same subnet as the WAN IP': 491,
   'Gateway must be different from the WAN IP': 492,
   'End time must be later than start time': 493,
@@ -487,7 +487,7 @@ export const ENGLISH: Record<string, number> = {
   'Port is already in use': 503,
   'Minimum value is {min}': 504,
   'Maximum value is {max}': 505,
-  'Your WAN prefix is /{wanPrefix}. Enter a value greater than {wanPrefix} and less than 128.': 506,
+  'Your ISP delegated a /{delegatedPrefix} prefix. Enter a value from {delegatedPrefix} to 64.': 506,
   'Enter a value between {min} and {max}': 507,
   'Client': 508,
   'The new IP address takes effect the next time this device requests one from the router — the router cannot push it to a connected device. The fastest way to apply it is to disconnect and reconnect the device (Wi-Fi or Ethernet) or reboot it; this usually works but is not guaranteed to take effect immediately. Otherwise the device will pick up the new address on its own within up to 12 hours.': 509,
@@ -550,4 +550,5 @@ export const ENGLISH: Record<string, number> = {
   'Revoke DNS record publishing': 573,
   'Updating VPN peer...': 574,
   'VPN peer updated': 575,
+  'Delegated Prefix': 576,
 }

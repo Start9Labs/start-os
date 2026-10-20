@@ -655,12 +655,14 @@ struct LanIpv4SetRequest {
 struct LanIpv6Response {
     slaac: bool,
     dhcpv6: bool,
-    /// Prefix delegation length, e.g. 64
+    /// LAN prefix length in effect: the configured length, lengthened to the
+    /// delegated prefix when shorter.
     prefix: u8,
     /// Current IPv6 address (if assigned)
     ip6addr: Option<String>,
-    /// WAN prefix length (read-only context for the UI)
-    wan_prefix: u8,
+    /// Length of the global prefix the ISP delegated, read from netifd's
+    /// wan6 status; null without one.
+    delegated_prefix: Option<u8>,
 }
 ```
 
@@ -671,9 +673,13 @@ struct LanIpv6Response {
 struct LanIpv6SetRequest {
     slaac: bool,
     dhcpv6: bool,
-    prefix: u8,
+    /// Absent keeps the configured prefix length (64 when none is set).
+    #[serde(default)]
+    prefix: Option<u8>,
 }
 // Response: null
+// With SLAAC enabled, `prefix` outside 48..=64, or shorter than the live
+// delegated prefix, is rejected (`InvalidRequest`), matching the UI validator.
 // Backend: updates UCI dhcp.lan + network.lan, restarts network + odhcpd.
 // Disabling SLAAC while any *enabled* IPv6 published-port rule exists is
 // rejected (`PublishedPortsUseIpv6`): it would strand every pp_*_v6 pinhole on

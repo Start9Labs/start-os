@@ -1253,7 +1253,7 @@ export class MockApiService extends ApiService {
     dhcpv6: true,
     prefix: 64,
     ip6addr: 'fd00::1',
-    wan_prefix: 48,
+    delegated_prefix: 56,
   }
 
   async lanIpv6Get(): Promise<LanIpv6Response> {
@@ -1267,7 +1267,7 @@ export class MockApiService extends ApiService {
       ...this.mockLanIpv6,
       slaac: params.slaac,
       dhcpv6: params.dhcpv6,
-      prefix: params.prefix,
+      prefix: params.prefix ?? this.mockLanIpv6.prefix,
     }
     this.logActivity(
       'lan',

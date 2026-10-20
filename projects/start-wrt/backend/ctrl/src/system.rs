@@ -322,6 +322,34 @@ pub async fn get_wan_ipv6s() -> Result<Vec<Ipv6Addr>, Error> {
     Ok(addrs)
 }
 
+/// Length of the largest global prefix delegated to `wan6`, read from netifd.
+/// `None` without a global delegation or when ubus is unavailable.
+pub async fn read_wan6_delegated_prefix_len() -> Option<u8> {
+    let stdout = tokio::process::Command::new("ubus")
+        .args(["call", "network.interface.wan6", "status"])
+        .invoke(ErrorKind::Network.into())
+        .await
+        .ok()?;
+    let json = serde_json::from_slice::<serde_json::Value>(&stdout).ok()?;
+    delegated_prefix_len(&json)
+}
+
+fn delegated_prefix_len(status: &serde_json::Value) -> Option<u8> {
+    status
+        .get("ipv6-prefix")?
+        .as_array()?
+        .iter()
+        .filter(|entry| {
+            entry
+                .get("address")
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse::<Ipv6Addr>().ok())
+                .is_some_and(|addr| has_global_ipv6(&[addr]))
+        })
+        .filter_map(|entry| u8::try_from(entry.get("mask")?.as_u64()?).ok())
+        .min()
+}
+
 struct RemoteAccessRuleSpec {
     suffix: Option<&'static str>,
     family: Option<&'static str>,
@@ -1512,5 +1540,28 @@ config zone wan
 
         // Should still have exactly 4 rules, not 8
         assert_eq!(count_remote_rules(dir.path()).await, 3);
+    }
+
+    #[test]
+    fn delegated_prefix_len_reads_netifd_mask() {
+        let status = serde_json::json!({
+            "ipv6-prefix": [
+                { "address": "fd12:3456:789a::", "mask": 48 },
+                { "address": "2001:db8:0:100::", "mask": 64 },
+            ]
+        });
+        assert_eq!(delegated_prefix_len(&status), Some(64));
+
+        let status = serde_json::json!({
+            "ipv6-prefix": [
+                { "address": "2001:db8:0:100::", "mask": 60 },
+                { "address": "2001:db8:1::", "mask": 56 },
+            ]
+        });
+        assert_eq!(delegated_prefix_len(&status), Some(56));
+
+        let status = serde_json::json!({ "ipv6-prefix": [] });
+        assert_eq!(delegated_prefix_len(&status), None);
+        assert_eq!(delegated_prefix_len(&serde_json::json!({})), None);
     }
 }

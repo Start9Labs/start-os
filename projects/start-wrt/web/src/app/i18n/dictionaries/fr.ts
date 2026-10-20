@@ -466,7 +466,7 @@ export default {
   487: 'Le nom est trop long (max. ~12 caractères)',
   488: 'Saisissez une adresse MAC valide (p. ex. AA:BB:CC:DD:EE:FF)',
   489: 'Format de préfixe invalide',
-  490: 'La valeur doit être inférieure à 128.',
+  490: 'Saisissez une valeur de 48 à 64.',
   491: 'La passerelle doit être sur le même sous-réseau que l’IP WAN',
   492: 'La passerelle doit être différente de l’IP WAN',
   493: 'L’heure de fin doit être postérieure à l’heure de début',
@@ -482,7 +482,7 @@ export default {
   503: 'Le port est déjà utilisé',
   504: 'La valeur minimale est {min}',
   505: 'La valeur maximale est {max}',
-  506: 'Votre préfixe WAN est /{wanPrefix}. Saisissez une valeur supérieure à {wanPrefix} et inférieure à 128.',
+  506: 'Votre FAI a délégué un préfixe /{delegatedPrefix}. Saisissez une valeur de {delegatedPrefix} à 64.',
   507: 'Saisissez une valeur entre {min} et {max}',
   508: 'Client',
   509: 'La nouvelle adresse IP prendra effet lorsque cet appareil en demandera une au routeur ; le routeur ne peut pas l’imposer à un appareil connecté. Le moyen le plus rapide de l’appliquer est de déconnecter puis de reconnecter l’appareil (Wi-Fi ou Ethernet) ou de le redémarrer ; cela fonctionne généralement, mais une prise d’effet immédiate n’est pas garantie. Sinon, l’appareil adoptera la nouvelle adresse de lui-même sous 12 heures au maximum.',
@@ -545,4 +545,5 @@ export default {
   573: 'Révoquer la publication d’enregistrements DNS',
   574: 'Mise à jour du pair VPN…',
   575: 'Pair VPN mis à jour',
+  576: 'Préfixe délégué',
 } satisfies i18n

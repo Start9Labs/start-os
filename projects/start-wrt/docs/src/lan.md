@@ -30,7 +30,7 @@ Configure IPv6 addressing on the LAN.
 
 - **Enable** — Toggle to enable or disable IPv6 on the LAN. IPv6 addressing uses Stateless Address Autoconfiguration (SLAAC): devices generate their own IPv6 addresses from the router's advertised prefix.
 
-- **Prefix Length** — Shown when IPv6 is enabled. The LAN IPv6 prefix length must be larger (a higher number) than your WAN prefix to create a valid subnet. For example, if your ISP assigns you a `/48` prefix, you can use `/56`, `/60`, or `/64` for the LAN. A `/64` is recommended for most home networks.
+- **Prefix Length** — Shown when IPv6 is enabled. A value from `/48` to `/64`, no shorter than the prefix your ISP delegated. The page summary shows that size as **Delegated Prefix** (**None** when the ISP has delegated none). For example, if your ISP delegates a `/56`, you can use `/56`, `/60`, or `/64` for the LAN; on a `/64` delegation, only `/64`. A `/64` is recommended for most home networks.
 
 > [!NOTE]
 > While any enabled [Published Ports](published-ports.md) rule forwards over IPv6, IPv6 cannot be disabled — devices would lose the addresses those rules depend on. Disable or delete those rules first.
