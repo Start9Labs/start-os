@@ -1339,6 +1339,7 @@ pub async fn set<C: CtrlContext>(
                     // dropping their static DHCP reservations needs a dnsmasq
                     // reload so the device actually releases the pinned IP.
                     if !affected_macs.is_empty() {
+                        crate::published_ports::sync_v6_mac_bind_logged(ctx.uci_root()).await;
                         let _ = crate::run_quiet_async(
                             tokio::process::Command::new("/etc/init.d/firewall").arg("reload"),
                         )
