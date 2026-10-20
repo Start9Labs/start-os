@@ -1,4 +1,4 @@
-import { z } from '../zExport'
+import * as z from '../z'
 import { InitScript } from '../inits'
 import * as T from '../types'
 import { once } from '../util'
@@ -6,14 +6,22 @@ import { InputSpec } from './input/builder'
 import { ExtractInputSpecType } from './input/builder/inputSpec'
 
 type MaybeInputSpec<Type> = {} extends Type ? null : InputSpec<Type>
+/**
+ * The service that reached the action through `effects.action`, which may be
+ * this one. `null` for the user, and for StartOS evaluating a task.
+ */
+export type ActionCaller = T.PackageId | null
+
 export type Run<A extends Record<string, any>> = (options: {
   effects: T.Effects
   input: A
   spec: T.inputSpecTypes.InputSpec
+  caller: ActionCaller
 }) => Promise<(T.ActionResult & { version: '1' }) | null | void | undefined>
 export type GetInput<A extends Record<string, any>> = (options: {
   effects: T.Effects
   prefill: T.DeepPartial<A> | null
+  caller: ActionCaller
 }) => Promise<null | void | undefined | T.DeepPartial<A>>
 
 export type MaybeFn<T, Opts = { effects: T.Effects }> =
@@ -52,14 +60,18 @@ export interface Action<
   Id extends T.ActionId,
   Type extends Record<string, any>,
 > extends ActionInfo<Id, Type> {
-  exportMetadata(options: { effects: T.Effects }): Promise<T.ActionMetadata>
+  exportMetadata(options: {
+    effects: T.Effects
+  }): Promise<T.ActionMetadataInput>
   getInput(options: {
     effects: T.Effects
     prefill: T.DeepPartial<Type> | null
+    caller?: ActionCaller
   }): Promise<T.ActionInput>
   run(options: {
     effects: T.Effects
     input: Type
+    caller?: ActionCaller
   }): Promise<T.ActionResult | null>
 }
 
@@ -74,12 +86,13 @@ class ActionImpl<
   > = {}
   constructor(
     readonly id: Id,
-    private readonly metadataFn: MaybeFn<T.ActionMetadata>,
+    private readonly metadataFn: MaybeFn<T.ActionMetadataInput>,
     private readonly inputSpec: MaybeFn<
       MaybeInputSpec<Type>,
       {
         effects: T.Effects
         prefill: unknown | null
+        caller: ActionCaller
       }
     >,
     private readonly getInputFn: GetInput<Type>,
@@ -87,7 +100,7 @@ class ActionImpl<
   ) {}
   async exportMetadata(options: {
     effects: T.Effects
-  }): Promise<T.ActionMetadata> {
+  }): Promise<T.ActionMetadataInput> {
     const childEffects = options.effects.child(`setupActions/${this.id}`)
     childEffects.constRetry = once(() => {
       this.exportMetadata(options)
@@ -98,10 +111,15 @@ class ActionImpl<
     await options.effects.action.export({ id: this.id, metadata })
     return metadata
   }
-  async getInput(options: {
+  async getInput({
+    caller = null,
+    ...rest
+  }: {
     effects: T.Effects
     prefill: T.DeepPartial<Type> | null
+    caller?: ActionCaller
   }): Promise<T.ActionInput> {
+    const options = { ...rest, caller }
     let spec = {}
     if (this.inputSpec) {
       const inputSpec = await callMaybeFn(this.inputSpec, options)
@@ -124,6 +142,7 @@ class ActionImpl<
   async run(options: {
     effects: T.Effects
     input: Type
+    caller?: ActionCaller
   }): Promise<T.ActionResult | null> {
     let spec = {}
     if (this.inputSpec) {
@@ -141,6 +160,7 @@ class ActionImpl<
         effects: options.effects,
         input: options.input,
         spec,
+        caller: options.caller ?? null,
       })) ?? null
     )
   }
@@ -152,12 +172,13 @@ export const Action = {
     InputSpecType extends InputSpec<Record<string, any>>,
   >(
     id: Id,
-    metadata: MaybeFn<Omit<T.ActionMetadata, 'hasInput'>>,
+    metadata: MaybeFn<Omit<T.ActionMetadataInput, 'hasInput'>>,
     inputSpec: MaybeFn<
       InputSpecType,
       {
         effects: T.Effects
         prefill: unknown | null
+        caller: ActionCaller
       }
     >,
     getInput: GetInput<ExtractInputSpecType<InputSpecType>>,
@@ -173,7 +194,7 @@ export const Action = {
   },
   withoutInput<Id extends T.ActionId>(
     id: Id,
-    metadata: MaybeFn<Omit<T.ActionMetadata, 'hasInput'>>,
+    metadata: MaybeFn<Omit<T.ActionMetadataInput, 'hasInput'>>,
     run: Run<{}>,
   ): Action<Id, {}> {
     return new ActionImpl(

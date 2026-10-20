@@ -10,7 +10,6 @@ use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_f
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tracing::instrument;
-use ts_rs::TS;
 
 use crate::account::AccountInfo;
 use crate::context::config::ServerConfig;
@@ -277,9 +276,7 @@ pub async fn init(
         account.root_ca_cert.to_pem()?,
     )
     .await?;
-    Command::new("update-ca-certificates")
-        .invoke(crate::ErrorKind::OpenSsl)
-        .await?;
+    crate::system::trust_ca::update_trust_store().await?;
     load_ca_cert.complete();
 
     load_wifi.start();
@@ -466,6 +463,7 @@ pub fn init_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "logs",
             from_fn_async(crate::logs::cli_logs::<InitContext, Empty>)
+                .no_ts()
                 .no_display()
                 .with_about("about.display-os-logs"),
         )
@@ -476,6 +474,7 @@ pub fn init_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "kernel-logs",
             from_fn_async(crate::logs::cli_logs::<InitContext, Empty>)
+                .no_ts()
                 .no_display()
                 .with_about("about.display-kernel-logs"),
         )
@@ -488,13 +487,15 @@ pub fn init_api<C: Context>() -> ParentHandler<C> {
         )
 }
 
-#[derive(Debug, Deserialize, Serialize, TS)]
+#[derive(Debug, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct InitProgressRes {
     pub progress: FullProgress,
     pub guid: Guid,
 }
+
+rpc_toolkit::reflect_ts!(InitProgressRes);
+rpc_toolkit::ts_export!(InitProgressRes, namespaces = [""]);
 
 pub async fn init_progress(ctx: InitContext) -> Result<InitProgressRes, Error> {
     let progress_tracker = ctx.progress.clone();

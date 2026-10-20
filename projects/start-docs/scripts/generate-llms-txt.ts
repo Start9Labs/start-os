@@ -54,6 +54,11 @@ const bookInfo: Record<string, { label: string; description: string }> = {
     description:
       'Guides for running Bitcoin, Lightning and related services on StartOS.',
   },
+  support: {
+    label: 'Start9 Support',
+    description:
+      'How to use Start9 Support: accounts, chats with Dux and the Start9 team, privacy, notifications, email and settings.',
+  },
   'start-wrt': {
     label: 'StartWRT',
     description:
@@ -81,8 +86,8 @@ function bookDir(name: string): string {
 }
 
 /**
- * Discover books from versions.conf — the source of truth shared with build.sh,
- * docs-deploy.yml, and nginx routing — resolving each to its source dir.
+ * Discover books from versions.conf — the source of truth shared with build.sh
+ * and the routing it writes into the tree — resolving each to its source dir.
  * Throws if a listed book has no SUMMARY.md so CI fails loudly instead of
  * silently shipping a docs site missing a product's llms.txt (which is what
  * starved the support bot when the books moved into the monorepo).

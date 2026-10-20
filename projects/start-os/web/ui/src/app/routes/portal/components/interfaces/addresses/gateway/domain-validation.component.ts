@@ -416,7 +416,7 @@ export class DomainValidationComponent {
 
     try {
       this.dnsResult.set(
-        await this.api.queryDns({ fqdn: this.context.data.fqdn }),
+        await this.api.rpc.net.dns.query({ fqdn: this.context.data.fqdn }),
       )
     } catch (e: any) {
       this.errorService.handleError(e)
@@ -430,7 +430,7 @@ export class DomainValidationComponent {
 
     try {
       this.portResult.set(
-        await this.api.checkPort({
+        await this.api.rpc.net.gateway.checkPort({
           gateway: this.context.data.gateway.id,
           port: this.context.data.port,
         }),
@@ -449,7 +449,7 @@ export class DomainValidationComponent {
 
     try {
       this.portV6Result.set(
-        (await this.api.checkPortV6({
+        (await this.api.rpc.net.gateway.checkPortV6({
           gateway: this.context.data.gateway.id,
           port: this.context.data.port,
         })) ?? undefined,
@@ -466,7 +466,7 @@ export class DomainValidationComponent {
 
     try {
       this.challengeResult.set(
-        await this.api.checkPort({
+        await this.api.rpc.net.gateway.checkPort({
           gateway: this.context.data.gateway.id,
           port: CHALLENGE_PORT,
         }),
@@ -483,7 +483,7 @@ export class DomainValidationComponent {
 
     try {
       this.challengeV6Result.set(
-        (await this.api.checkPortV6({
+        (await this.api.rpc.net.gateway.checkPortV6({
           gateway: this.context.data.gateway.id,
           port: CHALLENGE_PORT,
         })) ?? undefined,

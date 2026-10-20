@@ -24,13 +24,11 @@ use termion::raw::IntoRawMode;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
-use ts_rs::TS;
 use url::Url;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::package::{
-    InstalledState, ManifestPreference, PackageState, PackageStateMatchModelRef, TaskSeverity,
-    UpdatingState,
+    InstalledState, ManifestPreference, PackageState, PackageStateMatchModelRef, UpdatingState,
 };
 use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard};
@@ -127,8 +125,10 @@ async fn report_failed_rollback(
 
 struct RootCommand(pub String);
 
-#[derive(Clone, Debug, Serialize, Deserialize, Default, TS)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default, VisitFields)]
 pub struct MiB(pub u64);
+
+rpc_toolkit::reflect_ts!(MiB);
 
 impl MiB {
     pub fn new(value: u64) -> Self {
@@ -146,12 +146,14 @@ impl std::fmt::Display for MiB {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, Default, TS)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default, VisitFields)]
 pub struct ServiceStats {
     pub container_id: Arc<ContainerId>,
     pub memory_usage: MiB,
     pub memory_limit: MiB,
 }
+
+rpc_toolkit::reflect_ts!(ServiceStats);
 
 pub struct ServiceRef(Arc<Service>);
 impl ServiceRef {
@@ -328,10 +330,10 @@ impl Service {
             .flatten_ok()
             .map(|a| a.and_then(|a| a))
             .try_collect()?;
-        let procedure_id = Guid::new();
+        let event_id = Guid::new();
         for action_id in tasks {
             if let Some(input) = self
-                .get_action_input(procedure_id.clone(), action_id.clone(), Value::Null)
+                .get_action_input(event_id.clone(), action_id.clone(), Value::Null, None)
                 .await
                 .log_err()
                 .flatten()
@@ -351,13 +353,8 @@ impl Service {
                         })?;
                     }
                 }
-                for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
-                    if pde
-                        .as_tasks()
-                        .de()?
-                        .into_iter()
-                        .any(|(_, t)| t.active && t.task.severity == TaskSeverity::Critical)
-                    {
+                for (id, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
+                    if pde.has_blocking_task(&id)? {
                         pde.as_status_info_mut().stop()?;
                     }
                 }
@@ -372,7 +369,7 @@ impl Service {
     async fn new(
         ctx: RpcContext,
         s9pk: S9pk,
-        procedure_id: Guid,
+        event_id: Guid,
         init_kind: Option<InitKind>,
         recovery_source: Option<impl GenericMountGuard>,
         init_progress: Option<crate::progress::PhaseProgressTrackerHandle>,
@@ -390,6 +387,19 @@ impl Service {
             .await
             .result?;
         let persistent_container = PersistentContainer::new(&ctx, s9pk).await?;
+        let required =
+            effects::dependency::required_base_dependencies(&persistent_container.s9pk).await?;
+        ctx.db
+            .mutate(|db| {
+                db.as_public_mut()
+                    .as_package_data_mut()
+                    .as_idx_mut(&id)
+                    .or_not_found(&id)?
+                    .as_current_dependencies_mut()
+                    .ser(&required)
+            })
+            .await
+            .result?;
         let seed = Arc::new(ServiceActorSeed {
             id,
             persistent_container,
@@ -417,7 +427,7 @@ impl Service {
         service
             .seed
             .persistent_container
-            .init(service.weak(), procedure_id, init_kind)
+            .init(service.weak(), event_id, init_kind)
             .await?;
         service.recheck_tasks().await?;
         if let Some(recovery_guard) = recovery_guard {
@@ -496,13 +506,13 @@ impl Service {
                         }
                     }
                 }
-                // A failed install over pre-existing data (e.g. a 0.3.x conversion) has a
-                // rollback point to put back; don't delete the volumes out from under it.
                 let backup = crate::volume::InstallBackup::of(id);
                 backup.resolve_pending().await.log_err();
-                let keep_volumes = backup.exists().await;
+                // Data that predates the install can lack a backup.
+                let keep_volumes = !backup.is_fresh().await;
                 cleanup(ctx, id, keep_volumes).await.log_err();
                 report_failed_rollback(ctx, id, backup.restore().await).await?;
+                backup.remove().await.log_err();
                 ctx.db
                     .mutate(|v| v.as_public_mut().as_package_data_mut().remove(id))
                     .await
@@ -697,8 +707,7 @@ impl Service {
         let manifest = s9pk.as_manifest().clone();
         crate::volume::ensure_volume_root(&manifest.id).await?;
         let developer_key = s9pk.as_archive().signer();
-        let icon = s9pk.icon_data_url().await?;
-        let procedure_id = Guid::new();
+        let event_id = Guid::new();
         let (finalization_progress, overall_progress) = match progress {
             Some(InstallProgressHandles {
                 finalization_progress,
@@ -709,7 +718,7 @@ impl Service {
         let service = Self::new(
             ctx.clone(),
             s9pk,
-            procedure_id.clone(),
+            event_id.clone(),
             Some(kind),
             recovery_source,
             finalization_progress,
@@ -724,7 +733,7 @@ impl Service {
                     .as_idx_mut(&manifest.id)
                     .or_not_found(&manifest.id)?;
                 let actions = entry.as_actions().keys()?;
-                if entry.as_tasks_mut().mutate(|t| {
+                entry.as_tasks_mut().mutate(|t| {
                     t.retain(|id, v| {
                         v.task.package_id != manifest.id
                             || if actions.contains(&v.task.action_id) {
@@ -740,9 +749,9 @@ impl Service {
                                 false
                             }
                     });
-                    Ok(t.iter()
-                        .any(|(_, t)| t.active && t.task.severity == TaskSeverity::Critical))
-                })? {
+                    Ok(())
+                })?;
+                if entry.has_blocking_task(&manifest.id)? {
                     entry.as_status_info_mut().stop()?;
                 }
                 entry
@@ -750,7 +759,6 @@ impl Service {
                     .ser(&PackageState::Installed(InstalledState { manifest }))?;
                 entry.as_s9pk_mut().ser(s9pk_path)?;
                 entry.as_developer_key_mut().ser(&Pem::new(developer_key))?;
-                entry.as_icon_mut().ser(&icon)?;
                 entry.as_registry_mut().ser(registry)?;
                 entry.as_status_info_mut().as_error_mut().ser(&None)?;
 
@@ -891,13 +899,15 @@ struct ServiceActorSeed {
     init_phase: SyncMutex<Option<crate::progress::PhaseProgressTrackerHandle>>,
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
-#[ts(export)]
 pub struct RebuildParams {
     #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
 }
+
+rpc_toolkit::reflect_ts!(RebuildParams);
+rpc_toolkit::ts_export!(RebuildParams, namespaces = [""]);
 pub async fn rebuild(ctx: RpcContext, RebuildParams { id }: RebuildParams) -> Result<(), Error> {
     ctx.services.load(&ctx, &id, LoadDisposition::Retry).await?;
     Ok(())
@@ -916,27 +926,47 @@ impl std::fmt::Display for SubcontainerInfo {
     }
 }
 
-#[derive(Deserialize, Serialize, TS)]
+#[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct AttachParams {
     pub id: PackageId,
-    #[ts(type = "string[]")]
+    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(opaque, type_attributes(visit::wire))]
     pub command: Vec<OsString>,
     pub tty: bool,
     pub stderr_tty: bool,
     pub pty_size: Option<TermSize>,
-    #[ts(skip)]
+    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
     #[serde(rename = "__Auth_signer")]
+    #[visit(opaque, type_attributes(visit::wire))]
     signer: Option<InternedString>,
-    #[ts(type = "string | null")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
+    #[visit(opaque, type_attributes(visit::wire))]
     subcontainer: Option<Guid>,
-    #[ts(type = "string | null")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
+    #[visit(opaque, type_attributes(visit::wire))]
     name: Option<InternedString>,
-    #[ts(type = "string | null")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
+    #[visit(opaque, type_attributes(visit::wire))]
     image_id: Option<ImageId>,
-    #[ts(type = "string | null")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
+    #[visit(opaque, type_attributes(visit::wire))]
     user: Option<InternedString>,
 }
+
+rpc_toolkit::reflect_ts!(AttachParams);
 pub async fn attach(
     ctx: RpcContext,
     AttachParams {

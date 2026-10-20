@@ -10,7 +10,6 @@ use imbl_value::InternedString;
 use patch_db::TypedDbWatch;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
-use ts_rs::TS;
 
 use crate::db::model::package::PackageState;
 use crate::db::model::public::NetworkInterfaceInfo;
@@ -63,9 +62,7 @@ impl<K: Ord + Clone + Send + Sync + 'static> DbWatchedCallbacks<K> {
                             let mut watch = watch.untyped();
                             if watch.changed().await.is_ok() {
                                 if let Some(cbs) = this.inner.mutate(|map| {
-                                    map.remove(&k)
-                                        .map(|(_, handlers)| CallbackHandlers(handlers))
-                                        .filter(|cb| !cb.0.is_empty())
+                                    map.remove(&k).and_then(CallbackHandlers::detach_watcher)
                                 }) {
                                     let value = watch.peek_and_mark_seen().unwrap_or_default();
                                     if let Err(e) = cbs.call(vector![value]).await {
@@ -223,13 +220,12 @@ impl ServiceCallbacks {
                                     return Ok(());
                                 };
 
-                                if let Some((_, callbacks)) =
-                                    ctx.seed.ctx.callbacks.mutate(|this| {
-                                        this.get_ssl_certificate
-                                            .remove(&(hostnames, cert, algorithm))
-                                    })
-                                {
-                                    CallbackHandlers(callbacks).call(vector![]).await?;
+                                if let Some(cbs) = ctx.seed.ctx.callbacks.mutate(|this| {
+                                    this.get_ssl_certificate
+                                        .remove(&(hostnames, cert, algorithm))
+                                        .and_then(CallbackHandlers::detach_watcher)
+                                }) {
+                                    cbs.call(vector![]).await?;
                                 }
                                 Ok::<_, Error>(())
                             }
@@ -315,8 +311,7 @@ impl ServiceCallbacks {
                             if let Some(cbs) = callbacks.mutate(|this| {
                                 this.get_outbound_gateway
                                     .remove(&key)
-                                    .map(|(_, handlers)| CallbackHandlers(handlers))
-                                    .filter(|cb| !cb.0.is_empty())
+                                    .and_then(CallbackHandlers::detach_watcher)
                             }) {
                                 if let Err(e) = cbs.call(vector![]).await {
                                     tracing::error!("Error in outbound gateway callback: {e}");
@@ -373,6 +368,16 @@ impl Drop for CallbackHandler {
 
 pub struct CallbackHandlers(Vec<CallbackHandler>);
 impl CallbackHandlers {
+    /// Called by a watcher on its own entry, whose handle aborts it on drop.
+    fn detach_watcher(
+        (watcher, handlers): (NonDetachingJoinHandle<()>, Vec<CallbackHandler>),
+    ) -> Option<Self> {
+        // The map held the only handle. All the watcher has left is `call`,
+        // a notify per handler that awaits no reply.
+        watcher.detach();
+        Some(Self(handlers)).filter(|cbs| !cbs.0.is_empty())
+    }
+
     pub async fn call(self, args: Vector<Value>) -> Result<(), Error> {
         let mut err = ErrorCollection::new();
         for res in join_all(self.0.into_iter().map(|cb| cb.call(args.clone()))).await {
@@ -382,16 +387,24 @@ impl CallbackHandlers {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
+#[derive(Debug, Clone, Serialize, Deserialize, VisitFields, Parser)]
 #[group(skip)]
-#[ts(type = "{ only: number[] } | { except: number[] }")]
-#[ts(export)]
+#[visit(
+    ts(
+        type = "z.union([z.object({ only: z.array(z.number()) }), z.object({ except: z.array(z.number()) })])"
+    ),
+    wire = "rpc_toolkit::ts::Unknown"
+)]
+#[visit(opaque, type_attributes(visit::wire))]
 pub struct ClearCallbacksParams {
     #[arg(long, conflicts_with = "except", help = "help.arg.only-callbacks")]
     pub only: Option<Vec<CallbackId>>,
     #[arg(long, conflicts_with = "only", help = "help.arg.except-callbacks")]
     pub except: Option<Vec<CallbackId>>,
 }
+
+rpc_toolkit::reflect_ts!(ClearCallbacksParams);
+rpc_toolkit::ts_export!(ClearCallbacksParams, namespaces = [""]);
 
 pub(super) fn clear_callbacks(
     context: EffectContext,

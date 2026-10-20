@@ -6,7 +6,6 @@ use color_eyre::eyre::eyre;
 use exver::{Version, VersionRange};
 use imbl_value::{InOMap, InternedString};
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 pub use crate::PackageId;
 use crate::dependencies::Dependencies;
@@ -25,16 +24,13 @@ pub(crate) fn current_version() -> Version {
     Current::default().semver()
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel, VisitFields)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct Manifest {
     pub id: PackageId,
     pub version: VersionString,
-    #[ts(type = "string")]
     pub can_migrate_to: VersionRange,
-    #[ts(type = "string")]
     pub can_migrate_from: VersionRange,
     #[serde(flatten)]
     pub metadata: PackageMetadata,
@@ -45,6 +41,9 @@ pub struct Manifest {
     #[serde(default)]
     pub hardware_requirements: HardwareRequirements,
 }
+
+rpc_toolkit::reflect_ts!(Manifest);
+rpc_toolkit::ts_export!(Manifest, namespaces = [""]);
 impl Manifest {
     pub fn validate_for<'a, T: Clone>(
         &self,
@@ -91,26 +90,16 @@ impl Manifest {
             }
         }
         for (image_id, config) in &self.images {
-            let mut check_arch = |arch: &str| {
-                let mut arch = arch;
-                if let Err(e) = expected.check_file(
+            let mut check_arch = |requested: &str| {
+                let arch = config
+                    .resolve_arch(requested, image_id, archive)
+                    .unwrap_or(requested);
+                expected.check_file(
                     Path::new("images")
                         .join(arch)
                         .join(image_id)
                         .with_extension("squashfs"),
-                ) {
-                    if let Some(emulate_as) = &config.emulate_missing_as {
-                        expected.check_file(
-                            Path::new("images")
-                                .join(emulate_as)
-                                .join(image_id)
-                                .with_extension("squashfs"),
-                        )?;
-                        arch = &**emulate_as;
-                    } else {
-                        return Err(e);
-                    }
-                }
+                )?;
                 expected.check_file(
                     Path::new("images")
                         .join(arch)
@@ -123,7 +112,7 @@ impl Manifest {
                         .join(image_id)
                         .with_extension("env"),
                 )?;
-                Ok(())
+                Ok::<(), Error>(())
             };
             if let Some(arch) = arch {
                 check_arch(arch)?;
@@ -131,20 +120,14 @@ impl Manifest {
                 for arch in arches {
                     check_arch(arch)?;
                 }
-            } else if let Some(arch) = config.emulate_missing_as.as_deref() {
-                if !config.arch.contains(arch) {
-                    return Err(Error::new(
-                        eyre!("`emulateMissingAs` must match an included `arch`"),
-                        ErrorKind::ParseS9pk,
-                    ));
-                }
+            } else if config.emulate_missing && !config.arch.is_empty() {
                 for arch in &config.arch {
-                    check_arch(&arch)?;
+                    check_arch(arch)?;
                 }
             } else {
                 return Err(Error::new(
                     eyre!(
-                        "`emulateMissingAs` required for all images if no `arch` specified in `hardwareRequirements`"
+                        "`emulateMissing` required for all images if no `arch` specified in `hardwareRequirements`"
                     ),
                     ErrorKind::ParseS9pk,
                 ));
@@ -154,17 +137,27 @@ impl Manifest {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, TS, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, VisitFields, PartialEq)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct HardwareRequirements {
     #[serde(default)]
     pub device: Vec<DeviceFilter>,
-    #[ts(type = "number | null")]
+    #[visit(
+        ts(type = "z.number().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
+    #[visit(opaque, type_attributes(visit::wire))]
     pub ram: Option<u64>,
-    #[ts(type = "string[] | null")]
+    #[visit(
+        ts(type = "z.array(z.string()).nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
+    #[visit(opaque, type_attributes(visit::wire))]
     pub arch: Option<BTreeSet<InternedString>>,
 }
+
+rpc_toolkit::reflect_ts!(HardwareRequirements);
+rpc_toolkit::ts_export!(HardwareRequirements, namespaces = [""]);
 impl HardwareRequirements {
     /// Returns true if this s9pk's hardware requirements are satisfied by the given hardware.
     pub fn is_compatible(&self, hw: &crate::registry::device_info::HardwareInfo) -> bool {
@@ -202,12 +195,18 @@ impl HardwareRequirements {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, TS)]
-#[ts(type = "string | Record<string, string>")]
+#[derive(Clone, Debug, PartialEq, VisitVariants)]
+#[visit(
+    ts(type = "z.union([z.string(), z.record(z.string(), z.string())])"),
+    wire = "rpc_toolkit::ts::Unknown"
+)]
+#[visit(opaque, type_attributes(visit::wire))]
 pub enum LocaleString {
     Translated(String),
     LanguageMap(InOMap<InternedString, String>),
 }
+
+rpc_toolkit::reflect_ts!(LocaleString);
 impl std::str::FromStr for LocaleString {
     type Err = std::convert::Infallible;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -314,22 +313,36 @@ impl ValueParserFactory for LocaleString {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct DeviceFilter {
     pub description: String,
-    #[ts(type = "\"processor\" | \"display\"")]
+    #[visit(
+        ts(type = "z.enum([\"processor\", \"display\"])"),
+        wire = "rpc_toolkit::ts::Unknown"
+    )]
+    #[visit(opaque, type_attributes(visit::wire))]
     pub class: InternedString,
-    #[ts(type = "string | null")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
+    #[visit(opaque, type_attributes(visit::wire))]
     pub product: Option<Regex>,
-    #[ts(type = "string | null")]
+    #[visit(
+        ts(type = "z.string().nullable()"),
+        wire = "Option<rpc_toolkit::ts::Unknown>"
+    )]
+    #[visit(opaque, type_attributes(visit::wire))]
     pub vendor: Option<Regex>,
-    #[ts(optional)]
+
     pub capabilities: Option<BTreeSet<InternedString>>,
-    #[ts(optional)]
+
     pub driver: Option<InternedString>,
 }
+
+rpc_toolkit::reflect_ts!(DeviceFilter);
+rpc_toolkit::ts_export!(DeviceFilter, namespaces = [""]);
 // Omit description
 impl PartialEq for DeviceFilter {
     fn eq(&self, other: &Self) -> bool {
@@ -418,12 +431,14 @@ impl DeviceFilter {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, TS, PartialEq)]
-#[ts(export)]
+#[derive(Clone, Debug, Deserialize, Serialize, VisitFields, PartialEq)]
 pub struct Description {
     pub short: LocaleString,
     pub long: LocaleString,
 }
+
+rpc_toolkit::reflect_ts!(Description);
+rpc_toolkit::ts_export!(Description, namespaces = [""]);
 impl Description {
     pub fn localize_for(&mut self, locale: &str) {
         self.short.localize_for(locale);
@@ -462,4 +477,103 @@ impl Description {
         }
         Ok(())
     }
+}
+
+#[test]
+fn legacy_emulation_uses_the_image_kept_in_a_cross_arch_backup() {
+    let manifest: Manifest = serde_json::from_value(serde_json::json!({
+        "id": "test",
+        "version": "1.0.0:0",
+        "canMigrateTo": "*",
+        "canMigrateFrom": "*",
+        "title": "Test",
+        "description": { "short": "Test", "long": "Test" },
+        "releaseNotes": "Test",
+        "gitHash": null,
+        "license": "MIT",
+        "packageRepo": "https://example.com",
+        "upstreamRepo": "https://example.com",
+        "marketingUrl": null,
+        "donationUrl": null,
+        "osVersion": "0.4.0",
+        "sdkVersion": "2.0.9",
+        "hardwareAcceleration": false,
+        "userspaceFilesystems": false,
+        "virtualNetworking": false,
+        "hardwareVirtualization": false,
+        "plugins": [],
+        "satisfies": [],
+        "images": {
+            "main": {
+                "source": "packed",
+                "arch": ["aarch64"],
+                "emulateMissingAs": "x86_64",
+                "nvidiaContainer": false
+            }
+        },
+        "volumes": [],
+        "dependencies": {},
+        "hardwareRequirements": {
+            "device": [],
+            "ram": null,
+            "arch": ["aarch64"]
+        }
+    }))
+    .unwrap();
+    let image = manifest.images.values().next().unwrap();
+    assert!(image.emulate_missing);
+    let serialized = serde_json::to_value(image).unwrap();
+    assert_eq!(serialized["emulateMissing"], true);
+    assert_eq!(serialized["emulateMissingAs"], "x86_64");
+
+    let mut archive = DirectoryContents::new();
+    for path in [
+        "manifest.json",
+        "icon.png",
+        "LICENSE.md",
+        "instructions.md",
+        "javascript.squashfs",
+        "assets.squashfs",
+        "images/aarch64/main.squashfs",
+        "images/aarch64/main.json",
+        "images/aarch64/main.env",
+    ] {
+        archive
+            .insert_path(path, crate::s9pk::merkle_archive::Entry::file(()))
+            .unwrap();
+    }
+
+    manifest.validate_for(Some("x86_64"), &archive).unwrap();
+}
+
+#[test]
+fn current_emulation_flag_uses_only_the_boolean_field() {
+    let image: ImageConfig = serde_json::from_value(serde_json::json!({
+        "source": "packed",
+        "arch": ["x86_64"],
+        "emulateMissing": true,
+        "nvidiaContainer": false
+    }))
+    .unwrap();
+
+    assert!(image.emulate_missing);
+    let serialized = serde_json::to_value(image).unwrap();
+    assert_eq!(serialized["emulateMissing"], true);
+    assert!(serialized.get("emulateMissingAs").is_none());
+}
+
+#[test]
+fn legacy_null_emulation_fallback_migrates_to_false() {
+    let image: ImageConfig = serde_json::from_value(serde_json::json!({
+        "source": "packed",
+        "arch": ["x86_64"],
+        "emulateMissingAs": null,
+        "nvidiaContainer": false
+    }))
+    .unwrap();
+
+    assert!(!image.emulate_missing);
+    let serialized = serde_json::to_value(image).unwrap();
+    assert_eq!(serialized["emulateMissing"], false);
+    assert!(serialized.get("emulateMissingAs").is_none());
 }

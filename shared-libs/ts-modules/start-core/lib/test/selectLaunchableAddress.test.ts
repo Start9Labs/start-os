@@ -42,6 +42,7 @@ function hostWith(
     enabled: [],
     disabled: options.disabled ?? [],
     guaWan: [],
+    lanEnabled: [],
     available,
   }
   const bindInfo = {
@@ -81,7 +82,7 @@ function select(
     masked: false,
     addressInfo,
     type: 'ui' as const,
-    preferredLauncherAddress: preferred,
+    preferredLauncherAddress: preferred ?? null,
   }
   return selectLaunchableAddress(ui, hostWith(available, options), {
     accessType,

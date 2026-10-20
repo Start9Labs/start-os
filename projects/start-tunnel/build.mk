@@ -5,11 +5,12 @@ TUNNEL_TARGETS := target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox pr
 
 start-tunnel: target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox
 
-start-tunnel-install: target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox projects/start-tunnel/start-tunneld.service
+start-tunnel-install: $(TUNNEL_TARGETS) build/bash-completion
 	$(call mkdir,$(DESTDIR)/usr/bin)
 	$(call cp,target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox,$(DESTDIR)/usr/bin/start-tunnelbox)
 	$(call ln,/usr/bin/start-tunnelbox,$(DESTDIR)/usr/bin/start-tunneld)
 	$(call ln,/usr/bin/start-tunnelbox,$(DESTDIR)/usr/bin/start-tunnel)
+	$(call install-bash-completion,start-tunnel)
 
 	$(call mkdir,$(DESTDIR)/lib/systemd/system)
 	$(call cp,projects/start-tunnel/start-tunneld.service,$(DESTDIR)/lib/systemd/system/start-tunneld.service)
@@ -22,20 +23,19 @@ start-tunnel-install: target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbo
 	$(call mkdir,$(DESTDIR)/usr/share/keyrings)
 	$(call cp,apt/start9.gpg,$(DESTDIR)/usr/share/keyrings/start9.gpg)
 
-target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox: $(CORE_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) projects/start-tunnel/web/dist/static/start-tunnel/index.html projects/start-tunnel/build/build-tunnelbox.sh
+target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox: $(CORE_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) projects/start-tunnel/web/dist/static/start-tunnel/immutable-assets.txt projects/start-tunnel/build/build-tunnelbox.sh
 	ARCH=$(ARCH) PROFILE=$(PROFILE) ./projects/start-tunnel/build/build-tunnelbox.sh
 
 start-tunnel-deb: results/$(TUNNEL_BASENAME).deb
 
-results/$(TUNNEL_BASENAME).deb: debian/build.sh $(call ls-files,projects/start-tunnel/debian) $(TUNNEL_TARGETS) build/lib/scripts/forward-port
-	PROJECT=start-tunnel PLATFORM=$(ARCH) REQUIRES=debian DEPENDS=wireguard-tools,iptables,nftables,conntrack ./build/os-compat/run-compat.sh ./debian/build.sh
+results/$(TUNNEL_BASENAME).deb: debian/build.sh build/common.mk build/bash-completion projects/start-tunnel/build.mk $(call ls-files,projects/start-tunnel/debian) $(TUNNEL_TARGETS) build/lib/scripts/forward-port
+	PROJECT=start-tunnel PLATFORM=$(ARCH) REQUIRES=debian DEPENDS=bash-completion,wireguard-tools,iptables,nftables,conntrack,iproute2,procps ./build/os-compat/run-compat.sh ./debian/build.sh
 
 .PHONY: start-tunnel-clean
 start-tunnel-clean:
 	rm -f results/start-tunnel-*.deb
 	rm -rf dpkg-workdir/start-tunnel-* projects/start-tunnel/web/dist projects/start-tunnel/docs/book
 
-# The tunnel web app is formatted by `web-format` (whole Angular workspace); this is the Rust crate.
 .PHONY: start-tunnel-format start-tunnel-format-check
 start-tunnel-format:
 	$(FMT) cargo fmt -p start-tunnel

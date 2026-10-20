@@ -102,7 +102,6 @@ pub struct SniRoute {
 type OnChange = Box<dyn Fn(u16, bool) + Send + Sync>;
 
 /// Resolves a target's local subnet prefix for hairpin detection.
-/// `None` preserves the client source address.
 pub type LocalPrefix = Arc<dyn Fn(Ipv4Addr) -> BoxFuture<'static, Option<u8>> + Send + Sync>;
 
 /// A registration that can restore the exact prior bindings.
@@ -186,7 +185,7 @@ impl SniDemux {
     }
 
     /// Registers all hostnames atomically and starts their shared listener.
-    /// Returns `RESULT_HOSTNAME_TAKEN` for an occupied name or
+    /// Returns `RESULT_HOSTNAME_TAKEN` for a name another device holds or
     /// `RESULT_NO_RESOURCES` when the listener cannot bind.
     pub fn register(
         self: &Arc<Self>,
@@ -196,6 +195,9 @@ impl SniDemux {
         target: SocketAddrV4,
         lifetime_secs: Option<u32>,
     ) -> Result<(), u8> {
+        if hostnames.is_empty() {
+            return Ok(());
+        }
         self.register_transaction(ext_ip, ext_port, hostnames, target, lifetime_secs)
             .map(|_| ())
     }
@@ -209,6 +211,7 @@ impl SniDemux {
         target: SocketAddrV4,
         lifetime_secs: Option<u32>,
     ) -> Result<SniRegistration, u8> {
+        let hostnames = &lowercased(hostnames);
         let now = Instant::now();
         let applied = Binding {
             target,
@@ -220,7 +223,7 @@ impl SniDemux {
             entry.prune(now);
             for name in hostnames {
                 if let Some(b) = entry.hostnames.get(name) {
-                    if b.target != target {
+                    if b.target.ip() != target.ip() {
                         return Err(RESULT_HOSTNAME_TAKEN);
                     }
                 }
@@ -282,6 +285,7 @@ impl SniDemux {
         hostnames: &[String],
         target: SocketAddrV4,
     ) {
+        let hostnames = &lowercased(hostnames);
         let key = (ext_ip, ext_port);
         self.ports.mutate(|ports| {
             if let Some(entry) = ports.get_mut(&key) {
@@ -345,7 +349,10 @@ impl SniDemux {
         let key = (ext_ip, ext_port);
         let previous = self.ports.mutate(|ports| {
             let entry = ports.entry(key).or_default();
-            if entry.fallback.is_some_and(|f| f.target != fallback.target) {
+            if entry
+                .fallback
+                .is_some_and(|f| f.target.ip() != fallback.target.ip())
+            {
                 return Err(RESULT_HOSTNAME_TAKEN);
             }
             let previous = entry.fallback;
@@ -598,7 +605,6 @@ async fn handle_conn(
     let Some((target, transparent)) = selected else {
         return;
     };
-    // Same-subnet clients need the gateway source address for return traffic.
     let transparent = transparent && !is_hairpin(&local_prefix, *peer.ip(), *target.ip()).await;
     let mut upstream = if transparent {
         // A failed source-preserving connection must not fall back to gateway source.
@@ -629,8 +635,10 @@ async fn handle_conn(
     let _ = copy_bidirectional(&mut conn, &mut upstream).await;
 }
 
-/// Whether the peer and target share a known local subnet.
 async fn is_hairpin(local_prefix: &Option<LocalPrefix>, peer: Ipv4Addr, target: Ipv4Addr) -> bool {
+    if peer == target {
+        return true;
+    }
     let Some(resolve) = local_prefix else {
         return false;
     };
@@ -643,6 +651,10 @@ async fn is_hairpin(local_prefix: &Option<LocalPrefix>, peer: Ipv4Addr, target: 
 /// Whether `buf` holds at least one complete TLS handshake record.
 fn record_complete(buf: &[u8]) -> bool {
     buf.len() >= 5 && buf.len() >= 5 + u16::from_be_bytes([buf[3], buf[4]]) as usize
+}
+
+fn lowercased(hostnames: &[String]) -> Vec<String> {
+    hostnames.iter().map(|h| h.to_ascii_lowercase()).collect()
 }
 
 /// Extract the (lowercased) SNI host_name from a buffered TLS ClientHello via
@@ -846,6 +858,34 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn hostnames_match_in_any_case() {
+        let wildcard =
+            crate::net::utils::bind_tokio_listener_reuse_port((Ipv4Addr::UNSPECIFIED, 0).into())
+                .unwrap();
+        let port = wildcard.local_addr().unwrap().port();
+        let key = (Ipv4Addr::LOCALHOST, port);
+        let target = SocketAddrV4::new(Ipv4Addr::new(10, 0, 0, 1), 443);
+        let demux = SniDemux::new();
+        demux
+            .register(
+                key.0,
+                port,
+                &["Cloud.Example.com".to_string()],
+                target,
+                None,
+            )
+            .unwrap();
+        demux.ports.peek(|p| {
+            assert_eq!(
+                p[&key].select(Some("cloud.example.com"), Ipv4Addr::LOCALHOST),
+                Some((target, true))
+            );
+        });
+        demux.unregister(key.0, port, &["CLOUD.example.com".to_string()], target);
+        assert!(demux.snapshot().is_empty());
+    }
+
+    #[tokio::test]
     async fn reuseport_bind_coexists_with_wildcard_listener() {
         let wildcard =
             crate::net::utils::bind_tokio_listener_reuse_port((Ipv4Addr::UNSPECIFIED, 0).into())
@@ -951,6 +991,53 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_device_repoints_its_own_bindings() {
+        let demux = SniDemux::new();
+        let ip = Ipv4Addr::LOCALHOST;
+        let port = 44301u16;
+        let hostname = ["a.example.com".to_string()];
+        let mine = |port| SocketAddrV4::new(Ipv4Addr::new(10, 0, 0, 1), port);
+        let theirs = SocketAddrV4::new(Ipv4Addr::new(10, 0, 0, 2), 9443);
+        let anywhere = Ipv4Addr::new(203, 0, 113, 50);
+
+        demux
+            .register(ip, port, &hostname, mine(8443), None)
+            .unwrap();
+        demux.register_fallback(ip, port, mine(8443)).unwrap();
+        assert_eq!(
+            demux.register(ip, port, &hostname, theirs, None),
+            Err(RESULT_HOSTNAME_TAKEN)
+        );
+        assert_eq!(
+            demux.register_fallback(ip, port, theirs),
+            Err(RESULT_HOSTNAME_TAKEN)
+        );
+        demux
+            .register(ip, port, &hostname, mine(9443), None)
+            .unwrap();
+        demux.register_fallback(ip, port, mine(9443)).unwrap();
+        demux.ports.peek(|p| {
+            let pb = p.get(&(ip, port)).unwrap();
+            assert_eq!(
+                pb.select(Some("a.example.com"), anywhere),
+                Some((mine(9443), true))
+            );
+            assert_eq!(pb.select(None, anywhere), Some((mine(9443), true)));
+        });
+    }
+
+    #[tokio::test]
+    async fn registering_no_hostnames_starts_no_listener() {
+        let demux = SniDemux::new();
+        let target = SocketAddrV4::new(Ipv4Addr::new(10, 0, 0, 1), 443);
+        demux
+            .register(Ipv4Addr::LOCALHOST, 0, &[], target, None)
+            .unwrap();
+        assert!(demux.ports.peek(|p| p.is_empty()));
+        assert!(demux.listeners.peek(|l| l.is_empty()));
+    }
+
+    #[tokio::test]
     async fn rekey_failure_does_not_create_an_empty_listener() {
         let blocker = Arc::new(SyncMutex::new(Some(
             std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap(),
@@ -1044,6 +1131,65 @@ mod tests {
         let before = events.peek(|e| e.len());
         demux.rekey_ipv4(new_ip);
         assert_eq!(events.peek(|e| e.len()), before);
+    }
+
+    #[tokio::test]
+    async fn self_hairpin_needs_no_subnet_resolver() {
+        let target = Ipv4Addr::new(10, 59, 0, 2);
+        assert!(is_hairpin(&None, target, target).await);
+        assert!(!is_hairpin(&None, Ipv4Addr::new(10, 59, 0, 3), target).await);
+        let unknown: LocalPrefix = Arc::new(|_| Box::pin(async { None }));
+        assert!(is_hairpin(&Some(unknown), target, target).await);
+    }
+
+    #[tokio::test]
+    async fn self_hairpin_relays_hostname_and_fallback_traffic() {
+        for named in [true, false] {
+            let backend = tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0))
+                .await
+                .unwrap();
+            let SocketAddr::V4(target) = backend.local_addr().unwrap() else {
+                unreachable!();
+            };
+            let probe = std::net::TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).unwrap();
+            let port = probe.local_addr().unwrap().port();
+            drop(probe);
+            let demux = SniDemux::new();
+            if named {
+                demux
+                    .register(
+                        Ipv4Addr::LOCALHOST,
+                        port,
+                        &["probe.example.com".into()],
+                        target,
+                        None,
+                    )
+                    .unwrap();
+            } else {
+                demux
+                    .register_fallback(Ipv4Addr::LOCALHOST, port, target)
+                    .unwrap();
+            }
+            timeout(Duration::from_secs(3), async {
+                let hello = real_client_hello("probe.example.com");
+                let mut client = TcpStream::connect((Ipv4Addr::LOCALHOST, port))
+                    .await
+                    .unwrap();
+                client.write_all(&hello).await.unwrap();
+                let (mut upstream, _) = backend.accept().await.unwrap();
+                let mut received = vec![0; hello.len()];
+                upstream.read_exact(&mut received).await.unwrap();
+                assert_eq!(received, hello);
+                upstream.write_all(b"reply").await.unwrap();
+                let mut reply = [0; 5];
+                client.read_exact(&mut reply).await.unwrap();
+                assert_eq!(&reply, b"reply");
+                client.shutdown().await.unwrap();
+                upstream.shutdown().await.unwrap();
+            })
+            .await
+            .expect("self-hairpin relay timed out");
+        }
     }
 
     #[tokio::test]

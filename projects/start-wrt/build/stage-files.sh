@@ -50,6 +50,23 @@ start_service() {
 INITEOF
 chmod +x "${FILES_DIR}/etc/init.d/startwrt"
 
+# Pre-creates the DNS-injection addn-hosts files before dnsmasq (START=19)
+# bind-mounts them into its ujail; a file missing at that point is never
+# mounted. startwrt-ctrld (START=99) rewrites them in place.
+cat > "${FILES_DIR}/etc/init.d/startwrt-dnsinject" << 'DNSINJEOF'
+#!/bin/sh /etc/rc.common
+
+START=18
+
+start() {
+    uci -q show dhcp | sed -n "s/.*'\(\/tmp\/startwrt-dns-inject\.[^']*\)'.*/\1/p" \
+        | while read -r f; do
+        [ -e "$f" ] || : > "$f"
+    done
+}
+DNSINJEOF
+chmod +x "${FILES_DIR}/etc/init.d/startwrt-dnsinject"
+
 # Custom SmartDNS init script — uses our generated config instead of the
 # stock UCI-generated one. The stock init script generates its own config
 # from UCI at /var/etc/smartdns/smartdns.conf, ignoring ours.
@@ -115,16 +132,19 @@ if [ "$boot_type" != "MMC" ]; then
     echo ""
 fi
 
-exec /bin/login
+while :; do
+    /bin/login
+done
 SERIALEOF
 chmod +x "${FILES_DIR}/usr/sbin/startwrt-serial"
 
 # Override inittab to use respawnlate for the serial dispatcher.
 # respawnlate runs in STATE_RUNNING (after sysinit completes), so hostname,
 # ubus, and all init.d services are available before startwrt-serial starts.
-# It also auto-starts without requiring Enter (unlike askconsole) and restarts
-# the process on exit. askfirst on an explicit ttyS0 doesn't work on this
-# hardware — Enter input is never received.
+# It also auto-starts without requiring Enter (unlike askconsole). askfirst on
+# an explicit ttyS0 doesn't work on this hardware — Enter input is never
+# received. procd never restarts this entry and sysupgrade keeps /etc/inittab;
+# startwrt-serial restarts login itself.
 mkdir -p "${FILES_DIR}/etc"
 cat > "${FILES_DIR}/etc/inittab" << 'INITTABEOF'
 ::sysinit:/etc/init.d/rcS S boot
@@ -143,13 +163,29 @@ chmod +x "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-published-ports"
 cp "$PROJECT_DIR"/backend/hotplug/99-startwrt-port-control "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-port-control"
 chmod +x "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-port-control"
 
-# Custom nftables rules auto-included by fw4 (/etc/nftables.d/*.nft).
-# 10-startwrt-dnat-mark.nft marks DNAT-state reply traffic so port-forward
-# replies route via the main table instead of a VPN tunnel.
-mkdir -p "${FILES_DIR}/etc/nftables.d"
+# fw4 auto-includes these into `table inet fw4`. They must not go in
+# /etc/nftables.d, which sysupgrade restores over the image.
+mkdir -p "${FILES_DIR}/usr/share/nftables.d/table-pre"
 for f in "$PROJECT_DIR"/backend/nftables/*.nft; do
-    cp "$f" "${FILES_DIR}/etc/nftables.d/$(basename "$f")"
+    cp "$f" "${FILES_DIR}/usr/share/nftables.d/table-pre/$(basename "$f")"
 done
+
+# fw4 auto-includes these at the top level, outside `table inet fw4`.
+mkdir -p "${FILES_DIR}/usr/share/nftables.d/ruleset-pre"
+for f in "$PROJECT_DIR"/backend/nftables/ruleset-pre/*.nft; do
+    cp "$f" "${FILES_DIR}/usr/share/nftables.d/ruleset-pre/$(basename "$f")"
+done
+
+# Deletes the copies earlier images staged in /etc/nftables.d. fw4 would load
+# them alongside the ones above.
+mkdir -p "${FILES_DIR}/etc/uci-defaults"
+cat > "${FILES_DIR}/etc/uci-defaults/90-startwrt-nftables" << 'NFTEOF'
+#!/bin/sh
+rm -f /etc/nftables.d/10-startwrt-dnat-mark.nft \
+	/etc/nftables.d/11-startwrt-inbound6-mark.nft \
+	/etc/nftables.d/12-startwrt-sni-divert.nft \
+	/etc/nftables.d/13-startwrt-dns-update-divert.nft
+NFTEOF
 
 # sysupgrade keep.d — additional files to include in config backups
 mkdir -p "${FILES_DIR}/lib/upgrade/keep.d"

@@ -165,6 +165,9 @@ When you can sign in, continue below.
 
 Every installed service will have an update available for the 0.4.0 marketplace. Update **all** of them — including Bitcoin (again, to the latest **minor** of your selected **major** version) — before doing anything else. The 0.4.0 versions are repackaged for the new system, even if the underlying software version is the same.
 
+> [!NOTE]
+> Bitcoin Knots updates to **Bitcoin Knots (pre-RDTS)** from the Community Registry. The update keeps your blockchain, and you can switch it to Bitcoin Core afterwards if you prefer.
+
 ### Step 10: Start All Services
 
 Once all services are updated, you can start them. Wait for all services to fully start and confirm they are running correctly.
@@ -188,7 +191,11 @@ Depending on the speed of your drive, plan on 3-5 minutes per GB of backup data.
 
 Check your notifications. A service that fails to migrate raises a notification naming the service and the reason it failed, and a summary notification lists everything that needs re-installing.
 
-Your data is safe — it stays on disk where the service left it. Install the service again from the marketplace and it will pick that data back up.
+StartOS keeps the service's volume on disk if migration fails. Install the service again from the marketplace and it will pick that data back up.
+
+### Legacy Services
+
+Services that remain marked **Legacy** after migration run on servers that have a public IP or use StartTunnel. Their package-managed certificate covers the service's secure addresses.
 
 ### Tor Cleanup
 

@@ -70,9 +70,10 @@ export class SystemUpdateModal {
     const { startosRegistry } = await firstValueFrom(this.patch.watch$('ui'))
 
     this.tasks.run(async () => {
-      await this.embassyApi.updateServer({
+      await this.embassyApi.rpc.server.update({
         targetVersion: `=${this.versions[0]!.version}`,
         registry: startosRegistry,
+        progress: false,
       })
       this.context.$implicit.complete()
     }, 'Beginning update')

@@ -172,8 +172,12 @@ export default class GatewaysComponent {
   readonly outboundOptions = computed(() => {
     const gateways = this.gatewayService.gateways()
     if (!gateways) return null
+    const selected = this.gatewayService.defaultOutboundGateway()
     return [
       this.autoOption,
+      ...(selected && !gateways.some(g => g.id === selected.id)
+        ? [selected]
+        : []),
       ...gateways.map(g => ({ id: g.id as string | null, name: g.name })),
     ]
   })
@@ -193,7 +197,7 @@ export default class GatewaysComponent {
   async saveOutbound() {
     this.tasks.run(
       async () =>
-        await this.api.setDefaultOutbound({
+        await this.api.rpc.net.gateway.setDefaultOutbound({
           gateway: this.selectedOutbound()?.id ?? null,
         }),
       'Saving',
@@ -251,7 +255,7 @@ export default class GatewaysComponent {
             handler: async (input: typeof spec._TYPE) =>
               this.tasks.run(
                 async () =>
-                  await this.api.addTunnel({
+                  await this.api.rpc.net.tunnel.add({
                     name: input.name,
                     config:
                       input.config.selection === 'paste'

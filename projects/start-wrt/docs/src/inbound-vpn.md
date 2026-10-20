@@ -33,7 +33,7 @@ Each VPN server row has an actions menu:
 
 - **Enable** / **Disable** — Toggle the server without deleting it. While disabled, clients cannot connect.
 - **Manage clients** — Open the client management page (see below).
-- **Edit** — Change the label, endpoint, Security Profile, or port, then click "Save VPN".
+- **Edit** — Change the label, endpoint, or port, then click "Save VPN". A VPN server belongs to its Security Profile, so moving it to another profile means deleting it and adding a new one.
 - **Delete** — Remove the server (see [Removing a VPN Server](#removing-a-vpn-server)).
 
 ## Managing Clients
@@ -67,17 +67,15 @@ Right after a client is created, its full configuration is displayed in two form
 
 ### Changing Client Routing
 
-You can switch between routing modes from the actions menu on the client list:
-
-- **Switch to all traffic** — Full tunnel. All Internet traffic routes through the VPN.
-- **Switch to LAN only** — Split tunnel. Only local network traffic uses the tunnel.
-
-> [!WARNING]
-> Changing the routing mode deletes the existing peer and creates a new one. You will need to reconfigure the device with the new configuration.
+A client's routing is set when it is created. To change it, delete the client and add it again with "Route all traffic through tunnel" set the way you want, then import the new configuration on the device.
 
 ### Renaming a Client
 
 Select "Rename" from the client's actions menu to change its display name.
+
+### Allowing DNS Record Publishing
+
+Select "Allow DNS record publishing" from the client's actions menu to let it publish DNS names into the router, with the same rules as the [device permission](devices.md#device-detail-page). It is off by default, and enabling asks for confirmation; grant it only to a client you trust. "Revoke DNS record publishing" removes the client's published names immediately.
 
 ### Removing a Client
 

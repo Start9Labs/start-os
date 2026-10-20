@@ -1,0 +1,1 @@
+- The first-boot setup page no longer stays blank where the web interface cannot load, such as in a captive-portal window; it says to open http://router.lan in Safari, Chrome or Firefox to finish setup.

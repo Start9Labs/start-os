@@ -35,7 +35,7 @@ import { ServiceActionComponent } from '../components/action.component'
               tuiCell
               [action]="a"
               [inactive]="inactive"
-              (click)="handle(pkg.status, pkg.icon, pkg.manifest, a)"
+              (click)="handle(pkg.status, pkg.manifest, a)"
             ></button>
           }
         </section>
@@ -99,7 +99,6 @@ export default class ServiceActionsRoute {
         const status = getInstalledBaseStatus(pkg.statusInfo)
         return {
           status,
-          icon: pkg.icon,
           manifest: getManifest(pkg),
           outboundGateway: pkg.outboundGateway,
           actions: Object.entries(pkg.actions)
@@ -145,13 +144,9 @@ export default class ServiceActionsRoute {
   readonly outboundGatewayAction = computed(() => {
     const pkg = this.package()
     const gatewayId = pkg?.outboundGateway
-    const gateways = this.gateways()
+    const gateway = gatewayId ? this.gateways()?.[gatewayId] : undefined
     const gatewayName =
-      gatewayId && gateways?.[gatewayId]
-        ? (gateways[gatewayId].name ??
-          gateways[gatewayId].ipInfo?.name ??
-          gatewayId)
-        : null
+      gatewayId && (gateway?.name ?? gateway?.ipInfo?.name ?? gatewayId)
     return {
       name: this.i18n.transform('Set Outbound Gateway')!,
       description: gatewayName
@@ -176,12 +171,11 @@ export default class ServiceActionsRoute {
 
   handle(
     status: BaseStatus,
-    icon: string,
     { id, title }: T.Manifest,
     action: T.ActionMetadata & { id: string },
   ) {
     this.actions.present({
-      pkgInfo: { id, title, icon, status },
+      pkgInfo: { id, title, status },
       actionInfo: { id: action.id, metadata: action },
     })
   }
@@ -202,14 +196,17 @@ export default class ServiceActionsRoute {
 
     Object.entries(gateways)
       .filter(
-        ([_, g]) =>
-          !!g.ipInfo &&
-          g.ipInfo.deviceType !== 'bridge' &&
-          g.ipInfo.deviceType !== 'loopback',
+        ([id, g]) =>
+          id === pkg.outboundGateway ||
+          (!!g.ipInfo &&
+            g.ipInfo.deviceType !== 'bridge' &&
+            g.ipInfo.deviceType !== 'loopback'),
       )
       .forEach(([id, g]) => {
         options[id] = g.name ?? g.ipInfo?.name ?? id
       })
+    if (pkg.outboundGateway)
+      options[pkg.outboundGateway] ??= pkg.outboundGateway
 
     const spec = ISB.InputSpec.of({
       gateway: ISB.Value.select({
@@ -232,7 +229,7 @@ export default class ServiceActionsRoute {
             handler: async (input: typeof spec._TYPE) =>
               this.tasks.run(
                 async () =>
-                  await this.api.setServiceOutbound({
+                  await this.api.rpc.package.setOutboundGateway({
                     package: pkg.manifest.id,
                     gateway:
                       input.gateway === SYSTEM_KEY ? null : input.gateway,

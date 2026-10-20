@@ -534,7 +534,7 @@ export const ENGLISH: Record<string, number> = {
   'must be a valid SSH public key': 579,
   'Refresh Needed': 580,
   'Your user interface is cached and out of date. Attempt to reload the PWA using the button below. If you continue to see this message, uninstall and reinstall the PWA.': 581,
-  'Your user interface is cached and out of date. Hard refresh the page to get the latest UI.': 582,
+  'StartOS has been updated, but this page is still running the previous interface. Refresh the page to get the latest version.': 582,
   'Host': 606, // as in, a network host
   'Value': 607, // as in, the value in a column of a table
   'Dynamic DNS': 610,
@@ -821,5 +821,10 @@ export const ENGLISH: Record<string, number> = {
   'Ascending': 928,
   'Descending': 929,
   'Services from this registry are maintained by the Start9 community and are undergoing beta testing. Bugs are expected. Install at your own risk.': 930,
-  'Set manually': 933,
+  'Every IP address this name resolves to on this gateway is disabled': 931,
+  'Wait!': 932,
+  'Your router uses its Root CA to generate SSL/TLS certificates for itself. These certificates are then used to encrypt network traffic with your client devices.': 933,
+  'Follow instructions for your OS. By trusting your Root CA, your device can verify the authenticity of encrypted communications with your router.': 934,
+  'You will need to repeat this on every device you use to connect to the StartWRT UI.': 935,
+  'Set manually': 936,
 }
