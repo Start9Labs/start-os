@@ -2854,12 +2854,29 @@ impl NetworkInterfaceWatcher {
 const SETTLE_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub struct NetworkInterfaceController {
-    db: TypedPatchDb<Database>,
+    pub(crate) db: TypedPatchDb<Database>,
     pub watcher: NetworkInterfaceWatcher,
     synced: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
     _sync: NonDetachingJoinHandle<()>,
 }
 impl NetworkInterfaceController {
+    #[cfg(test)]
+    pub(crate) fn with_test_interfaces(
+        db: TypedPatchDb<Database>,
+        interfaces: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
+    ) -> Self {
+        Self {
+            db,
+            watcher: NetworkInterfaceWatcher {
+                activated: Watch::new(BTreeMap::new()),
+                ip_info: interfaces,
+                _watcher: tokio::spawn(async {}).into(),
+            },
+            synced: Watch::new(OrdMap::new()),
+            _sync: tokio::spawn(async {}).into(),
+        }
+    }
+
     /// Returns once the database lists every connection NetworkManager activated at startup.
     pub async fn settle(&self) {
         match tokio::time::timeout(SETTLE_TIMEOUT, self.settled()).await {
@@ -3382,11 +3399,15 @@ pub fn lookup_info_by_addr(
     })
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize, VisitFields)]
+#[visit(ts(rename = "NetworkGatewayInfo"))]
 pub struct GatewayInfo {
     pub id: GatewayId,
     pub info: NetworkInterfaceInfo,
 }
+
+rpc_toolkit::reflect_ts!(GatewayInfo);
+
 impl<V: MetadataVisitor> Visit<V> for GatewayInfo {
     fn visit(&self, visitor: &mut V) -> <V as visit_rs::Visitor>::Result {
         visitor.visit(self)
@@ -3429,6 +3450,10 @@ impl WildcardListener {
             ip_info,
             _watcher: Some(watcher_handle),
         })
+    }
+
+    pub(crate) fn subscribe(&self) -> Watch<OrdMap<GatewayId, NetworkInterfaceInfo>> {
+        self.ip_info.clone_unseen()
     }
 
     /// Replace the ip_info source with the one from the NetworkInterfaceController.
@@ -3697,16 +3722,8 @@ mod dns_config_tests {
         .await
         .result
         .unwrap();
-        let controller = NetworkInterfaceController {
-            db: db.clone(),
-            watcher: NetworkInterfaceWatcher {
-                activated: Watch::new(BTreeMap::new()),
-                ip_info: interfaces.clone(),
-                _watcher: tokio::spawn(async {}).into(),
-            },
-            synced: Watch::new(OrdMap::new()),
-            _sync: tokio::spawn(async {}).into(),
-        };
+        let controller =
+            NetworkInterfaceController::with_test_interfaces(db.clone(), interfaces.clone());
         let mut changed = interfaces.clone();
         changed.mark_seen();
         let publish = tokio::spawn(async move {

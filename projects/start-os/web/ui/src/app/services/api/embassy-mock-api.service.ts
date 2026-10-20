@@ -408,6 +408,7 @@ export class MockApiService extends ApiService {
 
       return null
     },
+    'net.dns.status': async () => ({ bootstrap: false, gateway: null }),
     'net.dns.set-static': async params => {
       await pauseFor(2000)
 

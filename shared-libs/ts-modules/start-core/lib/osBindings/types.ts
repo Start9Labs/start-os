@@ -1124,6 +1124,8 @@ export type MetricsFollowResponse = z.output<
 export type MetricsFollowResponseInput = z.input<
   typeof schemas.MetricsFollowResponse
 >
+export type NetworkGatewayInfo = z.output<typeof schemas.NetworkGatewayInfo>
+export type NetworkGatewayInfoInput = z.input<typeof schemas.NetworkGatewayInfo>
 export type OsIndex = z.output<typeof schemas.OsIndex>
 export type OsIndexInput = z.input<typeof schemas.OsIndex>
 export type PackageVersionInfo = z.output<typeof schemas.PackageVersionInfo>
@@ -1146,6 +1148,16 @@ export type CheckDependenciesResultInput = z.input<
 >
 export type Dependencies = z.output<typeof schemas.Dependencies>
 export type DependenciesInput = z.input<typeof schemas.Dependencies>
+
+/**
+ * Active DNS authority and its bootstrap gateway.
+ */
+export type DnsStatus = z.output<typeof schemas.DnsStatus>
+
+/**
+ * Active DNS authority and its bootstrap gateway.
+ */
+export type DnsStatusInput = z.input<typeof schemas.DnsStatus>
 export type GetPackageResponse = z.output<typeof schemas.GetPackageResponse>
 export type GetPackageResponseInput = z.input<typeof schemas.GetPackageResponse>
 export type GetPackageResponseFull = z.output<

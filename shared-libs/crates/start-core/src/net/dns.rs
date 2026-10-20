@@ -21,16 +21,16 @@ use hickory_server::zone_handler::{Catalog, MessageResponseBuilder, ZoneHandler}
 use imbl::OrdMap;
 use imbl_value::InternedString;
 use rpc_toolkit::{
-    Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async, from_fn_blocking,
+    Context, HandlerArgs, HandlerExt, ParentHandler, from_fn, from_fn_async, from_fn_blocking,
 };
 use serde::{Deserialize, Serialize};
 use tokio::net::UdpSocket;
 use tracing::instrument;
 
-use crate::context::{CliContext, RpcContext};
+use crate::context::{CliContext, DiagnosticContext, InitContext, RpcContext, SetupContext};
 use crate::db::model::Database;
 use crate::db::model::public::{DnsSettings, NetworkInterfaceInfo};
-use crate::net::gateway::NetworkInterfaceWatcher;
+use crate::net::gateway::{GatewayInfo, NetworkInterfaceController};
 use crate::net::utils::{bind_tokio_listener_reuse_port, ipv6_is_link_local};
 use crate::prelude::*;
 use crate::util::future::NonDetachingJoinHandle;
@@ -40,10 +40,26 @@ use crate::{GatewayId, HOST_IP, OptionExt, PackageId};
 
 pub(crate) mod upstream;
 
-use upstream::{GatewayRuntime, auto_gateway, is_host_address, valid_upstream};
+use upstream::{GatewayRuntime, auto_gateway, is_host_address, underlay_gateway, valid_upstream};
 
 pub fn dns_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
+        .subcommand(
+            "status",
+            from_fn(|ctx: InitContext| Ok::<_, Error>(ctx.dns.status())).no_cli(),
+        )
+        .subcommand(
+            "status",
+            from_fn(|ctx: SetupContext| Ok::<_, Error>(ctx.dns.status())).no_cli(),
+        )
+        .subcommand(
+            "status",
+            from_fn(|ctx: DiagnosticContext| Ok::<_, Error>(ctx.dns.status())).no_cli(),
+        )
+        .subcommand(
+            "status",
+            from_fn(|ctx: RpcContext| Ok::<_, Error>(ctx.net_controller.dns.status())).no_cli(),
+        )
         .subcommand(
             "query",
             from_fn_blocking(query_dns::<C>)
@@ -298,8 +314,37 @@ impl ResolveMap {
     }
 }
 
+/// Active DNS authority and its bootstrap gateway.
+#[derive(Clone, Debug, Deserialize, Serialize, VisitFields)]
+#[serde(rename_all = "camelCase")]
+pub struct DnsStatus {
+    /// True until stored network policy takes authority.
+    pub bootstrap: bool,
+    /// Present only before stored network policy takes authority.
+    pub gateway: Option<GatewayInfo>,
+}
+
+rpc_toolkit::reflect_ts!(DnsStatus);
+rpc_toolkit::ts_export!(DnsStatus, namespaces = [""]);
+
+#[derive(Clone)]
+enum DnsAuthority {
+    Bootstrap(Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>),
+    Runtime(Arc<NetworkInterfaceController>),
+}
+
+impl DnsAuthority {
+    fn interfaces(&self) -> Watch<OrdMap<GatewayId, NetworkInterfaceInfo>> {
+        match self {
+            Self::Bootstrap(interfaces) => interfaces.clone(),
+            Self::Runtime(network) => network.watcher.subscribe(),
+        }
+    }
+}
+
 pub struct DnsController {
     resolve: Weak<SyncRwLock<ResolveMap>>,
+    authority: Watch<DnsAuthority>,
     #[allow(dead_code)]
     dns_server: NonDetachingJoinHandle<()>,
 }
@@ -358,10 +403,9 @@ enum PrivateScope {
 }
 
 struct Resolver {
-    db: TypedPatchDb<Database>,
+    authority: Watch<DnsAuthority>,
     forwarders: Arc<SyncRwLock<BTreeMap<GatewayId, GatewayForwarder>>>,
     resolve: Arc<SyncRwLock<ResolveMap>>,
-    net_iface: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
     scope: PrivateScope,
 }
 
@@ -410,39 +454,58 @@ enum Resolution {
 impl Resolver {
     async fn request_catalog(&self, source: IpAddr, name: &Name) -> Result<Arc<Catalog>, Error> {
         let source = source.to_canonical();
-        let domain = name.to_lowercase().to_utf8();
-        let domain = domain.trim_end_matches('.');
-        let bootstrap = self
-            .net_iface
-            .peek(|interfaces| {
+        let authority = self.authority.read();
+        let interfaces = authority.interfaces().read();
+        match authority {
+            DnsAuthority::Bootstrap(_) => self.bootstrap_catalog(source, &interfaces),
+            DnsAuthority::Runtime(network) => {
+                let domain = name.to_lowercase().to_utf8();
+                let domain = domain.trim_end_matches('.');
                 let from_host = is_host_address(
                     source,
                     interfaces.values().filter_map(|i| i.ip_info.as_deref()),
                 );
-                if !from_host
-                    || !interfaces
+                if from_host
+                    && interfaces
                         .values()
                         .any(|i| i.wireguard_endpoint_domains.contains(domain))
                 {
-                    return None;
+                    let gateway = underlay_gateway(&interfaces)
+                        .or_not_found("WireGuard DNS bootstrap underlay")?;
+                    self.catalog_for_gateway(gateway, &interfaces)
+                } else {
+                    self.routed_catalog(source, &network.db, &interfaces).await
                 }
-                Some(
-                    auto_gateway(interfaces.iter().filter(|(_, info)| !info.is_wireguard()))
-                        .or_not_found("WireGuard DNS bootstrap underlay"),
-                )
-            })
-            .transpose()?;
-        if let Some(gateway) = bootstrap {
-            self.catalog_for_gateway(gateway)
-        } else {
-            self.forward_catalog(source).await
+            }
         }
     }
 
-    async fn forward_catalog(&self, source: IpAddr) -> Result<Arc<Catalog>, Error> {
-        let source = source.to_canonical();
+    fn bootstrap_catalog(
+        &self,
+        source: IpAddr,
+        interfaces: &OrdMap<GatewayId, NetworkInterfaceInfo>,
+    ) -> Result<Arc<Catalog>, Error> {
+        ensure_code!(
+            is_host_address(
+                source,
+                interfaces
+                    .values()
+                    .filter_map(|info| info.ip_info.as_deref())
+            ),
+            ErrorKind::Network,
+            "bootstrap DNS only serves the host"
+        );
+        let gateway = underlay_gateway(interfaces).or_not_found("bootstrap DNS underlay")?;
+        self.catalog_for_gateway(gateway, interfaces)
+    }
+
+    async fn routed_catalog(
+        &self,
+        source: IpAddr,
+        db: &TypedPatchDb<Database>,
+        interfaces: &OrdMap<GatewayId, NetworkInterfaceInfo>,
+    ) -> Result<Arc<Catalog>, Error> {
         let package = self.resolve.peek(|r| r.requester(source))?;
-        let interfaces = self.net_iface.read();
         if package.is_none()
             && !is_host_address(
                 source,
@@ -465,7 +528,7 @@ impl Resolver {
                 "unregistered container DNS requester"
             );
         }
-        let db = self.db.peek().await;
+        let db = db.peek().await;
         let public = db.as_public();
         let service_gateway: Option<GatewayId> = match package {
             Some(id) => public
@@ -482,13 +545,16 @@ impl Resolver {
             .as_default_outbound()
             .de()?);
         let gateway = selected
-            .or_else(|| auto_gateway(&interfaces))
+            .or_else(|| auto_gateway(interfaces))
             .or_not_found("outbound DNS gateway")?;
-        self.catalog_for_gateway(gateway)
+        self.catalog_for_gateway(gateway, interfaces)
     }
 
-    fn catalog_for_gateway(&self, gateway: GatewayId) -> Result<Arc<Catalog>, Error> {
-        let interfaces = self.net_iface.read();
+    fn catalog_for_gateway(
+        &self,
+        gateway: GatewayId,
+        interfaces: &OrdMap<GatewayId, NetworkInterfaceInfo>,
+    ) -> Result<Arc<Catalog>, Error> {
         let info = interfaces.get(&gateway).or_not_found("DNS gateway")?;
         let ip = info
             .ip_info
@@ -533,6 +599,9 @@ impl Resolver {
         };
         let domain = name.to_lowercase().to_utf8();
         let domain = domain.trim_end_matches('.');
+        let interfaces = self
+            .authority
+            .peek(|authority| authority.interfaces().read());
         self.resolve.peek(|r| {
             match &self.scope {
                 PrivateScope::None => {}
@@ -543,15 +612,15 @@ impl Resolver {
                         .filter(|(_, rc)| rc.strong_count() > 0)
                         .map_or(false, |(gateways, _)| gateways.contains(my_gateway));
                     if serves_here {
-                        if let Some(res) = self.net_iface.peek(|i| {
-                            i.get(my_gateway)
-                                .and_then(|info| info.ip_info.as_ref())
-                                .map(|ip_info| {
-                                    let mut res = ip_info.subnets.iter().collect::<Vec<_>>();
-                                    res.sort_by_cached_key(|a| !a.contains(&src));
-                                    res.into_iter().map(|s| s.addr()).collect()
-                                })
-                        }) {
+                        if let Some(res) = interfaces
+                            .get(my_gateway)
+                            .and_then(|info| info.ip_info.as_ref())
+                            .map(|ip_info| {
+                                let mut res = ip_info.subnets.iter().collect::<Vec<_>>();
+                                res.sort_by_cached_key(|a| !a.contains(&src));
+                                res.into_iter().map(|s| s.addr()).collect()
+                            })
+                        {
                             return Resolution::Answer(res);
                         }
                     }
@@ -744,17 +813,16 @@ fn dns_server_on(resolver: Resolver, addr: SocketAddr) -> Result<Server<Resolver
 
 /// Serves gateway-address scopes and the host/container stubs.
 async fn run_dns_servers(
-    db: TypedPatchDb<Database>,
+    mut authority: Watch<DnsAuthority>,
     resolve: Arc<SyncRwLock<ResolveMap>>,
-    mut net_iface: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
 ) -> Result<(), Error> {
     let forwarders = Arc::new(SyncRwLock::new(BTreeMap::new()));
-    let resolver_iface = net_iface.clone();
+    let resolver_authority = authority.clone();
+    let mut net_iface = authority.peek(DnsAuthority::interfaces);
     let resolver = |scope: PrivateScope| Resolver {
-        db: db.clone(),
+        authority: resolver_authority.clone(),
         forwarders: forwarders.clone(),
         resolve: resolve.clone(),
-        net_iface: resolver_iface.clone(),
         scope,
     };
 
@@ -815,29 +883,52 @@ async fn run_dns_servers(
             }
         }
 
-        net_iface.changed().await;
+        tokio::select! {
+            _ = net_iface.changed() => {},
+            _ = authority.changed() => { net_iface = authority.peek(DnsAuthority::interfaces); },
+        }
     }
 }
 
 impl DnsController {
     #[instrument(skip_all)]
-    pub async fn init(
-        db: TypedPatchDb<Database>,
-        watcher: &NetworkInterfaceWatcher,
-    ) -> Result<Self, Error> {
+    pub fn new(interfaces: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>) -> Self {
         let resolve = Arc::new(SyncRwLock::new(ResolveMap::default()));
         let weak = Arc::downgrade(&resolve);
-        let net_iface = watcher.subscribe();
-
-        let dns_server = tokio::spawn(run_dns_servers(db, resolve, net_iface).map(|r| {
+        let authority = Watch::new(DnsAuthority::Bootstrap(interfaces));
+        let dns_server = tokio::spawn(run_dns_servers(authority.clone(), resolve).map(|r| {
             r.log_err();
         }))
         .into();
-
-        Ok(Self {
+        Self {
             resolve: weak,
+            authority,
             dns_server,
-        })
+        }
+    }
+
+    pub(crate) fn activate(&self, network: Arc<NetworkInterfaceController>) {
+        self.authority.send_replace(DnsAuthority::Runtime(network));
+    }
+
+    pub fn status(&self) -> DnsStatus {
+        match self.authority.read() {
+            DnsAuthority::Runtime(_) => DnsStatus {
+                bootstrap: false,
+                gateway: None,
+            },
+            DnsAuthority::Bootstrap(interfaces) => {
+                let interfaces = interfaces.read();
+                let gateway = underlay_gateway(&interfaces).map(|id| GatewayInfo {
+                    info: interfaces.get(&id).unwrap().clone(),
+                    id,
+                });
+                DnsStatus {
+                    bootstrap: true,
+                    gateway,
+                }
+            }
+        }
     }
 
     pub fn add_service(
@@ -951,6 +1042,40 @@ mod tests {
 
     use super::*;
 
+    struct ResolverFixture {
+        resolver: Resolver,
+        db: TypedPatchDb<Database>,
+        net_iface: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
+    }
+
+    impl std::ops::Deref for ResolverFixture {
+        type Target = Resolver;
+        fn deref(&self) -> &Resolver {
+            &self.resolver
+        }
+    }
+
+    impl std::ops::DerefMut for ResolverFixture {
+        fn deref_mut(&mut self) -> &mut Resolver {
+            &mut self.resolver
+        }
+    }
+
+    impl ResolverFixture {
+        fn controller(&self) -> DnsController {
+            DnsController {
+                resolve: Arc::downgrade(&self.resolve),
+                authority: self.authority.clone(),
+                dns_server: tokio::spawn(async {}).into(),
+            }
+        }
+
+        async fn forward_catalog(&self, source: IpAddr) -> Result<Arc<Catalog>, Error> {
+            self.request_catalog(source, &Name::from_ascii("example.com.").unwrap())
+                .await
+        }
+    }
+
     async fn exchange(resolver: &Resolver, message: Message, source: SocketAddr) -> Message {
         use hickory_server::net::BufDnsStreamHandle;
         use hickory_server::net::runtime::TokioTime;
@@ -1026,10 +1151,7 @@ mod tests {
         }
 
         let (_temp, resolver) = resolver_fixture().await;
-        let controller = DnsController {
-            resolve: Arc::downgrade(&resolver.resolve),
-            dns_server: tokio::spawn(async {}).into(),
-        };
+        let controller = resolver.controller();
         let _pinned = controller
             .add_service(
                 Some("pinned".parse().unwrap()),
@@ -1071,7 +1193,7 @@ mod tests {
         assert!(!logs.lock().unwrap().is_empty());
     }
 
-    async fn resolver_fixture() -> (tempfile::TempDir, Resolver) {
+    async fn resolver_fixture() -> (tempfile::TempDir, ResolverFixture) {
         let temp = tempfile::tempdir().unwrap();
         let db = TypedPatchDb::<Database>::load_unchecked(
             patch_db::PatchDb::open(temp.path().join("db"))
@@ -1100,25 +1222,214 @@ mod tests {
                 )
             })
             .collect();
+        let net_iface = Watch::new(ifaces);
+        let network = Arc::new(NetworkInterfaceController::with_test_interfaces(
+            db.clone(),
+            net_iface.clone(),
+        ));
+        let resolver = Resolver {
+            authority: Watch::new(DnsAuthority::Runtime(network)),
+            forwarders: Arc::new(SyncRwLock::new(BTreeMap::new())),
+            resolve: Arc::new(SyncRwLock::new(ResolveMap::default())),
+            scope: PrivateScope::Local(vec![]),
+        };
         (
             temp,
-            Resolver {
+            ResolverFixture {
+                resolver,
                 db,
-                forwarders: Arc::new(SyncRwLock::new(BTreeMap::new())),
-                resolve: Arc::new(SyncRwLock::new(ResolveMap::default())),
-                net_iface: Watch::new(ifaces),
-                scope: PrivateScope::Local(vec![]),
+                net_iface,
             },
         )
     }
 
     #[tokio::test]
+    async fn process_dns_starts_in_bootstrap_and_survives_context_handles() {
+        let dns = Arc::new(DnsController::new(Watch::new(OrdMap::new())));
+        let owner = Arc::downgrade(&dns);
+        let setup = dns.clone();
+        let diagnostic = dns.clone();
+        assert!(dns.status().bootstrap);
+        assert!(dns.status().gateway.is_none());
+        drop(dns);
+        drop(setup);
+        assert!(diagnostic.status().bootstrap);
+        assert!(owner.upgrade().is_some());
+        drop(diagnostic);
+        assert!(owner.upgrade().is_none());
+        tokio::task::yield_now().await;
+    }
+
+    #[tokio::test]
+    async fn bootstrap_dns_is_host_only_and_reports_the_actual_underlay_source() {
+        let (_temp, mut fixture) = resolver_fixture().await;
+        fixture.resolver.authority = Watch::new(DnsAuthority::Bootstrap(fixture.net_iface.clone()));
+        fixture.net_iface.send_if_modified(|interfaces| {
+            let tunnel = interfaces
+                .get_mut(&"wg0".parse::<GatewayId>().unwrap())
+                .unwrap();
+            let ip = Arc::make_mut(tunnel.ip_info.as_mut().unwrap());
+            ip.device_type = Some(crate::db::model::public::NetworkInterfaceType::Wireguard);
+            ip.default_route_v4 = Some(1);
+            let ethernet = interfaces
+                .get_mut(&"eth0".parse::<GatewayId>().unwrap())
+                .unwrap();
+            Arc::make_mut(ethernet.ip_info.as_mut().unwrap()).dns_servers =
+                ["192.0.2.53".parse::<IpAddr>().unwrap()]
+                    .into_iter()
+                    .collect();
+            ethernet.dns.refresh(ethernet.ip_info.as_deref());
+            true
+        });
+        let controller = fixture.controller();
+        let status = controller.status();
+        assert!(status.bootstrap);
+        let gateway = status.gateway.unwrap();
+        assert_eq!(gateway.id.as_str(), "eth0");
+        assert_eq!(
+            gateway.info.dns.source,
+            crate::db::model::public::DnsSource::Gateway
+        );
+        assert_eq!(gateway.info.dns.servers, ["192.0.2.53:53".parse().unwrap()]);
+        let provided = fixture
+            .forward_catalog("127.0.0.1".parse().unwrap())
+            .await
+            .unwrap();
+        assert!(Arc::ptr_eq(
+            &provided,
+            &fixture
+                .forward_catalog("::1".parse().unwrap())
+                .await
+                .unwrap()
+        ));
+        for source in ["10.0.3.2", "fd00:3::2", "192.0.2.100"] {
+            assert!(
+                fixture
+                    .forward_catalog(source.parse().unwrap())
+                    .await
+                    .is_err()
+            );
+        }
+        fixture.net_iface.send_if_modified(|interfaces| {
+            let ethernet = interfaces
+                .get_mut(&"eth0".parse::<GatewayId>().unwrap())
+                .unwrap();
+            Arc::make_mut(ethernet.ip_info.as_mut().unwrap())
+                .dns_servers
+                .clear();
+            ethernet.dns.refresh(ethernet.ip_info.as_deref());
+            true
+        });
+        let public = fixture
+            .forward_catalog("127.0.0.1".parse().unwrap())
+            .await
+            .unwrap();
+        assert!(!Arc::ptr_eq(&provided, &public));
+        let dns = controller.status().gateway.unwrap().info.dns;
+        assert_eq!(
+            dns.source,
+            crate::db::model::public::DnsSource::PublicFallback
+        );
+        assert_eq!(
+            dns.servers,
+            [
+                "1.1.1.1:53".parse().unwrap(),
+                "[2606:4700:4700::1111]:53".parse().unwrap()
+            ]
+        );
+        fixture.net_iface.send_if_modified(|interfaces| {
+            interfaces
+                .remove(&"eth0".parse::<GatewayId>().unwrap())
+                .is_some()
+        });
+        assert!(
+            fixture
+                .forward_catalog("127.0.0.1".parse().unwrap())
+                .await
+                .is_err()
+        );
+        assert!(controller.status().gateway.is_none());
+    }
+
+    #[tokio::test]
+    async fn policy_adoption_replaces_bootstrap_observations_and_survives_init_failure() {
+        let (_temp, mut fixture) = resolver_fixture().await;
+        fixture.resolver.authority = Watch::new(DnsAuthority::Bootstrap(fixture.net_iface.clone()));
+        let controller = fixture.controller();
+        let bootstrap = fixture
+            .forward_catalog("127.0.0.1".parse().unwrap())
+            .await
+            .unwrap();
+        fixture
+            .db
+            .put(
+                &"/public/serverInfo/network/defaultOutbound"
+                    .parse::<patch_db::json_ptr::JsonPointer>()
+                    .unwrap(),
+                &"wg0",
+            )
+            .await
+            .unwrap();
+        let runtime_interfaces = Watch::new(fixture.net_iface.read());
+        runtime_interfaces.send_if_modified(|interfaces| {
+            interfaces
+                .get_mut(&"wg0".parse::<GatewayId>().unwrap())
+                .unwrap()
+                .ip_info = None;
+            true
+        });
+        let network = Arc::new(NetworkInterfaceController::with_test_interfaces(
+            fixture.db.clone(),
+            runtime_interfaces.clone(),
+        ));
+        let network_owner = Arc::downgrade(&network);
+        controller.activate(network.clone());
+        drop(network);
+        assert!(network_owner.upgrade().is_some());
+        assert!(!controller.status().bootstrap);
+        assert!(controller.status().gateway.is_none());
+        assert!(
+            fixture
+                .forward_catalog("127.0.0.1".parse().unwrap())
+                .await
+                .is_err()
+        );
+        fixture.net_iface.send_if_modified(|interfaces| {
+            interfaces.clear();
+            true
+        });
+        runtime_interfaces.send_if_modified(|interfaces| {
+            let info = interfaces
+                .get_mut(&"wg0".parse::<GatewayId>().unwrap())
+                .unwrap();
+            info.ip_info = Some(Arc::new(crate::db::model::public::IpInfo {
+                scope_id: 9,
+                ..Default::default()
+            }));
+            info.dns.static_servers = Some(["192.0.2.54:53".parse().unwrap()].into());
+            info.dns.refresh(info.ip_info.as_deref());
+            true
+        });
+        let runtime = fixture
+            .forward_catalog("127.0.0.1".parse().unwrap())
+            .await
+            .unwrap();
+        assert!(!Arc::ptr_eq(&bootstrap, &runtime));
+        assert!(
+            runtime_interfaces
+                .read()
+                .contains_key(&"wg0".parse::<GatewayId>().unwrap())
+        );
+        drop(controller);
+        assert!(network_owner.upgrade().is_some());
+        drop(fixture);
+        assert!(network_owner.upgrade().is_none());
+    }
+
+    #[tokio::test]
     async fn dns_uses_requester_gateway_and_keeps_caches_separate() {
         let (_temp, resolver) = resolver_fixture().await;
-        let controller = DnsController {
-            resolve: Arc::downgrade(&resolver.resolve),
-            dns_server: tokio::spawn(async {}).into(),
-        };
+        let controller = resolver.controller();
         let pinned = controller
             .add_service(
                 Some("pinned".parse().unwrap()),
@@ -1257,10 +1568,7 @@ mod tests {
     #[tokio::test]
     async fn endpoint_bootstrap_is_exact_and_host_only() {
         let (_temp, resolver) = resolver_fixture().await;
-        let controller = DnsController {
-            resolve: Arc::downgrade(&resolver.resolve),
-            dns_server: tokio::spawn(async {}).into(),
-        };
+        let controller = resolver.controller();
         let _pinned = controller
             .add_service(
                 Some("pinned".parse().unwrap()),
@@ -1349,10 +1657,7 @@ mod tests {
     #[tokio::test]
     async fn dns_reconciles_gateway_changes_without_fallback() {
         let (_temp, resolver) = resolver_fixture().await;
-        let controller = DnsController {
-            resolve: Arc::downgrade(&resolver.resolve),
-            dns_server: tokio::spawn(async {}).into(),
-        };
+        let controller = resolver.controller();
         let _pinned = controller
             .add_service(
                 Some("pinned".parse().unwrap()),

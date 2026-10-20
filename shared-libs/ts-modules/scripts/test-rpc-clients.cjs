@@ -38,6 +38,11 @@ function harness(moduleOverrides = new Map()) {
     DOCUMENT: tokens.DOCUMENT,
     Injector: tokens.Injector,
     Injectable: () => value => value,
+    Component: () => value => value,
+    signal: initial => {
+      let value = initial
+      return Object.assign(() => value, { set: next => (value = next) })
+    },
     inject: token => {
       assert.ok(dependencies.has(token), `Missing injection: ${String(token)}`)
       return dependencies.get(token)
@@ -909,4 +914,132 @@ test('WRT lazily invalidates authentication and preserves host errors and nullab
     client.request({ method: 'auth.logout', params: {} }),
     /Empty RPC response/,
   )
+})
+
+function startupStateHarness() {
+  const rxjs = require('rxjs')
+  const ticks = new rxjs.Subject()
+  const keys = Object.fromEntries(
+    ['api', 'router', 'network', 'alerts', 'i18n'].map(key => [
+      key,
+      Symbol(key),
+    ]),
+  )
+  const { dependencies, load } = harness(
+    new Map([
+      ['rxjs', { ...rxjs, timer: () => ticks }],
+      ['@angular/router', { Router: keys.router }],
+      ['@start9labs/shared', { i18nPipe: keys.i18n }],
+      ['@taiga-ui/cdk', {}],
+      ['@taiga-ui/core', { TuiNotificationService: keys.alerts }],
+      ['@taiga-ui/polymorpheus', { PolymorpheusComponent: class {} }],
+      ['src/app/services/api/embassy-api.service', { ApiService: keys.api }],
+      ['src/app/services/network.service', { NetworkService: keys.network }],
+    ]),
+  )
+  const routes = []
+  dependencies.set(keys.router, {
+    navigate: route => routes.push(route[0]),
+    isActive: () => true,
+  })
+  dependencies.set(keys.network, new BehaviorSubject(true))
+  dependencies.set(keys.alerts, { open: () => rxjs.NEVER })
+  dependencies.set(keys.i18n, { transform: value => value })
+  return {
+    ticks,
+    routes,
+    create: rpc => {
+      dependencies.set(keys.api, { rpc })
+      return new (load(
+        'projects/start-os/web/ui/src/app/services/state.service.ts',
+      ).StateService)()
+    },
+  }
+}
+
+test('StartOS refreshes startup DNS without rerouting and stops polling at runtime', async () => {
+  const { ticks, routes, create } = startupStateHarness()
+  let state = 'initializing'
+  let status = { bootstrap: true, gateway: null }
+  let statusFailure = false
+  let stateCalls = 0
+  let dnsCalls = 0
+  const service = create({
+    state: async () => {
+      stateCalls++
+      return state
+    },
+    net: {
+      dns: {
+        status: async () => {
+          dnsCalls++
+          if (statusFailure) throw new Error('unavailable')
+          return status
+        },
+      },
+    },
+  })
+  const subscription = service.subscribe()
+  try {
+    ticks.next()
+    await new Promise(setImmediate)
+    assert.equal(service.dnsStatus(), status)
+    assert.deepEqual(routes, ['initializing'])
+    status = { bootstrap: false, gateway: null }
+    ticks.next()
+    await new Promise(setImmediate)
+    assert.equal(service.dnsStatus(), status)
+    assert.deepEqual(routes, ['initializing'])
+    state = 'error'
+    ticks.next()
+    await new Promise(setImmediate)
+    assert.deepEqual(routes, ['initializing', 'diagnostic'])
+    statusFailure = true
+    ticks.next()
+    await new Promise(setImmediate)
+    assert.equal(service.dnsStatus(), null)
+    assert.deepEqual(routes, ['initializing', 'diagnostic'])
+    state = 'running'
+    ticks.next()
+    await new Promise(setImmediate)
+    assert.equal(service.dnsStatus(), null)
+    assert.deepEqual(routes, ['initializing', 'diagnostic', ''])
+    assert.equal(dnsCalls, 4)
+    ticks.next()
+    await new Promise(setImmediate)
+    assert.equal(stateCalls, 5)
+  } finally {
+    subscription.unsubscribe()
+  }
+})
+
+test('StartOS ignores a superseded startup DNS request', async () => {
+  const { ticks, create } = startupStateHarness()
+  let finishOldRequest
+  const oldRequest = new Promise(resolve => (finishOldRequest = resolve))
+  const current = { bootstrap: false, gateway: null }
+  let calls = 0
+  const service = create({
+    state: async () => 'initializing',
+    net: {
+      dns: { status: async () => (++calls === 1 ? oldRequest : current) },
+    },
+  })
+  const subscription = service.subscribe()
+  try {
+    ticks.next()
+    await new Promise(setImmediate)
+    ticks.next()
+    await new Promise(setImmediate)
+    assert.equal(calls, 1)
+    service.trigger$.next(true)
+    ticks.next()
+    await new Promise(setImmediate)
+    assert.equal(service.dnsStatus(), current)
+    finishOldRequest({ bootstrap: true, gateway: null })
+    await new Promise(setImmediate)
+    assert.equal(service.dnsStatus(), current)
+  } finally {
+    subscription.unsubscribe()
+  }
 })

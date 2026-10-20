@@ -837,4 +837,5 @@ export default {
   947: 'Las consultas del sistema sobre nombres de extremos WireGuard configurados usan la conexión subyacente automática para que los túneles puedan reconectarse. Las consultas de servicios siguen usando su puerta de enlace de salida.',
   945: 'Usar el DNS proporcionado por la puerta de enlace o el DNS público de Cloudflare si no se proporciona ninguno',
   946: 'La puerta de enlace de salida específica de un servicio tiene prioridad sobre la predeterminada del sistema. Los servicios sin una selección propia siguen la configuración del sistema; Auto utiliza la ruta física predeterminada, con preferencia por IPv4 sobre IPv6.',
+  948: 'StartOS utiliza la puerta de enlace física automática para DNS hasta que se cargue la configuración de red guardada.',
 } satisfies i18n

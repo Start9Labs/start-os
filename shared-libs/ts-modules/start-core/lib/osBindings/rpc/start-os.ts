@@ -638,10 +638,16 @@ export type DiskInfo = z.output<typeof schemas.DiskInfo>
 export type MetricsFollowResponse = z.output<
   typeof schemas.MetricsFollowResponse
 >
+export type NetworkGatewayInfo = z.output<typeof schemas.NetworkGatewayInfo>
 export type OsIndex = z.output<typeof schemas.OsIndex>
 export type PackageVersionInfo = z.output<typeof schemas.PackageVersionInfo>
 export type WgSubnetConfig = z.output<typeof schemas.WgSubnetConfig>
 export type BindOptions = z.output<typeof schemas.BindOptions>
+
+/**
+ * Active DNS authority and its bootstrap gateway.
+ */
+export type DnsStatus = z.output<typeof schemas.DnsStatus>
 export type GetPackageResponse = z.output<typeof schemas.GetPackageResponse>
 export type GetPackageResponseFull = z.output<
   typeof schemas.GetPackageResponseFull

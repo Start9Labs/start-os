@@ -22,7 +22,7 @@ use crate::net::dns_update::{DnsUpdateController, spawn_server_mdns_injection};
 use crate::net::forward::{
     ForwardRequirements, InterfacePortForwardController, START9_BRIDGE_IFACE, nft_rule, nft_rule_v6,
 };
-use crate::net::gateway::NetworkInterfaceController;
+use crate::net::gateway::{NetworkInterfaceController, WildcardListener};
 use crate::net::host::binding::{AddSslOptions, BindId, BindOptions, UpstreamCertValidation};
 use crate::net::host::{Host, Hosts, host_for, host_for_existing};
 use crate::net::port_map::{PortMapController, candidate_gateways};
@@ -31,6 +31,7 @@ use crate::net::service_interface::{
 };
 use crate::net::socks::SocksController;
 use crate::net::vhost::{AlpnInfo, DynVHostTarget, ProxyTarget, VHostController, VHostKey};
+use crate::net::web_server::WebServerAcceptorSetter;
 use crate::net::{SERVICE_OUTBOUND_REJECT_RULE_PRIORITY, SERVICE_OUTBOUND_RULE_PRIORITY};
 use crate::prelude::*;
 use crate::service::effects::callbacks::ServiceCallbacks;
@@ -53,7 +54,7 @@ pub struct NetController {
     /// are pruned on insert.
     upstream_cert_configs: SyncMutex<BTreeMap<String, Weak<TlsClientConfig>>>,
     pub(crate) net_iface: Arc<NetworkInterfaceController>,
-    pub(super) dns: DnsController,
+    pub(super) dns: Arc<DnsController>,
     pub(super) dns_update: DnsUpdateController,
     /// Publishes the server's `<hostname>.local` name over WireGuard gateways.
     _mdns_injection: NonDetachingJoinHandle<()>,
@@ -66,10 +67,14 @@ pub struct NetController {
 impl NetController {
     pub async fn init(
         db: TypedPatchDb<Database>,
+        dns: Arc<DnsController>,
+        webserver: &WebServerAcceptorSetter<WildcardListener>,
         socks_listen: SocketAddr,
         max_proxy_conns_per_target: usize,
     ) -> Result<Self, Error> {
         let net_iface = Arc::new(NetworkInterfaceController::new(db.clone()));
+        dns.activate(net_iface.clone());
+        webserver.send_modify(|listener| listener.set_ip_info(net_iface.watcher.subscribe()));
         let socks = SocksController::new(socks_listen)?;
         let crypto_provider = Arc::new(tokio_rustls::rustls::crypto::ring::default_provider());
         let tls_client_config = Arc::new(crate::net::tls::client_config(
@@ -150,7 +155,7 @@ impl NetController {
             tls_client_config,
             tls_client_config_no_verify,
             upstream_cert_configs: SyncMutex::new(BTreeMap::new()),
-            dns: DnsController::init(db, &net_iface.watcher).await?,
+            dns,
             dns_update,
             _mdns_injection: mdns_injection,
             forward: InterfacePortForwardController::new(

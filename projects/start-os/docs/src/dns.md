@@ -19,6 +19,12 @@ A service's explicit [outbound gateway](outbound-vpn.md#route-individual-service
 
 Host lookups of configured WireGuard endpoint hostnames use the automatic physical connection's DNS settings, allowing tunnels to reconnect. This exception applies to those exact endpoint names; service-originated lookups still follow the service's outbound gateway.
 
+## Setup and Recovery DNS
+
+During setup and early diagnostics, before stored network settings load, the same StartOS DNS server serves host lookups through the automatic physical gateway. It uses that connection's DNS servers, or the Cloudflare public fallback above. Setup, initialization, and diagnostic screens show the active gateway, resolver addresses, and fallback source while this bootstrap policy applies. Service queries cannot use bootstrap DNS.
+
+Once stored network settings load, DNS adopts the saved gateway choices and overrides. A later initialization failure does not restore the physical-gateway bootstrap policy: diagnostics keep using the loaded policy, including blocking queries assigned to an unavailable gateway. The host-only WireGuard endpoint exception above remains available.
+
 ## Static DNS Servers
 
 Under `System > DNS`, select the gateway, choose **Static**, and provide one to three DNS servers. Each address may include a port; the default is `53`. For IPv6 with a port, use brackets, for example `[2606:4700:4700::1111]:53`. Click "Save" to apply the override to that gateway. Choose **Auto** and save to restore gateway-provided DNS or the public fallback.

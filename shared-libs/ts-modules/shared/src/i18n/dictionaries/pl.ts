@@ -837,4 +837,5 @@ export default {
   947: 'Zapytania systemu o nazwy skonfigurowanych punktów końcowych WireGuard używają automatycznego połączenia bazowego, aby tunele mogły się ponownie połączyć. Zapytania usług nadal używają ich bramy wyjściowej.',
   945: 'Używaj DNS dostarczonego przez bramę lub publicznego DNS Cloudflare, gdy brama go nie udostępnia',
   946: 'Brama wyjściowa wybrana dla usługi ma pierwszeństwo przed domyślną bramą systemu. Usługi bez własnego wyboru używają ustawienia systemowego; Auto używa fizycznej trasy domyślnej, preferując IPv4 względem IPv6.',
+  948: 'StartOS używa automatycznie wybranej bramy fizycznej do DNS do czasu wczytania zapisanych ustawień sieciowych.',
 } satisfies i18n

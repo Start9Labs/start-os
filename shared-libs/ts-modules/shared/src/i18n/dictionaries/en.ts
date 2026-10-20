@@ -838,4 +838,5 @@ export const ENGLISH: Record<string, number> = {
   'DNS mode': 944,
   'Use gateway-provided DNS, or Cloudflare public DNS when none is provided': 945,
   'A service-specific outbound gateway overrides the system default. Services without an override follow the system setting; Auto uses the physical default route, preferring IPv4 over IPv6.': 946,
+  'StartOS uses the automatic physical gateway for DNS until stored network settings load.': 948,
 }

@@ -7,7 +7,12 @@ import {
 } from '@angular/forms'
 import { ActivatedRoute, Router, RouterLink } from '@angular/router'
 import { WA_IS_MOBILE } from '@ng-web-apis/platform'
-import { DocsLinkDirective, i18nPipe, TaskService } from '@start9labs/shared'
+import {
+  DnsSourcePipe,
+  DocsLinkDirective,
+  i18nPipe,
+  TaskService,
+} from '@start9labs/shared'
 import { ISB, utils } from '@start9labs/start-core'
 import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
 import { TuiButton, TuiInput, TuiNotification, TuiTitle } from '@taiga-ui/core'
@@ -93,17 +98,7 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
         </p>
         <p>
           <b>{{ 'DNS source' | i18n }}:</b>
-          @switch (gateway.dns.source) {
-            @case ('gateway') {
-              {{ 'Provided by gateway' | i18n }}
-            }
-            @case ('static') {
-              {{ 'Static' | i18n }}
-            }
-            @case ('public-fallback') {
-              {{ 'Public fallback (Cloudflare)' | i18n }}
-            }
-          }
+          {{ gateway.dns.source | dnsSource | i18n }}
         </p>
         @if (gateway.dns.source === 'public-fallback') {
           <p tuiNotification appearance="warning" role="status">
@@ -188,6 +183,7 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
     TitleDirective,
     i18nPipe,
     DocsLinkDirective,
+    DnsSourcePipe,
   ],
 })
 export default class SystemDnsComponent {

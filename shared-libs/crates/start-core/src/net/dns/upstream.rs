@@ -80,6 +80,12 @@ pub(super) fn auto_gateway<'a>(
         .map(|(_, id)| id)
 }
 
+pub(super) fn underlay_gateway(
+    interfaces: &imbl::OrdMap<GatewayId, NetworkInterfaceInfo>,
+) -> Option<GatewayId> {
+    auto_gateway(interfaces.iter().filter(|(_, info)| !info.is_wireguard()))
+}
+
 #[derive(Clone)]
 pub(crate) struct GatewayRuntime {
     runtime: TokioRuntimeProvider,

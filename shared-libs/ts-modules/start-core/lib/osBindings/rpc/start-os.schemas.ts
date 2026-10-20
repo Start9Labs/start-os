@@ -4515,6 +4515,14 @@ export const MetricsFollowResponse: z.ZodObject<{
 }> = /* @__PURE__ */ object({ guid: Guid, metrics: Metrics }).meta({
   id: 'MetricsFollowResponse',
 })
+export const NetworkGatewayInfo: z.ZodObject<{
+  id: typeof GatewayId
+  info: typeof NetworkInterfaceInfo
+}> = /* @__PURE__ */ object({ id: GatewayId, info: NetworkInterfaceInfo }).meta(
+  {
+    id: 'NetworkGatewayInfo',
+  },
+)
 export const OsIndex: z.ZodObject<{ versions: typeof OsVersionInfoMap }> =
   /* @__PURE__ */ object({ versions: OsVersionInfoMap }).meta({
     id: 'OsIndex',
@@ -4626,6 +4634,42 @@ export const BindOptions: z.ZodObject<{
   secure: wire(Security.nullable().optional(), Security.nullable()),
 }).meta({
   id: 'BindOptions',
+})
+
+/**
+ * Active DNS authority and its bootstrap gateway.
+ */
+export const DnsStatus: z.ZodObject<{
+  /**
+   * True until stored network policy takes authority.
+   */
+  bootstrap: z.ZodBoolean
+  /**
+   * Present only before stored network policy takes authority.
+   */
+  gateway: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<typeof NetworkGatewayInfo>>,
+    z.ZodNullable<typeof NetworkGatewayInfo>
+  >
+}> = /* @__PURE__ */ object({
+  /**
+   * True until stored network policy takes authority.
+   */
+  bootstrap: z.boolean().meta({
+    description: 'True until stored network policy takes authority.',
+  }),
+  /**
+   * Present only before stored network policy takes authority.
+   */
+  gateway: wire(
+    NetworkGatewayInfo.nullable().optional(),
+    NetworkGatewayInfo.nullable(),
+  ).meta({
+    description: 'Present only before stored network policy takes authority.',
+  }),
+}).meta({
+  id: 'DnsStatus',
+  description: 'Active DNS authority and its bootstrap gateway.',
 })
 export const GetPackageResponse: z.ZodObject<{
   categories: z.ZodArray<z.ZodString>
@@ -5047,6 +5091,10 @@ export const Api = {
             'set-static': {
               _PARAMS: /* @__PURE__ */ SetStaticDnsParams,
               _RETURN: /* @__PURE__ */ z.null(),
+            },
+            status: {
+              _PARAMS: /* @__PURE__ */ empty,
+              _RETURN: /* @__PURE__ */ DnsStatus,
             },
           },
         },
