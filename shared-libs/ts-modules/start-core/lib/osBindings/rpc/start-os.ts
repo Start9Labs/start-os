@@ -137,6 +137,7 @@ export type DnsModeInput = z.input<typeof schemas.DnsMode>
  * `value` is the rdata as text: an IP for A/AAAA, a name for CNAME, etc.
  */
 export type DnsRecordEntry = z.output<typeof schemas.DnsRecordEntry>
+export type DnsSource = z.output<typeof schemas.DnsSource>
 export type Dump = z.output<typeof schemas.Dump>
 export type DumpParamsInput = z.input<typeof schemas.DumpParams>
 export type EchoParamsInput = z.input<typeof schemas.EchoParams>
@@ -304,7 +305,6 @@ export type SetPortForwardEnabledParamsInput = z.input<
 export type SetServerHostnameParamsInput = z.input<
   typeof schemas.SetServerHostnameParams
 >
-export type SetStaticDnsParamsInput = z.input<typeof schemas.SetStaticDnsParams>
 export type SetSubnetIpv6ParamsInput = z.input<
   typeof schemas.SetSubnetIpv6Params
 >
@@ -446,6 +446,13 @@ export type CurrentDependencyKind = z.output<
 >
 export type DeleteLegacyParamsInput = z.input<typeof schemas.DeleteLegacyParams>
 export type Description = z.output<typeof schemas.Description>
+
+/**
+ * Per-gateway DNS intent and effective upstreams. `static_servers` is the persisted
+ * override; `servers` and `source` are derived from it and the link configuration.
+ * Without an override or gateway-provided resolvers, the public fallback is used.
+ */
+export type DnsSettings = z.output<typeof schemas.DnsSettings>
 export type DownloadsResponse = z.output<typeof schemas.DownloadsResponse>
 export type EditSignerParamsInput = z.input<typeof schemas.EditSignerParams>
 export type EppInfo = z.output<typeof schemas.EppInfo>
@@ -563,6 +570,7 @@ export type SetIconParamsInput = z.input<typeof schemas.SetIconParams>
 export type SetOutboundGatewayParamsInput = z.input<
   typeof schemas.SetOutboundGatewayParams
 >
+export type SetStaticDnsParamsInput = z.input<typeof schemas.SetStaticDnsParams>
 export type SetSubnetDnsParamsInput = z.input<typeof schemas.SetSubnetDnsParams>
 export type SideloadResponse = z.output<typeof schemas.SideloadResponse>
 export type SignAssetParamsInput = z.input<typeof schemas.SignAssetParams>

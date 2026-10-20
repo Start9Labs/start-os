@@ -209,7 +209,7 @@ impl NetController {
         ip: Ipv4Addr,
         ipv6: Option<Ipv6Addr>,
     ) -> Result<NetService, Error> {
-        let dns = self.dns.add_service(Some(package.clone()), ip)?;
+        let dns = self.dns.add_service(Some(package.clone()), ip, ipv6)?;
 
         let res = NetService::new(NetServiceData {
             id: Some(package),
@@ -224,7 +224,7 @@ impl NetController {
     }
 
     pub async fn os_bindings(self: &Arc<Self>) -> Result<NetService, Error> {
-        let dns = self.dns.add_service(None, HOST_IP.into())?;
+        let dns = self.dns.add_service(None, HOST_IP.into(), None)?;
 
         let service = NetService::new(NetServiceData {
             id: None,
@@ -1116,7 +1116,9 @@ async fn sync_outbound_rules(
         if let Some(gateway) = &gateway {
             desired.insert(ServiceOutboundRule::Reject);
             if let Some(idx) = if_nametoindex(gateway.as_str()).log_err() {
-                desired.insert(ServiceOutboundRule::Gateway(1000 + idx));
+                desired.insert(ServiceOutboundRule::Gateway(
+                    crate::net::gateway::gateway_table_id(idx),
+                ));
             }
         }
         // A lookup that fails to install still gets its rejection.

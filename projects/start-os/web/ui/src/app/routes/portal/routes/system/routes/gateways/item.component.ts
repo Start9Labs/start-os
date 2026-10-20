@@ -1,4 +1,5 @@
 import { Component, inject, input } from '@angular/core'
+import { RouterLink } from '@angular/router'
 import { DialogService, i18nPipe, TaskService } from '@start9labs/shared'
 import { ISB } from '@start9labs/start-core'
 import {
@@ -65,6 +66,14 @@ import { PORT_FORWARDS_MODAL } from './port-forwards.component'
             <button tuiOption (click)="rename()">
               {{ 'Rename' | i18n }}
             </button>
+            <a
+              tuiOption
+              routerLink="../dns"
+              [queryParams]="{ gateway: gateway.id }"
+              (click)="open = false"
+            >
+              {{ 'DNS Servers' | i18n }}
+            </a>
             @if (gateway.type !== 'outbound-only') {
               <button tuiOption (click)="viewPortForwards()">
                 {{ 'View port forwards' | i18n }}
@@ -135,7 +144,15 @@ import { PORT_FORWARDS_MODAL } from './port-forwards.component'
       }
     }
   `,
-  imports: [TuiButton, TuiDropdown, TuiDataList, TuiIcon, TuiInput, i18nPipe],
+  imports: [
+    RouterLink,
+    TuiButton,
+    TuiDropdown,
+    TuiDataList,
+    TuiIcon,
+    TuiInput,
+    i18nPipe,
+  ],
 })
 export class GatewaysItemComponent {
   private readonly dialog = inject(DialogService)

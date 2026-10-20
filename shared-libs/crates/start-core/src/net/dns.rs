@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use clap::Parser;
 use color_eyre::eyre::eyre;
-use futures::{FutureExt, StreamExt, TryStreamExt};
+use futures::FutureExt;
 use hickory_server::net::NetError;
 use hickory_server::net::runtime::Time;
 use hickory_server::proto::op::{Header, HeaderCounts, Metadata, ResponseCode};
@@ -20,7 +20,6 @@ use hickory_server::store::forwarder::{ForwardConfig, ForwardZoneHandler};
 use hickory_server::zone_handler::{Catalog, MessageResponseBuilder, ZoneHandler};
 use imbl::OrdMap;
 use imbl_value::InternedString;
-use itertools::Itertools;
 use rpc_toolkit::{
     Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async, from_fn_blocking,
 };
@@ -30,15 +29,18 @@ use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::Database;
-use crate::db::model::public::NetworkInterfaceInfo;
+use crate::db::model::public::{DnsSettings, NetworkInterfaceInfo};
 use crate::net::gateway::NetworkInterfaceWatcher;
 use crate::net::utils::{bind_tokio_listener_reuse_port, ipv6_is_link_local};
 use crate::prelude::*;
 use crate::util::future::NonDetachingJoinHandle;
-use crate::util::io::file_string_stream;
 use crate::util::serde::{HandlerExtSerde, display_serializable};
 use crate::util::sync::{SyncRwLock, Watch};
 use crate::{GatewayId, HOST_IP, OptionExt, PackageId};
+
+pub(crate) mod upstream;
+
+use upstream::{GatewayRuntime, auto_gateway, is_host_address, valid_upstream};
 
 pub fn dns_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -167,6 +169,8 @@ pub fn query_dns<C: Context>(
 #[derive(Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
 pub struct SetStaticDnsParams {
+    #[arg(help = "help.arg.gateway-id")]
+    pub gateway: GatewayId,
     #[arg(help = "help.arg.dns-servers")]
     pub servers: Option<Vec<String>>,
 }
@@ -176,42 +180,57 @@ rpc_toolkit::ts_export!(SetStaticDnsParams, namespaces = [""]);
 
 pub async fn set_static_dns(
     ctx: RpcContext,
-    SetStaticDnsParams { servers }: SetStaticDnsParams,
+    SetStaticDnsParams { gateway, servers }: SetStaticDnsParams,
 ) -> Result<(), Error> {
-    ctx.db
-        .mutate(|db| {
-            db.as_public_mut()
-                .as_server_info_mut()
-                .as_network_mut()
-                .as_dns_mut()
-                .as_static_servers_mut()
-                .ser(
-                    &servers
-                        .map(|s| {
-                            s.into_iter()
-                                .map(|s| -> Result<SocketAddr, Error> {
-                                    let addr = s.parse::<SocketAddr>().or_else(|_| {
-                                        s.parse::<IpAddr>().map(|a| SocketAddr::from((a, 53)))
-                                    })?;
-                                    let ip = addr.ip().to_canonical();
-                                    if ip.is_unspecified() || ip.is_loopback() {
-                                        return Err(Error::new(
-                                            eyre!(
-                                                "{}",
-                                                t!("net.dns.static-server-is-self", server = s)
-                                            ),
-                                            ErrorKind::InvalidRequest,
-                                        ));
-                                    }
-                                    Ok(addr)
-                                })
-                                .collect::<Result<_, Error>>()
-                        })
-                        .transpose()?,
-                )
-        })
+    let servers = parse_static_servers(servers)?;
+    let interfaces = ctx.net_controller.net_iface.watcher.ip_info();
+    for server in servers.iter().flatten() {
+        ensure_code!(
+            !is_host_address(
+                server.ip(),
+                interfaces
+                    .values()
+                    .filter_map(|info| info.ip_info.as_deref())
+            ),
+            ErrorKind::InvalidRequest,
+            "{}",
+            t!("net.dns.static-server-is-self", server = server)
+        );
+    }
+    ctx.net_controller
+        .net_iface
+        .set_dns(&gateway, servers)
         .await
-        .result
+}
+
+fn parse_static_servers(
+    servers: Option<Vec<String>>,
+) -> Result<Option<std::collections::VecDeque<SocketAddr>>, Error> {
+    servers
+        .map(|servers| {
+            ensure_code!(
+                !servers.is_empty(),
+                ErrorKind::InvalidRequest,
+                "{}",
+                t!("net.dns.empty-servers")
+            );
+            servers
+                .into_iter()
+                .map(|s| {
+                    let addr = s
+                        .parse::<SocketAddr>()
+                        .or_else(|_| s.parse::<IpAddr>().map(|a| SocketAddr::from((a, 53))))?;
+                    ensure_code!(
+                        valid_upstream(addr),
+                        ErrorKind::InvalidRequest,
+                        "{}",
+                        t!("net.dns.invalid-server", server = s)
+                    );
+                    Ok(addr)
+                })
+                .collect()
+        })
+        .transpose()
 }
 
 pub async fn dump_table(
@@ -229,7 +248,7 @@ pub async fn dump_table(
                 .map(|(d, _)| (d.clone(), None))
                 .chain(map.services.iter().filter_map(|(svc, ip)| {
                     ip.iter()
-                        .find(|(_, rc)| rc.strong_count() > 0)
+                        .find(|(_, registration)| registration.lifetime.strong_count() > 0)
                         .map(|(ip, _)| {
                             (
                                 svc.as_ref().map_or(
@@ -249,7 +268,34 @@ pub async fn dump_table(
 #[derive(Default)]
 struct ResolveMap {
     private_domains: BTreeMap<InternedString, (BTreeSet<GatewayId>, Weak<()>)>,
-    services: BTreeMap<Option<PackageId>, BTreeMap<Ipv4Addr, Weak<()>>>,
+    services: BTreeMap<Option<PackageId>, BTreeMap<Ipv4Addr, ServiceRegistration>>,
+}
+
+#[derive(Default)]
+struct ServiceRegistration {
+    ipv6: Option<Ipv6Addr>,
+    lifetime: Weak<()>,
+}
+
+impl ResolveMap {
+    fn requester(&self, source: IpAddr) -> Result<Option<PackageId>, Error> {
+        let source = source.to_canonical();
+        let mut retired = false;
+        for (id, addresses) in &self.services {
+            for (ipv4, registration) in addresses {
+                if source == IpAddr::V4(*ipv4) || registration.ipv6.map(IpAddr::V6) == Some(source)
+                {
+                    if registration.lifetime.strong_count() > 0 {
+                        return Ok(id.clone());
+                    }
+                    retired = true;
+                }
+            }
+        }
+        // NetService can retire before its LXC container exits.
+        ensure_code!(!retired, ErrorKind::Network, "DNS requester has retired");
+        Ok(None)
+    }
 }
 
 pub struct DnsController {
@@ -281,34 +327,7 @@ pub(crate) fn name_server_socket_addr(ns: &NameServerConfig) -> SocketAddr {
     SocketAddr::new(ns.ip, ns.connections.first().map_or(53, |c| c.port))
 }
 
-const BUILTIN_DNS_FALLBACK: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1)), 53);
-
-/// The network-provided entries after StartOS's resolver and built-in fallback.
-fn network_name_servers(config: &ResolverConfig) -> impl Iterator<Item = &NameServerConfig> {
-    config.name_servers().iter().skip(2)
-}
-
-fn forward_servers(
-    config: &ResolverConfig,
-    static_servers: Option<&std::collections::VecDeque<SocketAddr>>,
-) -> Vec<NameServerConfig> {
-    let mut servers: Vec<NameServerConfig> = if let Some(servers) = static_servers {
-        servers
-            .iter()
-            .map(|addr| forward_name_server(*addr))
-            .collect()
-    } else {
-        network_name_servers(config).cloned().collect()
-    };
-    if servers.is_empty() {
-        servers.push(forward_name_server(BUILTIN_DNS_FALLBACK));
-    }
-    servers
-}
-
-/// Parse systemd-resolved's resolv.conf. hickory 0.26 only exposes
-/// `system_conf::parse_resolv_conf` on non-apple unix; this path only runs on
-/// the (Linux) server, so non-Linux targets just need a stub to compile.
+/// Parses a Linux resolver configuration.
 #[cfg(target_os = "linux")]
 pub(crate) fn parse_resolv_conf(
     data: impl AsRef<[u8]>,
@@ -332,144 +351,169 @@ pub(crate) fn parse_resolv_conf(
 enum PrivateScope {
     /// Wildcard catch-all — never answers private domains.
     None,
-    /// A gateway interface — answers a private domain only when its gateway set
-    /// contains this gateway, returning that gateway's own address.
+    /// Answers private domains bound to this gateway.
     Gateway(GatewayId),
-    /// Loopback / container bridge — answers every private domain, returning
-    /// these fixed local addresses so the host and service containers can always
-    /// reach a private domain locally.
+    /// Answers every private domain on local addresses.
     Local(Vec<IpAddr>),
 }
 
 struct Resolver {
-    catalog: Arc<SyncRwLock<Arc<Catalog>>>,
+    db: TypedPatchDb<Database>,
+    forwarders: Arc<SyncRwLock<BTreeMap<GatewayId, GatewayForwarder>>>,
     resolve: Arc<SyncRwLock<ResolveMap>>,
     net_iface: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
     scope: PrivateScope,
 }
 
-/// Keep the forwarder authority in `catalog` in sync with resolv.conf and the
-/// user's static upstream servers.
-fn spawn_forwarder(
-    db: TypedPatchDb<Database>,
-    catalog: Arc<SyncRwLock<Arc<Catalog>>>,
-) -> NonDetachingJoinHandle<()> {
-    tokio::spawn(async move {
-        let mut prev = crate::util::serde::hash_serializable::<sha2::Sha256, _>(&(
-            ResolverConfig::from_parts(None, Vec::new(), Vec::new()),
-            ResolverOpts::default(),
-            Option::<std::collections::VecDeque<SocketAddr>>::None,
-        ))
-        .unwrap_or_default();
-        loop {
-            let res: Result<(), Error> = async {
-                let mut file_stream = file_string_stream("/run/systemd/resolve/resolv.conf")
-                    .filter_map(|a| futures::future::ready(a.transpose()))
-                    .boxed();
-                let mut static_sub = db
-                    .subscribe(
-                        "/public/serverInfo/network/dns/staticServers"
-                            .parse()
-                            .unwrap(),
-                    )
-                    .await;
-                let mut last_config: Option<(ResolverConfig, ResolverOpts)> = None;
-                loop {
-                    let got_file = tokio::select! {
-                        res = file_stream.try_next() => {
-                            let conf = res?
-                                .ok_or_else(|| Error::new(
-                                    eyre!("resolv.conf stream ended"),
-                                    ErrorKind::Network,
-                                ))?;
-                            let (config, mut opts) = parse_resolv_conf(conf)?;
-                            // Per-attempt upstream timeout. Container stub
-                            // resolvers give up around 5s, so a longer forward
-                            // serves nobody; keep the default retry count.
-                            opts.timeout = Duration::from_secs(5);
-                            last_config = Some((config, opts));
-                            true
-                        }
-                        _ = static_sub.recv() => false,
-                    };
-                    let Some((ref config, ref opts)) = last_config else {
-                        continue;
-                    };
-                    let static_servers: Option<std::collections::VecDeque<SocketAddr>> = db
-                        .peek()
-                        .await
-                        .as_public()
-                        .as_server_info()
-                        .as_network()
-                        .as_dns()
-                        .as_static_servers()
-                        .de()?;
-                    let hash = crate::util::serde::hash_serializable::<sha2::Sha256, _>(&(
-                        config,
-                        opts,
-                        &static_servers,
-                    ))?;
-                    if hash == prev {
-                        prev = hash;
-                        continue;
-                    }
-                    if got_file {
-                        db.mutate(|db| {
-                            db.as_public_mut()
-                                .as_server_info_mut()
-                                .as_network_mut()
-                                .as_dns_mut()
-                                .as_dhcp_servers_mut()
-                                .ser(
-                                    &network_name_servers(config)
-                                        .map(name_server_socket_addr)
-                                        .dedup()
-                                        .collect(),
-                                )
-                        })
-                        .await
-                        .result?;
-                    }
-                    let forward_servers = forward_servers(config, static_servers.as_ref());
-                    let auth: Vec<Arc<dyn ZoneHandler>> = vec![Arc::new(
-                        ForwardZoneHandler::builder_tokio(ForwardConfig {
-                            name_servers: forward_servers,
-                            options: Some(opts.clone()),
-                        })
-                        .build()
-                        .map_err(|e| Error::new(eyre!("{e}"), ErrorKind::Network))?,
-                    )];
-                    let mut next = Catalog::new();
-                    next.upsert(Name::root().into(), auth);
-                    catalog.mutate(|c| *c = Arc::new(next));
-                    prev = hash;
-                }
-            }
-            .await;
-            if let Err(e) = res {
-                tracing::error!("{e}");
-                tracing::debug!("{e:?}");
-                tokio::time::sleep(Duration::from_secs(1)).await;
-            }
-        }
-    })
-    .into()
+struct GatewayForwarder {
+    index: u32,
+    dns: DnsSettings,
+    catalog: Arc<Catalog>,
+}
+
+fn gateway_catalog(
+    gateway: GatewayId,
+    index: u32,
+    dns: &DnsSettings,
+) -> Result<Arc<Catalog>, Error> {
+    let mut options = ResolverOpts::default();
+    options.timeout = Duration::from_secs(5);
+    let forwarder = ForwardZoneHandler::builder_with_config(
+        ForwardConfig {
+            name_servers: dns
+                .servers
+                .iter()
+                .map(|addr| forward_name_server(*addr))
+                .collect(),
+            options: Some(options),
+        },
+        GatewayRuntime::new(gateway, index),
+    )
+    .build()
+    .map_err(|e| Error::new(eyre!("{e}"), ErrorKind::Network))?;
+    let mut catalog = Catalog::new();
+    catalog.upsert(
+        Name::root().into(),
+        vec![Arc::new(forwarder) as Arc<dyn ZoneHandler>],
+    );
+    Ok(Arc::new(catalog))
 }
 /// How a query should be answered.
 enum Resolution {
-    /// Answer these addresses locally (an empty vec for the queried family is a
-    /// NODATA answer, as before).
+    /// Answers locally; an absent address family returns NODATA.
     Answer(Vec<IpAddr>),
-    /// The name is in a private StartOS zone but no service claims it — answer
-    /// authoritatively with NXDOMAIN instead of forwarding it upstream (which
-    /// would both leak internal hostnames and, during an upstream outage, pile
-    /// restarting-service lookups onto the slow forwarder).
+    /// Rejects unknown StartOS names without forwarding them.
     NxDomain,
-    /// Not ours — forward upstream.
     Forward,
 }
 
 impl Resolver {
+    async fn request_catalog(&self, source: IpAddr, name: &Name) -> Result<Arc<Catalog>, Error> {
+        let source = source.to_canonical();
+        let domain = name.to_lowercase().to_utf8();
+        let domain = domain.trim_end_matches('.');
+        let bootstrap = self
+            .net_iface
+            .peek(|interfaces| {
+                let from_host = is_host_address(
+                    source,
+                    interfaces.values().filter_map(|i| i.ip_info.as_deref()),
+                );
+                if !from_host
+                    || !interfaces
+                        .values()
+                        .any(|i| i.wireguard_endpoint_domains.contains(domain))
+                {
+                    return None;
+                }
+                Some(
+                    auto_gateway(interfaces.iter().filter(|(_, info)| !info.is_wireguard()))
+                        .or_not_found("WireGuard DNS bootstrap underlay"),
+                )
+            })
+            .transpose()?;
+        if let Some(gateway) = bootstrap {
+            self.catalog_for_gateway(gateway)
+        } else {
+            self.forward_catalog(source).await
+        }
+    }
+
+    async fn forward_catalog(&self, source: IpAddr) -> Result<Arc<Catalog>, Error> {
+        let source = source.to_canonical();
+        let package = self.resolve.peek(|r| r.requester(source))?;
+        let interfaces = self.net_iface.read();
+        if package.is_none()
+            && !is_host_address(
+                source,
+                interfaces
+                    .values()
+                    .filter_map(|info| info.ip_info.as_deref()),
+            )
+        {
+            let bridge_listener = matches!(&self.scope, PrivateScope::Local(addresses) if addresses.contains(&IpAddr::V4(HOST_IP.into())));
+            let bridge_source = interfaces
+                .values()
+                .filter_map(|info| info.ip_info.as_deref())
+                .filter(|info| {
+                    info.device_type == Some(crate::db::model::public::NetworkInterfaceType::Bridge)
+                })
+                .any(|info| info.subnets.iter().any(|subnet| subnet.contains(&source)));
+            ensure_code!(
+                !bridge_listener && !bridge_source,
+                ErrorKind::Network,
+                "unregistered container DNS requester"
+            );
+        }
+        let db = self.db.peek().await;
+        let public = db.as_public();
+        let service_gateway: Option<GatewayId> = match package {
+            Some(id) => public
+                .as_package_data()
+                .as_idx(&id)
+                .or_not_found("DNS requester package")?
+                .as_outbound_gateway()
+                .de()?,
+            None => None,
+        };
+        let selected = service_gateway.or(public
+            .as_server_info()
+            .as_network()
+            .as_default_outbound()
+            .de()?);
+        let gateway = selected
+            .or_else(|| auto_gateway(&interfaces))
+            .or_not_found("outbound DNS gateway")?;
+        self.catalog_for_gateway(gateway)
+    }
+
+    fn catalog_for_gateway(&self, gateway: GatewayId) -> Result<Arc<Catalog>, Error> {
+        let interfaces = self.net_iface.read();
+        let info = interfaces.get(&gateway).or_not_found("DNS gateway")?;
+        let ip = info
+            .ip_info
+            .as_ref()
+            .or_not_found("connected DNS gateway")?;
+        self.forwarders.mutate(|cache| {
+            cache.retain(|id, _| interfaces.get(id).is_some_and(|i| i.ip_info.is_some()));
+            if let Some(forwarder) = cache.get(&gateway) {
+                if forwarder.index == ip.scope_id && forwarder.dns == info.dns {
+                    return Ok(forwarder.catalog.clone());
+                }
+            }
+            let catalog = gateway_catalog(gateway.clone(), ip.scope_id, &info.dns)?;
+            cache.insert(
+                gateway,
+                GatewayForwarder {
+                    index: ip.scope_id,
+                    dns: info.dns.clone(),
+                    catalog: catalog.clone(),
+                },
+            );
+            Ok(catalog)
+        })
+    }
+
     fn resolve(&self, name: &Name, mut src: IpAddr) -> Resolution {
         if name.zone_of(&*LOCALHOST) {
             return Resolution::Answer(vec![
@@ -534,13 +578,12 @@ impl Resolver {
                 else {
                     return Resolution::NxDomain;
                 };
-                // the server's own services are registered under `None`;
-                // `start-os.startos` is the server, same as bare `startos`
+                // start-os.startos aliases the server's startos record.
                 let pkg = pkg.filter(|p| !p.is_start_os());
                 if let Some(ip) = r.services.get(&pkg) {
                     Resolution::Answer(
                         ip.iter()
-                            .filter(|(_, rc)| rc.strong_count() > 0)
+                            .filter(|(_, registration)| registration.lifetime.strong_count() > 0)
                             .map(|(ip, _)| (*ip).into())
                             .collect(),
                     )
@@ -569,7 +612,17 @@ impl RequestHandler for Resolver {
             let name = query.name();
 
             match self.resolve(name, req.src.ip()) {
-                Resolution::Forward => Ok(None),
+                Resolution::Forward => {
+                    let catalog = self
+                        .request_catalog(req.src.ip(), name)
+                        .await
+                        .map_err(|e| NetError::from(e.to_string()))?;
+                    Ok(Some(
+                        catalog
+                            .handle_request::<R, T>(request, response_handle.clone())
+                            .await,
+                    ))
+                }
                 Resolution::NxDomain => {
                     let mut header = Metadata::response_from_request(&request.metadata);
                     header.recursion_available = true;
@@ -695,10 +748,7 @@ impl RequestHandler for Resolver {
                     });
             }
         }
-        let catalog = self.catalog.peek(|c| c.clone());
-        catalog
-            .handle_request::<R, T>(request, response_handle)
-            .await
+        unreachable!()
     }
 }
 
@@ -735,23 +785,17 @@ fn dns_server_on(resolver: Resolver, addr: SocketAddr) -> Result<Server<Resolver
     Ok(server)
 }
 
-/// Serve DNS on a wildcard catch-all socket plus a socket bound to each gateway
-/// interface address, loopback, and the container bridge. Because each specific
-/// socket only receives datagrams sent to its address, the kernel routes a query
-/// to the socket for the interface it ingressed on. A gateway socket answers a
-/// private domain only when the domain is configured for that gateway (so it
-/// never leaks across interfaces), while loopback and the container bridge answer
-/// every private domain locally; the wildcard answers none.
+/// Serves gateway-address scopes and the host/container stubs.
 async fn run_dns_servers(
     db: TypedPatchDb<Database>,
-    catalog: Arc<SyncRwLock<Arc<Catalog>>>,
     resolve: Arc<SyncRwLock<ResolveMap>>,
     mut net_iface: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
 ) -> Result<(), Error> {
-    let _forwarder = spawn_forwarder(db, catalog.clone());
+    let forwarders = Arc::new(SyncRwLock::new(BTreeMap::new()));
     let resolver_iface = net_iface.clone();
     let resolver = |scope: PrivateScope| Resolver {
-        catalog: catalog.clone(),
+        db: db.clone(),
+        forwarders: forwarders.clone(),
         resolve: resolve.clone(),
         net_iface: resolver_iface.clone(),
         scope,
@@ -782,8 +826,6 @@ async fn run_dns_servers(
                 }
             }
         });
-        // wildcard catch-all + the always-on loopback / container-bridge scopes,
-        // inserted last so they win over any gateway that reports the same address.
         desired.insert(
             SocketAddr::new(IpAddr::V6(Ipv6Addr::UNSPECIFIED), 53),
             PrivateScope::None,
@@ -827,11 +869,10 @@ impl DnsController {
         watcher: &NetworkInterfaceWatcher,
     ) -> Result<Self, Error> {
         let resolve = Arc::new(SyncRwLock::new(ResolveMap::default()));
-        let catalog = Arc::new(SyncRwLock::new(Arc::new(Catalog::new())));
         let weak = Arc::downgrade(&resolve);
         let net_iface = watcher.subscribe();
 
-        let dns_server = tokio::spawn(run_dns_servers(db, catalog, resolve, net_iface).map(|r| {
+        let dns_server = tokio::spawn(run_dns_servers(db, resolve, net_iface).map(|r| {
             r.log_err();
         }))
         .into();
@@ -842,16 +883,22 @@ impl DnsController {
         })
     }
 
-    pub fn add_service(&self, pkg_id: Option<PackageId>, ip: Ipv4Addr) -> Result<Arc<()>, Error> {
+    pub fn add_service(
+        &self,
+        pkg_id: Option<PackageId>,
+        ip: Ipv4Addr,
+        ipv6: Option<Ipv6Addr>,
+    ) -> Result<Arc<()>, Error> {
         if let Some(resolve) = Weak::upgrade(&self.resolve) {
             resolve.mutate(|writable| {
                 let ips = writable.services.entry(pkg_id).or_default();
-                let weak = ips.entry(ip).or_default();
-                let rc = if let Some(rc) = Weak::upgrade(&*weak) {
+                let registration = ips.entry(ip).or_default();
+                registration.ipv6 = ipv6;
+                let rc = if let Some(rc) = registration.lifetime.upgrade() {
                     rc
                 } else {
                     let new = Arc::new(());
-                    *weak = Arc::downgrade(&new);
+                    registration.lifetime = Arc::downgrade(&new);
                     new
                 };
                 Ok(rc)
@@ -868,8 +915,10 @@ impl DnsController {
         if let Some(resolve) = Weak::upgrade(&self.resolve) {
             resolve.mutate(|writable| {
                 let mut ips = writable.services.remove(&pkg_id).unwrap_or_default();
-                if let Some(rc) = Weak::upgrade(&ips.remove(&ip).unwrap_or_default()) {
-                    ips.insert(ip, Arc::downgrade(&rc));
+                if let Some(registration) = ips.remove(&ip) {
+                    if registration.lifetime.strong_count() > 0 {
+                        ips.insert(ip, registration);
+                    }
                 }
                 if !ips.is_empty() {
                     writable.services.insert(pkg_id, ips);
@@ -939,57 +988,427 @@ impl DnsController {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::VecDeque;
-
     use super::*;
 
-    fn resolver_config(servers: impl IntoIterator<Item = SocketAddr>) -> ResolverConfig {
-        ResolverConfig::from_parts(
-            None,
-            Vec::new(),
-            servers.into_iter().map(forward_name_server).collect(),
+    async fn resolver_fixture() -> (tempfile::TempDir, Resolver) {
+        let temp = tempfile::tempdir().unwrap();
+        let db = TypedPatchDb::<Database>::load_unchecked(
+            patch_db::PatchDb::open(temp.path().join("db"))
+                .await
+                .unwrap(),
+        );
+        db.put(&patch_db::json_ptr::ROOT, &imbl_value::json!({
+            "public": {
+                "serverInfo": { "network": { "defaultOutbound": "eth0" } },
+                "packageData": { "pinned": { "outboundGateway": "wg0" }, "inherited": { "outboundGateway": null } }
+            }
+        })).await.unwrap();
+        let ifaces = [("eth0", 2), ("wg0", 3)]
+            .into_iter()
+            .map(|(id, index)| {
+                (
+                    id.parse::<GatewayId>().unwrap(),
+                    NetworkInterfaceInfo {
+                        ip_info: Some(Arc::new(crate::db::model::public::IpInfo {
+                            scope_id: index,
+                            default_route_v4: (id == "eth0").then_some(100),
+                            ..Default::default()
+                        })),
+                        ..Default::default()
+                    },
+                )
+            })
+            .collect();
+        (
+            temp,
+            Resolver {
+                db,
+                forwarders: Arc::new(SyncRwLock::new(BTreeMap::new())),
+                resolve: Arc::new(SyncRwLock::new(ResolveMap::default())),
+                net_iface: Watch::new(ifaces),
+                scope: PrivateScope::Local(vec![]),
+            },
         )
     }
 
-    fn addresses(servers: Vec<NameServerConfig>) -> Vec<SocketAddr> {
-        servers.iter().map(name_server_socket_addr).collect()
+    #[tokio::test]
+    async fn dns_uses_requester_gateway_and_keeps_caches_separate() {
+        let (_temp, resolver) = resolver_fixture().await;
+        let controller = DnsController {
+            resolve: Arc::downgrade(&resolver.resolve),
+            dns_server: tokio::spawn(async {}).into(),
+        };
+        let pinned = controller
+            .add_service(
+                Some("pinned".parse().unwrap()),
+                "10.0.3.2".parse().unwrap(),
+                Some("fd00:3::2".parse().unwrap()),
+            )
+            .unwrap();
+        let _inherited = controller
+            .add_service(
+                Some("inherited".parse().unwrap()),
+                "10.0.3.3".parse().unwrap(),
+                None,
+            )
+            .unwrap();
+        let system = resolver
+            .forward_catalog("127.0.0.1".parse().unwrap())
+            .await
+            .unwrap();
+        let service = resolver
+            .forward_catalog("10.0.3.2".parse().unwrap())
+            .await
+            .unwrap();
+        assert!(!Arc::ptr_eq(&system, &service));
+        assert!(Arc::ptr_eq(
+            &service,
+            &resolver
+                .forward_catalog("fd00:3::2".parse().unwrap())
+                .await
+                .unwrap()
+        ));
+        assert!(Arc::ptr_eq(
+            &service,
+            &resolver
+                .forward_catalog("::ffff:10.0.3.2".parse().unwrap())
+                .await
+                .unwrap()
+        ));
+        assert!(Arc::ptr_eq(
+            &system,
+            &resolver
+                .forward_catalog("10.0.3.3".parse().unwrap())
+                .await
+                .unwrap()
+        ));
+        drop(pinned);
+        for source in ["10.0.3.2", "fd00:3::2"] {
+            assert!(
+                resolver
+                    .forward_catalog(source.parse().unwrap())
+                    .await
+                    .is_err()
+            );
+        }
+        let _reused = controller
+            .add_service(
+                Some("inherited".parse().unwrap()),
+                "10.0.3.2".parse().unwrap(),
+                Some("fd00:3::2".parse().unwrap()),
+            )
+            .unwrap();
+        assert!(Arc::ptr_eq(
+            &system,
+            &resolver
+                .forward_catalog("10.0.3.2".parse().unwrap())
+                .await
+                .unwrap()
+        ));
+        resolver
+            .db
+            .put(
+                &"/public/packageData"
+                    .parse::<patch_db::json_ptr::JsonPointer>()
+                    .unwrap(),
+                &imbl_value::json!({}),
+            )
+            .await
+            .unwrap();
+        assert!(
+            resolver
+                .forward_catalog("10.0.3.2".parse().unwrap())
+                .await
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn unregistered_container_dns_never_uses_system_default() {
+        let (_temp, mut resolver) = resolver_fixture().await;
+        resolver.scope = PrivateScope::Local(vec![IpAddr::V4(HOST_IP.into())]);
+        assert!(
+            resolver
+                .forward_catalog("10.0.3.99".parse().unwrap())
+                .await
+                .is_err()
+        );
+        assert!(
+            resolver
+                .forward_catalog(IpAddr::V4(HOST_IP.into()))
+                .await
+                .is_ok()
+        );
+        resolver.scope = PrivateScope::Gateway("eth0".parse().unwrap());
+        resolver.net_iface.send_if_modified(|interfaces| {
+            interfaces.insert(
+                "lxcbr0".parse::<GatewayId>().unwrap(),
+                NetworkInterfaceInfo {
+                    ip_info: Some(Arc::new(crate::db::model::public::IpInfo {
+                        device_type: Some(crate::db::model::public::NetworkInterfaceType::Bridge),
+                        subnets: ["10.0.3.1/24", "fd00:3::1/64"]
+                            .into_iter()
+                            .map(|s| s.parse::<ipnet::IpNet>().unwrap())
+                            .collect(),
+                        ..Default::default()
+                    })),
+                    ..Default::default()
+                },
+            );
+            true
+        });
+        for source in ["10.0.3.99", "fd00:3::99", "::ffff:10.0.3.99"] {
+            assert!(
+                resolver
+                    .forward_catalog(source.parse().unwrap())
+                    .await
+                    .is_err()
+            );
+        }
+        assert!(
+            resolver
+                .forward_catalog("192.0.2.100".parse().unwrap())
+                .await
+                .is_ok()
+        );
+    }
+
+    #[tokio::test]
+    async fn endpoint_bootstrap_is_exact_and_host_only() {
+        let (_temp, resolver) = resolver_fixture().await;
+        let controller = DnsController {
+            resolve: Arc::downgrade(&resolver.resolve),
+            dns_server: tokio::spawn(async {}).into(),
+        };
+        let _pinned = controller
+            .add_service(
+                Some("pinned".parse().unwrap()),
+                "10.0.3.2".parse().unwrap(),
+                Some("fd00:3::2".parse().unwrap()),
+            )
+            .unwrap();
+        let underlay = resolver
+            .forward_catalog("127.0.0.1".parse().unwrap())
+            .await
+            .unwrap();
+        let tunnel = resolver
+            .forward_catalog("10.0.3.2".parse().unwrap())
+            .await
+            .unwrap();
+        resolver.net_iface.send_if_modified(|interfaces| {
+            let info = interfaces
+                .get_mut(&"wg0".parse::<GatewayId>().unwrap())
+                .unwrap();
+            info.wireguard_endpoint_domains.insert("vpn.example".into());
+            let mut ip = info.ip_info.as_deref().unwrap().clone();
+            ip.device_type = Some(crate::db::model::public::NetworkInterfaceType::Wireguard);
+            info.ip_info = Some(Arc::new(ip));
+            true
+        });
+        resolver
+            .db
+            .put(
+                &"/public/serverInfo/network/defaultOutbound"
+                    .parse::<patch_db::json_ptr::JsonPointer>()
+                    .unwrap(),
+                &"wg0",
+            )
+            .await
+            .unwrap();
+        let endpoint = Name::from_ascii("VPN.Example.").unwrap();
+        for source in ["127.0.0.1", "::1"] {
+            assert!(Arc::ptr_eq(
+                &underlay,
+                &resolver
+                    .request_catalog(source.parse().unwrap(), &endpoint)
+                    .await
+                    .unwrap()
+            ));
+        }
+        for source in ["10.0.3.2", "fd00:3::2", "192.0.2.100"] {
+            assert!(Arc::ptr_eq(
+                &tunnel,
+                &resolver
+                    .request_catalog(source.parse().unwrap(), &endpoint)
+                    .await
+                    .unwrap()
+            ));
+        }
+        for domain in ["other.example.", "other.vpn.example."] {
+            assert!(Arc::ptr_eq(
+                &tunnel,
+                &resolver
+                    .request_catalog(
+                        "127.0.0.1".parse().unwrap(),
+                        &Name::from_ascii(domain).unwrap()
+                    )
+                    .await
+                    .unwrap()
+            ));
+        }
+        resolver.net_iface.send_if_modified(|interfaces| {
+            interfaces
+                .remove(&"eth0".parse::<GatewayId>().unwrap())
+                .is_some()
+        });
+        assert!(
+            resolver
+                .request_catalog("127.0.0.1".parse().unwrap(), &endpoint)
+                .await
+                .is_err()
+        );
+        assert!(
+            resolver
+                .request_catalog("10.0.3.2".parse().unwrap(), &endpoint)
+                .await
+                .is_ok()
+        );
+    }
+
+    #[tokio::test]
+    async fn dns_reconciles_gateway_changes_without_fallback() {
+        let (_temp, resolver) = resolver_fixture().await;
+        let controller = DnsController {
+            resolve: Arc::downgrade(&resolver.resolve),
+            dns_server: tokio::spawn(async {}).into(),
+        };
+        let _pinned = controller
+            .add_service(
+                Some("pinned".parse().unwrap()),
+                "10.0.3.2".parse().unwrap(),
+                None,
+            )
+            .unwrap();
+        let before = resolver
+            .forward_catalog("10.0.3.2".parse().unwrap())
+            .await
+            .unwrap();
+        resolver.net_iface.send_if_modified(|interfaces| {
+            let info = interfaces
+                .get_mut(&"wg0".parse::<GatewayId>().unwrap())
+                .unwrap();
+            info.dns.static_servers = Some(["192.0.2.53:5353".parse().unwrap()].into());
+            info.dns.refresh(info.ip_info.as_deref());
+            true
+        });
+        let after = resolver
+            .forward_catalog("10.0.3.2".parse().unwrap())
+            .await
+            .unwrap();
+        assert!(!Arc::ptr_eq(&before, &after));
+        resolver.net_iface.send_if_modified(|interfaces| {
+            interfaces
+                .get_mut(&"wg0".parse::<GatewayId>().unwrap())
+                .unwrap()
+                .ip_info = None;
+            true
+        });
+        assert!(
+            resolver
+                .forward_catalog("10.0.3.2".parse().unwrap())
+                .await
+                .is_err()
+        );
+        assert!(
+            resolver
+                .forward_catalog("127.0.0.1".parse().unwrap())
+                .await
+                .is_ok()
+        );
+        resolver
+            .db
+            .put(
+                &"/public/serverInfo/network/defaultOutbound"
+                    .parse::<patch_db::json_ptr::JsonPointer>()
+                    .unwrap(),
+                &"wg0",
+            )
+            .await
+            .unwrap();
+        assert!(
+            resolver
+                .forward_catalog("127.0.0.1".parse().unwrap())
+                .await
+                .is_err()
+        );
+        resolver
+            .db
+            .put(
+                &"/public/serverInfo/network/defaultOutbound"
+                    .parse::<patch_db::json_ptr::JsonPointer>()
+                    .unwrap(),
+                &Option::<GatewayId>::None,
+            )
+            .await
+            .unwrap();
+        assert!(
+            resolver
+                .forward_catalog("127.0.0.1".parse().unwrap())
+                .await
+                .is_ok()
+        );
+        assert!(matches!(
+            resolver.resolve(
+                &Name::from_ascii("missing.startos.").unwrap(),
+                "10.0.3.2".parse().unwrap()
+            ),
+            Resolution::NxDomain
+        ));
     }
 
     #[test]
-    fn forwards_to_network_name_servers() {
-        let network = "192.0.2.53:5353".parse().unwrap();
-        let config = resolver_config([
-            "127.0.0.1:53".parse().unwrap(),
-            BUILTIN_DNS_FALLBACK,
-            network,
-        ]);
-
-        assert_eq!(addresses(forward_servers(&config, None)), vec![network]);
-    }
-
-    #[test]
-    fn falls_back_when_no_network_name_servers_exist() {
-        let config = resolver_config(["127.0.0.1:53".parse().unwrap(), BUILTIN_DNS_FALLBACK]);
-
+    fn static_dns_cli_requires_gateway_and_accepts_multiple_servers() {
+        let params = SetStaticDnsParams::try_parse_from([
+            "set-static",
+            "eth0",
+            "192.0.2.53",
+            "2001:db8::53",
+        ])
+        .unwrap();
+        assert_eq!(params.gateway.as_str(), "eth0");
+        assert_eq!(params.servers.unwrap(), ["192.0.2.53", "2001:db8::53"]);
+        assert!(SetStaticDnsParams::try_parse_from(["set-static"]).is_err());
         assert_eq!(
-            addresses(forward_servers(&config, None)),
-            vec![BUILTIN_DNS_FALLBACK]
+            SetStaticDnsParams::try_parse_from(["set-static", "eth0"])
+                .unwrap()
+                .servers,
+            None
         );
     }
 
     #[test]
-    fn falls_back_when_the_static_list_is_empty() {
-        let network = "192.0.2.53:53".parse().unwrap();
-        let config = resolver_config([
-            "127.0.0.1:53".parse().unwrap(),
-            BUILTIN_DNS_FALLBACK,
-            network,
-        ]);
-        let static_servers = VecDeque::new();
-
+    fn static_dns_accepts_addresses_and_ports() {
+        let servers = parse_static_servers(Some(vec![
+            "192.0.2.53".into(),
+            "[2001:db8::53]:5353".into(),
+        ]))
+        .unwrap()
+        .unwrap();
         assert_eq!(
-            addresses(forward_servers(&config, Some(&static_servers))),
-            vec![BUILTIN_DNS_FALLBACK]
+            servers.into_iter().collect::<Vec<_>>(),
+            vec![
+                "192.0.2.53:53".parse().unwrap(),
+                "[2001:db8::53]:5353".parse().unwrap()
+            ]
         );
+        assert_eq!(parse_static_servers(None).unwrap(), None);
+    }
+
+    #[test]
+    fn static_dns_rejects_empty_self_and_zero_port() {
+        assert!(parse_static_servers(Some(vec![])).is_err());
+        for server in [
+            "127.0.0.1",
+            "::1",
+            "::ffff:127.0.0.1",
+            "0.0.0.0",
+            "::",
+            "192.0.2.53:0",
+        ] {
+            assert!(
+                parse_static_servers(Some(vec![server.into()])).is_err(),
+                "{server}"
+            );
+        }
     }
 }

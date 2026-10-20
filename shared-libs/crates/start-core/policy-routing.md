@@ -114,9 +114,18 @@ Tables are written with `ip route replace`, never flushed and refilled (#3133). 
 
 The mangle chains have one writer, the gateway coordinator, which rebuilds them in a single transaction (#3298). `mangle_output` restores the connection mark and then jumps to `mangle_local_outbound`, a chain of its own so that its one writer, the default-outbound reconciler, never races the coordinator. That chain starts marking before a selection's rules are installed and stops after they are removed. `restore-mark` acts only on an unmarked packet. The divert mark is set only in prerouting and only on a packet that matches a transparent socket; it never touches the connection mark or the output chain (#3306).
 
+## DNS forwarding
+
+Host and service stub resolvers query the StartOS DNS server. NetworkManager leaves resolver publication disabled; the shared `projects/start-os/build/lib/resolved.conf` keeps the host and container NSS relays on their regular `resolv.conf` stubs, with no separate fallback or cache. It selects an upstream pool by the requester's registered container addresses and persisted outbound selection: service pin, then system default, then the lowest-metric main default (IPv4 before IPv6). Private StartOS names remain local. Each gateway supplies its NetworkManager DNS servers unless overridden; gateways without resolvers use the explicitly displayed Cloudflare fallback.
+
+Upstream UDP and TCP sockets bind to the gateway's captured interface index and carry its table mark. The device binding restricts egress even when `specific` wins or the gateway table is empty; the mark preserves the gateway choice through output marking and the system selection. An unavailable gateway never falls back to another device. Forwarder connection pools and caches are separate per gateway and replaced when its DNS settings or interface index changes.
+
+Host-originated lookups of exact configured WireGuard endpoint names use the automatic non-WireGuard underlay's DNS pool. The interface watcher owns that allowlist, retained while a tunnel is disconnected and seeded before importing a tunnel configuration. Service-originated queries for the same names retain their selected gateway. An unavailable underlay fails bootstrap rather than trying another tunnel.
+
+`src/net/dns/transport_test.sh` runs the production socket provider in a throwaway network namespace, against IPv4 and IPv6 UDP/TCP peers, with competing on-link and default routes. It checks device containment with an empty table, a down device, and a recreated interface.
+
 ## Limits
 
 - An engaged kill switch fails the server's own IPv4 connections at once, but lets its IPv6 ones time out: the retried lookup succeeds, and the packet is dropped only after `mangle_output` marks it. Software that races the two families does not notice; software that tries IPv6 first waits. Containers get an immediate error in both families.
 - A reply sent from a UDP socket bound to the wildcard address routes like an unbound connection: it follows the selection, and an engaged kill switch rejects it. A server that must answer off-link clients over UDP sets its source with `IP_PKTINFO`.
 - A selection change does not move or end established flows.
-- An engaged kill switch rejects the server's own DNS queries unless the resolver has a specific route, as the LAN router does. Until the gateway returns, NetworkManager cannot resolve a tunnel endpoint given as a hostname through any other resolver.

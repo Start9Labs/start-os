@@ -1,0 +1,3 @@
+- Keep service and system DNS forwarding on their selected outbound gateways, with per-gateway DNS overrides and explicit public-resolver fallback indicators.
+- Resolve configured WireGuard endpoint names through the physical connection for host-only tunnel bootstrap; service DNS retains its outbound gateway.
+- Preserve existing system-wide static DNS settings as overrides on known gateways during upgrade.

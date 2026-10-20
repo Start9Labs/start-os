@@ -40,6 +40,10 @@ Service interface address tables list inbound/outbound gateways, where you can e
 
 To re-import a gateway's WireGuard config — for example, a StartTunnel config re-issued with new settings — open the gateway's `⋮` menu, choose "Update config", and paste or upload the new file. The config is replaced **in place**: the gateway keeps its identity, so its port forwards and private/public domains are preserved. (Re-adding via "Add" would instead create a separate gateway.)
 
+## DNS Settings
+
+Each gateway has its own [DNS settings](dns.md). Choose "DNS Servers" from the gateway's `⋮` menu to view its effective servers, see whether it uses gateway-provided DNS, a static override, or Cloudflare's public fallback, and change its settings.
+
 ## Secure Gateways
 
 Some service interfaces are served without SSL — plain HTTP, or another protocol carrying no encryption of its own. StartOS offers those addresses only on a network it treats as secure. Loopback and the container bridge are secure, because they never leave your server. Every other gateway — your router, WiFi, a WireGuard tunnel — is not, so a service interface bound without SSL is neither listed nor reachable through it.

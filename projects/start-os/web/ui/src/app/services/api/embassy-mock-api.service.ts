@@ -17,6 +17,7 @@ import {
   RpcHandlers,
   T,
   tableTransport,
+  utils,
 } from '@start9labs/start-core'
 import {
   AddOperation,
@@ -49,6 +50,7 @@ import {
   UIData,
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
+import { PATCH_CACHE } from 'src/app/services/patch-db/patch-db-source'
 import { toAuthorityUrl } from 'src/app/utils/acme'
 import { AuthService } from '../auth.service'
 import { Mock } from './api.fixures'
@@ -127,6 +129,7 @@ const INIT_PROGRESS: T.FullProgress = {
 export class MockApiService extends ApiService {
   readonly mockWsSource$ = new Subject<Revision>()
   private readonly storage = inject(WA_SESSION_STORAGE)
+  private readonly cache = inject(PATCH_CACHE)
   private readonly revertTime = 1800
   sequence = 0
   private readonly handlers: RpcHandlers<Api> = {
@@ -408,11 +411,38 @@ export class MockApiService extends ApiService {
     'net.dns.set-static': async params => {
       await pauseFor(2000)
 
-      const patch: ReplaceOperation<T.DnsSettings['staticServers']>[] = [
+      const gateway = this.mockData(
+        '/serverInfo/network/gateways/' + params.gateway,
+      ) as T.NetworkInterfaceInfo | undefined
+      if (!gateway) throw new Error('Unknown gateway')
+      if (params.servers?.length === 0)
+        throw new Error('At least one DNS server is required')
+      const provided = gateway.ipInfo?.dnsServers ?? []
+      const servers =
+        params.servers ??
+        (provided.length
+          ? provided
+          : ['1.1.1.1:53', '[2606:4700:4700::1111]:53'])
+      const dns: T.DnsSettings = {
+        staticServers: params.servers ?? null,
+        servers: servers.map(server => {
+          if (new RegExp(utils.regexes.ipv4.matches()).test(server))
+            return server + ':53'
+          if (new RegExp(utils.regexes.ipv6.matches()).test(server))
+            return '[' + server + ']:53'
+          return server
+        }),
+        source: params.servers
+          ? 'static'
+          : provided.length
+            ? 'gateway'
+            : 'public-fallback',
+      }
+      const patch: ReplaceOperation<T.DnsSettings>[] = [
         {
           op: PatchOp.REPLACE,
-          path: '/serverInfo/network/dns/staticServers',
-          value: params.servers ?? null,
+          path: '/serverInfo/network/gateways/' + params.gateway + '/dns',
+          value: dns,
         },
       ]
       this.mockRevision(patch)
@@ -504,6 +534,19 @@ export class MockApiService extends ApiService {
           value: {
             name: params.name,
             secure: false,
+            wireguardEndpointDomains: [],
+            dnsUpdate: { supported: null, at: null },
+            portMap: {
+              pcp: { supported: null, at: null },
+              natPmp: { supported: null, at: null },
+              upnp: { supported: null, at: null },
+              pcpHostname: { supported: null, at: null },
+            },
+            dns: {
+              staticServers: null,
+              servers: ['1.1.1.1:53', '[2606:4700:4700::1111]:53'],
+              source: 'public-fallback',
+            },
             ipInfo: {
               name: id,
               scopeId: 3,
@@ -513,6 +556,8 @@ export class MockApiService extends ApiService {
               ntpServers: [],
               lanIp: ['192.168.1.10'],
               dnsServers: [],
+              defaultRouteV4: null,
+              defaultRouteV6: null,
             },
             type:
               params.type ??
@@ -2219,7 +2264,7 @@ export class MockApiService extends ApiService {
 
   private mockData(path: string): any {
     const parts = path.split('/').filter(Boolean)
-    let obj: any = mockPatchData
+    let obj: any = this.cache.value.value
     for (const part of parts) {
       obj = obj[part]
     }

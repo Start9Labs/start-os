@@ -82,8 +82,8 @@ export type DataUrl = z.output<typeof schemas.DataUrl>
 export type DataUrlInput = z.input<typeof schemas.DataUrl>
 export type DeviceFilter = z.output<typeof schemas.DeviceFilter>
 export type DeviceFilterInput = z.input<typeof schemas.DeviceFilter>
-export type DnsSettings = z.output<typeof schemas.DnsSettings>
-export type DnsSettingsInput = z.input<typeof schemas.DnsSettings>
+export type DnsSource = z.output<typeof schemas.DnsSource>
+export type DnsSourceInput = z.input<typeof schemas.DnsSource>
 export type Duration = z.output<typeof schemas.Duration>
 export type DurationInput = z.input<typeof schemas.Duration>
 export type EchoParams = z.output<typeof schemas.EchoParams>
@@ -334,8 +334,6 @@ export type SetServerHostnameParams = z.output<
 export type SetServerHostnameParamsInput = z.input<
   typeof schemas.SetServerHostnameParams
 >
-export type SetStaticDnsParams = z.output<typeof schemas.SetStaticDnsParams>
-export type SetStaticDnsParamsInput = z.input<typeof schemas.SetStaticDnsParams>
 export type SetWifiEnabledParams = z.output<typeof schemas.SetWifiEnabledParams>
 export type SetWifiEnabledParamsInput = z.input<
   typeof schemas.SetWifiEnabledParams
@@ -588,6 +586,20 @@ export type DestroySubcontainerFsParams = z.output<
 export type DestroySubcontainerFsParamsInput = z.input<
   typeof schemas.DestroySubcontainerFsParams
 >
+
+/**
+ * Per-gateway DNS intent and effective upstreams. `static_servers` is the persisted
+ * override; `servers` and `source` are derived from it and the link configuration.
+ * Without an override or gateway-provided resolvers, the public fallback is used.
+ */
+export type DnsSettings = z.output<typeof schemas.DnsSettings>
+
+/**
+ * Per-gateway DNS intent and effective upstreams. `static_servers` is the persisted
+ * override; `servers` and `source` are derived from it and the link configuration.
+ * Without an override or gateway-provided resolvers, the public fallback is used.
+ */
+export type DnsSettingsInput = z.input<typeof schemas.DnsSettings>
 export type DomainSettings = z.output<typeof schemas.DomainSettings>
 export type DomainSettingsInput = z.input<typeof schemas.DomainSettings>
 export type DownloadsResponse = z.output<typeof schemas.DownloadsResponse>
@@ -906,6 +918,8 @@ export type SetOutboundGatewayParams = z.output<
 export type SetOutboundGatewayParamsInput = z.input<
   typeof schemas.SetOutboundGatewayParams
 >
+export type SetStaticDnsParams = z.output<typeof schemas.SetStaticDnsParams>
+export type SetStaticDnsParamsInput = z.input<typeof schemas.SetStaticDnsParams>
 export type SetupExecuteParams = z.output<typeof schemas.SetupExecuteParams>
 export type SetupExecuteParamsInput = z.input<typeof schemas.SetupExecuteParams>
 export type SetupResult = z.output<typeof schemas.SetupResult>

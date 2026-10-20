@@ -364,6 +364,7 @@ test('StartOS mock registry calls reach list and single-package fixtures', async
   )
   dependencies.set(storage, null)
   dependencies.set(tokens.AuthService, { isVerified$: of(true) })
+  dependencies.set(tokens.PATCH_CACHE, new BehaviorSubject({ value: {} }))
   const client = new (load(
     'projects/start-os/web/ui/src/app/services/api/embassy-mock-api.service.ts',
   ).MockApiService)()
@@ -390,6 +391,193 @@ test('StartOS mock registry calls reach list and single-package fixtures', async
     }),
     version,
   )
+})
+
+test('StartOS DNS mock updates the selected gateway using live gateway state', async () => {
+  const storage = Symbol('session storage')
+  const { dependencies, tokens, load } = harness(
+    new Map([
+      ['@ng-web-apis/common', { WA_SESSION_STORAGE: storage }],
+      ['src/app/utils/acme', {}],
+      ['./api.fixures', { Mock: {} }],
+      ['./mock-patch', { mockPatchData: {} }],
+      ['./md-sample.md', ''],
+    ]),
+  )
+  const gateway = { dns: {}, ipInfo: { dnsServers: ['10.64.0.1'] } }
+  const cache = new BehaviorSubject({
+    value: { serverInfo: { network: { gateways: { wg0: gateway } } } },
+  })
+  dependencies.set(storage, null)
+  dependencies.set(tokens.AuthService, { isVerified$: of(true) })
+  dependencies.set(tokens.PATCH_CACHE, cache)
+  const client = new (load(
+    'projects/start-os/web/ui/src/app/services/api/embassy-mock-api.service.ts',
+  ).MockApiService)()
+  const patches = []
+  const subscription = client.mockWsSource$.subscribe(revision =>
+    patches.push(revision.patch),
+  )
+  await client.rpc.net.dns.setStatic({
+    gateway: 'wg0',
+    servers: ['192.0.2.53', '2001:db8::53', '[2001:db8::54]:5353'],
+  })
+  assert.deepEqual(JSON.parse(JSON.stringify(patches.pop())), [
+    {
+      op: 'replace',
+      path: '/serverInfo/network/gateways/wg0/dns',
+      value: {
+        staticServers: ['192.0.2.53', '2001:db8::53', '[2001:db8::54]:5353'],
+        servers: ['192.0.2.53:53', '[2001:db8::53]:53', '[2001:db8::54]:5353'],
+        source: 'static',
+      },
+    },
+  ])
+  await client.rpc.net.dns.setStatic({ gateway: 'wg0', servers: null })
+  assert.deepEqual(JSON.parse(JSON.stringify(patches.pop()[0].value)), {
+    staticServers: null,
+    servers: ['10.64.0.1:53'],
+    source: 'gateway',
+  })
+  cache.value.value.serverInfo.network.gateways.fresh = {
+    dns: {},
+    ipInfo: null,
+  }
+  await client.rpc.net.dns.setStatic({ gateway: 'fresh', servers: null })
+  assert.deepEqual(JSON.parse(JSON.stringify(patches.pop()[0])), {
+    op: 'replace',
+    path: '/serverInfo/network/gateways/fresh/dns',
+    value: {
+      staticServers: null,
+      servers: ['1.1.1.1:53', '[2606:4700:4700::1111]:53'],
+      source: 'public-fallback',
+    },
+  })
+  await assert.rejects(
+    client.rpc.net.dns.setStatic({ gateway: 'wg0', servers: [] }),
+    /At least one/,
+  )
+  await assert.rejects(
+    client.rpc.net.dns.setStatic({ gateway: 'missing', servers: null }),
+    /Unknown gateway/,
+  )
+  subscription.unsubscribe()
+})
+
+test('StartOS DNS editing survives observed gateway updates and follows configuration changes', async () => {
+  const keys = Object.fromEntries(
+    ['task', 'i18n', 'form', 'api', 'route', 'router', 'mobile'].map(key => [
+      key,
+      Symbol(key),
+    ]),
+  )
+  const overrides = new Map([
+    ['@angular/forms', {}],
+    ['@angular/router', { ActivatedRoute: keys.route, Router: keys.router }],
+    ['@ng-web-apis/platform', { WA_IS_MOBILE: keys.mobile }],
+    ['@start9labs/shared', { TaskService: keys.task, i18nPipe: keys.i18n }],
+    ['@taiga-ui/cdk', {}],
+    ['@taiga-ui/core', {}],
+    ['@taiga-ui/kit', {}],
+    ['@taiga-ui/layout', {}],
+    ['src/app/routes/portal/components/form/containers/group.component', {}],
+    ['src/app/services/api/embassy-api.service', { ApiService: keys.api }],
+    ['src/app/services/form.service', { FormService: keys.form }],
+    ['src/app/services/title.service', {}],
+    [
+      'src/app/utils/configBuilderToSpec',
+      { configBuilderToSpec: async () => ({}) },
+    ],
+    [
+      '@angular/core/rxjs-interop',
+      {
+        toSignal: stream => {
+          let value
+          stream.subscribe(next => {
+            value = next
+          })
+          return () => value
+        },
+      },
+    ],
+  ])
+  const { dependencies, load } = harness(overrides)
+  overrides.set('@angular/core', {
+    Component: () => value => value,
+    inject: token => {
+      assert.ok(dependencies.has(token), `Missing injection: ${String(token)}`)
+      return dependencies.get(token)
+    },
+  })
+  const { PatchDB } = require('patch-db-client')
+  const gateway = {
+    name: 'LAN',
+    dns: { staticServers: null, servers: ['192.0.2.1:53'], source: 'gateway' },
+    ipInfo: { deviceType: 'ethernet', lanIp: ['192.0.2.1'] },
+  }
+  const network = new BehaviorSubject({
+    host: { privateDomains: { 'server.home': ['eth0'] } },
+    gateways: {
+      eth0: gateway,
+      wg0: {
+        ...gateway,
+        name: 'VPN',
+        ipInfo: { deviceType: 'wireguard', lanIp: ['198.51.100.1'] },
+      },
+    },
+  })
+  const query = new BehaviorSubject({ get: () => 'eth0' })
+  dependencies.set(PatchDB, {
+    watch$: key => (key === 'packageData' ? of({}) : network),
+  })
+  dependencies.set(keys.task, {})
+  dependencies.set(keys.i18n, { transform: value => value })
+  dependencies.set(keys.form, { createForm: (_spec, value) => ({ value }) })
+  dependencies.set(keys.api, {})
+  dependencies.set(keys.route, { queryParamMap: query })
+  dependencies.set(keys.router, {})
+  dependencies.set(keys.mobile, false)
+  const page = new (load(
+    'projects/start-os/web/ui/src/app/routes/portal/routes/system/routes/dns/dns.component.ts',
+  ).default)()
+  await new Promise(setImmediate)
+  assert.equal(page.data().warn.length, 1)
+  assert.match(page.data().warn[0], /LAN/)
+  const edited = page.data().form
+  edited.value.strategy = {
+    selection: 'static',
+    value: { servers: ['9.9.9.9'] },
+  }
+  network.next({
+    ...network.value,
+    gateways: {
+      ...network.value.gateways,
+      eth0: { ...gateway, ipInfo: { ...gateway.ipInfo, wanIp: '203.0.113.1' } },
+    },
+  })
+  await new Promise(setImmediate)
+  assert.equal(page.data().form, edited)
+  assert.equal(page.data().form.value.strategy.value.servers[0], '9.9.9.9')
+  network.next({
+    ...network.value,
+    gateways: {
+      ...network.value.gateways,
+      eth0: {
+        ...gateway,
+        dns: { ...gateway.dns, staticServers: ['192.0.2.53:53'] },
+      },
+    },
+  })
+  await new Promise(setImmediate)
+  assert.notEqual(page.data().form, edited)
+  assert.equal(
+    page.data().form.value.strategy.value.servers[0],
+    '192.0.2.53:53',
+  )
+  query.next({ get: () => 'wg0' })
+  await new Promise(setImmediate)
+  assert.equal(page.data().gatewayId, 'wg0')
+  assert.equal(page.data().form.value.strategy.selection, 'automatic')
 })
 
 test('Brochure reports malformed registry URLs and can load the next selection', async () => {
