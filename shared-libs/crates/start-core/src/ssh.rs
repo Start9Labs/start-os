@@ -44,8 +44,7 @@ impl Map for SshKeys {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, VisitFields)]
-#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(opaque, ts(type = "z.string()"))]
 pub struct SshPubKey(
     #[serde(serialize_with = "crate::util::serde::serialize_display")]
     #[serde(deserialize_with = "crate::util::serde::deserialize_from_str")]

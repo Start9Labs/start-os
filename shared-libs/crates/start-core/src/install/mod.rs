@@ -181,9 +181,8 @@ pub async fn install(
 #[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct SideloadParams {
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(skip))]
     #[serde(rename = "__Auth_signer")]
-    #[visit(opaque, type_attributes(visit::wire))]
     signer: Option<InternedString>,
 }
 

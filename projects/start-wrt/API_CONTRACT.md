@@ -118,7 +118,7 @@ CLI before prompting for a new one).
 struct VerifyPasswordParams {
     password: String,
 }
-// Response: null (Authorization error on a wrong password)
+// Response: null (IncorrectPassword, code 7, on a wrong password)
 ```
 
 ### `auth.check-initialized`
@@ -426,6 +426,7 @@ enum WanIpv6Mode {
 struct WanIpv6Response {
     /// A wan6 proto startwrt doesn't manage (e.g. a hand-configured `6in4`)
     /// is reported as Disabled, not an error; the config is left untouched.
+    /// A disabled wan6 still reports the settings it keeps.
     mode: WanIpv6Mode,
     /// Static mode
     address: Option<String>,
@@ -464,7 +465,8 @@ struct WanIpv6SetRequest {
     border_relay: Option<String>,
 }
 // Response: null
-// Backend: updates UCI network.wan6, restarts network, then restarts odhcpd
+// Backend: updates UCI network.wan6, restarts network, then restarts odhcpd.
+// Disabled sets `auto 0` on wan6, keeping its other options; any other mode clears it.
 ```
 
 ### `wan.mac-get`
@@ -632,6 +634,8 @@ struct LanIpv4SetRequest {
 }
 // Response: null
 // Backend: updates UCI network.lan ipaddr (netmask /24), restarts network.
+// Inbound VPN peers the new block would break fail the call with
+//   ErrorKind::VpnPeersWouldBreak unless force is set.
 // Validation: address must fall inside an RFC 1918 block at one of the
 //   selectable /16 boundaries, else ErrorKind::InvalidRequest:
 //     10.0.0.0/8     — second octet 0..=255
@@ -1462,8 +1466,8 @@ struct VpnServerPeerInput {
 
 #[derive(Serialize)]
 struct VpnServerPeerAddResponse {
-    /// WireGuard client config (only when server generates the keypair)
-    client_config: Option<String>,
+    /// WireGuard client config; `PrivateKey = <PRIVATE_KEY>` when the request supplied `public_key`
+    client_config: String,
     public_key: String,
     ip: String,
 }
@@ -1775,6 +1779,12 @@ struct SecurityProfile {
 // Response: SecurityProfile
 ```
 
+`lan_access` reflects current firewall forwardings together with the stored
+`access_to_new_profiles` flag. `ALL` requires access to every other profile and
+the flag. No access to another existing profile returns `SAME_PROFILE` with the
+flag false; a sole profile returns `ALL` when the flag is set. Other
+combinations return `other_profiles` with the stored flag.
+
 ### `profiles.create`
 
 ```rust
@@ -1806,6 +1816,9 @@ struct ProfileCreateRequest {
 //   would blackhole that profile.
 ```
 
+On create and set, `lan_access: "ALL"` stores `access_to_new_profiles: true`,
+`"SAME_PROFILE"` stores `false`, and `other_profiles` preserves the supplied flag.
+
 ### `profiles.set`
 
 ```rust
@@ -1822,6 +1835,8 @@ struct ProfileSetRequest {
 }
 // Response: ProfileId
 // Validation: same gateway_ip and outbound checks as profiles.create.
+// Inbound VPN peers the new subnet would break fail the call with
+//   ErrorKind::VpnPeersWouldBreak unless force is set.
 ```
 
 ### `profiles.delete`

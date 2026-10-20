@@ -374,11 +374,15 @@ pub async fn set<C: CtrlContext>(
                     // just briefly reassociate.  Run sequentially so it
                     // doesn't race the network reload.
                     let dhcp_changed = !affected_macs.is_empty();
+                    let uci_root = ctx.uci_root();
                     tokio::spawn(async move {
                         let _ = crate::run_quiet_async(
                             tokio::process::Command::new("/etc/init.d/network").arg("reload"),
                         )
                         .await;
+                        if dhcp_changed {
+                            crate::published_ports::sync_v6_mac_bind_logged(uci_root).await;
+                        }
                         let _ = crate::run_quiet_async(
                             tokio::process::Command::new("/etc/init.d/firewall").arg("reload"),
                         )
