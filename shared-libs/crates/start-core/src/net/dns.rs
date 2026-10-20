@@ -392,13 +392,11 @@ pub(crate) fn parse_resolv_conf(
 }
 
 /// What private domains a resolver (one per bound socket) may answer.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 enum PrivateScope {
     /// Wildcard catch-all — never answers private domains.
     None,
-    /// Answers private domains bound to this gateway.
     Gateway(GatewayId),
-    /// Answers every private domain on local addresses.
     Local(Vec<IpAddr>),
 }
 
@@ -811,6 +809,13 @@ fn dns_server_on(resolver: Resolver, addr: SocketAddr) -> Result<Server<Resolver
     Ok(server)
 }
 
+fn retain_current_dns_listeners(
+    servers: &mut BTreeMap<SocketAddr, (PrivateScope, Server<Resolver>)>,
+    desired: &BTreeMap<SocketAddr, PrivateScope>,
+) {
+    servers.retain(|addr, (scope, _)| desired.get(addr) == Some(scope));
+}
+
 /// Serves gateway-address scopes and the host/container stubs.
 async fn run_dns_servers(
     mut authority: Watch<DnsAuthority>,
@@ -832,7 +837,7 @@ async fn run_dns_servers(
     ];
     let host_ip = IpAddr::V4(Ipv4Addr::from(HOST_IP));
 
-    let mut servers: BTreeMap<SocketAddr, Server<Resolver>> = BTreeMap::new();
+    let mut servers: BTreeMap<SocketAddr, (PrivateScope, Server<Resolver>)> = BTreeMap::new();
     loop {
         let mut desired: BTreeMap<SocketAddr, PrivateScope> = BTreeMap::new();
         net_iface.peek(|ifaces| {
@@ -868,12 +873,12 @@ async fn run_dns_servers(
             PrivateScope::Local(vec![host_ip]),
         );
 
-        servers.retain(|addr, _| desired.contains_key(addr));
+        retain_current_dns_listeners(&mut servers, &desired);
         for (addr, scope) in desired {
             if !servers.contains_key(&addr) {
-                match dns_server_on(resolver(scope), addr) {
+                match dns_server_on(resolver(scope.clone()), addr) {
                     Ok(server) => {
-                        servers.insert(addr, server);
+                        servers.insert(addr, (scope, server));
                     }
                     Err(e) => {
                         tracing::error!("failed to bind DNS on {addr}: {e}");
@@ -1241,6 +1246,45 @@ mod tests {
                 net_iface,
             },
         )
+    }
+
+    #[tokio::test]
+    async fn listeners_retire_when_an_address_changes_private_gateway_scope() {
+        let (_temp, fixture) = resolver_fixture().await;
+        let local =
+            PrivateScope::Local(vec![Ipv4Addr::LOCALHOST.into(), Ipv6Addr::LOCALHOST.into()]);
+        let ethernet = PrivateScope::Gateway("eth0".parse().unwrap());
+        let mut servers = [
+            ("127.0.0.1:53", local.clone()),
+            ("192.0.2.2:53", ethernet.clone()),
+            ("192.0.2.3:53", ethernet),
+        ]
+        .into_iter()
+        .map(|(address, scope)| {
+            let resolver = Resolver {
+                authority: fixture.authority.clone(),
+                forwarders: fixture.forwarders.clone(),
+                resolve: fixture.resolve.clone(),
+                scope: scope.clone(),
+            };
+            (
+                address.parse::<SocketAddr>().unwrap(),
+                (scope, Server::new(resolver)),
+            )
+        })
+        .collect();
+        let desired = [
+            ("127.0.0.1:53".parse().unwrap(), local),
+            (
+                "192.0.2.2:53".parse().unwrap(),
+                PrivateScope::Gateway("eth1".parse().unwrap()),
+            ),
+        ]
+        .into_iter()
+        .collect();
+        retain_current_dns_listeners(&mut servers, &desired);
+        assert_eq!(servers.len(), 1);
+        assert!(servers.contains_key(&"127.0.0.1:53".parse().unwrap()));
     }
 
     #[tokio::test]
