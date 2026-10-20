@@ -4,11 +4,7 @@ const wire = <A extends z.ZodType, B extends z.ZodType>(input: A, output: B) =>
 const object = <Shape extends z.core.$ZodLooseShape>(shape: Shape) =>
   z.object(shape).meta({ additionalProperties: true })
 const empty: z.ZodType<{}, {}> = /* @__PURE__ */ object({})
-const literal_0 = /* @__PURE__ */ z.string().nullable()
-const literal_1 = /* @__PURE__ */ z.string()
-const literal_2 = /* @__PURE__ */ z.number()
-const literal_3 = /* @__PURE__ */ z.number().nullable()
-const literal_4 = /* @__PURE__ */ z.union([z.number(), z.string()]).nullable()
+const literal_0 = /* @__PURE__ */ z.string()
 export const Cifs: z.ZodObject<{
   hostname: z.ZodString
   path: z.ZodString
@@ -37,10 +33,10 @@ export const EncryptedWire: z.ZodObject<{ encrypted: z.ZodUnknown }> =
   /* @__PURE__ */ object({ encrypted: z.unknown() }).meta({
     id: 'EncryptedWire',
   })
-export const Guid: typeof literal_1 = /* @__PURE__ */ literal_1.meta({
+export const Guid: typeof literal_0 = /* @__PURE__ */ literal_0.meta({
   id: 'Guid',
 })
-export const HostId: typeof literal_1 = /* @__PURE__ */ literal_1.meta({
+export const HostId: typeof literal_0 = /* @__PURE__ */ literal_0.meta({
   id: 'HostId',
 })
 export const IoFormat: z.ZodEnum<{
@@ -83,11 +79,11 @@ export const KeyboardOptions: z.ZodObject<{
   id: 'KeyboardOptions',
 })
 export const LogEntry: z.ZodObject<{
-  timestamp: typeof literal_1
+  timestamp: z.ZodString
   message: z.ZodString
   bootId: z.ZodString
 }> = /* @__PURE__ */ object({
-  timestamp: literal_1,
+  timestamp: z.string(),
   message: z.string(),
   bootId: z.string(),
 }).meta({
@@ -104,7 +100,7 @@ export const NamedProgress: z.ZodObject<{
 }).meta({
   id: 'NamedProgress',
 })
-export const PackageId: typeof literal_1 = /* @__PURE__ */ literal_1.meta({
+export const PackageId: typeof literal_0 = /* @__PURE__ */ literal_0.meta({
   id: 'PackageId',
 })
 export const PartitionTable: z.ZodEnum<{ mbr: 'mbr'; gpt: 'gpt' }> =
@@ -126,11 +122,17 @@ export const QueryDnsParams: z.ZodObject<{ fqdn: z.ZodString }> =
  * IPv4 and an `AAAA` at the box's IPv6 GUA. Either may be absent.
  */
 export const QueryDnsRes: z.ZodObject<{
-  ipv4: z.ZodCodec<z.ZodOptional<typeof literal_0>, typeof literal_0>
-  ipv6: z.ZodCodec<z.ZodOptional<typeof literal_0>, typeof literal_0>
+  ipv4: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodString>>,
+    z.ZodNullable<z.ZodString>
+  >
+  ipv6: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodString>>,
+    z.ZodNullable<z.ZodString>
+  >
 }> = /* @__PURE__ */ object({
-  ipv4: wire(literal_0.optional(), literal_0),
-  ipv6: wire(literal_0.optional(), literal_0),
+  ipv4: wire(z.string().nullable().optional(), z.string().nullable()),
+  ipv6: wire(z.string().nullable().optional(), z.string().nullable()),
 }).meta({
   id: 'QueryDnsRes',
   description:
@@ -159,7 +161,7 @@ export const RecoverySource = <Password extends z.ZodType>(
   ])
   return self
 }
-export const ServerHostname: typeof literal_1 = /* @__PURE__ */ literal_1.meta({
+export const ServerHostname: typeof literal_0 = /* @__PURE__ */ literal_0.meta({
   id: 'ServerHostname',
 })
 export const SetLanguageParams: z.ZodObject<{ language: z.ZodString }> =
@@ -199,17 +201,6 @@ export const SetupInfo: z.ZodObject<{
   }),
 }).meta({
   id: 'SetupInfo',
-})
-export const SetupResult: z.ZodObject<{
-  hostname: typeof literal_1
-  rootCa: typeof literal_1
-  needsRestart: z.ZodBoolean
-}> = /* @__PURE__ */ object({
-  hostname: literal_1,
-  rootCa: literal_1,
-  needsRestart: z.boolean(),
-}).meta({
-  id: 'SetupResult',
 })
 export const AttachParams: z.ZodObject<{
   password: z.ZodCodec<
@@ -336,6 +327,17 @@ export const SetupExecuteParams: z.ZodObject<{
 }).meta({
   id: 'SetupExecuteParams',
 })
+export const SetupResult: z.ZodObject<{
+  hostname: typeof ServerHostname
+  rootCa: typeof literal_0
+  needsRestart: z.ZodBoolean
+}> = /* @__PURE__ */ object({
+  hostname: ServerHostname,
+  rootCa: literal_0,
+  needsRestart: z.boolean(),
+}).meta({
+  id: 'SetupResult',
+})
 
 /**
  * The public view of a backup found on a target: enough to identify it, and none of
@@ -344,11 +346,11 @@ export const SetupExecuteParams: z.ZodObject<{
 export const StartOsRecoveryInfo: z.ZodObject<{
   hostname: typeof ServerHostname
   version: z.ZodString
-  timestamp: typeof literal_1
+  timestamp: z.ZodString
 }> = /* @__PURE__ */ object({
   hostname: ServerHostname,
   version: z.string(),
-  timestamp: literal_1,
+  timestamp: z.string(),
 }).meta({
   id: 'StartOsRecoveryInfo',
   description:
@@ -377,9 +379,15 @@ export const PartitionInfo: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodString>>,
     z.ZodNullable<z.ZodString>
   >
-  capacity: typeof literal_2
-  used: z.ZodCodec<z.ZodOptional<typeof literal_3>, typeof literal_3>
-  available: z.ZodCodec<z.ZodOptional<typeof literal_3>, typeof literal_3>
+  capacity: z.ZodInt
+  used: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodInt>>,
+    z.ZodNullable<z.ZodInt>
+  >
+  available: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodInt>>,
+    z.ZodNullable<z.ZodInt>
+  >
   startOs: z.ZodRecord<z.ZodString, typeof StartOsRecoveryInfo>
   legacyBackup: z.ZodBoolean
   guid: z.ZodCodec<
@@ -394,9 +402,9 @@ export const PartitionInfo: z.ZodObject<{
   logicalname: z.string(),
   stablePath: z.string(),
   label: wire(z.string().nullable().optional(), z.string().nullable()),
-  capacity: literal_2,
-  used: wire(literal_3.optional(), literal_3),
-  available: wire(literal_3.optional(), literal_3),
+  capacity: z.int(),
+  used: wire(z.int().nullable().optional(), z.int().nullable()),
+  available: wire(z.int().nullable().optional(), z.int().nullable()),
   startOs: z.record(z.string(), StartOsRecoveryInfo),
   legacyBackup: z.boolean(),
   guid: wire(z.string().nullable().optional(), z.string().nullable()),
@@ -409,8 +417,11 @@ export const Progress: z.ZodUnion<
     z.ZodNull,
     z.ZodBoolean,
     z.ZodObject<{
-      done: typeof literal_2
-      total: z.ZodCodec<z.ZodOptional<typeof literal_3>, typeof literal_3>
+      done: z.ZodInt
+      total: z.ZodCodec<
+        z.ZodOptional<z.ZodNullable<z.ZodInt>>,
+        z.ZodNullable<z.ZodInt>
+      >
       units: z.ZodCodec<
         z.ZodOptional<z.ZodNullable<typeof ProgressUnits>>,
         z.ZodNullable<typeof ProgressUnits>
@@ -423,8 +434,8 @@ export const Progress: z.ZodUnion<
     z.null(),
     z.boolean(),
     object({
-      done: literal_2,
-      total: wire(literal_3.optional(), literal_3),
+      done: z.int(),
+      total: wire(z.int().nullable().optional(), z.int().nullable()),
       units: wire(
         ProgressUnits.nullable().optional(),
         ProgressUnits.nullable(),
@@ -778,7 +789,10 @@ export const Api = {
                 z.string().nullable().optional(),
                 z.string().nullable(),
               ),
-              boot: wire(literal_4.optional(), literal_4),
+              boot: wire(
+                z.union([z.number(), z.string()]).nullable().optional(),
+                z.union([z.number(), z.string()]).nullable(),
+              ),
               before: wire(z.boolean().optional(), z.boolean()),
             }),
             empty,
@@ -796,7 +810,10 @@ export const Api = {
                     z.string().nullable().optional(),
                     z.string().nullable(),
                   ),
-                  boot: wire(literal_4.optional(), literal_4),
+                  boot: wire(
+                    z.union([z.number(), z.string()]).nullable().optional(),
+                    z.union([z.number(), z.string()]).nullable(),
+                  ),
                   before: wire(z.boolean().optional(), z.boolean()),
                 }),
                 empty,

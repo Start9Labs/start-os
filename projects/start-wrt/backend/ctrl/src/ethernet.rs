@@ -375,17 +375,27 @@ pub async fn set<C: CtrlContext>(
                     // just briefly reassociate.  Run sequentially so it
                     // doesn't race the network reload.
                     let dhcp_changed = !affected_macs.is_empty();
+                    let uci_root = ctx.uci_root();
                     tokio::spawn(async move {
                         let _ = crate::run_quiet_async(
                             tokio::process::Command::new("/etc/init.d/network").arg("reload"),
                         )
                         .await;
+                        if dhcp_changed {
+                            crate::published_ports::sync_v6_mac_bind_logged(uci_root).await;
+                        }
                         let _ = crate::run_quiet_async(
                             tokio::process::Command::new("/etc/init.d/firewall").arg("reload"),
                         )
                         .await;
-                        let _ =
-                            crate::run_quiet_async(&mut tokio::process::Command::new("wifi")).await;
+                        if let Err(e) = crate::wifi::reload_wifi(
+                            "/etc/config",
+                            crate::wifi::WifiReload::Restart,
+                        )
+                        .await
+                        {
+                            tracing::warn!("WiFi restart failed: {e}");
+                        }
                         if dhcp_changed {
                             crate::published_ports::reload_dnsmasq();
                             // odhcpd owns IPv6 leases/hostids; reload so a cleared

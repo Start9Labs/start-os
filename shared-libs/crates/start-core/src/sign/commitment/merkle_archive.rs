@@ -15,8 +15,6 @@ use crate::util::serde::Base64;
 #[model = "Model<Self>"]
 pub struct MerkleArchiveCommitment {
     pub root_sighash: Base64<[u8; 32]>,
-    #[visit(ts(type = "z.number()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub root_maxsize: u64,
 }
 

@@ -70,19 +70,13 @@ rpc_toolkit::ts_export!(PackageInfoShort, namespaces = [""]);
 pub struct GetPackageParams {
     #[arg(help = "help.arg.package-id")]
     pub id: Option<PackageId>,
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
     #[arg(long, short = 'v', help = "help.arg.target-version-range")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub target_version: Option<VersionRange>,
     #[arg(long, help = "help.arg.source-version")]
     pub source_version: Option<VersionString>,
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(skip))]
     #[arg(skip)]
     #[serde(rename = "__DeviceInfo_device_info")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub device_info: Option<DeviceInfo>,
     #[arg(default_value = "none", help = "help.arg.other-versions-detail")]
     pub other_versions: Option<PackageDetailLevel>,
@@ -513,20 +507,10 @@ pub struct CliDownloadParams {
     #[arg(help = "help.arg.package-id")]
     pub id: PackageId,
     #[arg(long, short = 'v', help = "help.arg.target-version-range")]
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub target_version: Option<VersionRange>,
     #[arg(short, long, help = "help.arg.destination-path")]
     pub dest: Option<PathBuf>,
     #[arg(long, short, help = "help.arg.architecture")]
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub arch: Option<InternedString>,
 }
 

@@ -29,9 +29,7 @@ struct Documented {
     #[visit(opaque)]
     hidden: Unbound,
     /// TS skipped documentation.
-    #[visit(type_attributes(visit::wire))]
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque)]
+    #[visit(opaque, ts(skip))]
     injected: Unbound,
 }
 struct Unbound;
@@ -117,8 +115,7 @@ struct Flattened<T> {
 
 /// Literal container documentation.
 #[derive(visit_rs::VisitFields)]
-#[visit(type_attributes(visit::wire))]
-#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
+#[visit(ts(type = "z.string()"))]
 struct Literal {
     /// Replaced field documentation.
     #[visit(opaque)]
@@ -144,10 +141,8 @@ struct WireField {
     #[visit(opaque)]
     value: Unbound,
     /// Literal field documentation.
-    #[visit(type_attributes(visit::wire))]
-    #[visit(ts(type = "z.boolean()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque)]
-    literal: Unbound,
+    #[visit(ts(type = "z.boolean()"))]
+    literal: bool,
 }
 
 /// Conversion documentation.
