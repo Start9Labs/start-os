@@ -344,13 +344,9 @@ pub struct RegistryAuthMetadata {
 pub struct AdminLogRecord {
     pub timestamp: String,
     pub name: String,
-    #[visit(
-        ts(
-            type = "z.object({ id: z.union([z.string(), z.number()]).nullable(), method: z.string(), params: z.any() })"
-        ),
-        wire = "rpc_toolkit::ts::Unknown"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
+    #[visit(ts(
+        type = "z.object({ id: z.union([z.string(), z.number()]).nullable(), method: z.string(), params: z.any() })"
+    ))]
     pub request: RpcRequest,
     pub key: AnyVerifyingKey,
 }

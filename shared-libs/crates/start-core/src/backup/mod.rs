@@ -35,8 +35,6 @@ rpc_toolkit::ts_export!(ServerBackupReport, namespaces = [""]);
 #[derive(Debug, Deserialize, Serialize, VisitFields)]
 pub struct PackageBackupReport {
     pub error: Option<String>,
-    #[visit(ts(type = "z.number()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub duration_ms: u64,
 }
 

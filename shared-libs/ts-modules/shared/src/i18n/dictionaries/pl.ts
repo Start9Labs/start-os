@@ -825,4 +825,6 @@ export default {
   933: 'Twój router używa swojego głównego CA do generowania certyfikatów SSL/TLS dla siebie. Te certyfikaty są następnie używane do szyfrowania ruchu sieciowego z Twoimi urządzeniami klienckimi.',
   934: 'Postępuj zgodnie z instrukcjami dla swojego systemu operacyjnego. Zaufanie głównemu CA pozwala Twojemu urządzeniu weryfikować autentyczność szyfrowanej komunikacji z routerem.',
   935: 'Będziesz musiał powtórzyć tę czynność na każdym urządzeniu, którego używasz do łączenia się z interfejsem StartWRT.',
+  936: 'Zaktualizuj serwer',
+  937: 'Ponowna instalacja',
 } satisfies i18n

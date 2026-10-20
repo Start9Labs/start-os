@@ -70,11 +70,7 @@ pub struct PassthroughInfo {
     pub hostname: InternedString,
     pub listen_port: u16,
     pub backend: SocketAddr,
-    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub public_gateways: BTreeSet<GatewayId>,
-    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub private_ips: BTreeSet<IpAddr>,
 }
 
