@@ -547,7 +547,11 @@ export const ENGLISH: Record<string, number> = {
   '2.4 GHz Width': 570,
   '5 GHz Width': 571,
   'Not connected': 572,
+  'Turn off Wi-Fi now?': 577,
+  'A blackout window covers the current time, so saving turns Wi-Fi off immediately for every device on it, including this one if it is connected over Wi-Fi.': 578,
+  'Turn off Wi-Fi': 579,
   'Revoke DNS record publishing': 573,
   'Updating VPN peer...': 574,
   'VPN peer updated': 575,
+  'Replace the PrivateKey placeholder with the private key of this device before using this configuration.': 576,
 }

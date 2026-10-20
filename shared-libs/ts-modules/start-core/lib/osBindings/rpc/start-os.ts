@@ -121,9 +121,6 @@ export type ContactInfo = z.output<typeof schemas.ContactInfo>
 export type ContactInfoInput = z.input<typeof schemas.ContactInfo>
 export type ContainerId = z.output<typeof schemas.ContainerId>
 export type CountEntry = z.output<typeof schemas.CountEntry>
-export type CurrentDependencyKind = z.output<
-  typeof schemas.CurrentDependencyKind
->
 export type DataUrl = z.output<typeof schemas.DataUrl>
 export type DataUrlInput = z.input<typeof schemas.DataUrl>
 export type DeviceFilter = z.output<typeof schemas.DeviceFilter>
@@ -190,9 +187,11 @@ export type GuidInput = z.input<typeof schemas.Guid>
  * from inside a db transaction.
  */
 export type HasUnenrolledKeys = z.output<typeof schemas.HasUnenrolledKeys>
+export type HealthCheckId = z.output<typeof schemas.HealthCheckId>
 export type HostId = z.output<typeof schemas.HostId>
 export type HostIdInput = z.input<typeof schemas.HostId>
 export type HttpRedirectStatus = z.output<typeof schemas.HttpRedirectStatus>
+export type ImageIdInput = z.input<typeof schemas.ImageId>
 export type IoFormatInput = z.input<typeof schemas.IoFormat>
 export type KeyboardOptionsInput = z.input<typeof schemas.KeyboardOptions>
 export type KillParamsInput = z.input<typeof schemas.KillParams>
@@ -238,7 +237,6 @@ export type PackageId = z.output<typeof schemas.PackageId>
 export type PackageIdInput = z.input<typeof schemas.PackageId>
 export type PackageVersionCount = z.output<typeof schemas.PackageVersionCount>
 export type PartitionTable = z.output<typeof schemas.PartitionTable>
-export type PassthroughInfo = z.output<typeof schemas.PassthroughInfo>
 export type Percentage = z.output<typeof schemas.Percentage>
 export type PluginId = z.output<typeof schemas.PluginId>
 export type PreDownloadAlertWhen = z.output<typeof schemas.PreDownloadAlertWhen>
@@ -367,7 +365,6 @@ export type UpdatePortForwardLabelParamsInput = z.input<
   typeof schemas.UpdatePortForwardLabelParams
 >
 export type UpdateSystemParamsInput = z.input<typeof schemas.UpdateSystemParams>
-export type UpdateSystemRes = z.output<typeof schemas.UpdateSystemRes>
 
 /**
  * How the OS reverse proxy validates the container's TLS certificate when it
@@ -474,6 +471,9 @@ export type CifsUpdateParamsInput = z.input<typeof schemas.CifsUpdateParams>
 export type ClearTaskParamsInput = z.input<typeof schemas.ClearTaskParams>
 export type ControlParamsInput = z.input<typeof schemas.ControlParams>
 export type CreateParamsInput = z.input<typeof schemas.CreateParams>
+export type CurrentDependencyKind = z.output<
+  typeof schemas.CurrentDependencyKind
+>
 export type DeleteArchivedSnapshotsParamsInput = z.input<
   typeof schemas.DeleteArchivedSnapshotsParams
 >
@@ -484,7 +484,6 @@ export type DeleteBackupJobWithBackupsParamsInput = z.input<
   typeof schemas.DeleteBackupJobWithBackupsParams
 >
 export type DeleteLegacyParamsInput = z.input<typeof schemas.DeleteLegacyParams>
-export type DependencyMetadata = z.output<typeof schemas.DependencyMetadata>
 export type Description = z.output<typeof schemas.Description>
 export type DiscoverScheduledBackupsParamsInput = z.input<
   typeof schemas.DiscoverScheduledBackupsParams
@@ -547,6 +546,7 @@ export type OsVersionInfo = z.output<typeof schemas.OsVersionInfo>
 export type PackageBackupInfo = z.output<typeof schemas.PackageBackupInfo>
 export type PackageIdParamsInput = z.input<typeof schemas.PackageIdParams>
 export type PackageInfoShort = z.output<typeof schemas.PackageInfoShort>
+export type PassthroughInfo = z.output<typeof schemas.PassthroughInfo>
 export type PasswordTypeInput = z.input<typeof schemas.PasswordType>
 export type PreDownloadAlert = z.output<typeof schemas.PreDownloadAlert>
 
@@ -657,6 +657,7 @@ export type UninstallParamsInput = z.input<typeof schemas.UninstallParams>
 export type UnsetGatewaySecureParamsInput = z.input<
   typeof schemas.UnsetGatewaySecureParams
 >
+export type UpdateSystemRes = z.output<typeof schemas.UpdateSystemRes>
 export type UpdateTunnelParamsInput = z.input<typeof schemas.UpdateTunnelParams>
 export type VersionSignerParamsInput = z.input<
   typeof schemas.VersionSignerParams
@@ -676,6 +677,7 @@ export type CreateBackupJobParamsInput = z.input<
 export type DeleteArchivedSnapshotsBulkParamsInput = z.input<
   typeof schemas.DeleteArchivedSnapshotsBulkParams
 >
+export type DependencyMetadata = z.output<typeof schemas.DependencyMetadata>
 export type EstimateBackupCapacityParamsInput = z.input<
   typeof schemas.EstimateBackupCapacityParams
 >

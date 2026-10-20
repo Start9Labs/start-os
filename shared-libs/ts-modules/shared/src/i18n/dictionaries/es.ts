@@ -979,6 +979,8 @@ export default {
   933: 'Tu router usa su CA raíz para generar certificados SSL/TLS para sí mismo. Estos certificados se utilizan para cifrar el tráfico de red con tus dispositivos cliente.',
   934: 'Sigue las instrucciones para tu sistema operativo. Al confiar en tu CA raíz, tu dispositivo puede verificar la autenticidad de las comunicaciones cifradas con tu router.',
   935: 'Tendrás que repetir esto en cada dispositivo que uses para acceder a la interfaz de StartWRT.',
+  936: 'Actualizar servidor',
+  937: 'Reinstalando',
   1179: 'Sin datos del sistema',
   1180: 'Alternar todos los servicios',
   1181: 'Ver más',

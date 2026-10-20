@@ -542,7 +542,11 @@ export default {
   570: 'Largeur 2,4 GHz',
   571: 'Largeur 5 GHz',
   572: 'Non connecté',
+  577: 'Éteindre le Wi-Fi maintenant ?',
+  578: 'Une fenêtre d’extinction couvre l’heure actuelle : l’enregistrement éteint donc immédiatement le Wi-Fi pour tous les appareils connectés, y compris celui-ci s’il est connecté en Wi-Fi.',
+  579: 'Éteindre le Wi-Fi',
   573: 'Révoquer la publication d’enregistrements DNS',
   574: 'Mise à jour du pair VPN…',
   575: 'Pair VPN mis à jour',
+  576: 'Remplacez l’espace réservé PrivateKey par la clé privée de cet appareil avant d’utiliser cette configuration.',
 } satisfies i18n
