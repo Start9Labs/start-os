@@ -1,0 +1,1 @@
+- Services whose image sets its own language, such as those running PostgreSQL, start on servers set to a language other than English.

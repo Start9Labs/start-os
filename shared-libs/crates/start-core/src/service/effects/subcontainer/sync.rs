@@ -161,6 +161,13 @@ impl ExecParams {
                 cmd.env_remove(line);
             }
         };
+        for line in std::fs::read_to_string("/etc/default/locale")
+            .unwrap_or_default()
+            .lines()
+        {
+            update_env(line);
+        }
+
         if let Some(f) = env_file {
             let mut lines = BufReader::new(
                 File::open(&f).with_ctx(|_| (ErrorKind::Filesystem, format!("open r {f:?}")))?,
@@ -169,13 +176,6 @@ impl ExecParams {
             while let Some(line) = lines.next().transpose()? {
                 update_env(&line);
             }
-        }
-
-        for line in std::fs::read_to_string("/etc/default/locale")
-            .unwrap_or_default()
-            .lines()
-        {
-            update_env(line);
         }
 
         for line in env {
