@@ -549,5 +549,10 @@ export default {
   574: 'VPN-Peer wird aktualisiert...',
   575: 'VPN-Peer aktualisiert',
   576: 'Ersetzen Sie den PrivateKey-Platzhalter durch den privaten Schlüssel dieses Geräts, bevor Sie diese Konfiguration verwenden.',
-  580: 'Delegiertes Präfix',
+  584: 'DNS-Server',
+  581: 'Keine DNS-Server: Profile, die dieses VPN nutzen, lösen Namen über Ihren Internetanbieter außerhalb des Tunnels auf, sofern das System-DNS keine benutzerdefinierten Server verwendet.',
+  582: 'Resolver, die Profile mit diesem VPN ohne eigenes DNS durch den Tunnel erreichen. Durch Kommas trennen.',
+  583: 'IP-Adressen durch Kommas getrennt eingeben',
+  580: 'System (außerhalb des VPN)',
+  585: 'Delegiertes Präfix',
 } satisfies i18n

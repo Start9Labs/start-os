@@ -714,6 +714,11 @@ export const OutboundVpn: z.ZodObject<{
    * The server is named by hostname; only `Internet` is a valid target.
    */
   hostname_endpoint: z.ZodBoolean
+  /**
+   * Resolvers reached through the tunnel. Empty leaves profiles routed through
+   * this VPN on the system DNS servers, or on the ISP's outside the tunnel.
+   */
+  dns: z.ZodArray<z.ZodString>
 }> = /* @__PURE__ */ object({
   id: z.string(),
   label: z.string(),
@@ -744,6 +749,14 @@ export const OutboundVpn: z.ZodObject<{
     description:
       'The server is named by hostname; only `Internet` is a valid target.',
   }),
+  /**
+   * Resolvers reached through the tunnel. Empty leaves profiles routed through
+   * this VPN on the system DNS servers, or on the ISP's outside the tunnel.
+   */
+  dns: z.array(z.string()).meta({
+    description:
+      "Resolvers reached through the tunnel. Empty leaves profiles routed through\nthis VPN on the system DNS servers, or on the ISP's outside the tunnel.",
+  }),
 }).meta({
   id: 'OutboundVpn',
 })
@@ -754,6 +767,13 @@ export const OutboundVpnCreateRequest: z.ZodObject<{
    * Raw WireGuard .conf file contents
    */
   config: z.ZodString
+  /**
+   * Replaces the config's `DNS =` servers. Absent keeps them.
+   */
+  dns: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString>>>,
+    z.ZodNullable<z.ZodArray<z.ZodString>>
+  >
 }> = /* @__PURE__ */ object({
   label: z.string(),
   target: z.string(),
@@ -762,6 +782,15 @@ export const OutboundVpnCreateRequest: z.ZodObject<{
    */
   config: z.string().meta({
     description: 'Raw WireGuard .conf file contents',
+  }),
+  /**
+   * Replaces the config's `DNS =` servers. Absent keeps them.
+   */
+  dns: wire(
+    z.array(z.string()).nullable().optional(),
+    z.array(z.string()).nullable(),
+  ).meta({
+    description: "Replaces the config's `DNS =` servers. Absent keeps them.",
   }),
 }).meta({
   id: 'OutboundVpnCreateRequest',
@@ -792,6 +821,13 @@ export const OutboundVpnUpdateRequest: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodInt>>,
     z.ZodNullable<z.ZodInt>
   >
+  /**
+   * Replaces the resolvers reached through the tunnel. Absent keeps them.
+   */
+  dns: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString>>>,
+    z.ZodNullable<z.ZodArray<z.ZodString>>
+  >
 }> = /* @__PURE__ */ object({
   id: z.string(),
   label: z.string(),
@@ -803,6 +839,16 @@ export const OutboundVpnUpdateRequest: z.ZodObject<{
   mtu: wire(z.int().nullable().optional(), z.int().nullable()).meta({
     description:
       "Desired interface MTU. `None` (or absent) restores the default: the\nchain MTU for a VPN connecting through another, else the kernel's.",
+  }),
+  /**
+   * Replaces the resolvers reached through the tunnel. Absent keeps them.
+   */
+  dns: wire(
+    z.array(z.string()).nullable().optional(),
+    z.array(z.string()).nullable(),
+  ).meta({
+    description:
+      'Replaces the resolvers reached through the tunnel. Absent keeps them.',
   }),
 }).meta({
   id: 'OutboundVpnUpdateRequest',

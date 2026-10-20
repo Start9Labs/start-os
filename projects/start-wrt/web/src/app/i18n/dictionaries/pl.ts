@@ -549,5 +549,10 @@ export default {
   574: 'Aktualizowanie węzła VPN...',
   575: 'Zaktualizowano węzeł VPN',
   576: 'Przed użyciem tej konfiguracji zastąp symbol zastępczy PrivateKey kluczem prywatnym tego urządzenia.',
-  580: 'Delegowany prefiks',
+  584: 'Serwery DNS',
+  581: 'Brak serwerów DNS: profile korzystające z tej sieci VPN rozwiązują nazwy przez dostawcę internetu, poza tunelem, chyba że systemowy DNS używa własnych serwerów.',
+  582: 'Serwery, z którymi profile korzystające z tej sieci VPN bez własnego DNS łączą się przez tunel. Oddziel przecinkami.',
+  583: 'Wprowadź adresy IP oddzielone przecinkami',
+  580: 'System (poza VPN)',
+  585: 'Delegowany prefiks',
 } satisfies i18n
