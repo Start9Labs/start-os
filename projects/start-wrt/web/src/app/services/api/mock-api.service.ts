@@ -1,6 +1,6 @@
 import type { Api, RpcParamType, RpcReturnType } from './bindings'
 import { inject, Injectable } from '@angular/core'
-import { pauseFor } from '@start9labs/shared'
+import { pauseFor, RPCErrorDetails, RpcError } from '@start9labs/shared'
 import { GIT_HASH } from 'src/app/utils/workspace-config'
 import {
   ApiService,
@@ -90,6 +90,7 @@ import { UciFile, UciSection } from './types'
 import { dhcpLanSlaacDhcpv6 } from 'src/app/routes/lan/routes/ipv6/uci/mocks'
 import { hasHostnameEndpoint } from 'src/app/routes/outbound/utils'
 import { windowsCover } from 'src/app/utils/schedule'
+import { VPN_PEERS_WOULD_BREAK_CODE } from 'src/app/services/vpn-peers'
 import {
   generateMockDataUsage,
   getMockArpOutput,
@@ -847,12 +848,52 @@ export class MockApiService extends ApiService {
     }
   }
 
+  private guardVpnPeers(
+    profile: string,
+    oldAddress: string,
+    newAddress: string,
+    force: boolean | undefined,
+  ) {
+    if (oldAddress === newAddress) return
+    const blockChanged =
+      profile === 'lan' &&
+      oldAddress.split('.').slice(0, 2).join('.') !==
+        newAddress.split('.').slice(0, 2).join('.')
+    const interfaces = blockChanged
+      ? this.mockProfiles.map(p => p.interface)
+      : [profile]
+    const affected = this.mockVpnServers.filter(
+      s => interfaces.includes(s.profile) && s.peers.length > 0,
+    )
+    if (!affected.length) return
+    if (!force) {
+      const total = affected.reduce((n, s) => n + s.peers.length, 0)
+      const profiles = affected.map(s => s.profile).join(', ')
+      throw new RpcError({
+        code: VPN_PEERS_WOULD_BREAK_CODE,
+        message: 'VPN Peers Would Break',
+        data: {
+          details: `VPN peers would break: ${total} peer(s) across profiles [${profiles}]`,
+        },
+      } as RPCErrorDetails)
+    }
+    this.mockVpnServers = this.mockVpnServers.filter(s => !affected.includes(s))
+    this.persistVpnServers()
+  }
+
   async profileUpdate(params: ProfileUpdateInput): Promise<ProfileId> {
     await pauseFor(250)
 
     const old = this.mockProfiles.find(
       p => p.interface === params.interface && p.vlan_tag === params.vlan_tag,
     )
+    if (old)
+      this.guardVpnPeers(
+        params.interface,
+        old.gateway_ip,
+        params.gateway_ip,
+        params.force,
+      )
     const newFullname = params.fullname || old?.fullname || ''
 
     this.mockProfiles = this.mockProfiles.map(p =>
@@ -1247,6 +1288,12 @@ export class MockApiService extends ApiService {
 
   async lanIpv4Set(params: LanIpv4SetRequest): Promise<null> {
     await pauseFor(250)
+    this.guardVpnPeers(
+      'lan',
+      this.mockLanIpv4.address,
+      params.address,
+      params.force,
+    )
     this.mockLanIpv4 = { ...this.mockLanIpv4, address: params.address }
     // Keep Admin profile gateway in sync with LAN IP
     this.mockProfiles = this.mockProfiles.map(p =>
