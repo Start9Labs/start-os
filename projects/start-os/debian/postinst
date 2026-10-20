@@ -134,13 +134,16 @@ cat << EOF > /etc/issue.net
 StartOS v${VERSION}
 EOF
 
-# change timezone
 ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime
 
-rm /etc/resolv.conf
-echo "nameserver 127.0.0.1" > /etc/resolv.conf
+resolv_conf=/etc/resolv.conf
+# live-build restores the saved resolver after chroot customization.
+if [ "$(cat /etc/debian_chroot 2>/dev/null)" = live ]; then
+	resolv_conf=/etc/resolv.conf.orig
+fi
+rm -f "$resolv_conf"
+echo "nameserver 127.0.0.1" > "$resolv_conf"
 
-# switch to network-manager
 echo "#" > /etc/network/interfaces
 cat << EOF > /etc/NetworkManager/NetworkManager.conf
 [main]
