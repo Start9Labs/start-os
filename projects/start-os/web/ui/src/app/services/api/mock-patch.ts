@@ -192,6 +192,7 @@ export const mockPatchData: DataModel = {
         eth0: {
           name: null,
           secure: null,
+          wanIpOverride: null,
           type: 'inbound-outbound',
           portMap: {
             pcp: { supported: null, at: null },
@@ -214,6 +215,7 @@ export const mockPatchData: DataModel = {
         wlan0: {
           name: null,
           secure: null,
+          wanIpOverride: null,
           type: 'inbound-outbound',
           portMap: {
             pcp: { supported: null, at: null },
@@ -239,6 +241,7 @@ export const mockPatchData: DataModel = {
         wireguard1: {
           name: 'StartTunnel',
           secure: null,
+          wanIpOverride: null,
           type: 'inbound-outbound',
           portMap: {
             pcp: { supported: null, at: null },
@@ -264,6 +267,7 @@ export const mockPatchData: DataModel = {
         wireguard2: {
           name: 'Mullvad VPN',
           secure: null,
+          wanIpOverride: null,
           type: 'outbound-only',
           portMap: {
             pcp: { supported: null, at: null },

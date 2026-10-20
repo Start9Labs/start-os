@@ -559,6 +559,9 @@ export type SetDeviceKindParamsInput = z.input<
 export type SetGatewaySecureParamsInput = z.input<
   typeof schemas.SetGatewaySecureParams
 >
+export type SetGatewayWanIpParamsInput = z.input<
+  typeof schemas.SetGatewayWanIpParams
+>
 export type SetIconParamsInput = z.input<typeof schemas.SetIconParams>
 export type SetOutboundGatewayParamsInput = z.input<
   typeof schemas.SetOutboundGatewayParams
@@ -583,6 +586,9 @@ export type UmountParamsInput = z.input<typeof schemas.UmountParams>
 export type UninstallParamsInput = z.input<typeof schemas.UninstallParams>
 export type UnsetGatewaySecureParamsInput = z.input<
   typeof schemas.UnsetGatewaySecureParams
+>
+export type UnsetGatewayWanIpParamsInput = z.input<
+  typeof schemas.UnsetGatewayWanIpParams
 >
 export type UpdateTunnelParamsInput = z.input<typeof schemas.UpdateTunnelParams>
 export type VersionSignerParamsInput = z.input<

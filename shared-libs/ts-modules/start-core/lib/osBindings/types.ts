@@ -908,6 +908,12 @@ export type SetGatewaySecureParams = z.output<
 export type SetGatewaySecureParamsInput = z.input<
   typeof schemas.SetGatewaySecureParams
 >
+export type SetGatewayWanIpParams = z.output<
+  typeof schemas.SetGatewayWanIpParams
+>
+export type SetGatewayWanIpParamsInput = z.input<
+  typeof schemas.SetGatewayWanIpParams
+>
 export type SetIconParams = z.output<typeof schemas.SetIconParams>
 export type SetIconParamsInput = z.input<typeof schemas.SetIconParams>
 export type SetMainStatus = z.output<typeof schemas.SetMainStatus>
@@ -959,6 +965,12 @@ export type UnsetGatewaySecureParams = z.output<
 >
 export type UnsetGatewaySecureParamsInput = z.input<
   typeof schemas.UnsetGatewaySecureParams
+>
+export type UnsetGatewayWanIpParams = z.output<
+  typeof schemas.UnsetGatewayWanIpParams
+>
+export type UnsetGatewayWanIpParamsInput = z.input<
+  typeof schemas.UnsetGatewayWanIpParams
 >
 export type UpdateTunnelParams = z.output<typeof schemas.UpdateTunnelParams>
 export type UpdateTunnelParamsInput = z.input<typeof schemas.UpdateTunnelParams>

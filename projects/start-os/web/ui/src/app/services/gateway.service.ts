@@ -2,6 +2,7 @@ import { computed, inject, Injectable } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { T, utils } from '@start9labs/start-core'
 import { PatchDB } from 'patch-db-client'
+import { getWanIp } from '../utils/gua'
 import { DataModel } from './patch-db/data-model'
 
 export type GatewayPlus = T.NetworkInterfaceInfo & {
@@ -10,7 +11,7 @@ export type GatewayPlus = T.NetworkInterfaceInfo & {
   ipInfo: T.IpInfo
   subnets: utils.IpNet[]
   lanIpv4: string[]
-  wanIp?: utils.IpAddress
+  effectiveWanIp: string | null
 }
 
 @Injectable()
@@ -53,7 +54,7 @@ export class GatewayService {
           name,
           subnets,
           lanIpv4: subnets.filter(s => s.isIpv4()).map(s => s.address),
-          wanIp: val.ipInfo?.wanIp && utils.IpAddress.parse(val.ipInfo?.wanIp),
+          effectiveWanIp: getWanIp(val),
         } as GatewayPlus
       })
   })
