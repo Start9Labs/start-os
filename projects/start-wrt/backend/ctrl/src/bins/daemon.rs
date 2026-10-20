@@ -285,11 +285,11 @@ async fn inner_main() -> Result<(), Error> {
         if let Err(e) = crate::profiles::heal_ipv6_state("/etc/config").await {
             tracing::error!("IPv6 state repair failed: {e}");
         }
-        // Installs the hairpin accept and re-derives every hairpin projection
-        // (fw4 drops a redirect whose list names a deleted zone). Reloads the
-        // firewall only when something changed.
-        if let Err(e) = crate::published_ports::heal_hairpin("/etc/config").await {
-            tracing::error!("Hairpin repair failed: {e}");
+        // Installs the hairpin accept and the IPv6 MAC binding, and re-derives
+        // every hairpin projection (fw4 drops a redirect whose list names a
+        // deleted zone). Reloads the firewall only when something changed.
+        if let Err(e) = crate::published_ports::heal_published_ports("/etc/config").await {
+            tracing::error!("Published-port firewall repair failed: {e}");
         }
         if let Err(e) = crate::vpn_client::heal_vpn_clients("/etc/config").await {
             tracing::error!("Outbound VPN repair failed: {e}");
