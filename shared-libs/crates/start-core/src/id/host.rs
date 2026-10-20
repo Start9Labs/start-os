@@ -7,8 +7,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use crate::{Id, InvalidId};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, visit_rs::VisitFields)]
-#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(opaque, ts(type = "z.string()"))]
 pub struct HostId(Id);
 
 rpc_toolkit::reflect_ts!(HostId);

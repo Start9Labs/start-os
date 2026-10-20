@@ -234,8 +234,6 @@ impl From<&RpcContext> for OsInfo {
 #[serde(rename_all = "camelCase")]
 pub struct HardwareInfo {
     pub arch: InternedString,
-    #[visit(ts(type = "z.number()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub ram: u64,
     pub devices: Option<Vec<LshwDevice>>,
 }

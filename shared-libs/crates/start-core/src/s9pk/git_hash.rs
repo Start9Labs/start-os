@@ -7,8 +7,7 @@ use crate::prelude::*;
 use crate::util::Invoke;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, VisitFields, PartialEq, Eq)]
-#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(ts(type = "z.string()"))]
 pub struct GitHash(String);
 
 rpc_toolkit::reflect_ts!(GitHash);

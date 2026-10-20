@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
+use clap::{ArgAction, Parser};
 use color_eyre::eyre::eyre;
 use exver::{Version, VersionRange};
 use futures::{StreamExt, TryStreamExt};
@@ -10,6 +11,7 @@ use imbl_value::json;
 use itertools::Itertools;
 use reqwest::{Client, Url};
 use rpc_toolkit::HandlerArgs;
+use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
 use tracing::instrument;
 
@@ -41,14 +43,30 @@ impl SigningContext for UnsignedRegistry {
     }
 }
 
+#[derive(Deserialize, Serialize, Parser, VisitFields)]
+#[group(skip)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct DiagnosticUpdateSystemParams {
+    #[arg(
+        long = "to",
+        value_name = "TARGET",
+        help = "help.arg.update-target-version"
+    )]
+    target_version: Option<VersionRange>,
+    #[arg(long = "no-progress", action = ArgAction::SetFalse, help = "help.arg.no-progress")]
+    #[serde(default)]
+    progress: bool,
+}
+rpc_toolkit::reflect_ts!(DiagnosticUpdateSystemParams);
+
 #[instrument(skip_all)]
 pub async fn update_system(
     ctx: DiagnosticContext,
-    UpdateSystemParams {
+    DiagnosticUpdateSystemParams {
         target_version: target,
-        registry,
         progress: report_progress,
-    }: UpdateSystemParams,
+    }: DiagnosticUpdateSystemParams,
 ) -> Result<UpdateSystemRes, Error> {
     let guard = ctx.update_in_progress.mutate(|slot| {
         if Arc::strong_count(slot) > 1 {
@@ -63,6 +81,11 @@ pub async fn update_system(
             ErrorKind::InvalidRequest,
         ));
     };
+
+    #[cfg(not(feature = "beta"))]
+    let registry = "https://registry.start9.com".parse()?;
+    #[cfg(feature = "beta")]
+    let registry = "https://beta-registry.start9.com".parse()?;
 
     run_update(ctx, target, registry, report_progress, guard).await
 }

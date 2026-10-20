@@ -5,9 +5,8 @@ use std::str::FromStr;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Debug, Clone, visit_rs::VisitFields)]
-#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
+#[visit(ts(type = "z.string()"))]
 #[visit(ts(rename = "Version"))]
-#[visit(opaque, type_attributes(visit::wire))]
 pub struct VersionString {
     version: exver::ExtendedVersion,
     string: String,

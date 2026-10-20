@@ -122,19 +122,14 @@ pub struct GetActionInputParams {
     #[arg(short, long, help = "help.arg.package-id")]
     package_id: Option<PackageId>,
     #[serde(flatten)]
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(opaque, ts(skip))]
     #[arg(skip)]
-    #[visit(opaque, type_attributes(visit::wire))]
     event: EventId,
     #[arg(help = "help.arg.action-id")]
     action_id: ActionId,
-    #[visit(
-        ts(type = "z.record(z.string(), z.unknown()).nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
+    #[visit(ts(type = "z.record(z.string(), z.unknown()).nullable()"))]
     #[serde(default)]
     #[arg(skip)]
-    #[visit(opaque, type_attributes(visit::wire))]
     prefill: Option<Value>,
 }
 
@@ -187,9 +182,8 @@ pub struct RunActionParams {
     #[arg(short, long, help = "help.arg.package-id")]
     package_id: Option<PackageId>,
     #[serde(flatten)]
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(opaque, ts(skip))]
     #[command(flatten)]
-    #[visit(opaque, type_attributes(visit::wire))]
     event: EventId,
     #[arg(help = "help.arg.action-id")]
     action_id: ActionId,
@@ -304,8 +298,7 @@ fn check_action_access(
 #[serde(rename_all = "camelCase")]
 pub struct CreateTaskParams {
     #[serde(flatten)]
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
+    #[visit(opaque, ts(skip))]
     event: EventId,
     replay_id: ReplayId,
     #[serde(flatten)]
@@ -412,13 +405,9 @@ async fn create_task(
 
 #[derive(Debug, Clone, Serialize, Deserialize, visit_rs::VisitFields, Parser)]
 #[group(skip)]
-#[visit(
-    ts(
-        type = "z.union([z.object({ only: z.array(z.string()) }), z.object({ except: z.array(z.string()) })])"
-    ),
-    wire = "rpc_toolkit::ts::Unknown"
-)]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(ts(
+    type = "z.union([z.object({ only: z.array(z.string()) }), z.object({ except: z.array(z.string()) })])"
+))]
 pub struct ClearTasksParams {
     #[arg(long, conflicts_with = "except", help = "help.arg.only-tasks")]
     pub only: Option<Vec<ReplayId>>,
