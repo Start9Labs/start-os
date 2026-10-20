@@ -302,7 +302,7 @@ Shared, OpenWrt-native typed sections live in `uciedit/src/openwrt.rs`; feature-
 - Validation: `InvalidValue`, `WanPortWithProfile`, `DhcpStaticHostsInSubnet`, `SubnetCollision`
 - UCI shell-out: `UciEdit` (failed `uci` CLI invocation)
 
-Auth-specific RPC error codes: 7 (incorrect password), 34 (authorization — triggers frontend logout), 40 (uninitialized).
+An RPC error carries its `ErrorKind` value as `code` and the kind's name as `message`. Code 34 (authorization) triggers frontend logout.
 
 ## Common Pitfalls
 
