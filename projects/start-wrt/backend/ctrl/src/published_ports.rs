@@ -2257,23 +2257,47 @@ fn v6_mac_bind_ruleset(firewall: &uciedit::Config<'_>) -> String {
 /// Re-renders [`V6_MAC_BIND_PATH`] from the firewall config on disk. Takes
 /// effect on the next firewall reload. Returns whether it wrote.
 pub(crate) async fn sync_v6_mac_bind(uci_root: impl AsRef<std::path::Path>) -> Result<bool, Error> {
-    let bytes = uciedit::read_all(uci_root.as_ref(), &["firewall"]).await?;
+    sync_v6_mac_bind_file(uci_root.as_ref(), std::path::Path::new(V6_MAC_BIND_PATH)).await
+}
+
+async fn sync_v6_mac_bind_file(
+    uci_root: &std::path::Path,
+    path: &std::path::Path,
+) -> Result<bool, Error> {
+    let dir = path.parent().expect("nft include path has a directory");
+    tokio::fs::create_dir_all(dir)
+        .await
+        .map_err(|e| Error::new(eyre!("mkdir {}: {e}", dir.display()), ErrorKind::Filesystem))?;
+    // A stable inode serializes CLI and daemon writers across atomic renames.
+    let lock_path = path.with_extension("lock");
+    let _lock = tokio::task::spawn_blocking(move || {
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(&lock_path)?;
+        fd_lock_rs::FdLock::lock(file, fd_lock_rs::LockType::Exclusive, true).map_err(|e| {
+            Error::new(
+                eyre!("lock {}: {e}", lock_path.display()),
+                ErrorKind::Filesystem,
+            )
+        })
+    })
+    .await
+    .map_err(|e| Error::new(eyre!("lock task panicked: {e}"), ErrorKind::Incoherent))??;
+    let bytes = uciedit::read_all(uci_root, &["firewall"]).await?;
     let ruleset = {
         let arena = Arena::new();
         let cfgs = bytes.parse(&arena)?;
         v6_mac_bind_ruleset(&cfgs["firewall"])
     };
-    if tokio::fs::read_to_string(V6_MAC_BIND_PATH)
+    if tokio::fs::read_to_string(path)
         .await
         .is_ok_and(|c| c == ruleset)
     {
         return Ok(false);
     }
-    let path = std::path::Path::new(V6_MAC_BIND_PATH);
-    let dir = path.parent().expect("nft include path has a directory");
-    tokio::fs::create_dir_all(dir)
-        .await
-        .map_err(|e| Error::new(eyre!("mkdir {}: {e}", dir.display()), ErrorKind::Filesystem))?;
     // A torn include fails the whole ruleset.
     let tmp = path.with_extension("nft.tmp");
     tokio::fs::write(&tmp, &ruleset)
@@ -2281,7 +2305,7 @@ pub(crate) async fn sync_v6_mac_bind(uci_root: impl AsRef<std::path::Path>) -> R
         .map_err(|e| Error::new(eyre!("write {}: {e}", tmp.display()), ErrorKind::Filesystem))?;
     tokio::fs::rename(&tmp, path).await.map_err(|e| {
         Error::new(
-            eyre!("rename {V6_MAC_BIND_PATH}: {e}"),
+            eyre!("rename {}: {e}", path.display()),
             ErrorKind::Filesystem,
         )
     })?;
@@ -4834,6 +4858,61 @@ config rule 'apf_sni_8444'
         assert!(ruleset.contains("delete table bridge startwrt_pp_v6_bind\n"));
         assert!(ruleset.contains("type filter hook output priority filter; policy accept;"));
         assert!(!ruleset.contains("counter drop"));
+    }
+
+    #[tokio::test]
+    async fn v6_mac_bind_file_updates_only_when_changed() {
+        let dir = tempfile::tempdir().unwrap();
+        let firewall = dir.path().join("firewall");
+        let include = dir.path().join("ruleset-pre/bind.nft");
+        tokio::fs::write(
+            &firewall,
+            pp_v6_rule("pp_a_v6", "2001:db8::1", "aa:bb:cc:dd:ee:ff", ""),
+        )
+        .await
+        .unwrap();
+
+        assert!(sync_v6_mac_bind_file(dir.path(), &include).await.unwrap());
+        assert!(!sync_v6_mac_bind_file(dir.path(), &include).await.unwrap());
+        assert!(tokio::fs::read_to_string(&include)
+            .await
+            .unwrap()
+            .contains("ether daddr != { aa:bb:cc:dd:ee:ff } counter drop"));
+
+        tokio::fs::write(&firewall, "").await.unwrap();
+        assert!(sync_v6_mac_bind_file(dir.path(), &include).await.unwrap());
+        assert!(!tokio::fs::read_to_string(&include)
+            .await
+            .unwrap()
+            .contains("counter drop"));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn v6_mac_bind_file_serializes_concurrent_syncs() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path().to_path_buf();
+        let include = root.join("ruleset-pre/bind.nft");
+        tokio::fs::write(
+            root.join("firewall"),
+            pp_v6_rule("pp_a_v6", "2001:db8::1", "aa:bb:cc:dd:ee:ff", ""),
+        )
+        .await
+        .unwrap();
+        let mut tasks = tokio::task::JoinSet::new();
+        for _ in 0..32 {
+            let root = root.clone();
+            let include = include.clone();
+            tasks.spawn(async move { sync_v6_mac_bind_file(&root, &include).await });
+        }
+        let mut writes = 0;
+        while let Some(result) = tasks.join_next().await {
+            writes += usize::from(result.unwrap().unwrap());
+        }
+        assert_eq!(writes, 1);
+        assert!(tokio::fs::read_to_string(&include)
+            .await
+            .unwrap()
+            .contains("ether daddr != { aa:bb:cc:dd:ee:ff } counter drop"));
     }
 
     // ── affected_ports_for_macs / remove_ports_for_macs tests ──
