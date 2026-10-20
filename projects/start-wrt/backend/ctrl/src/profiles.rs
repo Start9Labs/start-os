@@ -349,15 +349,23 @@ pub async fn heal_dns_forwarding<C: CtrlContext>(ctx: C) -> Result<(), Error> {
     }
 }
 
+/// Ignores section order.
 fn dns_forwarding_snapshot(cfgs: &Configs) -> [Vec<String>; 2] {
     ["dhcp", "firewall"].map(|name| {
-        cfgs[name]
+        let mut sections: Vec<String> = cfgs[name]
             .sections
             .iter()
-            .flat_map(|section| &section.lines)
-            .filter(|line| !matches!(line, Line::Empty))
-            .map(ToString::to_string)
-            .collect()
+            .map(|section| {
+                section
+                    .lines
+                    .iter()
+                    .filter(|line| !matches!(line, Line::Empty))
+                    .map(|line| format!("{line}\n"))
+                    .collect()
+            })
+            .collect();
+        sections.sort();
+        sections
     })
 }
 
@@ -7888,6 +7896,41 @@ config dhcp 'guest'
                     .unwrap()
             })
         );
+    }
+
+    #[tokio::test]
+    async fn test_heal_dns_forwarding_ignores_reordered_sections() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs_with_ipv6_vpn(dir.path());
+        append(
+            dir.path(),
+            "startwrt",
+            "\nconfig system_dns system_dns\n\tlist servers '{\"address\":\"9.9.9.9\",\"ssl\":true}'\n",
+        );
+        {
+            let arena = Arena::new();
+            let mut cfgs = parse_all(
+                ctx.uci_root(),
+                &arena,
+                &["startwrt", "network", "firewall", "dhcp"],
+            )
+            .await
+            .unwrap();
+            set_config(ctx.clone(), &mut cfgs, &guest_via("wg_v4", Vec::new())).unwrap();
+            dump_all(ctx.uci_root(), cfgs).await.unwrap();
+        }
+        heal_dns_forwarding(ctx.clone()).await.unwrap();
+        append(
+            dir.path(),
+            "firewall",
+            "\nconfig rule 'startwrt_remote_443_ipv4_10'\n\toption src 'wan'\n\toption dest_port '443'\n\toption target 'ACCEPT'\n",
+        );
+
+        let snapshot = |name: &str| std::fs::read_to_string(dir.path().join(name)).unwrap();
+        let before = ["dhcp", "firewall"].map(snapshot);
+        heal_dns_forwarding(ctx).await.unwrap();
+        assert_eq!(before, ["dhcp", "firewall"].map(snapshot));
     }
 
     #[tokio::test]
