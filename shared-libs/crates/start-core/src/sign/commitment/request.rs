@@ -20,14 +20,8 @@ use crate::util::serde::Base64;
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct RequestCommitment {
-    #[visit(ts(type = "z.number()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub timestamp: i64,
-    #[visit(ts(type = "z.number()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub nonce: u64,
-    #[visit(ts(type = "z.number()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub size: u64,
     pub blake3: Base64<[u8; 32]>,
 }

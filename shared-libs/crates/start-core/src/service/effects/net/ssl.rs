@@ -27,8 +27,6 @@ rpc_toolkit::ts_export!(Algorithm, namespaces = [""]);
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct GetSslCertificateParams {
-    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     hostnames: BTreeSet<InternedString>,
 
     algorithm: Option<Algorithm>, //"ecdsa" | "ed25519"
@@ -152,8 +150,6 @@ pub async fn get_ssl_certificate(
 #[derive(Debug, Clone, Serialize, Deserialize, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct GetSslKeyParams {
-    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     hostnames: BTreeSet<InternedString>,
 
     algorithm: Option<Algorithm>, //"ecdsa" | "ed25519"

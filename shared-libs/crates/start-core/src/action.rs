@@ -52,17 +52,9 @@ pub fn action_api<C: Context>() -> ParentHandler<C> {
 pub struct ActionInput {
     #[serde(default)]
     pub event_id: Guid,
-    #[visit(
-        ts(type = "z.record(z.string(), z.unknown())"),
-        wire = "rpc_toolkit::ts::Unknown"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
+    #[visit(ts(type = "z.record(z.string(), z.unknown())"))]
     pub spec: Value,
-    #[visit(
-        ts(type = "z.record(z.string(), z.unknown()).nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
+    #[visit(ts(type = "z.record(z.string(), z.unknown()).nullable()"))]
     pub value: Option<Value>,
 }
 
@@ -77,13 +69,9 @@ pub struct GetActionInputParams {
     pub package_id: PackageId,
     #[arg(help = "help.arg.action-id")]
     pub action_id: ActionId,
-    #[visit(
-        ts(type = "z.record(z.string(), z.unknown()).nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
+    #[visit(ts(type = "z.record(z.string(), z.unknown()).nullable()"))]
     #[serde(default)]
     #[arg(skip)]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub prefill: Option<Value>,
 }
 

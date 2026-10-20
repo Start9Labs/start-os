@@ -10,9 +10,7 @@ struct Hidden;
 
 #[derive(visit_rs::VisitFields)]
 struct Nested {
-    #[visit(type_attributes(visit::wire))]
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque)]
+    #[visit(opaque, ts(skip))]
     context: Hidden,
     value: String,
 }
@@ -21,31 +19,19 @@ rpc_toolkit::reflect_ts!(Nested);
 struct Projection {
     nested: Nested,
     required: u32,
-    #[visit(type_attributes(visit::wire))]
-    #[visit(
-        ts(type = "z.number().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque)]
-    nullable: Option<Hidden>,
-    #[visit(type_attributes(visit::wire))]
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque)]
+    #[visit(ts(type = "z.number().nullable()"))]
+    nullable: Option<f64>,
+    #[visit(opaque, ts(skip))]
     omitted: Hidden,
     last: String,
 }
 rpc_toolkit::reflect_ts!(Projection);
 #[derive(visit_rs::VisitFields)]
-struct Tuple(
-    #[visit(type_attributes(visit::wire))]
-    #[visit(opaque, ts(skip), wire = "rpc_toolkit::ts::Unknown")]
-    Hidden,
-    String,
-);
+struct Tuple(#[visit(opaque, ts(skip))] Hidden, String);
 rpc_toolkit::reflect_ts!(Tuple);
 #[derive(visit_rs::VisitFields)]
 #[visit(opaque)]
-struct Newtype(#[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")] Hidden);
+struct Newtype(#[visit(ts(skip))] Hidden);
 rpc_toolkit::reflect_ts!(Newtype);
 
 #[test]

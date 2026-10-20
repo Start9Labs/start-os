@@ -48,16 +48,11 @@ impl SigningContext for UnsignedRegistry {
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct DiagnosticUpdateSystemParams {
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
     #[arg(
         long = "to",
         value_name = "TARGET",
         help = "help.arg.update-target-version"
     )]
-    #[visit(opaque, type_attributes(visit::wire))]
     target_version: Option<VersionRange>,
     #[arg(long = "no-progress", action = ArgAction::SetFalse, help = "help.arg.no-progress")]
     #[serde(default)]

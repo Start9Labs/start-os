@@ -147,20 +147,10 @@ fn display_summary<T>(params: WithIoFormat<T>, summary: MetricsSummary) -> Resul
 #[serde(rename_all = "camelCase")]
 pub struct GetUsersParams {
     /// Start of time range (RFC 3339)
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
     #[arg(long, help = "help.arg.metrics-after")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub after: Option<String>,
     /// End of time range (RFC 3339)
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
     #[arg(long, help = "help.arg.metrics-before")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub before: Option<String>,
 }
 
@@ -230,36 +220,16 @@ fn display_users<T>(params: WithIoFormat<T>, response: UsersResponse) -> Result<
 #[serde(rename_all = "camelCase")]
 pub struct GetDownloadsParams {
     /// Filter by package ID
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
     #[arg(long, help = "help.arg.metrics-pkg-id")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub pkg_id: Option<String>,
     /// Filter by version
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
     #[arg(long, help = "help.arg.metrics-version")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub version: Option<String>,
     /// Start of time range (RFC 3339)
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
     #[arg(long, help = "help.arg.metrics-after")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub after: Option<String>,
     /// End of time range (RFC 3339)
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
     #[arg(long, help = "help.arg.metrics-before")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub before: Option<String>,
 }
 

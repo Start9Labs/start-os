@@ -94,9 +94,9 @@ export type QueryDnsParamsInput = z.input<typeof schemas.QueryDnsParams>
  * IPv4 and an `AAAA` at the box's IPv6 GUA. Either may be absent.
  */
 export type QueryDnsRes = z.output<typeof schemas.QueryDnsRes>
-export type UpdateSystemRes = z.output<typeof schemas.UpdateSystemRes>
 export type LogFollowResponse = z.output<typeof schemas.LogFollowResponse>
 export type LogResponse = z.output<typeof schemas.LogResponse>
 export type RequiresHostIdInput = z.input<typeof schemas.RequiresHostId>
 export type RequiresPackageIdInput = z.input<typeof schemas.RequiresPackageId>
+export type UpdateSystemRes = z.output<typeof schemas.UpdateSystemRes>
 export type Api = RpcSchemaTree<typeof schemas.Api>
