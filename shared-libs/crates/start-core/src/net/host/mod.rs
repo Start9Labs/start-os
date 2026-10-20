@@ -111,7 +111,7 @@ impl Host {
             )
     }
 }
-/// Keeps the previous IP rows of a gateway that has no `ip_info`.
+/// Keeps the previous public IP rows of a gateway that has no `ip_info`.
 fn carry_forward(
     available: &mut BTreeSet<HostnameInfo>,
     previous: &BTreeSet<HostnameInfo>,
@@ -121,8 +121,8 @@ fn carry_forward(
         previous
             .iter()
             .filter(|h| match &h.metadata {
-                HostnameMetadata::Ipv4 { gateway: g }
-                | HostnameMetadata::Ipv6 { gateway: g, .. } => g == gateway,
+                HostnameMetadata::Ipv4 { gateway: g } => g == gateway && h.public,
+                HostnameMetadata::Ipv6 { gateway: g, .. } => g == gateway && h.gua().is_some(),
                 _ => false,
             })
             .cloned(),
