@@ -29,6 +29,8 @@ import {
   VpnServerSetArgs,
   VpnServers,
   WifiConfig,
+  WifiBlackoutSetReq,
+  WifiBlackoutSetResult,
   ScheduleWindow,
   ProfileId,
   ProfileIdOpt,
@@ -90,6 +92,7 @@ import {
   configDnsServers,
   hasHostnameEndpoint,
 } from 'src/app/routes/outbound/utils'
+import { windowsCover } from 'src/app/utils/schedule'
 import {
   generateMockDataUsage,
   getMockArpOutput,
@@ -683,15 +686,24 @@ export class MockApiService extends ApiService {
     return structuredClone(this.mockBlackoutWindows)
   }
 
-  async wifiBlackoutSet(params: ScheduleWindow[]): Promise<null> {
+  async wifiBlackoutSet({
+    windows,
+    confirmImmediateBlackout,
+  }: WifiBlackoutSetReq): Promise<WifiBlackoutSetResult> {
     await pauseFor(250)
-    this.mockBlackoutWindows = structuredClone(params)
+    if (!confirmImmediateBlackout) {
+      const now = new Date()
+      const minute =
+        (now.getDay() * 24 + now.getHours()) * 60 + now.getMinutes()
+      return { pendingImmediateBlackout: windowsCover(windows, minute) }
+    }
+    this.mockBlackoutWindows = structuredClone(windows)
     this.logActivity(
       'wifi',
       'updated',
-      `Updated WiFi blackout schedule (${params.length} window${params.length !== 1 ? 's' : ''})`,
+      `Updated WiFi blackout schedule (${windows.length} window${windows.length !== 1 ? 's' : ''})`,
     )
-    return null
+    return { pendingImmediateBlackout: false }
   }
 
   private mockProfiles: SecurityProfile[] = [
