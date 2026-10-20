@@ -597,6 +597,43 @@ impl Resolver {
     }
 }
 
+fn response_header(request: &Request) -> Metadata {
+    let mut header = Metadata::response_from_request(&request.metadata);
+    header.recursion_available = true;
+    header
+}
+
+fn address_records(name: &Name, record_type: RecordType, addresses: Vec<IpAddr>) -> Vec<Record> {
+    use hickory_server::proto::rr::RData;
+
+    addresses
+        .into_iter()
+        .filter_map(|ip| match (record_type, ip) {
+            (RecordType::A, IpAddr::V4(ip)) => Some(RData::A(ip.into())),
+            (RecordType::AAAA, IpAddr::V6(ip)) => Some(RData::AAAA(ip.into())),
+            _ => None,
+        })
+        .map(|data| Record::from_rdata(name.clone(), 0, data))
+        .collect()
+}
+
+async fn servfail<R: ResponseHandler>(request: &Request, mut response_handle: R) -> ResponseInfo {
+    let mut header = response_header(request);
+    header.response_code = ResponseCode::ServFail;
+    response_handle
+        .send_response(
+            MessageResponseBuilder::from_message_request(&*request).build(header, [], [], [], []),
+        )
+        .await
+        .unwrap_or_else(|_| {
+            Header {
+                metadata: header,
+                counts: HeaderCounts::default(),
+            }
+            .into()
+        })
+}
+
 #[async_trait::async_trait]
 impl RequestHandler for Resolver {
     async fn handle_request<R: ResponseHandler, T: Time>(
@@ -610,22 +647,23 @@ impl RequestHandler for Resolver {
                 .map_err(|e| NetError::from(e.to_string()))?;
             let query = req.query;
             let name = query.name();
+            let mut header = response_header(request);
 
             match self.resolve(name, req.src.ip()) {
                 Resolution::Forward => {
-                    let catalog = self
-                        .request_catalog(req.src.ip(), name)
-                        .await
-                        .map_err(|e| NetError::from(e.to_string()))?;
-                    Ok(Some(
-                        catalog
-                            .handle_request::<R, T>(request, response_handle.clone())
-                            .await,
-                    ))
+                    let catalog = match self.request_catalog(req.src.ip(), name).await {
+                        Ok(catalog) => catalog,
+                        Err(e) if matches!(e.kind, ErrorKind::NotFound | ErrorKind::Network) => {
+                            tracing::debug!(error = ?e, "DNS forwarding unavailable");
+                            return Ok(servfail(request, response_handle.clone()).await);
+                        }
+                        Err(e) => return Err(NetError::from(e.to_string())),
+                    };
+                    Ok(catalog
+                        .handle_request::<R, T>(request, response_handle.clone())
+                        .await)
                 }
                 Resolution::NxDomain => {
-                    let mut header = Metadata::response_from_request(&request.metadata);
-                    header.recursion_available = true;
                     header.authoritative = true;
                     header.response_code = ResponseCode::NXDomain;
                     response_handle
@@ -639,116 +677,35 @@ impl RequestHandler for Resolver {
                             ),
                         )
                         .await
-                        .map(Some)
                 }
-                Resolution::Answer(ip) => match query.query_type() {
-                    RecordType::A => {
-                        let mut header = Metadata::response_from_request(&request.metadata);
-                        header.recursion_available = true;
-                        response_handle
-                            .send_response(
-                                MessageResponseBuilder::from_message_request(&*request).build(
-                                    header,
-                                    &ip.into_iter()
-                                        .filter_map(|a| {
-                                            if let IpAddr::V4(a) = a { Some(a) } else { None }
-                                        })
-                                        .map(|ip| {
-                                            Record::from_rdata(
-                                                query.name().to_owned().into(),
-                                                0,
-                                                hickory_server::proto::rr::RData::A(ip.into()),
-                                            )
-                                        })
-                                        .collect::<Vec<_>>(),
-                                    [],
-                                    [],
-                                    [],
-                                ),
-                            )
-                            .await
-                            .map(Some)
-                    }
-                    RecordType::AAAA => {
-                        let mut header = Metadata::response_from_request(&request.metadata);
-                        header.recursion_available = true;
-                        response_handle
-                            .send_response(
-                                MessageResponseBuilder::from_message_request(&*request).build(
-                                    header,
-                                    &ip.into_iter()
-                                        .filter_map(|a| {
-                                            if let IpAddr::V6(a) = a { Some(a) } else { None }
-                                        })
-                                        .map(|ip| {
-                                            Record::from_rdata(
-                                                query.name().to_owned().into(),
-                                                0,
-                                                hickory_server::proto::rr::RData::AAAA(ip.into()),
-                                            )
-                                        })
-                                        .collect::<Vec<_>>(),
-                                    [],
-                                    [],
-                                    [],
-                                ),
-                            )
-                            .await
-                            .map(Some)
-                    }
-                    _ => {
-                        let mut header = Metadata::response_from_request(&request.metadata);
-                        header.recursion_available = true;
-                        response_handle
-                            .send_response(
-                                MessageResponseBuilder::from_message_request(&*request).build(
-                                    header,
-                                    [],
-                                    [],
-                                    [],
-                                    [],
-                                ),
-                            )
-                            .await
-                            .map(Some)
-                    }
-                },
+                Resolution::Answer(addresses) => {
+                    let records = address_records(name, query.query_type(), addresses);
+                    response_handle
+                        .send_response(
+                            MessageResponseBuilder::from_message_request(&*request).build(
+                                header,
+                                &records,
+                                [],
+                                [],
+                                [],
+                            ),
+                        )
+                        .await
+                }
             }
         }
         .await
         {
-            Ok(Some(a)) => return a,
-            Ok(None) => (),
+            Ok(response) => response,
             Err(e) => {
                 tracing::error!(
                     "{}",
                     t!("net.dns.error-resolving-internal", error = e.to_string())
                 );
                 tracing::debug!("{e:?}");
-                let mut header = Metadata::response_from_request(&request.metadata);
-                header.recursion_available = true;
-                header.response_code = ResponseCode::ServFail;
-                return response_handle
-                    .send_response(
-                        MessageResponseBuilder::from_message_request(&*request).build(
-                            header,
-                            [],
-                            [],
-                            [],
-                            [],
-                        ),
-                    )
-                    .await
-                    .unwrap_or_else(|_| {
-                        Header {
-                            metadata: header,
-                            counts: HeaderCounts::default(),
-                        }
-                        .into()
-                    });
+                servfail(request, response_handle).await
             }
         }
-        unreachable!()
     }
 }
 
@@ -988,7 +945,131 @@ impl DnsController {
 
 #[cfg(test)]
 mod tests {
+    use futures::StreamExt;
+    use hickory_server::proto::op::{Message, Query};
+    use hickory_server::proto::rr::RData;
+
     use super::*;
+
+    async fn exchange(resolver: &Resolver, message: Message, source: SocketAddr) -> Message {
+        use hickory_server::net::BufDnsStreamHandle;
+        use hickory_server::net::runtime::TokioTime;
+        use hickory_server::net::xfer::Protocol;
+        use hickory_server::server::ResponseHandle;
+
+        let request =
+            Request::from_bytes(message.to_vec().unwrap(), source, Protocol::Udp).unwrap();
+        let (stream, mut responses) = BufDnsStreamHandle::new(source);
+        resolver
+            .handle_request::<_, TokioTime>(
+                &request,
+                ResponseHandle::new(source, stream, Protocol::Udp),
+            )
+            .await;
+        Message::from_vec(responses.next().await.unwrap().bytes()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn private_dns_responses_preserve_addresses_nodata_and_nxdomain() {
+        let (_temp, resolver) = resolver_fixture().await;
+        let name = Name::from_ascii("localhost.").unwrap();
+        for (record_type, expected) in [
+            (
+                RecordType::A,
+                vec![Record::from_rdata(
+                    name.clone(),
+                    0,
+                    RData::A(Ipv4Addr::LOCALHOST.into()),
+                )],
+            ),
+            (
+                RecordType::AAAA,
+                vec![Record::from_rdata(
+                    name.clone(),
+                    0,
+                    RData::AAAA(Ipv6Addr::LOCALHOST.into()),
+                )],
+            ),
+            (RecordType::TXT, vec![]),
+        ] {
+            let mut message = Message::query();
+            message.add_query(Query::query(name.clone(), record_type));
+            let reply = exchange(&resolver, message, "127.0.0.1:12345".parse().unwrap()).await;
+            assert_eq!(reply.metadata.response_code, ResponseCode::NoError);
+            assert!(reply.metadata.recursion_available);
+            assert_eq!(reply.answers, expected);
+        }
+        let mut message = Message::query();
+        message.add_query(Query::query(
+            Name::from_ascii("missing.startos.").unwrap(),
+            RecordType::A,
+        ));
+        let reply = exchange(&resolver, message, "127.0.0.1:12345".parse().unwrap()).await;
+        assert_eq!(reply.metadata.response_code, ResponseCode::NXDomain);
+        assert!(reply.metadata.authoritative);
+        assert!(reply.answers.is_empty());
+    }
+
+    #[tokio::test]
+    async fn unavailable_gateway_servfails_without_error_log_but_malformed_requests_log() {
+        use tracing::instrument::WithSubscriber;
+
+        struct Logs(Arc<std::sync::Mutex<Vec<u8>>>);
+        impl std::io::Write for Logs {
+            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+                self.0.lock().unwrap().extend_from_slice(bytes);
+                Ok(bytes.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+
+        let (_temp, resolver) = resolver_fixture().await;
+        let controller = DnsController {
+            resolve: Arc::downgrade(&resolver.resolve),
+            dns_server: tokio::spawn(async {}).into(),
+        };
+        let _pinned = controller
+            .add_service(
+                Some("pinned".parse().unwrap()),
+                "10.0.3.2".parse().unwrap(),
+                None,
+            )
+            .unwrap();
+        resolver.net_iface.send_if_modified(|interfaces| {
+            interfaces
+                .get_mut(&"wg0".parse::<GatewayId>().unwrap())
+                .unwrap()
+                .ip_info = None;
+            true
+        });
+        let logs = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let writer = logs.clone();
+        let subscriber = tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::ERROR)
+            .without_time()
+            .with_ansi(false)
+            .with_writer(move || Logs(writer.clone()))
+            .finish();
+        let dispatch = tracing::Dispatch::new(subscriber);
+        let mut message = Message::query();
+        message.add_query(Query::query(
+            Name::from_ascii("example.com.").unwrap(),
+            RecordType::A,
+        ));
+        let source = "10.0.3.2:12345".parse().unwrap();
+        let reply = exchange(&resolver, message, source)
+            .with_subscriber(dispatch.clone())
+            .await;
+        assert_eq!(reply.metadata.response_code, ResponseCode::ServFail);
+        assert!(logs.lock().unwrap().is_empty());
+        let reply = exchange(&resolver, Message::query(), source)
+            .with_subscriber(dispatch)
+            .await;
+        assert_eq!(reply.metadata.response_code, ResponseCode::ServFail);
+        assert!(!logs.lock().unwrap().is_empty());
+    }
 
     async fn resolver_fixture() -> (tempfile::TempDir, Resolver) {
         let temp = tempfile::tempdir().unwrap();
