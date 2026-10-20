@@ -1779,11 +1779,9 @@ struct SecurityProfile {
 // Response: SecurityProfile
 ```
 
-`lan_access` reflects current firewall forwardings together with the stored
-`access_to_new_profiles` flag. `ALL` requires access to every other profile and
-the flag. No access to another existing profile returns `SAME_PROFILE` with the
-flag false; a sole profile returns `ALL` when the flag is set. Other
-combinations return `other_profiles` with the stored flag.
+`lan_access` returns the stored mode (`startwrt.<profile>.lan_access` and
+`lan_access_list`); the profile-to-profile forwardings in `firewall` are derived
+from it. `other_profiles` omits whitelisted profiles that no longer exist.
 
 ### `profiles.create`
 
@@ -1818,6 +1816,9 @@ struct ProfileCreateRequest {
 
 On create and set, `lan_access: "ALL"` stores `access_to_new_profiles: true`,
 `"SAME_PROFILE"` stores `false`, and `other_profiles` preserves the supplied flag.
+An empty `other_profiles` with the flag false is stored as `"SAME_PROFILE"`.
+Creating a profile adds it to every `other_profiles` list whose flag is true;
+deleting one removes it from every list.
 
 ### `profiles.set`
 

@@ -282,6 +282,9 @@ async fn inner_main() -> Result<(), Error> {
         if let Err(e) = crate::profiles::bootstrap_admin_profile("/etc/config").await {
             tracing::error!("Admin profile bootstrap failed: {e}");
         }
+        if let Err(e) = crate::profiles::migrate_lan_access_mode(ServerContext::default()).await {
+            tracing::error!("LAN Access mode migration failed: {e}");
+        }
         // Must follow bootstrap_admin_profile: the heal enumerates profiles from
         // the `startwrt` config, so the admin profile has to be registered first.
         if let Err(e) = crate::profiles::heal_ipv6_state("/etc/config").await {
