@@ -118,7 +118,7 @@ CLI before prompting for a new one).
 struct VerifyPasswordParams {
     password: String,
 }
-// Response: null (Authorization error on a wrong password)
+// Response: null (IncorrectPassword, code 7, on a wrong password)
 ```
 
 ### `auth.check-initialized`
