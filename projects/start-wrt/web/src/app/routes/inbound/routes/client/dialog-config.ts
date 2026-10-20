@@ -86,6 +86,10 @@ export interface ClientConfigData {
     }
   `,
   styles: `
+    header {
+      flex-wrap: wrap;
+    }
+
     [tuiNotification] {
       margin-block-end: 1rem;
     }
