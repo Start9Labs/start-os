@@ -25,9 +25,12 @@ import {
   VpnServerPeerAddArgs,
   VpnServerPeerAddResponse,
   VpnServerPeerDeleteArgs,
+  VpnServerPeerRenameArgs,
   VpnServerSetArgs,
   VpnServers,
   WifiConfig,
+  WifiBlackoutSetReq,
+  WifiBlackoutSetResult,
   ScheduleWindow,
   ProfileId,
   ProfileIdOpt,
@@ -86,6 +89,7 @@ import {
 import { UciFile, UciSection } from './types'
 import { dhcpLanSlaacDhcpv6 } from 'src/app/routes/lan/routes/ipv6/uci/mocks'
 import { hasHostnameEndpoint } from 'src/app/routes/outbound/utils'
+import { windowsCover } from 'src/app/utils/schedule'
 import {
   generateMockDataUsage,
   getMockArpOutput,
@@ -514,6 +518,32 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async vpnServerPeerRename(params: VpnServerPeerRenameArgs): Promise<null> {
+    await pauseFor(250)
+    const server = this.mockVpnServers.find(s => s.profile === params.profile)
+    const peer = server?.peers.find(p => p.public_key === params.public_key)
+    if (!peer) throw new Error(`Peer ${params.public_key} not found`)
+    this.mockVpnServers = this.mockVpnServers.map(s =>
+      s.profile === params.profile
+        ? {
+            ...s,
+            peers: s.peers.map(p =>
+              p.public_key === params.public_key
+                ? { ...p, name: params.name }
+                : p,
+            ),
+          }
+        : s,
+    )
+    this.persistVpnServers()
+    this.logActivity(
+      'vpn-server',
+      'updated',
+      `Renamed peer to '${params.name}' on inbound VPN`,
+    )
+    return null
+  }
+
   async vpnServerPeerSetDnsInjection(
     params: RpcParamType<Api, 'vpn-server.peer-set-dns-injection'>,
   ): Promise<RpcReturnType<Api, 'vpn-server.peer-set-dns-injection'>> {
@@ -653,15 +683,24 @@ export class MockApiService extends ApiService {
     return structuredClone(this.mockBlackoutWindows)
   }
 
-  async wifiBlackoutSet(params: ScheduleWindow[]): Promise<null> {
+  async wifiBlackoutSet({
+    windows,
+    confirmImmediateBlackout,
+  }: WifiBlackoutSetReq): Promise<WifiBlackoutSetResult> {
     await pauseFor(250)
-    this.mockBlackoutWindows = structuredClone(params)
+    if (!confirmImmediateBlackout) {
+      const now = new Date()
+      const minute =
+        (now.getDay() * 24 + now.getHours()) * 60 + now.getMinutes()
+      return { pendingImmediateBlackout: windowsCover(windows, minute) }
+    }
+    this.mockBlackoutWindows = structuredClone(windows)
     this.logActivity(
       'wifi',
       'updated',
-      `Updated WiFi blackout schedule (${params.length} window${params.length !== 1 ? 's' : ''})`,
+      `Updated WiFi blackout schedule (${windows.length} window${windows.length !== 1 ? 's' : ''})`,
     )
-    return null
+    return { pendingImmediateBlackout: false }
   }
 
   private mockProfiles: SecurityProfile[] = [
@@ -1315,10 +1354,16 @@ export class MockApiService extends ApiService {
 
   async wanIpv6Set(params: WanIpv6SetRequest): Promise<null> {
     await pauseFor(250)
+    const requested = params.prefix?.replace(/^\//, '') ?? ''
     this.mockWanIpv6 = {
       mode: params.mode,
       address: params.address ?? null,
-      prefix: params.prefix ?? null,
+      prefix:
+        params.mode === 'slaac' || params.mode === 'dhcpv6'
+          ? requested
+            ? `/${requested}`
+            : null
+          : (params.prefix ?? null),
       gateway: params.gateway ?? null,
       ip6prefix: params.ip6prefix ?? null,
       ip6prefixlen: params.ip6prefixlen ?? null,

@@ -452,6 +452,7 @@ struct WanIpv6Response {
 struct WanIpv6SetRequest {
     mode: WanIpv6Mode,
     address: Option<String>,
+    /// SLAAC/DHCPv6: requested delegation length, e.g. "/60"; unset or empty requests auto
     prefix: Option<String>,
     gateway: Option<String>,
     /// Static mode: LAN prefix pool, e.g. "2001:db8::/48"
@@ -1460,6 +1461,22 @@ struct VpnServerPeerDeleteRequest {
 // Response: null
 ```
 
+### `vpn-server.peer-rename`
+
+Changes only the peer's display name. The key, address, and WireGuard session are untouched.
+Fails with `NotFound` if the server or the peer does not exist.
+
+```rust
+#[derive(Deserialize)]
+struct VpnServerPeerRenameRequest {
+    profile: String,
+    public_key: String,
+    /// Validated like `peer-add`'s `name`.
+    name: String,
+}
+// Response: null
+```
+
 ### `vpn-server.peer-set-dns-injection`
 
 ```rust
@@ -1589,9 +1606,38 @@ full-week semantics apply to the profile `profiles.schedule-get` /
 
 ```rust
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct BlackoutSetRequest {
     windows: Vec<BlackoutWindow>,
+    /// Authorize turning Wi-Fi off now when a window covers the current time.
+    #[serde(default)]
+    confirm_immediate_blackout: bool,  // serialized as `confirmImmediateBlackout`
 }
+
+// Response:
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BlackoutSetResult {
+    /// True (and nothing applied) when a window covers the router's current
+    /// time and the caller hasn't confirmed. False once applied.
+    pending_immediate_blackout: bool,  // `pendingImmediateBlackout`
+}
+// Backend: without confirmation it validates, applies nothing, and reports
+// whether the windows cover the current time in the router's timezone; with
+// confirmation it saves them and applies the blackout state at once — Wi-Fi
+// down inside a window, up outside every window (a radio disabled in its own
+// settings stays down). Every Wi-Fi reload, boot, and timezone change applies
+// that state again, and cron runs `wifi.blackout-apply` at each window boundary.
+```
+
+### `wifi.blackout-apply`
+
+Internal endpoint, **not called from the frontend**. Applies the blackout state
+for the current time, exactly as `wifi.blackout-set` does after saving. The
+blackout crontab runs it at every window boundary.
+
+```rust
+// Request: {}
 // Response: null
 ```
 
@@ -2117,12 +2163,14 @@ The daemon (`backend/ctrl/src/bins/daemon.rs`) also serves:
 | `vpn-server.delete`                 | Inbound VPN     |                             |
 | `vpn-server.peer-add`               | Inbound VPN     |                             |
 | `vpn-server.peer-delete`            | Inbound VPN     |                             |
+| `vpn-server.peer-rename`            | Inbound VPN     |                             |
 | `vpn-server.peer-set-dns-injection` | Inbound VPN     |                             |
 | `wifi.get`                          | WiFi            |                             |
 | `wifi.set`                          | WiFi            |                             |
 | `wifi.edit`                         | WiFi            | CLI editor                  |
 | `wifi.blackout-get`                 | WiFi            |                             |
 | `wifi.blackout-set`                 | WiFi            |                             |
+| `wifi.blackout-apply`               | WiFi            | Internal, blackout cron     |
 | `wifi.generate-password`            | WiFi            |                             |
 | `wifi.regulatory`                   | WiFi            |                             |
 | `profiles.list`                     | Profiles        |                             |
@@ -2144,7 +2192,7 @@ The daemon (`backend/ctrl/src/bins/daemon.rs`) also serves:
 | `diagnostics.create`                | Diagnostics     |                             |
 | `dns.injected-list`                 | DNS Injection   |                             |
 
-**Totals:** 82 RPC methods across 17 categories, plus the HTTP/WebSocket routes
+**Totals:** 83 RPC methods across 17 categories, plus the HTTP/WebSocket routes
 table above and the deprecated generic endpoints below.
 
 ---

@@ -187,6 +187,24 @@ export const AutomaticPortUse: z.ZodObject<{
   id: 'AutomaticPortUse',
   description: 'One automatic port use for the published-ports UI.',
 })
+export const BlackoutSetResult: z.ZodObject<{
+  /**
+   * True (and nothing applied) when a window covers the current time and the
+   * caller hasn't confirmed yet. False once the change is applied.
+   */
+  pendingImmediateBlackout: z.ZodBoolean
+}> = /* @__PURE__ */ object({
+  /**
+   * True (and nothing applied) when a window covers the current time and the
+   * caller hasn't confirmed yet. False once the change is applied.
+   */
+  pendingImmediateBlackout: z.boolean().meta({
+    description:
+      "True (and nothing applied) when a window covers the current time and the\ncaller hasn't confirmed yet. False once the change is applied.",
+  }),
+}).meta({
+  id: 'BlackoutSetResult',
+})
 export const BlackoutWindow: z.ZodObject<{
   startTime: z.ZodString
   endTime: z.ZodString
@@ -834,6 +852,41 @@ export const PeerDeleteArgs: z.ZodObject<{
   }),
 }).meta({
   id: 'PeerDeleteArgs',
+})
+export const PeerRenameArgs: z.ZodObject<{
+  /**
+   * Profile interface name
+   */
+  profile: z.ZodString
+  /**
+   * Public key of the peer to rename
+   */
+  public_key: z.ZodString
+  /**
+   * New human-readable name for the peer
+   */
+  name: z.ZodString
+}> = /* @__PURE__ */ object({
+  /**
+   * Profile interface name
+   */
+  profile: z.string().meta({
+    description: 'Profile interface name',
+  }),
+  /**
+   * Public key of the peer to rename
+   */
+  public_key: z.string().meta({
+    description: 'Public key of the peer to rename',
+  }),
+  /**
+   * New human-readable name for the peer
+   */
+  name: z.string().meta({
+    description: 'New human-readable name for the peer',
+  }),
+}).meta({
+  id: 'PeerRenameArgs',
 })
 export const PeerSetDnsInjectionArgs: z.ZodObject<{
   /**
@@ -2403,6 +2456,34 @@ export const WifiSetResult: z.ZodObject<{
 }).meta({
   id: 'WifiSetResult',
 })
+
+/**
+ * `wifi.blackout-set` request: the blackout windows plus a confirmation flag.
+ * A window covering the router's current time turns Wi-Fi off as soon as it is
+ * saved, for every device on it. When the flag is false, `blackout-set` applies
+ * nothing and reports that in `BlackoutSetResult` for a confirmation dialog;
+ * with the flag true it saves the windows and applies them at once.
+ */
+export const BlackoutSetRequest: z.ZodIntersection<
+  z.ZodObject<{
+    confirmImmediateBlackout: z.ZodCodec<
+      z.ZodOptional<z.ZodBoolean>,
+      z.ZodBoolean
+    >
+  }>,
+  typeof BlackoutWindows
+> = /* @__PURE__ */ z
+  .intersection(
+    object({
+      confirmImmediateBlackout: wire(z.boolean().optional(), z.boolean()),
+    }),
+    BlackoutWindows,
+  )
+  .meta({
+    id: 'BlackoutSetRequest',
+    description:
+      "`wifi.blackout-set` request: the blackout windows plus a confirmation flag.\nA window covering the router's current time turns Wi-Fi off as soon as it is\nsaved, for every device on it. When the flag is false, `blackout-set` applies\nnothing and reports that in `BlackoutSetResult` for a confirmation dialog;\nwith the flag true it saves the windows and applies them at once.",
+  })
 export const PublishedPortsSetRequest: z.ZodObject<{
   ports: z.ZodArray<typeof PublishedPortInput>
 }> = /* @__PURE__ */ object({ ports: z.array(PublishedPortInput) }).meta({
@@ -3414,6 +3495,21 @@ export const Api = {
           ),
           _RETURN: /* @__PURE__ */ z.null(),
         },
+        'peer-rename': {
+          _PARAMS: /* @__PURE__ */ z.intersection(
+            z.intersection(
+              object({
+                format: wire(
+                  IoFormat.nullable().optional(),
+                  IoFormat.nullable(),
+                ),
+              }),
+              empty,
+            ),
+            PeerRenameArgs,
+          ),
+          _RETURN: /* @__PURE__ */ z.null(),
+        },
         'peer-set-dns-injection': {
           _PARAMS: /* @__PURE__ */ PeerSetDnsInjectionArgs,
           _RETURN: /* @__PURE__ */ z.null(),
@@ -3611,6 +3707,11 @@ export const Api = {
     wifi: {
       _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
+        'blackout-apply': {
+          _PARAMS: /* @__PURE__ */ z.unknown(),
+          _RETURN: /* @__PURE__ */ z.unknown(),
+          _OPAQUE: true as const,
+        },
         'blackout-get': {
           _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
@@ -3637,12 +3738,12 @@ export const Api = {
               }),
               empty,
             ),
-            BlackoutWindows.meta({
+            BlackoutSetRequest.meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: /* @__PURE__ */ z.null(),
+          _RETURN: /* @__PURE__ */ BlackoutSetResult,
         },
         edit: {
           _PARAMS: /* @__PURE__ */ z.intersection(
