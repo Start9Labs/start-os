@@ -23,8 +23,7 @@ use crate::util::{FromStrParser, new_guid};
 #[derive(
     Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize, VisitFields,
 )]
-#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(ts(type = "z.string()"))]
 pub struct Guid(InternedString);
 
 rpc_toolkit::reflect_ts!(Guid);

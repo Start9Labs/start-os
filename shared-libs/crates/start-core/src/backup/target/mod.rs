@@ -51,8 +51,7 @@ rpc_toolkit::reflect_ts!(BackupTarget);
 rpc_toolkit::ts_export!(BackupTarget, namespaces = [""]);
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, VisitVariants)]
-#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(ts(type = "z.string()"))]
 pub enum BackupTargetId {
     Disk { logicalname: PathBuf },
     Cifs { id: u32 },
@@ -229,11 +228,6 @@ pub async fn list(ctx: RpcContext) -> Result<BTreeMap<BackupTargetId, BackupTarg
 #[serde(rename_all = "camelCase")]
 pub struct BackupInfo {
     pub version: Version,
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub timestamp: Option<DateTime<Utc>>,
     pub package_backups: BTreeMap<PackageId, PackageBackupInfo>,
 }
@@ -247,8 +241,6 @@ pub struct PackageBackupInfo {
     pub title: InternedString,
     pub version: VersionString,
     pub os_version: Version,
-    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub timestamp: DateTime<Utc>,
 }
 

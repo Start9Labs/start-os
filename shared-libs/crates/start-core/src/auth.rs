@@ -300,9 +300,8 @@ pub fn check_password(hash: &str, password: &str) -> Result<(), Error> {
 #[serde(rename_all = "camelCase")]
 pub struct LoginParams {
     password: String,
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(skip))]
     #[serde(rename = "__Auth_userAgent")]
-    #[visit(opaque, type_attributes(visit::wire))] // from Auth middleware
     user_agent: Option<String>,
     /// The PEM-encoded public key to enroll on a successful login. The login
     /// request itself is signed with the matching secret key, so enrollment
@@ -311,9 +310,8 @@ pub struct LoginParams {
     /// The key the request was actually signed with, injected by the auth
     /// middleware. Enforced to equal `pubkey`, so a login can only enroll the
     /// key that proved possession.
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(skip))]
     #[serde(rename = "__Auth_signer")]
-    #[visit(opaque, type_attributes(visit::wire))] // from Auth middleware
     signer: AnyVerifyingKey,
     /// Enroll in memory only, never persisted (kiosk mode, which re-enrolls
     /// on every browser restart and would otherwise accumulate keys).
@@ -403,9 +401,8 @@ pub async fn login_impl<C: LoginContext>(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct LogoutParams {
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(skip))]
     #[serde(rename = "__Auth_signer")]
-    #[visit(opaque, type_attributes(visit::wire))] // from Auth middleware
     signer: InternedString,
 }
 
@@ -426,12 +423,8 @@ pub struct Session {
     #[serde(default)]
     pub name: Option<InternedString>,
     #[serde(default)]
-    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub logged_in: DateTime<Utc>,
     #[serde(default)]
-    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub last_active: DateTime<Utc>,
     #[serde(default)]
     pub user_agent: Option<String>,
@@ -443,11 +436,6 @@ rpc_toolkit::ts_export!(Session, namespaces = [""]);
 #[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionList {
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     current: Option<InternedString>,
     sessions: AuthKeys,
 }
@@ -516,9 +504,8 @@ fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) -> Resul
 #[command(rename_all = "kebab-case")]
 pub struct ListParams {
     #[arg(skip)]
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(skip))]
     #[serde(rename = "__Auth_signer")]
-    #[visit(opaque, type_attributes(visit::wire))] // from Auth middleware
     signer: Option<InternedString>,
 }
 
