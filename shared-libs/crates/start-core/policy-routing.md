@@ -124,6 +124,8 @@ Attaching the persisted network controller atomically replaces DNS authority, th
 
 Upstream UDP and TCP sockets bind to the gateway's captured interface index and carry its table mark. The device binding restricts egress even when `specific` wins or the gateway table is empty; the mark preserves the gateway choice through output marking and the system selection. An unavailable gateway never falls back to another device. Forwarder connection pools and caches are separate per gateway and replaced when its DNS settings or interface index changes.
 
+Host source matching retains the interface zone of IPv6 link-local addresses; the same address on another link does not identify the host.
+
 Host-originated lookups of exact configured WireGuard endpoint names use the automatic non-WireGuard underlay's DNS pool. The interface watcher owns that allowlist, retained while a tunnel is disconnected and seeded before importing a tunnel configuration. Service-originated queries for the same names retain their selected gateway. An unavailable underlay fails bootstrap rather than trying another tunnel.
 
 `src/net/dns/transport_test.sh` runs the production socket provider in a throwaway network namespace, against IPv4 and IPv6 UDP/TCP peers, with competing on-link and default routes. It checks device containment with an empty table, a down device, and a recreated interface.

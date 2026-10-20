@@ -59,6 +59,27 @@ pub(super) fn is_host_address<'a>(
         })
 }
 
+pub(super) fn is_host_source<'a>(
+    source: SocketAddr,
+    interfaces: impl IntoIterator<Item = &'a IpInfo>,
+) -> bool {
+    is_host_address(
+        source.ip(),
+        interfaces
+            .into_iter()
+            .filter(|info| source_zone_matches_interface(source, info)),
+    )
+}
+
+pub(super) fn source_zone_matches_interface(source: SocketAddr, interface: &IpInfo) -> bool {
+    match source {
+        SocketAddr::V6(addr) if crate::net::utils::ipv6_is_link_local(*addr.ip()) => {
+            addr.scope_id() == interface.scope_id
+        }
+        _ => true,
+    }
+}
+
 pub(super) fn valid_upstream(addr: SocketAddr) -> bool {
     let ip = addr.ip().to_canonical();
     addr.port() != 0 && !ip.is_unspecified() && !ip.is_loopback()
@@ -231,6 +252,31 @@ mod tests {
         assert_eq!(dns.source, DnsSource::Gateway);
         dns.refresh(None);
         assert_eq!(dns.source, DnsSource::PublicFallback);
+    }
+
+    #[test]
+    fn host_source_matching_preserves_link_local_zones_and_ipv4_mapping() {
+        let interface = IpInfo {
+            scope_id: 2,
+            subnets: [
+                "fe80::1/64".parse::<ipnet::IpNet>().unwrap(),
+                "192.0.2.2/24".parse::<ipnet::IpNet>().unwrap(),
+            ]
+            .into_iter()
+            .collect(),
+            ..Default::default()
+        };
+        for source in [
+            "[fe80::1%2]:53",
+            "[::ffff:192.0.2.2]:53",
+            "127.0.0.1:53",
+            "[::1]:53",
+        ] {
+            assert!(is_host_source(source.parse().unwrap(), [&interface]));
+        }
+        for source in ["[fe80::1%3]:53", "[fe80::1]:53", "192.0.2.3:53"] {
+            assert!(!is_host_source(source.parse().unwrap(), [&interface]));
+        }
     }
 
     #[test]

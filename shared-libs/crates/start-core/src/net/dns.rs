@@ -40,7 +40,10 @@ use crate::{GatewayId, HOST_IP, OptionExt, PackageId};
 
 pub(crate) mod upstream;
 
-use upstream::{GatewayRuntime, auto_gateway, is_host_address, underlay_gateway, valid_upstream};
+use upstream::{
+    GatewayRuntime, auto_gateway, is_host_address, is_host_source, source_zone_matches_interface,
+    underlay_gateway, valid_upstream,
+};
 
 pub fn dns_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -450,8 +453,11 @@ enum Resolution {
 }
 
 impl Resolver {
-    async fn request_catalog(&self, source: IpAddr, name: &Name) -> Result<Arc<Catalog>, Error> {
-        let source = source.to_canonical();
+    async fn request_catalog(
+        &self,
+        source: SocketAddr,
+        name: &Name,
+    ) -> Result<Arc<Catalog>, Error> {
         let authority = self.authority.read();
         let interfaces = authority.interfaces().read();
         match authority {
@@ -459,7 +465,7 @@ impl Resolver {
             DnsAuthority::Runtime(network) => {
                 let domain = name.to_lowercase().to_utf8();
                 let domain = domain.trim_end_matches('.');
-                let from_host = is_host_address(
+                let from_host = is_host_source(
                     source,
                     interfaces.values().filter_map(|i| i.ip_info.as_deref()),
                 );
@@ -480,11 +486,11 @@ impl Resolver {
 
     fn bootstrap_catalog(
         &self,
-        source: IpAddr,
+        source: SocketAddr,
         interfaces: &OrdMap<GatewayId, NetworkInterfaceInfo>,
     ) -> Result<Arc<Catalog>, Error> {
         ensure_code!(
-            is_host_address(
+            is_host_source(
                 source,
                 interfaces
                     .values()
@@ -499,13 +505,14 @@ impl Resolver {
 
     async fn routed_catalog(
         &self,
-        source: IpAddr,
+        source: SocketAddr,
         db: &TypedPatchDb<Database>,
         interfaces: &OrdMap<GatewayId, NetworkInterfaceInfo>,
     ) -> Result<Arc<Catalog>, Error> {
-        let package = self.resolve.peek(|r| r.requester(source))?;
+        let source_ip = source.ip().to_canonical();
+        let package = self.resolve.peek(|r| r.requester(source_ip))?;
         if package.is_none()
-            && !is_host_address(
+            && !is_host_source(
                 source,
                 interfaces
                     .values()
@@ -518,8 +525,13 @@ impl Resolver {
                 .filter_map(|info| info.ip_info.as_deref())
                 .filter(|info| {
                     info.device_type == Some(crate::db::model::public::NetworkInterfaceType::Bridge)
+                        && source_zone_matches_interface(source, info)
                 })
-                .any(|info| info.subnets.iter().any(|subnet| subnet.contains(&source)));
+                .any(|info| {
+                    info.subnets
+                        .iter()
+                        .any(|subnet| subnet.contains(&source_ip))
+                });
             ensure_code!(
                 !bridge_listener && !bridge_source,
                 ErrorKind::Network,
@@ -718,7 +730,7 @@ impl RequestHandler for Resolver {
 
             match self.resolve(name, req.src.ip()) {
                 Resolution::Forward => {
-                    let catalog = match self.request_catalog(req.src.ip(), name).await {
+                    let catalog = match self.request_catalog(req.src, name).await {
                         Ok(catalog) => catalog,
                         Err(e) if matches!(e.kind, ErrorKind::NotFound | ErrorKind::Network) => {
                             tracing::debug!(error = ?e, "DNS forwarding unavailable");
@@ -1075,6 +1087,16 @@ mod tests {
             }
         }
 
+        async fn request_catalog(
+            &self,
+            source: IpAddr,
+            name: &Name,
+        ) -> Result<Arc<Catalog>, Error> {
+            self.resolver
+                .request_catalog(SocketAddr::new(source, 12345), name)
+                .await
+        }
+
         async fn forward_catalog(&self, source: IpAddr) -> Result<Arc<Catalog>, Error> {
             self.request_catalog(source, &Name::from_ascii("example.com.").unwrap())
                 .await
@@ -1393,6 +1415,111 @@ mod tests {
                 .is_err()
         );
         assert!(controller.status().gateway.is_none());
+    }
+
+    #[tokio::test]
+    async fn link_local_clients_cannot_impersonate_host_sources_on_another_interface() {
+        let (_temp, mut fixture) = resolver_fixture().await;
+        fixture
+            .db
+            .put(
+                &"/public/serverInfo/network/defaultOutbound"
+                    .parse::<patch_db::json_ptr::JsonPointer>()
+                    .unwrap(),
+                &"wg0",
+            )
+            .await
+            .unwrap();
+        fixture.net_iface.send_if_modified(|interfaces| {
+            let ethernet = interfaces
+                .get_mut(&"eth0".parse::<GatewayId>().unwrap())
+                .unwrap();
+            Arc::make_mut(ethernet.ip_info.as_mut().unwrap()).subnets =
+                ["fe80::1/64".parse::<ipnet::IpNet>().unwrap()]
+                    .into_iter()
+                    .collect();
+            let tunnel = interfaces
+                .get_mut(&"wg0".parse::<GatewayId>().unwrap())
+                .unwrap();
+            tunnel
+                .wireguard_endpoint_domains
+                .insert("vpn.example".into());
+            tunnel.ip_info = None;
+            interfaces.insert(
+                "lxcbr0".parse().unwrap(),
+                NetworkInterfaceInfo {
+                    ip_info: Some(Arc::new(crate::db::model::public::IpInfo {
+                        scope_id: 5,
+                        device_type: Some(crate::db::model::public::NetworkInterfaceType::Bridge),
+                        subnets: ["fe80::10/64".parse::<ipnet::IpNet>().unwrap()]
+                            .into_iter()
+                            .collect(),
+                        ..Default::default()
+                    })),
+                    ..Default::default()
+                },
+            );
+            true
+        });
+        let DnsAuthority::Runtime(network) = fixture.authority.read() else {
+            panic!("runtime fixture")
+        };
+        fixture.resolver.authority = Watch::new(DnsAuthority::Bootstrap(fixture.net_iface.clone()));
+        let controller = fixture.controller();
+        let host = "[fe80::1%2]:12345".parse().unwrap();
+        let other_link = "[fe80::1%4]:12345".parse().unwrap();
+        let endpoint = Name::from_ascii("vpn.example.").unwrap();
+        assert!(
+            fixture
+                .resolver
+                .request_catalog(host, &endpoint)
+                .await
+                .is_ok()
+        );
+        assert!(
+            fixture
+                .resolver
+                .request_catalog(other_link, &endpoint)
+                .await
+                .is_err()
+        );
+        controller.activate(network);
+        let host_catalog = fixture
+            .resolver
+            .request_catalog(host, &endpoint)
+            .await
+            .unwrap();
+        assert!(
+            fixture
+                .resolver
+                .request_catalog(other_link, &endpoint)
+                .await
+                .is_err()
+        );
+        fixture.net_iface.send_if_modified(|interfaces| {
+            interfaces
+                .get_mut(&"wg0".parse::<GatewayId>().unwrap())
+                .unwrap()
+                .ip_info = Some(Arc::new(crate::db::model::public::IpInfo {
+                scope_id: 3,
+                ..Default::default()
+            }));
+            true
+        });
+        let client_catalog = fixture
+            .resolver
+            .request_catalog(other_link, &endpoint)
+            .await
+            .unwrap();
+        assert!(!Arc::ptr_eq(&host_catalog, &client_catalog));
+        assert!(Arc::ptr_eq(
+            &client_catalog,
+            &fixture
+                .resolver
+                .request_catalog(other_link, &Name::from_ascii("example.com.").unwrap())
+                .await
+                .unwrap()
+        ));
     }
 
     #[tokio::test]
