@@ -1109,6 +1109,10 @@ export const NetworkInterfaceInfo: z.ZodCodec<
     name: z.ZodOptional<z.ZodNullable<z.ZodString>>
     secure: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>
     ipInfo: z.ZodOptional<z.ZodNullable<typeof IpInfo>>
+    /**
+     * Operator-set public IPv4. Outranks `ipInfo.wanIp`.
+     */
+    wanIpOverride: z.ZodOptional<z.ZodNullable<z.ZodString>>
     type: z.ZodOptional<z.ZodNullable<typeof GatewayType>>
     portMap: z.ZodOptional<typeof GatewayPortMapCapabilities>
     /**
@@ -1123,6 +1127,10 @@ export const NetworkInterfaceInfo: z.ZodCodec<
     name: z.ZodNullable<z.ZodString>
     secure: z.ZodNullable<z.ZodBoolean>
     ipInfo: z.ZodNullable<typeof IpInfo>
+    /**
+     * Operator-set public IPv4. Outranks `ipInfo.wanIp`.
+     */
+    wanIpOverride: z.ZodNullable<z.ZodString>
     type: typeof GatewayType
     portMap: typeof GatewayPortMapCapabilities
     /**
@@ -1138,6 +1146,12 @@ export const NetworkInterfaceInfo: z.ZodCodec<
     name: z.string().nullable().optional(),
     secure: z.boolean().nullable().optional(),
     ipInfo: IpInfo.nullable().optional(),
+    /**
+     * Operator-set public IPv4. Outranks `ipInfo.wanIp`.
+     */
+    wanIpOverride: z.string().nullable().optional().meta({
+      description: 'Operator-set public IPv4. Outranks `ipInfo.wanIp`.',
+    }),
     type: GatewayType.nullable().optional(),
     portMap: GatewayPortMapCapabilities.optional(),
     /**
@@ -1155,6 +1169,12 @@ export const NetworkInterfaceInfo: z.ZodCodec<
     name: z.string().nullable(),
     secure: z.boolean().nullable(),
     ipInfo: IpInfo.nullable(),
+    /**
+     * Operator-set public IPv4. Outranks `ipInfo.wanIp`.
+     */
+    wanIpOverride: z.string().nullable().meta({
+      description: 'Operator-set public IPv4. Outranks `ipInfo.wanIp`.',
+    }),
     type: GatewayType,
     portMap: GatewayPortMapCapabilities,
     /**
