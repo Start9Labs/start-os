@@ -318,6 +318,49 @@ pub(crate) fn rewrite_all_dns_forwarding(cfgs: &mut Configs) -> Result<(), Error
     Ok(())
 }
 
+pub async fn heal_dns_forwarding<C: CtrlContext>(ctx: C) -> Result<(), Error> {
+    let mut retries = 4;
+    loop {
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "dhcp", "firewall"],
+        )
+        .await?;
+        let before = dns_forwarding_snapshot(&cfgs);
+        rewrite_all_dns_forwarding(&mut cfgs)?;
+        if dns_forwarding_snapshot(&cfgs) == before {
+            return Ok(());
+        }
+        match dump_all(ctx.uci_root(), cfgs).await {
+            Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
+                retries -= 1;
+            }
+            Err(err) => return Err(err.into()),
+            Ok(()) => {
+                if ctx.effectful() {
+                    crate::published_ports::reload_firewall_wait().await?;
+                    crate::devices::reload_dnsmasq();
+                }
+                return Ok(());
+            }
+        }
+    }
+}
+
+fn dns_forwarding_snapshot(cfgs: &Configs) -> [Vec<String>; 2] {
+    ["dhcp", "firewall"].map(|name| {
+        cfgs[name]
+            .sections
+            .iter()
+            .flat_map(|section| &section.lines)
+            .filter(|line| !matches!(line, Line::Empty))
+            .map(ToString::to_string)
+            .collect()
+    })
+}
+
 /// Rewrite the DNS-Override DNAT redirect rule for a single profile.
 /// Adds or removes the redirect based on whether the profile needs DNS hijacking.
 fn rewrite_dns_redirect(cfgs: &mut Configs, profile: &Profile) -> Result<(), Error> {
@@ -7765,6 +7808,77 @@ config dhcp 'guest'
         set_config(ctx, &mut cfgs, &guest_via("wan", vec![plain("1.1.1.1")])).unwrap();
 
         assert_eq!(guest_group(&cfgs).expect("profile group").interface, None);
+    }
+
+    #[tokio::test]
+    async fn test_heal_dns_forwarding_repairs_saved_vpn_system_fallback() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs_with_ipv6_vpn(dir.path());
+        append(
+            dir.path(),
+            "startwrt",
+            "\nconfig system_dns system_dns\n\tlist servers '{\"address\":\"9.9.9.9\",\"ssl\":true}'\n",
+        );
+
+        {
+            let arena = Arena::new();
+            let mut cfgs = parse_all(
+                ctx.uci_root(),
+                &arena,
+                &["startwrt", "network", "firewall", "dhcp"],
+            )
+            .await
+            .unwrap();
+            set_config(ctx.clone(), &mut cfgs, &guest_via("wg_v4", Vec::new())).unwrap();
+            cfgs["dhcp"]
+                .sections
+                .retain(|s| s.name().as_deref() != Some("dns_guest"));
+            for section in &mut cfgs["dhcp"].sections {
+                section.lines.retain(|line| {
+                    !matches!(line, Line::List { list, item, .. }
+                        if list.as_str() == "notinterface" && item.as_str() == "guest")
+                });
+            }
+            assert!(guest_redirected(&cfgs));
+            assert!(guest_dnsmasq_servers(&cfgs).is_none());
+            dump_all(ctx.uci_root(), cfgs).await.unwrap();
+        }
+
+        heal_dns_forwarding(ctx.clone()).await.unwrap();
+        let arena = Arena::new();
+        let cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )
+        .await
+        .unwrap();
+        assert!(guest_redirected(&cfgs));
+        assert!(guest_dnsmasq_servers(&cfgs)
+            .expect("startup installs the tunnel-bound system fallback")
+            .contains(&"127.0.0.1#5401".to_string()));
+        assert_eq!(
+            guest_group(&cfgs).unwrap().interface.as_deref(),
+            Some("wg_v4")
+        );
+
+        let modified = ["dhcp", "firewall", "network", "startwrt"].map(|name| {
+            std::fs::metadata(dir.path().join(name))
+                .unwrap()
+                .modified()
+                .unwrap()
+        });
+        heal_dns_forwarding(ctx).await.unwrap();
+        assert_eq!(
+            modified,
+            ["dhcp", "firewall", "network", "startwrt"].map(|name| {
+                std::fs::metadata(dir.path().join(name))
+                    .unwrap()
+                    .modified()
+                    .unwrap()
+            })
+        );
     }
 
     #[tokio::test]
