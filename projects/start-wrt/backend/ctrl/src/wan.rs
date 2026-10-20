@@ -1003,11 +1003,7 @@ pub async fn dns_set<C: CtrlContext>(
                 );
                 if ctx.effectful() {
                     // Re-read configs to regenerate SmartDNS with the updated state
-                    let smartdns_groups = {
-                        let arena2 = Arena::new();
-                        let cfgs2 = parse_all(ctx.uci_root(), &arena2, &["startwrt"]).await?;
-                        dns::collect_smartdns_groups(&cfgs2)
-                    };
+                    let smartdns_groups = dns::load_smartdns_groups(ctx.uci_root()).await?;
                     dns::apply_smartdns_groups(smartdns_groups).await?;
                     // Use reload_system() which restarts network + smartdns + firewall + dnsmasq
                     profiles::reload_system().await?;

@@ -554,4 +554,9 @@ export const ENGLISH: Record<string, number> = {
   'Updating VPN peer...': 574,
   'VPN peer updated': 575,
   'Replace the PrivateKey placeholder with the private key of this device before using this configuration.': 576,
+  'DNS servers': 584,
+  'No DNS servers: profiles using this VPN resolve through your ISP, outside the tunnel, unless system DNS uses custom servers.': 581,
+  'Resolvers reached through the tunnel by profiles using this VPN that have no DNS of their own. Separate with commas.': 582,
+  'Enter IP addresses separated by commas': 583,
+  'System (outside VPN)': 580,
 }

@@ -549,4 +549,9 @@ export default {
   574: 'Actualizando par VPN...',
   575: 'Par VPN actualizado',
   576: 'Sustituya el marcador de posición de PrivateKey por la clave privada de este dispositivo antes de usar esta configuración.',
+  584: 'Servidores DNS',
+  581: 'Sin servidores DNS: los perfiles que usan esta VPN resuelven a través de su proveedor de Internet, fuera del túnel, a menos que el DNS del sistema use servidores personalizados.',
+  582: 'Resolutores a los que acceden a través del túnel los perfiles que usan esta VPN sin DNS propio. Sepárelos con comas.',
+  583: 'Introduzca direcciones IP separadas por comas',
+  580: 'Sistema (fuera de la VPN)',
 } satisfies i18n

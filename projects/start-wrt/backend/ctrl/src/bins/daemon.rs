@@ -302,6 +302,9 @@ async fn inner_main() -> Result<(), Error> {
         if let Err(e) = crate::dns::heal_smartdns_conf("/etc/config").await {
             tracing::error!("SmartDNS config repair failed: {e}");
         }
+        if let Err(e) = crate::profiles::heal_dns_forwarding(ServerContext::default()).await {
+            tracing::error!("DNS forwarding repair failed: {e}");
+        }
         // Repairs a reservation name from a release that let one through, which
         // dnsmasq refuses to start on. Must precede the fingerprint hook: both
         // reload dnsmasq, and this one decides whether it can come up at all.
