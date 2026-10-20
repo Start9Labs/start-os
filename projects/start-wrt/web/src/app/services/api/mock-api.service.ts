@@ -90,6 +90,7 @@ import { UciFile, UciSection } from './types'
 import { dhcpLanSlaacDhcpv6 } from 'src/app/routes/lan/routes/ipv6/uci/mocks'
 import { hasHostnameEndpoint } from 'src/app/routes/outbound/utils'
 import { windowsCover } from 'src/app/utils/schedule'
+import { VPN_PEERS_WOULD_BREAK_CODE } from 'src/app/services/vpn-peers'
 import {
   generateMockDataUsage,
   getMockArpOutput,
@@ -869,9 +870,11 @@ export class MockApiService extends ApiService {
       const total = affected.reduce((n, s) => n + s.peers.length, 0)
       const profiles = affected.map(s => s.profile).join(', ')
       throw new RpcError({
-        code: -1,
-        message: 'General error',
-        data: `VPN Peers Would Break: VPN peers would break: ${total} peer(s) across profiles [${profiles}]`,
+        code: VPN_PEERS_WOULD_BREAK_CODE,
+        message: 'VPN Peers Would Break',
+        data: {
+          details: `VPN peers would break: ${total} peer(s) across profiles [${profiles}]`,
+        },
       } as RPCErrorDetails)
     }
     this.mockVpnServers = this.mockVpnServers.filter(s => !affected.includes(s))
