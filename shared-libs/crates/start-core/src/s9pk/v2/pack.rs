@@ -334,8 +334,7 @@ pub struct ImageConfig {
     pub arch: BTreeSet<InternedString>,
     pub emulate_missing: bool,
     #[serde(rename = "emulateMissingAs", skip_serializing_if = "Option::is_none")]
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
+    #[visit(ts(skip))]
     legacy_emulate_missing_as: Option<InternedString>,
     #[serde(default)]
     pub nvidia_container: bool,

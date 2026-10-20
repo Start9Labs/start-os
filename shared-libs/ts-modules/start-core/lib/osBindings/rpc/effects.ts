@@ -94,9 +94,6 @@ export type ClearCallbacksParamsInput = z.input<
   typeof schemas.ClearCallbacksParams
 >
 export type ClearTasksParamsInput = z.input<typeof schemas.ClearTasksParams>
-export type CurrentDependencyKind = z.output<
-  typeof schemas.CurrentDependencyKind
->
 export type DeviceFilter = z.output<typeof schemas.DeviceFilter>
 export type EchoParamsInput = z.input<typeof schemas.EchoParams>
 export type ErrorData = z.output<typeof schemas.ErrorData>
@@ -205,6 +202,9 @@ export type CreateNotificationParamsInput = z.input<
 >
 export type CreateSubcontainerFsParamsInput = z.input<
   typeof schemas.CreateSubcontainerFsParams
+>
+export type CurrentDependencyKind = z.output<
+  typeof schemas.CurrentDependencyKind
 >
 export type DependencyRequirement = z.output<
   typeof schemas.DependencyRequirement

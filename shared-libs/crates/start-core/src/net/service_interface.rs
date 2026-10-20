@@ -45,9 +45,7 @@ pub enum HostnameMetadata {
         package_id: PackageId,
         remove_action: Option<ActionId>,
         overflow_actions: Vec<ActionId>,
-        #[visit(ts(type = "z.unknown()"), wire = "rpc_toolkit::ts::Unknown")]
         #[serde(default)]
-        #[visit(opaque, type_attributes(visit::wire))]
         info: Value,
     },
 }
@@ -132,9 +130,7 @@ pub struct PluginHostnameInfo {
     pub public: bool,
     pub hostname: InternedString,
     pub port: Option<u16>,
-    #[visit(ts(type = "z.unknown()"), wire = "rpc_toolkit::ts::Unknown")]
     #[serde(default)]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub info: Value,
 }
 
@@ -228,17 +224,7 @@ pub struct AddressInfo {
     pub username: Option<String>,
     pub host_id: HostId,
     pub internal_port: u16,
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub scheme: Option<InternedString>,
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub ssl_scheme: Option<InternedString>,
     pub suffix: String,
 }
@@ -260,11 +246,6 @@ pub struct RangeServiceInterface {
     pub id: ServiceInterfaceId,
     pub name: String,
     pub description: String,
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub scheme: Option<InternedString>,
 }
 

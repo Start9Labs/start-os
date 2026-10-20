@@ -21,11 +21,7 @@ rpc_toolkit::reflect_ts!(OsIndex);
 rpc_toolkit::ts_export!(OsIndex, namespaces = [""]);
 
 #[derive(Debug, Default, Deserialize, Serialize, VisitFields)]
-pub struct OsVersionInfoMap(
-    #[visit(wire = "BTreeMap::<String, OsVersionInfo>")]
-    #[visit(opaque, type_attributes(visit::wire))]
-    pub BTreeMap<Version, OsVersionInfo>,
-);
+pub struct OsVersionInfoMap(pub BTreeMap<Version, OsVersionInfo>);
 
 rpc_toolkit::reflect_ts!(OsVersionInfoMap);
 impl Map for OsVersionInfoMap {

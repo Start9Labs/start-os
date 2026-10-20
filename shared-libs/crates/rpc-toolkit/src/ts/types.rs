@@ -1098,9 +1098,6 @@ impl Visit<TSVisitor> for LiteralTS {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct Unknown;
-
 /// Stands in for a generic family's `N`th parameter while its declaration renders.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Param<const N: usize>;
@@ -1143,7 +1140,7 @@ macro_rules! float {
     })* };
 }
 float!(f32, f64);
-impl_ts!(Unknown,serde_json::Value => "z.unknown()", "z.ZodUnknown");
+impl_ts!(serde_json::Value => "z.unknown()", "z.ZodUnknown");
 #[cfg(feature = "cbor")]
 impl_ts!(serde_cbor::Value => "z.unknown()", "z.ZodUnknown");
 impl_ts!(Never => "z.never()", "z.ZodNever");
@@ -1153,6 +1150,8 @@ impl_ts!(serde_json::Number => "z.number()", "z.ZodNumber");
 impl_ts!(url::Url => "z.string()", "z.ZodString");
 #[cfg(feature = "ipnet")]
 impl_ts!(ipnet::IpNet, ipnet::Ipv4Net, ipnet::Ipv6Net => "z.string()", "z.ZodString");
+#[cfg(feature = "isocountry")]
+impl_ts!(isocountry::CountryCode => "z.string()", "z.ZodString");
 #[cfg(feature = "josekit")]
 impl_ts!(josekit::jwk::Jwk => "z.record(z.string(), z.unknown())", "z.ZodRecord<z.ZodString, z.ZodUnknown>");
 #[cfg(feature = "yajrc")]
@@ -1161,6 +1160,15 @@ impl TS for yajrc::RpcError {
         visitor.push(Expr::object(
             "{ code: z.number(), message: z.string(), data: z.unknown().optional() }",
             "z.ZodObject<{ code: z.ZodNumber; message: z.ZodString; data: z.ZodOptional<z.ZodUnknown> }>",
+        ));
+    }
+}
+#[cfg(feature = "yajrc")]
+impl TS for crate::RpcRequest {
+    fn visit_ts(visitor: &mut TSVisitor) {
+        visitor.push(Expr::object(
+            "{ id: z.union([z.string(), z.number()]).nullable().optional(), method: z.string(), params: z.unknown() }",
+            "z.ZodObject<{ id: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodNumber]>>>; method: z.ZodString; params: z.ZodUnknown }>",
         ));
     }
 }
@@ -1330,6 +1338,8 @@ macro_rules! impl_ts_array {
 impl_ts_array!(
     Vec<T>,
     imbl::Vector<T>,
+    imbl::OrdSet<T>,
+    imbl::HashSet<T>,
     [T],
     std::collections::BTreeSet<T>,
     std::collections::HashSet<T>,
@@ -1406,3 +1416,9 @@ impl_ts!(yasi::InternedString => "z.string()", "z.ZodString");
 impl_ts!(exver::Version, exver::ExtendedVersion, exver::VersionRange => "z.string()", "z.ZodString");
 #[cfg(feature = "patch-db")]
 crate::reflect_ts!(patch_db::Dump);
+#[cfg(feature = "patch-db")]
+impl<S: AsRef<str>, V: patch_db::json_ptr::SegList> TS for patch_db::json_ptr::JsonPointer<S, V> {
+    fn visit_ts(visitor: &mut TSVisitor) {
+        visitor.leaf("z.string()", "z.ZodString");
+    }
+}

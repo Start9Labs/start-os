@@ -4,7 +4,7 @@ downloads.openwrt.org publishes no package feed for the spacemit target,
 so the generated line makes `apk upgrade` refuse to run.
 
 Start9 downstream patch (start-technologies projects/start-wrt).
-Applies to: openwrt v25.12.5
+Applies to: openwrt v25.12.6
 
 --- a/include/feeds.mk
 +++ b/include/feeds.mk

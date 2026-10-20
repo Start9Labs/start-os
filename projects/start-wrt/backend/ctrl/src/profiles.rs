@@ -240,6 +240,14 @@ impl UciProfile {
     }
 }
 
+fn grants_access_to_new_profiles<Id: Ord>(profile: &Profile<Id>) -> bool {
+    match profile.lan_access {
+        LanAccess::All => true,
+        LanAccess::SameProfile => false,
+        LanAccess::OtherProfiles(_) => profile.access_to_new_profiles,
+    }
+}
+
 fn wan_access_type_str(wa: &WanAccess) -> String {
     match wa {
         WanAccess::All => "all".into(),
@@ -609,9 +617,13 @@ pub(crate) fn get_config(
             }
         }
     })?;
-    if other_profiles.is_empty() {
+    if other_profiles.is_empty() && (lookup.list().len() > 1 || !wip_profile.access_to_new_profiles)
+    {
         wip_profile.lan_access = LanAccess::SameProfile;
-    } else if (other_profiles.len() + 1) >= lookup.list().len() {
+        wip_profile.access_to_new_profiles = false;
+    } else if (other_profiles.len() + 1) >= lookup.list().len()
+        && wip_profile.access_to_new_profiles
+    {
         wip_profile.lan_access = LanAccess::All;
     } else {
         wip_profile.lan_access = LanAccess::OtherProfiles(other_profiles);
@@ -941,11 +953,14 @@ async fn reload_system_inner(restart_network: bool) -> Result<(), Error> {
     // left to withdraw. See deprecate_odhcpd_prefixes. A no-op when nothing
     // about IPv6 changed, beyond one extra RA.
     crate::deprecate_odhcpd_prefixes().await;
-    let network_action = if restart_network { "restart" } else { "reload" };
-    let _ = crate::run_quiet_async(
-        tokio::process::Command::new("/etc/init.d/network").arg(network_action),
-    )
-    .await;
+    if restart_network {
+        crate::wifi::restart_network().await;
+    } else {
+        let _ = crate::run_quiet_async(
+            tokio::process::Command::new("/etc/init.d/network").arg("reload"),
+        )
+        .await;
+    }
     // odhcpd holds RA/DHCPv6 config in memory; restart so dhcp.*.ra_default
     // (and other v6 advertisement changes) actually take effect.
     let _ =
@@ -986,12 +1001,18 @@ async fn reload_system_and_wifi_inner(restart_network: bool) -> Result<(), Error
     // drop the prefix. See deprecate_odhcpd_prefixes. A no-op on profile
     // create, beyond one extra RA.
     crate::deprecate_odhcpd_prefixes().await;
-    let network_action = if restart_network { "restart" } else { "reload" };
-    let _ = crate::run_quiet_async(
-        tokio::process::Command::new("/etc/init.d/network").arg(network_action),
-    )
-    .await;
-    let _ = crate::run_quiet_async(&mut tokio::process::Command::new("wifi")).await;
+    if restart_network {
+        crate::wifi::restart_network().await;
+    } else {
+        let _ = crate::run_quiet_async(
+            tokio::process::Command::new("/etc/init.d/network").arg("reload"),
+        )
+        .await;
+    }
+    if let Err(e) = crate::wifi::reload_wifi("/etc/config", crate::wifi::WifiReload::Restart).await
+    {
+        tracing::warn!("WiFi restart failed: {e}");
+    }
     // odhcpd holds RA/DHCPv6 config in memory; restart so dhcp.*.ra_default
     // (and other v6 advertisement changes) actually take effect.
     let _ =
@@ -1250,10 +1271,10 @@ pub async fn set<C: CtrlContext>(
                     if old.wan_access.as_deref() != Some(&new_wan) {
                         changes.push(format!("WAN access: {}", new_wan));
                     }
-                    if old.access_to_new_profiles != profile.access_to_new_profiles {
+                    if old.access_to_new_profiles != grants_access_to_new_profiles(&profile) {
                         changes.push(format!(
                             "access to new profiles: {}",
-                            profile.access_to_new_profiles
+                            grants_access_to_new_profiles(&profile)
                         ));
                     }
                     if old.gateway_ip.is_some() && old.gateway_ip != Some(profile.gateway_ip) {
@@ -1422,7 +1443,7 @@ fn set_config<C: CtrlContext>(
                     dns_override: existing_profile.dns_override.clone(),
                     gateway_ip: None, // filled from network config below
                 });
-                existing_profile.access_to_new_profiles = profile.access_to_new_profiles;
+                existing_profile.access_to_new_profiles = grants_access_to_new_profiles(profile);
                 existing_profile.outbound = Some(profile.outbound.clone());
                 existing_profile.wan_access = Some(wan_access_type_str(&profile.wan_access));
                 existing_profile.wan_access_list = wan_access_destinations(&profile.wan_access);
@@ -1450,7 +1471,7 @@ fn set_config<C: CtrlContext>(
         wan_access: profile.wan_access.clone(),
         dns_override: profile.dns_override.clone(),
         dns_source: String::new(),
-        access_to_new_profiles: profile.access_to_new_profiles,
+        access_to_new_profiles: grants_access_to_new_profiles(profile),
         owns_lan: profile.owns_lan,
     };
     // Reject a /24 that collides with a sibling (or the admin LAN). Runs on the
@@ -1830,8 +1851,9 @@ fn create_config(
     let mut wants_access = Vec::new();
     for section in &cfgs["startwrt"].sections {
         if let Some(other_profile) = section.get_typed::<UciProfile>()? {
-            if other_profile.access_to_new_profiles {
-                wants_access.push(other_profile.id());
+            let id = other_profile.id();
+            if grants_access_to_new_profiles(&get_config(ctx.clone(), cfgs, id.clone().into())?) {
+                wants_access.push(id);
             }
         }
     }
@@ -1841,7 +1863,7 @@ fn create_config(
             interface: interface.clone(),
             vlan_tag,
             outbound: Some(profile.outbound.clone()),
-            access_to_new_profiles: profile.access_to_new_profiles,
+            access_to_new_profiles: grants_access_to_new_profiles(profile),
             wan_access: Some(wan_access_type_str(&profile.wan_access)),
             wan_access_list: wan_access_destinations(&profile.wan_access),
             dns_override: dns::serialize_dns_server_list(&profile.dns_override),
@@ -1870,7 +1892,7 @@ fn create_config(
         wan_access: profile.wan_access.clone(),
         dns_override: profile.dns_override.clone(),
         dns_source: String::new(),
-        access_to_new_profiles: profile.access_to_new_profiles,
+        access_to_new_profiles: grants_access_to_new_profiles(profile),
         owns_lan: profile.owns_lan,
     };
     rewrite_firewall(&ctx, cfgs, &profile, &all_interfaces, &wants_access, true)?;
@@ -7632,7 +7654,265 @@ config dhcp 'guest'
         assert_eq!(guest.dhcpv6.as_deref(), Some("disabled"));
     }
 
+    #[tokio::test]
+    async fn lan_access_all_keeps_access_to_new_profiles() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp", "wireless"],
+        )
+        .await
+        .unwrap();
+
+        let guest_all = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wan".into(),
+            lan_access: LanAccess::All,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            dns_source: String::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+        set_config(ctx.clone(), &mut cfgs, &guest_all).unwrap();
+
+        let third = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Third".into()),
+                interface: None,
+                vlan_tag: None,
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 102, 1),
+            outbound: "wan".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            dns_source: String::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+        let third_id = create_config(ctx.clone(), &mut cfgs, &third, Some("third".into())).unwrap();
+
+        let got = get_config(
+            ctx.clone(),
+            &cfgs,
+            ProfileIdOpt {
+                fullname: None,
+                interface: Some("guest".into()),
+                vlan_tag: None,
+            },
+        )
+        .unwrap();
+        assert!(got.access_to_new_profiles);
+        assert!(
+            matches!(got.lan_access, LanAccess::All),
+            "an All profile must still read as All after another profile is created"
+        );
+
+        let third_zone = find_zone_for_interface(&cfgs, &third_id.interface);
+        let mut guest_reaches_third = false;
+        cfgs["firewall"]
+            .each::<FirewallForwarding, Error>(|_, FirewallForwarding { src, dest }| {
+                if src == "vlan_guest" && dest == third_zone {
+                    guest_reaches_third = true;
+                }
+            })
+            .unwrap();
+        assert!(guest_reaches_third);
+    }
+
+    #[tokio::test]
+    async fn same_profile_ignores_stale_access_to_new_profiles() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp", "wireless"],
+        )
+        .await
+        .unwrap();
+
+        let guest_isolated = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Guest".into()),
+                interface: Some("guest".into()),
+                vlan_tag: Some(101),
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 101, 1),
+            outbound: "wan".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            dns_source: String::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+        set_config(ctx.clone(), &mut cfgs, &guest_isolated).unwrap();
+        for section in &mut cfgs["startwrt"].sections {
+            if let Some(mut stored) = section.get_typed::<UciProfile>().unwrap() {
+                if stored.interface == "guest" {
+                    stored.access_to_new_profiles = true;
+                    section.set(&stored).unwrap();
+                }
+            }
+        }
+
+        let third = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Third".into()),
+                interface: None,
+                vlan_tag: None,
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 102, 1),
+            outbound: "wan".into(),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::All,
+            dns_override: Vec::new(),
+            dns_source: String::new(),
+            access_to_new_profiles: false,
+            owns_lan: false,
+        };
+        let third_id = create_config(ctx.clone(), &mut cfgs, &third, Some("third".into())).unwrap();
+
+        let got = get_config(
+            ctx.clone(),
+            &cfgs,
+            ProfileIdOpt {
+                fullname: None,
+                interface: Some("guest".into()),
+                vlan_tag: None,
+            },
+        )
+        .unwrap();
+        assert!(!got.access_to_new_profiles);
+        assert!(
+            matches!(got.lan_access, LanAccess::SameProfile),
+            "a Same profile stays isolated after another profile is created"
+        );
+
+        let third_zone = find_zone_for_interface(&cfgs, &third_id.interface);
+        cfgs["firewall"]
+            .each::<FirewallForwarding, Error>(|_, FirewallForwarding { src, dest }| {
+                assert!(
+                    !(src == "vlan_guest" && dest == third_zone),
+                    "isolated profile must not reach the new profile"
+                );
+            })
+            .unwrap();
+    }
+
     // === Interface id allocation ===
+
+    #[tokio::test]
+    async fn whitelist_of_every_profile_keeps_new_profiles_out() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp", "wireless"],
+        )
+        .await
+        .unwrap();
+
+        let mut guest = guest_profile(LanAccess::OtherProfiles(BTreeSet::from([ProfileIdOpt {
+            fullname: None,
+            interface: Some("lan".into()),
+            vlan_tag: None,
+        }])));
+        guest.access_to_new_profiles = false;
+        set_config(ctx.clone(), &mut cfgs, &guest).unwrap();
+        let got = get_config(ctx.clone(), &cfgs, guest.id.clone()).unwrap();
+        assert!(matches!(got.lan_access, LanAccess::OtherProfiles(_)));
+        assert!(!got.access_to_new_profiles);
+
+        let third = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Third".into()),
+                interface: None,
+                vlan_tag: None,
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 102, 1),
+            ..guest_profile(LanAccess::SameProfile)
+        };
+        let third_id = create_config(ctx.clone(), &mut cfgs, &third, Some("third".into())).unwrap();
+        let third_zone = find_zone_for_interface(&cfgs, &third_id.interface);
+        cfgs["firewall"]
+            .each::<FirewallForwarding, Error>(|_, FirewallForwarding { src, dest }| {
+                assert!(!(src == "vlan_guest" && dest == third_zone));
+            })
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn sole_profile_with_access_to_new_profiles_reaches_the_next_one() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = TestContext(dir.path().to_path_buf());
+        setup_configs(dir.path());
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp", "wireless"],
+        )
+        .await
+        .unwrap();
+        delete_config(
+            ctx.clone(),
+            &mut cfgs,
+            &ProfileIdOpt {
+                fullname: None,
+                interface: Some("guest".into()),
+                vlan_tag: None,
+            },
+        )
+        .unwrap();
+        let admin = ProfileIdOpt {
+            fullname: None,
+            interface: Some("lan".into()),
+            vlan_tag: None,
+        };
+        let got = get_config(ctx.clone(), &cfgs, admin.clone()).unwrap();
+        assert!(matches!(got.lan_access, LanAccess::All));
+        assert!(got.access_to_new_profiles);
+
+        let second = Profile {
+            id: ProfileIdOpt {
+                fullname: Some("Second".into()),
+                interface: None,
+                vlan_tag: None,
+            },
+            gateway_ip: Ipv4Addr::new(192, 168, 102, 1),
+            ..guest_profile(LanAccess::SameProfile)
+        };
+        let second_id =
+            create_config(ctx.clone(), &mut cfgs, &second, Some("second".into())).unwrap();
+        let second_zone = find_zone_for_interface(&cfgs, &second_id.interface);
+        let admin_zone = find_zone_for_interface(&cfgs, "lan");
+        let mut admin_reaches_second = false;
+        cfgs["firewall"]
+            .each::<FirewallForwarding, Error>(|_, FirewallForwarding { src, dest }| {
+                if src == admin_zone && dest == second_zone {
+                    admin_reaches_second = true;
+                }
+            })
+            .unwrap();
+        assert!(admin_reaches_second);
+    }
 
     #[tokio::test]
     async fn test_allocate_is_random_and_well_formed() {

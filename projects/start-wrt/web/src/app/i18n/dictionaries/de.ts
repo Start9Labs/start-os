@@ -542,7 +542,11 @@ export default {
   570: '2,4-GHz-Breite',
   571: '5-GHz-Breite',
   572: 'Nicht verbunden',
+  577: 'WLAN jetzt ausschalten?',
+  578: 'Ein Sperrfenster umfasst die aktuelle Uhrzeit. Beim Speichern wird das WLAN daher sofort für jedes verbundene Gerät ausgeschaltet, auch für dieses, falls es über WLAN verbunden ist.',
+  579: 'WLAN ausschalten',
   573: 'DNS-Einträge veröffentlichen widerrufen',
   574: 'VPN-Peer wird aktualisiert...',
   575: 'VPN-Peer aktualisiert',
+  576: 'Ersetzen Sie den PrivateKey-Platzhalter durch den privaten Schlüssel dieses Geräts, bevor Sie diese Konfiguration verwenden.',
 } satisfies i18n

@@ -8,13 +8,14 @@ use std::time::Duration;
 use clap::Parser;
 use futures::FutureExt;
 use patch_db::json_ptr::ROOT;
-use rpc_toolkit::CliApp;
+use rpc_toolkit::{CliApp, HandlerExt, from_fn};
 use rust_i18n::t;
 use tokio::net::TcpListener;
 use tokio::signal::unix::signal;
 use tracing::instrument;
 use visit_rs::Visit;
 
+use super::completions::CompletionsParams;
 use crate::context::CliContext;
 use crate::context::config::ClientConfig;
 use crate::net::tls::TlsListener;
@@ -213,10 +214,20 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
 fn app() -> CliApp<CliContext, ClientConfig> {
     CliApp::new(
         |cfg: ClientConfig| Ok(CliContext::init(cfg.load()?)?),
-        crate::tunnel::api::tunnel_api(),
+        crate::tunnel::api::tunnel_api().subcommand(
+            "completions",
+            from_fn(completions)
+                .no_ts()
+                .no_display()
+                .with_about("about.print-shell-completions"),
+        ),
     )
     .mutate_command(super::translate_cli)
     .mutate_command(|cmd| cmd.name("start-tunnel").version(super::product_version()))
+}
+
+fn completions(_: CliContext, params: CompletionsParams) -> Result<(), Error> {
+    params.generate(app().into_command(), &mut std::io::stdout())
 }
 
 pub fn cli(args: impl IntoIterator<Item = OsString>) {
@@ -239,6 +250,25 @@ pub fn cli(args: impl IntoIterator<Item = OsString>) {
 
         std::process::exit(e.code);
     }
+}
+
+#[test]
+fn bash_completion_start_tunnel() {
+    super::completions::assert_bash_completion(
+        app().into_command(),
+        &["start-tunnel", "port-forward", "ad"],
+        "add",
+    );
+    super::completions::assert_bash_completion(
+        app().into_command(),
+        &["start-tunnel", "device", "add", "--ki"],
+        "--kind",
+    );
+    super::completions::assert_bash_completion(
+        app().into_command(),
+        &["start-tunnel", "completions", "ba"],
+        "bash",
+    );
 }
 
 #[test]

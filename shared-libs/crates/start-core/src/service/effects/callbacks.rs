@@ -389,13 +389,9 @@ impl CallbackHandlers {
 
 #[derive(Debug, Clone, Serialize, Deserialize, VisitFields, Parser)]
 #[group(skip)]
-#[visit(
-    ts(
-        type = "z.union([z.object({ only: z.array(z.number()) }), z.object({ except: z.array(z.number()) })])"
-    ),
-    wire = "rpc_toolkit::ts::Unknown"
-)]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(ts(
+    type = "z.union([z.object({ only: z.array(z.number()) }), z.object({ except: z.array(z.number()) })])"
+))]
 pub struct ClearCallbacksParams {
     #[arg(long, conflicts_with = "except", help = "help.arg.only-callbacks")]
     pub only: Option<Vec<CallbackId>>,

@@ -13,7 +13,7 @@ struct Derived {
     count: u32,
     #[serde(serialize_with = "custom_hook", deserialize_with = "custom_hook")]
     #[visit(type_attributes(visit::wire))]
-    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(wire = "String")]
     #[visit(opaque)]
     custom: NotBound,
     #[serde(skip)]
@@ -38,10 +38,7 @@ rpc_toolkit::ts_export!(Second, namespaces = ["collision"]);
 struct RequiredOption {
     #[serde(deserialize_with = "deserialize_option")]
     #[visit(type_attributes(visit::wire))]
-    #[visit(
-        ts(type = "z.int().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
+    #[visit(wire = "Option<u32>")]
     amount: Option<u32>,
 }
 fn deserialize_option<'de, D: serde::Deserializer<'de>>(
@@ -57,9 +54,7 @@ struct Generic<T> {
 }
 
 #[derive(visit_rs::VisitFields)]
-#[visit(type_attributes(visit::wire))]
-#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-#[visit(opaque)]
+#[visit(opaque, ts(type = "z.string()"))]
 struct Opaque<T>(T);
 
 #[derive(visit_rs::VisitFields)]
@@ -125,9 +120,7 @@ fn derives_share_directional_shapes_and_explicit_overrides() {
     assert!(bindings
         .schemas
         .contains("\"count\": wire(z.int().optional(), z.int())"));
-    assert!(bindings
-        .schemas
-        .contains("const literal_0 = /* @__PURE__ */ z.string();\n"));
+    assert!(bindings.schemas.contains("\"custom\": z.string()"));
     assert!(!bindings.schemas.contains("skipped"));
     assert!(bindings.types.contains("export type Derived ="));
 
@@ -151,7 +144,9 @@ fn custom_deserializers_do_not_inherit_options_missing_field_default() {
         serde_json::json!({"amount":null})
     );
     let bindings = declarations::<RequiredOption>();
-    assert!(bindings.schemas.contains("\"amount\": literal_0 }"));
+    assert!(bindings
+        .schemas
+        .contains("\"amount\": z.int().nullable() }"));
     assert!(!bindings.schemas.contains("optional"));
 }
 
