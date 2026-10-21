@@ -3371,21 +3371,26 @@ impl NetworkInterfaceController {
             let Some(info) = interfaces.get_mut(interface) else {
                 return false;
             };
-            if let Some(name) = name {
-                info.name = Some(name);
+            if let Some(name) = &name {
+                info.name = Some(name.clone());
             }
-            if let Some(dns) = dns {
-                info.dns.static_servers = dns;
+            if let Some(dns) = &dns {
+                info.dns.static_servers = dns.clone();
                 info.dns.refresh(info.ip_info.as_deref());
             }
-            expected = Some((info.name.clone(), info.dns.static_servers.clone()));
+            expected = Some((name, dns));
             true
         });
         let (name, dns) = expected.or_not_found(lazy_format!("gateway {interface}"))?;
         watch
             .wait_for(|info| {
-                info.as_ref()
-                    .is_some_and(|info| info.name == name && info.dns.static_servers == dns)
+                info.as_ref().is_some_and(|info| {
+                    name.as_ref()
+                        .is_none_or(|name| info.name.as_ref() == Some(name))
+                        && dns
+                            .as_ref()
+                            .is_none_or(|dns| &info.dns.static_servers == dns)
+                })
             })
             .await?;
         Ok(())
@@ -4044,6 +4049,48 @@ mod dns_config_tests {
             .unwrap();
             publish.await.unwrap();
         }
+    }
+
+    #[tokio::test]
+    async fn independent_gateway_edits_acknowledge_a_coalesced_persisted_snapshot() {
+        let (_temp, db, interfaces) = policy_fixture().await;
+        let gateway: GatewayId = "eth0".parse().unwrap();
+        let interfaces = Watch::new(interfaces);
+        let controller =
+            NetworkInterfaceController::with_test_interfaces(db.clone(), interfaces.clone());
+        let servers: std::collections::VecDeque<SocketAddr> =
+            ["192.0.2.54:53".parse().unwrap()].into();
+        let mut changed = interfaces.clone();
+        let publish = async {
+            changed
+                .wait_for(|interfaces| {
+                    let info = interfaces.get(&gateway).unwrap();
+                    info.name.as_deref() == Some("Alias")
+                        && info.dns.static_servers.as_ref() == Some(&servers)
+                })
+                .await;
+            db.mutate(|db| {
+                db.as_public_mut()
+                    .as_server_info_mut()
+                    .as_network_mut()
+                    .as_gateways_mut()
+                    .ser(&changed.read())
+            })
+            .await
+            .result
+            .unwrap();
+        };
+        let (dns, name, ()) = tokio::time::timeout(Duration::from_secs(1), async {
+            tokio::join!(
+                controller.set_dns(&gateway, Some(servers.clone())),
+                controller.set_name(&gateway, "Alias".into()),
+                publish
+            )
+        })
+        .await
+        .unwrap();
+        dns.unwrap();
+        name.unwrap();
     }
 
     #[tokio::test]
