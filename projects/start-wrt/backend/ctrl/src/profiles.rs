@@ -3222,16 +3222,7 @@ pub async fn bootstrap_admin_profile(uci_root: &str) -> Result<(), Error> {
 
 /// Stores the LAN Access mode of every profile saved before the mode was
 /// stored, inferred from its forwardings. Leaves the firewall unchanged.
-pub async fn migrate_lan_access_mode<C: CtrlContext>(ctx: C) -> Result<(), Error> {
-    let arena = Arena::new();
-    let mut cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt", "firewall"]).await?;
-    if migrate_lan_access_mode_in_cfgs(ctx.clone(), &mut cfgs)? {
-        dump_all(ctx.uci_root(), cfgs).await?;
-    }
-    Ok(())
-}
-
-fn migrate_lan_access_mode_in_cfgs(
+pub(crate) fn migrate_lan_access_mode(
     ctx: impl CtrlContext,
     cfgs: &mut Configs,
 ) -> Result<bool, Error> {
@@ -8178,7 +8169,7 @@ config dhcp 'guest'
             .unwrap();
         let before = forwardings(&cfgs);
 
-        assert!(migrate_lan_access_mode_in_cfgs(ctx.clone(), &mut cfgs).unwrap());
+        assert!(migrate_lan_access_mode(ctx.clone(), &mut cfgs).unwrap());
 
         assert_eq!(forwardings(&cfgs), before);
         let admin = stored_profile(&cfgs, "lan");
@@ -8187,7 +8178,7 @@ config dhcp 'guest'
         let guest = stored_profile(&cfgs, "guest");
         assert_eq!(guest.lan_access, Some(LanAccessMode::SameProfile));
         assert!(!guest.access_to_new_profiles);
-        assert!(!migrate_lan_access_mode_in_cfgs(ctx.clone(), &mut cfgs).unwrap());
+        assert!(!migrate_lan_access_mode(ctx.clone(), &mut cfgs).unwrap());
     }
 
     #[test]

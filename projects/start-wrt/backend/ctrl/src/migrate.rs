@@ -11,6 +11,7 @@ use uciedit::{dump_all, parse_all, Arena};
 
 use crate::prelude::*;
 use crate::wan::WAN_INTERFACE;
+use crate::ServerContext;
 
 const RECORD: &str = "etc/startwrt/migrations";
 
@@ -24,6 +25,7 @@ const MIGRATIONS: &[Migration] = &[
     Migration::RemoveEtcNftablesRules,
     Migration::StripUnreferencedWanZoneVpns,
     Migration::PppoeWanIpv6,
+    Migration::StoreLanAccessMode,
 ];
 
 #[derive(Clone, Copy, Debug)]
@@ -36,6 +38,8 @@ enum Migration {
     /// Images without PPP saved PPPoE WANs with `ipv6` unset, which pppd reads
     /// as `auto` and answers with a second DHCPv6 client beside `wan6`.
     PppoeWanIpv6,
+    /// Earlier releases kept a profile's LAN Access only as its forwardings.
+    StoreLanAccessMode,
 }
 
 impl Migration {
@@ -44,6 +48,7 @@ impl Migration {
             Migration::RemoveEtcNftablesRules => remove_etc_nftables_rules(root).await,
             Migration::StripUnreferencedWanZoneVpns => strip_unreferenced_wan_zone_vpns(root).await,
             Migration::PppoeWanIpv6 => pppoe_wan_ipv6(root).await,
+            Migration::StoreLanAccessMode => store_lan_access_mode(root).await,
         }
     }
 }
@@ -176,6 +181,15 @@ async fn pppoe_wan_ipv6(root: &Path) -> Result<(), Error> {
     Ok(())
 }
 
+async fn store_lan_access_mode(root: &Path) -> Result<(), Error> {
+    let arena = Arena::new();
+    let mut cfgs = parse_all(uci_root(root), &arena, &["startwrt", "firewall"]).await?;
+    if crate::profiles::migrate_lan_access_mode(ServerContext::default(), &mut cfgs)? {
+        dump_all(uci_root(root), cfgs).await?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -225,6 +239,39 @@ config interface 'wan'
             .map(|v| v.trim_matches('\'').to_string())
     }
 
+    const LEGACY_PROFILES: &str = "\
+config profile 'lan'
+\toption fullname 'Admin'
+\toption interface 'lan'
+\toption vlan_tag '99'
+\toption access_to_new_profiles '1'
+
+config profile 'guest'
+\toption fullname 'Guest'
+\toption interface 'guest'
+\toption vlan_tag '101'
+";
+
+    const LEGACY_PROFILE_ZONES: &str = "
+config zone
+\toption name 'lan'
+\toption input 'ACCEPT'
+\toption output 'ACCEPT'
+\toption forward 'ACCEPT'
+\tlist network 'lan'
+
+config zone
+\toption name 'vlan_guest'
+\toption input 'ACCEPT'
+\toption output 'ACCEPT'
+\toption forward 'ACCEPT'
+\tlist network 'guest'
+
+config forwarding
+\toption src 'lan'
+\toption dest 'vlan_guest'
+";
+
     fn current() -> String {
         format!("{}\n", MIGRATIONS.len())
     }
@@ -270,21 +317,27 @@ config interface 'wan'
         write(
             &dir,
             "etc/config/firewall",
-            "config zone 'wan'\n\toption name 'wan'\n\toption input 'REJECT'\n\toption output 'ACCEPT'\n\toption forward 'REJECT'\n\tlist network 'wan'\n\tlist network 'wg_old'\n",
+            &format!("config zone 'wan'\n\toption name 'wan'\n\toption input 'REJECT'\n\toption output 'ACCEPT'\n\toption forward 'REJECT'\n\tlist network 'wan'\n\tlist network 'wg_old'\n{LEGACY_PROFILE_ZONES}"),
         );
+        write(&dir, "etc/config/startwrt", LEGACY_PROFILES);
         for migration in MIGRATIONS {
             migration.apply(dir.path()).await.unwrap();
         }
         let migrated = [
             read(&dir, "etc/config/network"),
             read(&dir, "etc/config/firewall"),
+            read(&dir, "etc/config/startwrt"),
         ];
         for migration in MIGRATIONS {
             migration.apply(dir.path()).await.unwrap();
         }
         assert_eq!(read(&dir, "etc/config/network"), migrated[0]);
         assert_eq!(read(&dir, "etc/config/firewall"), migrated[1]);
+        assert_eq!(read(&dir, "etc/config/startwrt"), migrated[2]);
         assert_eq!(wan_ipv6(&dir).as_deref(), Some("1"));
+        assert!(migrated[1].contains("option dest 'vlan_guest'"));
+        assert!(migrated[2].contains("option lan_access 'all'"));
+        assert!(migrated[2].contains("option lan_access 'same_profile'"));
     }
 
     #[tokio::test]
