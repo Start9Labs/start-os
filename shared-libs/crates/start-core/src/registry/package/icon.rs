@@ -173,29 +173,33 @@ impl IconStore {
         icons: &PackageIcons,
     ) -> Result<(), Error> {
         match self.read_all(id, version).await? {
-            Some(stored) if &stored != icons => Err(Error::new(
-                eyre!("{}", t!("registry.package.index.icon-mismatch")),
-                ErrorKind::InvalidRequest,
-            )),
-            _ => Ok(()),
+            Some(stored) => check_icons_match(&stored, icons),
+            None => Ok(()),
         }
     }
 
-    /// Replaces the version's stored icons.
+    /// Publishes a complete version without replacing stored icons.
     pub async fn write(
         &self,
         id: &PackageId,
         version: &VersionString,
         icons: &PackageIcons,
     ) -> Result<(), Error> {
-        let dir = self.version_dir(id, version);
-        remove_dir(&dir).await?;
-        let deps = dir.join(DEPENDENCIES_DIR);
+        if let Some(stored) = self.read_all(id, version).await? {
+            return check_icons_match(&stored, icons);
+        }
+        let package_dir = self.package_dir(id);
+        tokio::fs::create_dir_all(&package_dir).await?;
+        let staging = tempfile::Builder::new()
+            .prefix(".icons-")
+            .tempdir_in(package_dir)?;
+        let deps = staging.path().join(DEPENDENCIES_DIR);
         tokio::fs::create_dir_all(&deps).await?;
-        write_icon(&dir, ICON_STEM, &icons.icon).await?;
+        write_icon(staging.path(), ICON_STEM, &icons.icon).await?;
         for (dep, icon) in &icons.dependencies {
             write_icon(&deps, dep, icon).await?;
         }
+        tokio::fs::rename(staging.path(), self.version_dir(id, version)).await?;
         Ok(())
     }
 
@@ -252,6 +256,16 @@ pub(crate) fn inline_icons(
         }
     }
     Ok(res)
+}
+
+fn check_icons_match(stored: &PackageIcons, incoming: &PackageIcons) -> Result<(), Error> {
+    ensure_code!(
+        stored == incoming,
+        ErrorKind::InvalidRequest,
+        "{}",
+        t!("registry.package.index.icon-mismatch")
+    );
+    Ok(())
 }
 
 async fn remove_dir(dir: &Path) -> Result<(), Error> {
@@ -351,11 +365,37 @@ mod tests {
             .await
             .unwrap_err();
 
+        store.write(&id, &version, &icons(b"a")).await.unwrap();
+        store.write(&id, &version, &icons(b"b")).await.unwrap_err();
+        assert_eq!(
+            store.read_all(&id, &version).await.unwrap(),
+            Some(icons(b"a"))
+        );
+
         store.remove(&id, Some(&version)).await.unwrap();
         assert!(store.read(&id, &version, None).await.unwrap().is_none());
         store.write(&id, &version, &icons(b"a")).await.unwrap();
         store.remove(&id, None).await.unwrap();
         assert!(!dir.path().join("icons/pkg").exists());
+    }
+
+    #[tokio::test]
+    async fn concurrent_icon_publication_keeps_one_complete_version() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = IconStore::new(dir.path());
+        let id = "pkg".parse().unwrap();
+        let version = "1.0.0:0".parse().unwrap();
+        let first = icons(b"a");
+        let second = icons(b"b");
+        let (a, b) = tokio::join!(
+            store.write(&id, &version, &first),
+            store.write(&id, &version, &second),
+        );
+        assert_ne!(a.is_ok(), b.is_ok());
+        assert_eq!(
+            store.read_all(&id, &version).await.unwrap(),
+            Some(if a.is_ok() { first } else { second })
+        );
     }
 
     #[tokio::test]

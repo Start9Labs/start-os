@@ -17,6 +17,7 @@ use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty, RpcRequest};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
+use tokio::sync::Mutex;
 use tokio::sync::broadcast::Sender;
 use tracing::instrument;
 use url::Url;
@@ -96,6 +97,7 @@ pub struct RegistryContextSeed {
     pub metrics_db: SyncMutex<Connection>,
     pub index_mirrors: IndexMirrors,
     pub icons: IconStore,
+    pub package_updates: Mutex<()>,
 }
 
 #[derive(Clone)]
@@ -179,12 +181,19 @@ impl RegistryContext {
             metrics_db,
             index_mirrors: IndexMirrors::default(),
             icons,
+            package_updates: Mutex::new(()),
         })))
     }
 }
 impl AsRef<RpcContinuations> for RegistryContext {
     fn as_ref(&self) -> &RpcContinuations {
         &self.rpc_continuations
+    }
+}
+
+impl AsRef<OpenAuthedContinuations<Option<InternedString>>> for RegistryContext {
+    fn as_ref(&self) -> &OpenAuthedContinuations<Option<InternedString>> {
+        &self.open_authed_continuations
     }
 }
 
