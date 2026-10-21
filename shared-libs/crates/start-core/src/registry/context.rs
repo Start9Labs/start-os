@@ -31,6 +31,7 @@ use crate::registry::RegistryDatabase;
 use crate::registry::device_info::{DEVICE_INFO_HEADER, DeviceInfo};
 use crate::registry::migrations::run_migrations;
 use crate::registry::mirror::IndexMirrors;
+use crate::registry::package::icon::IconStore;
 use crate::registry::signer::SignerInfo;
 use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
 use crate::sign::AnyVerifyingKey;
@@ -94,6 +95,7 @@ pub struct RegistryContextSeed {
     pub shutdown: Sender<()>,
     pub metrics_db: SyncMutex<Connection>,
     pub index_mirrors: IndexMirrors,
+    pub icons: IconStore,
 }
 
 #[derive(Clone)]
@@ -115,6 +117,8 @@ impl RegistryContext {
         if db.dump(&ROOT).await.value.is_null() {
             db.put(&ROOT, &RegistryDatabase::init()).await?;
         }
+        let icons = IconStore::new(&datadir);
+        icons.import_inline(&db.dump(&ROOT).await.value).await?;
         db.mutate(|db| run_migrations(db)).await.result?;
 
         Self::init_auth_cookie().await?;
@@ -174,6 +178,7 @@ impl RegistryContext {
             shutdown,
             metrics_db,
             index_mirrors: IndexMirrors::default(),
+            icons,
         })))
     }
 }

@@ -267,7 +267,7 @@ rpc_toolkit::reflect_ts!(PackageMetadata);
 pub struct PackageVersionInfo {
     #[serde(flatten)]
     pub metadata: PackageMetadata,
-    /// Absent for clients that load icons from the registry's `/icons/` route.
+    /// Present only in `package.get` responses to StartOS before 0.4.0.3. Others load it from the registry's `/icons/` route.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<DataUrl<'static>>,
     pub dependency_metadata: BTreeMap<PackageId, DependencyMetadata>,
@@ -283,7 +283,6 @@ impl PackageVersionInfo {
         urls: Vec<Url>,
     ) -> Result<Self, Error> {
         let manifest = s9pk.as_manifest();
-        let icon = Some(s9pk.icon_data_url().await?);
         let mut dependency_metadata = BTreeMap::new();
         for (id, info) in &manifest.dependencies.0 {
             let dep_meta = s9pk.dependency_metadata(id).await?;
@@ -291,7 +290,7 @@ impl PackageVersionInfo {
                 id.clone(),
                 DependencyMetadata {
                     title: dep_meta.map(|m| m.title),
-                    icon: s9pk.dependency_icon_data_url(id).await?,
+                    icon: None,
                     description: info.description.clone(),
                     optional: info.optional,
                     version_range: info.version_range.clone(),
@@ -301,7 +300,7 @@ impl PackageVersionInfo {
         }
         Ok(Self {
             metadata: manifest.metadata.clone(),
-            icon,
+            icon: None,
             dependency_metadata,
             source_version: Some(manifest.can_migrate_from.clone()),
             s9pks: vec![(
@@ -324,12 +323,6 @@ impl PackageVersionInfo {
         if self.metadata != other.metadata {
             return Err(Error::new(
                 color_eyre::eyre::eyre!("{}", t!("registry.package.index.metadata-mismatch")),
-                ErrorKind::InvalidRequest,
-            ));
-        }
-        if self.icon != other.icon {
-            return Err(Error::new(
-                color_eyre::eyre::eyre!("{}", t!("registry.package.index.icon-mismatch")),
                 ErrorKind::InvalidRequest,
             ));
         }
