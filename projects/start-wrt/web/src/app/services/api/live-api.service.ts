@@ -21,9 +21,12 @@ import {
   VpnServerPeerAddArgs,
   VpnServerPeerAddResponse,
   VpnServerPeerDeleteArgs,
+  VpnServerPeerRenameArgs,
   VpnServerSetArgs,
   VpnServers,
   WifiConfig,
+  WifiBlackoutSetReq,
+  WifiBlackoutSetResult,
   ScheduleWindow,
   ProfileId,
   ProfileIdOpt,
@@ -170,6 +173,19 @@ export class LiveApiService extends ApiService {
     return this.rpc.request({ method: 'vpn-server.peer-delete', params })
   }
 
+  async vpnServerPeerRename(params: VpnServerPeerRenameArgs): Promise<null> {
+    return this.rpc.request({ method: 'vpn-server.peer-rename', params })
+  }
+
+  async vpnServerPeerSetDnsInjection(
+    params: RpcParamType<Api, 'vpn-server.peer-set-dns-injection'>,
+  ): Promise<RpcReturnType<Api, 'vpn-server.peer-set-dns-injection'>> {
+    return this.rpc.request({
+      method: 'vpn-server.peer-set-dns-injection',
+      params,
+    })
+  }
+
   async wifiGet(): Promise<WifiConfig> {
     return this.rpc.request({ method: 'wifi.get', params: {} })
   }
@@ -190,11 +206,10 @@ export class LiveApiService extends ApiService {
     return this.rpc.request({ method: 'wifi.blackout-get', params: {} })
   }
 
-  async wifiBlackoutSet(params: ScheduleWindow[]): Promise<null> {
-    return this.rpc.request({
-      method: 'wifi.blackout-set',
-      params: { windows: params },
-    })
+  async wifiBlackoutSet(
+    params: WifiBlackoutSetReq,
+  ): Promise<WifiBlackoutSetResult> {
+    return this.rpc.request({ method: 'wifi.blackout-set', params })
   }
 
   async profilesList(): Promise<ProfileId[]> {

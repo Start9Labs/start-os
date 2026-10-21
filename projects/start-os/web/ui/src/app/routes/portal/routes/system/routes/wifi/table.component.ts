@@ -176,7 +176,7 @@ export class WifiTableComponent {
 
   async forget({ ssid }: Wifi): Promise<void> {
     this.tasks.run(async () => {
-      await this.api.deleteWifi({ ssid })
+      await this.api.rpc.wifi.remove({ ssid })
       this.wifi.update(wifi => wifi.filter(network => network.ssid !== ssid))
     }, 'Deleting')
   }

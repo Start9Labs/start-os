@@ -245,7 +245,7 @@ export class DnsAdd {
         : value.trim()
 
     this.tasks.run(async () => {
-      await this.api.addDnsRecord({ name, type, value: finalValue, ttl })
+      await this.api.rpc.dns.add({ name, type, value: finalValue, ttl })
       this.context.$implicit.complete()
     })
   }

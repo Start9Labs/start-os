@@ -10,7 +10,7 @@ patch-db stores your application state as a single JSON document. Instead of opa
 
 - **Event-sourced** — patches are the source of truth, not snapshots
 - **Observable** — subscribers watch arbitrary subtrees via JSON Pointers and receive scoped patches in real time
-- **Persistent** — the Rust backend writes to disk with CBOR serialization, automatic compaction, and crash-safe backup files
+- **Storage options** — the Rust backend supports in-memory databases or disk persistence with CBOR serialization, automatic compaction, and crash-safe backup files
 - **Type-safe** — derive macros on the Rust side; generic type parameters and deep `watch$()` overloads on the TypeScript side
 - **Immutable values** — the Rust side uses `imbl_value::Value` for efficient structural sharing
 
@@ -47,6 +47,12 @@ async fn main() -> Result<(), patch_db::Error> {
     Ok(())
 }
 ```
+
+For an in-memory database, replace `PatchDb::open("my.db").await?` with
+`PatchDb::in_memory()`. It starts with a null root at revision zero and uses the
+same reads, mutations, subscriptions, and `TypedPatchDb` wrappers. Cloned handles
+share state; separate calls create independent databases. State is discarded when
+the last handle drops, without creating or accessing files.
 
 ### TypeScript
 

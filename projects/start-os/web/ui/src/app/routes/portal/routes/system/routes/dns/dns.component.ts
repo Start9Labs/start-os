@@ -230,7 +230,7 @@ export default class SystemDnsComponent {
 
     this.tasks.run(
       async () =>
-        await this.api.setDns({
+        await this.api.rpc.net.dns.setStatic({
           servers:
             strategy.selection === 'dhcp' ? null : strategy.value.servers,
         }),

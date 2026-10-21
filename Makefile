@@ -48,8 +48,15 @@ format-check:
 	npm --prefix . run format:check
 	npm --prefix . run format:toml:check
 
-.PHONY: release-notes-test
+.PHONY: release-notes-test package-ci-test
 release-notes-test:
 	node --test scripts/tests/*-test.mjs
 
-test: | start-core-test start-sdk-test backup-fs-test container-runtime-test start-os-scripts-test start-wrt-test release-notes-test rpc-toolkit-test
+package-ci-test:
+	node --test .github/actions/tests/*.test.mjs
+
+.PHONY: bash-completion-test
+bash-completion-test: build/bash-completion build/tests/bash-completion-test.sh
+	bash build/tests/bash-completion-test.sh
+
+test: | start-core-test start-sdk-test backup-fs-test container-runtime-test start-os-scripts-test bash-completion-test start-wrt-test release-notes-test rpc-toolkit-test

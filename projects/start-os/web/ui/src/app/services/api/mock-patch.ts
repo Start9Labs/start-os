@@ -25,7 +25,6 @@ function mockService(
       },
     },
     s9pk: `/media/startos/data/package-data/archive/installed/${id}.s9pk`,
-    icon: '/assets/img/service-icons/fallback.png',
     lastBackup: null,
     statusInfo,
     actions: {},
@@ -337,7 +336,6 @@ export const mockPatchData: DataModel = {
         },
       },
       s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
-      icon: '/assets/img/service-icons/lnd.png',
       lastBackup: null,
       statusInfo: {
         desired: { main: 'stopped' },
@@ -370,14 +368,12 @@ export const mockPatchData: DataModel = {
       currentDependencies: {
         bitcoind: {
           title: Mock.BitcoinDep.title,
-          icon: Mock.BitcoinDep.icon,
           kind: 'running',
           versionRange: '>=26.0.0',
           healthChecks: [],
         },
         'btc-rpc-proxy': {
           title: Mock.ProxyDep.title,
-          icon: Mock.ProxyDep.icon,
           kind: 'running',
           versionRange: '<0.4.0',
           healthChecks: [],
@@ -471,7 +467,6 @@ export const mockPatchData: DataModel = {
         },
       },
       s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
-      icon: '/assets/img/service-icons/bitcoin-core.svg',
       lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
       statusInfo: {
         desired: { main: 'stopped' },
@@ -1026,7 +1021,6 @@ export const mockPatchData: DataModel = {
         },
       },
       s9pk: '/media/startos/data/package-data/archive/installed/tor.s9pk',
-      icon: '/assets/img/service-icons/fallback.png',
       lastBackup: null,
       statusInfo: {
         desired: { main: 'running' },

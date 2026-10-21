@@ -89,6 +89,16 @@ impl UiContext for RpcContext {
     fn extend_router(self, router: Router) -> Router {
         router
             .nest("/s9pk", s9pk_router(self.clone()))
+            .route("/registry/icons/{url}", {
+                let ctx = self.clone();
+                get(|x::Path(url): x::Path<Url>, request: Request| async move {
+                    if_authorized(&ctx, request, |_| async {
+                        registry_icon_response(ctx.client.get(), url).await
+                    })
+                    .await
+                    .unwrap_or_else(server_error)
+                })
+            })
             .route("/static/local-root-ca.crt", {
                 let ctx = self.clone();
                 get(move || {
@@ -408,6 +418,17 @@ fn s9pk_router(ctx: RpcContext) -> Router {
                 },
             ),
         )
+}
+
+async fn registry_icon_response(client: reqwest::Client, url: Url) -> Result<Response, Error> {
+    let upstream = client.get(url).send().await.with_kind(ErrorKind::Network)?;
+    let mut response = Response::builder().status(upstream.status());
+    if let Some(content_type) = upstream.headers().get(CONTENT_TYPE) {
+        response = response.header(CONTENT_TYPE, content_type);
+    }
+    response
+        .body(Body::from_stream(upstream.bytes_stream()))
+        .with_kind(ErrorKind::Network)
 }
 
 async fn if_authorized<
@@ -783,14 +804,29 @@ impl FileData {
         }))
     }
 
-    async fn from_s9pk<S: FileSource>(
+    /// `icon` and `dependencies/<id>/icon` resolve to the archive's icon of any extension.
+    async fn from_s9pk<S: FileSource + Clone>(
         req: &RequestParts,
         s9pk: &S9pk<S>,
         path: &Path,
     ) -> Result<Option<Self>, Error> {
-        let Some(file) = s9pk.as_archive().contents().get_path(path) else {
-            return Ok(None);
+        let parts: Vec<_> = path.iter().filter_map(|p| p.to_str()).collect();
+        let icon = match parts[..] {
+            ["icon"] => s9pk.icon().await.ok(),
+            ["dependencies", id, "icon"] => match id.parse::<PackageId>() {
+                Ok(id) => s9pk.dependency_icon(&id).await?,
+                Err(_) => None,
+            },
+            _ => None,
         };
+        let (path, file) = match &icon {
+            Some((name, entry)) => (path.with_file_name(&**name), entry),
+            None => match s9pk.as_archive().contents().get_path(path) {
+                Some(file) => (path.to_owned(), file),
+                None => return Ok(None),
+            },
+        };
+        let path = path.as_path();
         let Some(contents) = file.as_file() else {
             return Ok(None);
         };
@@ -985,6 +1021,60 @@ mod tests {
 
     async fn body(response: Response) -> Bytes {
         to_bytes(response.into_body(), usize::MAX).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn registry_icon_proxy_preserves_status_type_and_bytes_without_upstream_headers() {
+        use tokio::io::AsyncWriteExt;
+        use tokio::net::TcpListener;
+
+        let client = reqwest::Client::builder()
+            .no_proxy()
+            .timeout(Duration::from_secs(5))
+            .build()
+            .unwrap();
+        for (status, content_type, contents) in [
+            ("200 OK", "image/svg+xml", "<svg/>"),
+            ("404 Not Found", "text/plain", "missing icon"),
+        ] {
+            let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let url = Url::parse(&format!(
+                "http://{}/icons/test/1.0.0:0",
+                listener.local_addr().unwrap()
+            ))
+            .unwrap();
+            let upstream = tokio::spawn(async move {
+                let (mut socket, _) = listener.accept().await.unwrap();
+                let mut request = Vec::new();
+                let mut buffer = [0; 1024];
+                while !request.windows(4).any(|bytes| bytes == b"\r\n\r\n") {
+                    let len = socket.read(&mut buffer).await.unwrap();
+                    assert_ne!(len, 0);
+                    request.extend_from_slice(&buffer[..len]);
+                }
+                assert!(request.starts_with(b"GET /icons/test/1.0.0:0 HTTP/1.1\r\n"));
+                socket
+                    .write_all(
+                        format!(
+                            "HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\n\
+                             Content-Length: {}\r\nSet-Cookie: session=upstream\r\n\
+                             Location: https://example.com/\r\n\
+                             Content-Security-Policy: default-src *\r\n\
+                             Connection: close\r\n\r\n{contents}",
+                            contents.len()
+                        )
+                        .as_bytes(),
+                    )
+                    .await
+                    .unwrap();
+            });
+            let response = registry_icon_response(client.clone(), url).await.unwrap();
+            assert_eq!(response.status().as_u16().to_string(), &status[..3]);
+            assert_eq!(header(&response, CONTENT_TYPE), content_type);
+            assert_eq!(response.headers().len(), 1);
+            assert_eq!(body(response).await, contents);
+            upstream.await.unwrap();
+        }
     }
 
     #[test]
@@ -1251,5 +1341,73 @@ mod tests {
                 .unwrap()
                 .is_none()
         );
+    }
+
+    #[tokio::test]
+    async fn s9pk_icon_aliases_resolve_any_extension() {
+        use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
+        use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
+        use crate::s9pk::v2::SIG_CONTEXT;
+
+        let manifest: crate::s9pk::manifest::Manifest = serde_json::from_value(serde_json::json!({
+            "id": "test",
+            "version": "1.0.0:0",
+            "canMigrateTo": "*",
+            "canMigrateFrom": "*",
+            "title": "Test",
+            "description": { "short": "Test", "long": "Test" },
+            "releaseNotes": "Test",
+            "gitHash": null,
+            "license": "MIT",
+            "packageRepo": "https://example.com",
+            "upstreamRepo": "https://example.com",
+            "marketingUrl": null,
+            "donationUrl": null,
+            "osVersion": "0.4.0",
+            "sdkVersion": "2.0.9",
+            "hardwareAcceleration": false,
+            "userspaceFilesystems": false,
+            "virtualNetworking": false,
+            "hardwareVirtualization": false,
+            "plugins": [],
+            "satisfies": [],
+            "images": {},
+            "volumes": [],
+            "dependencies": {},
+            "hardwareRequirements": { "device": [], "ram": null, "arch": ["aarch64"] }
+        }))
+        .unwrap();
+        let mut archive = DirectoryContents::<Arc<[u8]>>::new();
+        for (path, contents) in [
+            ("icon.svg", &b"<svg/>"[..]),
+            ("LICENSE.md", b"MIT"),
+            ("dependencies/bitcoind/icon.png", b"png"),
+        ] {
+            archive
+                .insert_path(path, Entry::file(Arc::from(contents)))
+                .unwrap();
+        }
+        let s9pk = S9pk::new_with_manifest(
+            MerkleArchive::new(
+                archive,
+                ed25519_dalek::SigningKey::from_bytes(&[1; 32]),
+                SIG_CONTEXT,
+            ),
+            None,
+            manifest,
+        );
+        let parts = request(Method::GET, "/", &[]).into_parts().0;
+        let get = |path: &'static str| FileData::from_s9pk(&parts, &s9pk, Path::new(path));
+
+        let icon = get("icon").await.unwrap().unwrap();
+        assert_eq!(icon.mime.as_deref(), Some("image/svg+xml"));
+        assert_eq!(body(icon.into_response(&parts).unwrap()).await, "<svg/>");
+
+        let dep = get("dependencies/bitcoind/icon").await.unwrap().unwrap();
+        assert_eq!(dep.mime.as_deref(), Some("image/png"));
+        assert_eq!(body(dep.into_response(&parts).unwrap()).await, "png");
+
+        assert!(get("dependencies/lnd/icon").await.unwrap().is_none());
+        assert!(get("LICENSE.md").await.unwrap().is_some());
     }
 }

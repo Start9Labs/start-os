@@ -36,8 +36,7 @@ pub struct MountTarget {
     #[serde(default)]
     idmap: Vec<IdMap>,
     #[serde(skip_deserializing)]
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
+    #[visit(ts(skip))]
     filetype: FileType,
 }
 
@@ -378,7 +377,6 @@ async fn dependency_info(
 ) -> Result<CurrentDependencyInfo, Error> {
     Ok(CurrentDependencyInfo {
         title: s9pk.dependency_metadata(dep_id).await?.map(|m| m.title),
-        icon: s9pk.dependency_icon_data_url(dep_id).await?,
         kind,
         version_range,
     })

@@ -1,3 +1,5 @@
+import type { z } from 'zod'
+import type * as schemas from './init.schemas'
 export type RpcHandler = {
   _PARAMS: unknown
   _RETURN?: unknown
@@ -29,12 +31,12 @@ export type RpcParamType<
     ? Method extends `${infer Head}.${infer Tail}`
       ? Head extends keyof Children
         ? Children[Head] extends RpcHandler
-          ? Root['_PARAMS'] & RpcParamType<Children[Head], Tail>
+          ? RpcParamType<Children[Head], Tail>
           : never
         : never
       : Method extends keyof Children
         ? Children[Method] extends RpcHandler
-          ? Root['_PARAMS'] & RpcParamType<Children[Method], ''>
+          ? RpcParamType<Children[Method], ''>
           : never
         : never
     : never
@@ -60,202 +62,42 @@ export type RpcReturnType<
         : never
     : never
 
-export type Api = {
-  _PARAMS: {}
-  _CHILDREN: {
-    auth: {
-      _PARAMS: {}
-      _CHILDREN: { session: { _PARAMS: {}; _CHILDREN: {} } }
-    }
-    backup: {
-      _PARAMS: {}
-      _CHILDREN: {
-        target: {
-          _PARAMS: {}
-          _CHILDREN: { cifs: { _PARAMS: {}; _CHILDREN: {} } }
-        }
-      }
-    }
-    db: { _PARAMS: {}; _CHILDREN: { put: { _PARAMS: {}; _CHILDREN: {} } } }
-    diagnostic: {
-      _PARAMS: {}
-      _CHILDREN: {
-        disk: {
-          _PARAMS: {}
-          _CHILDREN: {
-            forget: { _PARAMS: {}; _RETURN: null }
-            repair: { _PARAMS: {}; _RETURN: null }
-          }
-        }
-      }
-    }
-    disk: { _PARAMS: {}; _CHILDREN: { repair: { _PARAMS: {}; _RETURN: null } } }
-    'git-info': { _PARAMS: {}; _RETURN: string }
-    init: {
-      _PARAMS: {}
-      _CHILDREN: {
-        'kernel-logs': {
-          _PARAMS: {
-            limit?: number | null
-            cursor?: string | null
-            boot?: number | string | null
-            before?: boolean
-          } & {}
-          _RETURN: LogResponse
-          _CHILDREN: { follow: { _PARAMS: {}; _RETURN: LogFollowResponse } }
-        }
-        logs: {
-          _PARAMS: {
-            limit?: number | null
-            cursor?: string | null
-            boot?: number | string | null
-            before?: boolean
-          } & {}
-          _RETURN: LogResponse
-          _CHILDREN: { follow: { _PARAMS: {}; _RETURN: LogFollowResponse } }
-        }
-        subscribe: { _PARAMS: {}; _RETURN: InitProgressRes }
-      }
-    }
-    kiosk: { _PARAMS: {}; _CHILDREN: {} }
-    net: {
-      _PARAMS: {}
-      _CHILDREN: {
-        acme: { _PARAMS: {}; _CHILDREN: {} }
-        dns: {
-          _PARAMS: {}
-          _CHILDREN: {
-            query: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-                QueryDnsParamsInput
-              _RETURN: QueryDnsRes
-            }
-          }
-        }
-        forward: { _PARAMS: {}; _CHILDREN: {} }
-        gateway: { _PARAMS: {}; _CHILDREN: {} }
-        ssl: { _PARAMS: {}; _CHILDREN: {} }
-        tunnel: { _PARAMS: {}; _CHILDREN: {} }
-        vhost: { _PARAMS: {}; _CHILDREN: {} }
-      }
-    }
-    notification: { _PARAMS: {}; _CHILDREN: {} }
-    package: {
-      _PARAMS: {}
-      _CHILDREN: {
-        action: { _PARAMS: {}; _CHILDREN: {} }
-        backup: { _PARAMS: {}; _CHILDREN: {} }
-        host: {
-          _PARAMS: RequiresPackageIdInput
-          _CHILDREN: {
-            address: {
-              _PARAMS: RequiresHostIdInput
-              _CHILDREN: {
-                domain: {
-                  _PARAMS: {}
-                  _CHILDREN: {
-                    private: { _PARAMS: {}; _CHILDREN: {} }
-                    public: { _PARAMS: {}; _CHILDREN: {} }
-                  }
-                }
-              }
-            }
-            binding: { _PARAMS: RequiresHostIdInput; _CHILDREN: {} }
-          }
-        }
-      }
-    }
-    server: {
-      _PARAMS: {}
-      _CHILDREN: {
-        'device-info': {
-          _PARAMS: { format?: IoFormatInput | null } & {}
-          _CHILDREN: {}
-        }
-        experimental: { _PARAMS: {}; _CHILDREN: {} }
-        host: {
-          _PARAMS: {}
-          _CHILDREN: {
-            address: {
-              _PARAMS: {}
-              _CHILDREN: {
-                domain: {
-                  _PARAMS: {}
-                  _CHILDREN: {
-                    private: { _PARAMS: {}; _CHILDREN: {} }
-                    public: { _PARAMS: {}; _CHILDREN: {} }
-                  }
-                }
-              }
-            }
-            binding: { _PARAMS: {}; _CHILDREN: {} }
-          }
-        }
-        metrics: {
-          _PARAMS: { format?: IoFormatInput | null } & {}
-          _CHILDREN: {}
-        }
-        'registry-signing': { _PARAMS: {}; _CHILDREN: {} }
-      }
-    }
-    setup: {
-      _PARAMS: {}
-      _CHILDREN: {
-        cifs: { _PARAMS: {}; _CHILDREN: {} }
-        disk: { _PARAMS: {}; _CHILDREN: {} }
-      }
-    }
-    ssh: { _PARAMS: {}; _CHILDREN: {} }
-    state: { _PARAMS: {}; _RETURN: ApiState }
-    util: { _PARAMS: {}; _CHILDREN: {} }
-    wifi: {
-      _PARAMS: {}
-      _CHILDREN: {
-        available: { _PARAMS: {}; _CHILDREN: {} }
-        country: { _PARAMS: {}; _CHILDREN: {} }
-      }
-    }
-  }
+export type RpcSchemaTree<Schema> = {
+  [Key in keyof Schema as Key extends '_OPAQUE'
+    ? never
+    : Key]: Key extends '_PARAMS'
+    ? Schema[Key] extends z.ZodType
+      ? z.input<Schema[Key]>
+      : never
+    : Key extends '_RETURN'
+      ? Schema[Key] extends z.ZodType
+        ? z.output<Schema[Key]>
+        : never
+      : Key extends '_CHILDREN'
+        ? { [Name in keyof Schema[Key]]: RpcSchemaTree<Schema[Key][Name]> }
+        : never
 }
-export type ApiState = 'error' | 'initializing' | 'running'
-export type FullProgress = { overall: Progress; phases: NamedProgress[] }
-export type Guid = string
-export type HostIdInput = string
-export type InitProgressRes = { progress: FullProgress; guid: Guid }
-export type IoFormatInput =
-  | 'json'
-  | 'json-pretty'
-  | 'yaml'
-  | 'cbor'
-  | 'toml'
-  | 'toml-pretty'
-export type LogEntry = { timestamp: string; message: string; bootId: string }
-export type LogFollowResponse = { startCursor: string | null; guid: Guid }
-export type LogResponse = {
-  entries: LogEntry[]
-  startCursor: string | null
-  endCursor: string | null
-}
-export type NamedProgress = { name: string; progress: Progress }
-export type PackageIdInput = string
-export type Progress =
-  | null
-  | boolean
-  | { done: number; total: number | null; units: ProgressUnits | null }
-  /**
-   * A sub-tree of progress. Used by `NamedProgress.progress` so a phase
-   * can carry its own `FullProgress` with sub-phases. Producers are
-   * expected to keep `FullProgress.overall` scalar (not nested again).
-   */
-  | FullProgress
-export type ProgressUnits = 'bytes' | 'steps'
-export type QueryDnsParamsInput = { fqdn: string }
+export type ApiState = z.output<typeof schemas.ApiState>
+export type Guid = z.output<typeof schemas.Guid>
+export type HostIdInput = z.input<typeof schemas.HostId>
+export type IoFormatInput = z.input<typeof schemas.IoFormat>
+export type LogEntry = z.output<typeof schemas.LogEntry>
+export type NamedProgress = z.output<typeof schemas.NamedProgress>
+export type PackageIdInput = z.input<typeof schemas.PackageId>
+export type ProgressUnits = z.output<typeof schemas.ProgressUnits>
+export type QueryDnsParamsInput = z.input<typeof schemas.QueryDnsParams>
 
 /**
  * What a public domain currently resolves to, per address family. A public
  * domain is DualStack: the operator points an `A` record at the gateway's WAN
  * IPv4 and an `AAAA` at the box's IPv6 GUA. Either may be absent.
  */
-export type QueryDnsRes = { ipv4: string | null; ipv6: string | null }
-export type RequiresHostIdInput = { host: HostIdInput }
-export type RequiresPackageIdInput = { package: PackageIdInput }
+export type QueryDnsRes = z.output<typeof schemas.QueryDnsRes>
+export type FullProgress = z.output<typeof schemas.FullProgress>
+export type LogFollowResponse = z.output<typeof schemas.LogFollowResponse>
+export type LogResponse = z.output<typeof schemas.LogResponse>
+export type RequiresHostIdInput = z.input<typeof schemas.RequiresHostId>
+export type RequiresPackageIdInput = z.input<typeof schemas.RequiresPackageId>
+export type InitProgressRes = z.output<typeof schemas.InitProgressRes>
+export type Progress = z.output<typeof schemas.Progress>
+export type Api = RpcSchemaTree<typeof schemas.Api>

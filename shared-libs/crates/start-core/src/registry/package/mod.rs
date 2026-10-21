@@ -8,6 +8,7 @@ pub mod access;
 pub mod add;
 pub mod category;
 pub mod get;
+pub mod icon;
 pub mod index;
 pub mod promote;
 pub mod signer;

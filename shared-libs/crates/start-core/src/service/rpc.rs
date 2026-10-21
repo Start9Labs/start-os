@@ -94,8 +94,6 @@ impl serde::Serialize for Stop {
 pub struct ExitParams {
     id: Guid,
     /// VersionRange or ExtendedVersion
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
-    #[visit(opaque, type_attributes(visit::wire))]
     target: Option<InternedString>,
 }
 
@@ -221,8 +219,7 @@ impl serde::Serialize for Sandbox {
     PartialOrd,
     Ord,
 )]
-#[visit(ts(type = "number"), wire = "rpc_toolkit::ts::Unknown")]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(ts(type = "z.number()"))]
 pub struct CallbackId(u64);
 
 rpc_toolkit::reflect_ts!(CallbackId);
@@ -277,8 +274,7 @@ impl CallbackHandle {
 #[derive(Clone, serde::Deserialize, serde::Serialize, VisitFields)]
 pub struct CallbackParams {
     id: u64,
-    #[visit(ts(type = "any[]"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
+    #[visit(ts(type = "z.array(z.any())"))]
     args: Vector<Value>,
 }
 

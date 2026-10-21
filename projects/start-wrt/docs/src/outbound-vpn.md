@@ -10,6 +10,7 @@ Route your network's Internet traffic through one or more WireGuard VPN provider
    - **Label** — A descriptive name (e.g. "Mullvad Sweden", "Proton US").
    - **Config File** — Upload a WireGuard `.conf` file from your VPN provider — drop it into the dialog or click to browse. Most providers (Mullvad, ProtonVPN, IVPN, etc.) offer WireGuard config file downloads from their account dashboard.
    - **Target** — How this VPN reaches its own server. The dropdown lists **Internet** along with your existing VPNs. Select **Internet** to connect over your WAN, or select another VPN to carry this one's tunnel, so traffic passes through that VPN first for additional privacy.
+   - **DNS Servers** — Optional. Replaces the DNS servers in the config file's `DNS =` line. If the config has no DNS servers and you leave this blank, the dialog warns you — see [DNS](#dns).
 
 1. Click "Add VPN".
 
@@ -58,6 +59,18 @@ A kill switch protects every VPN-routed profile: both IPv4 and IPv6 fail closed.
 
 > [!NOTE]
 > Routing IPv6 through a VPN requires the VPN's tunnel config to include an IPv6 address on the tunnel interface. Without one, the VPN carries IPv4 only and IPv6 is blocked for routed profiles.
+
+## DNS
+
+A profile routed through a VPN sends its DNS queries through the tunnel, using the first of these that is set:
+
+1. The profile's own custom DNS servers, including DNS-over-HTTPS servers.
+1. The VPN's **DNS Servers** — from the config file's `DNS =` line, or set on the VPN's detail page.
+1. The custom servers in [WAN Settings](wan.md#dns).
+
+Like the rest of the profile's traffic, these queries fail closed: if the tunnel goes down, DNS stops rather than falling back to your WAN.
+
+If none of the three is set, the profile's DNS goes to your ISP's DNS servers outside the tunnel, and your ISP can see the names your devices look up. The profile's DNS column then shows **System (outside VPN)**. To fix this, enter DNS servers on the VPN's detail page — your provider's own servers, or a public resolver.
 
 ## VPN Detail Page
 
