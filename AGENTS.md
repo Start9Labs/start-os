@@ -124,6 +124,7 @@ make start-os-scripts-test   # StartOS shell scripts (projects/start-os/build/te
 make bash-completion-test    # completion staging and lazy loading (requires bash-completion)
 make start-wrt-test          # StartWRT Rust crates
 make release-notes-test      # changelog fragments, versions, release notes, signed commits
+make complexity-test         # census, delta, history freshness and PR routing
 make package-ci-test         # shared GitHub/Forgejo service-package CI (root npm dependencies)
 
 # Run a specific Rust test

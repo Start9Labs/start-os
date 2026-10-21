@@ -1,18 +1,11 @@
 #!/bin/bash
-# Fails when the log's last row does not describe the working tree. Proves the
-# author ran the census on what they are actually shipping — it says nothing
-# about whether the numbers went up.
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 LOG="${LOG:-build/complexity/history.tsv}"
 [ -x "$HERE/bin/bca" ] || "$HERE/fetch-tool.sh"
 export BCA="$HERE/bin/bca"
 
-read -r functions cognitive cyclomatic sloc over25 < <(
-  python3 "$HERE/census.py" --root . --json \
-    | python3 -c 'import json,sys; t=json.load(sys.stdin)["totals"]; print(t["functions"],t["cognitive"],t["cyclomatic"],t["sloc"],t["over25"])'
-)
-fresh="$functions	$cognitive	$cyclomatic	$sloc	$over25"
+fresh="$(node "$HERE/census.mjs" --root . --totals)"
 last="$(tail -1 "$LOG" | cut -f3-7)"
 if [ "$last" != "$fresh" ]; then
   echo "complexity: the last row of $LOG does not describe this tree." >&2

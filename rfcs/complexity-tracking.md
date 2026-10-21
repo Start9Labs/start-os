@@ -152,7 +152,8 @@ The closure at `net/host/address.rs:472` outranks every named function but four.
 `make complexity-diff` (this branch against its merge-base) and `make complexity-record` (append
 a row to the history log). No build: the census is a tree-sitter pass, 0.35 s for the whole repo,
 and a full delta including the base extraction is about 3 s. It lives in `build/complexity/`,
-matching `build/fmt/`.
+matching `build/fmt/`. The wrappers use Bash and Node.js 24, without npm dependencies.
+`make complexity-test` exercises the census, delta, history freshness and PR-only CI routing.
 
 Real output, for the portmap gateway PR:
 
