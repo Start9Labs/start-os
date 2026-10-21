@@ -12,6 +12,13 @@ path = "src/lib.rs"
 name = "startwrt"
 path = "src/bin/startwrt.rs"
 
+[features]
+ts = ["rpc-toolkit/ts", "startos/ts"]
+
+[[example]]
+name = "generate_rpc_bindings"
+required-features = ["ts"]
+
 [dependencies]
 arc-swap = "1.7"
 async_cell = "0.2.2"
@@ -107,5 +114,5 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 uciedit = { path = "../uciedit" }
 url = { version = "2", features = ["serde"] }
-visit-rs = "0.1"
+visit-rs = { path = "../../../../shared-libs/crates/visit-rs" }
 x25519-dalek = { version = "2", features = ["static_secrets"] }

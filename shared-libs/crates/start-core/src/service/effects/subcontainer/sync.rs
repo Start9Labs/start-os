@@ -161,6 +161,17 @@ impl ExecParams {
                 cmd.env_remove(line);
             }
         };
+        for line in std::fs::read_to_string("/etc/default/locale")
+            .unwrap_or_default()
+            .lines()
+            .filter(|l| {
+                l.split_once('=')
+                    .is_none_or(|(_, v)| locale_available(chroot, v))
+            })
+        {
+            update_env(line);
+        }
+
         if let Some(f) = env_file {
             let mut lines = BufReader::new(
                 File::open(&f).with_ctx(|_| (ErrorKind::Filesystem, format!("open r {f:?}")))?,
@@ -169,13 +180,6 @@ impl ExecParams {
             while let Some(line) = lines.next().transpose()? {
                 update_env(&line);
             }
-        }
-
-        for line in std::fs::read_to_string("/etc/default/locale")
-            .unwrap_or_default()
-            .lines()
-        {
-            update_env(line);
         }
 
         for line in env {
@@ -273,12 +277,14 @@ impl ExecParams {
         }
         cmd.args(args);
 
-        if let Some(workdir) = workdir {
-            cmd.current_dir(workdir);
-        } else {
-            cmd.current_dir("/");
-        }
-        Err(cmd.exec().into())
+        let workdir = workdir.as_deref().unwrap_or(Path::new("/"));
+        cmd.current_dir(workdir);
+        Err(cmd.exec()).with_ctx(|_| {
+            (
+                ErrorKind::Filesystem,
+                lazy_format!("exec {command:?} in {workdir:?}"),
+            )
+        })
     }
 }
 
@@ -388,6 +394,131 @@ fn user_database_entries(db: &str) -> impl Iterator<Item = (&str, u32, Vec<&str>
         let id = fields.next()?.parse().ok()?;
         Some((name, id, fields.collect()))
     })
+}
+
+fn locale_available(chroot: &Path, locale: &str) -> bool {
+    if matches!(locale, "C" | "POSIX") || locale.starts_with("C.") {
+        return true;
+    }
+    let names = [locale.to_owned(), normalize_locale(locale)];
+    let dir = chroot.join("usr/lib/locale");
+    names.iter().any(|n| dir.join(n).join("LC_CTYPE").exists())
+        || locale_archive_names(&dir.join("locale-archive"))
+            .is_ok_and(|archive| archive.iter().any(|a| names.contains(a)))
+}
+
+/// glibc's `_nl_normalize_codeset`, which names locales in the archive.
+fn normalize_locale(locale: &str) -> String {
+    let (base, modifier) = locale.split_once('@').unzip();
+    let base = base.unwrap_or(locale);
+    let Some((lang, codeset)) = base.split_once('.') else {
+        return locale.to_owned();
+    };
+    let mut codeset: String = codeset
+        .chars()
+        .filter(char::is_ascii_alphanumeric)
+        .map(|c| c.to_ascii_lowercase())
+        .collect();
+    if codeset.chars().all(|c| c.is_ascii_digit()) {
+        codeset.insert_str(0, "iso");
+    }
+    match modifier {
+        Some(m) => format!("{lang}.{codeset}@{m}"),
+        None => format!("{lang}.{codeset}"),
+    }
+}
+
+fn locale_archive_names(path: &Path) -> std::io::Result<Vec<String>> {
+    use std::os::unix::fs::FileExt;
+
+    let file = File::open(path)?;
+    let mut head = [0u8; 32];
+    file.read_exact_at(&mut head, 0)?;
+    let word = |i: usize| u32::from_ne_bytes(head[i * 4..i * 4 + 4].try_into().unwrap()) as u64;
+    if word(0) != 0xde020109 {
+        return Ok(Vec::new());
+    }
+    let (namehash_offset, namehash_size) = (word(2), word(4));
+    let (string_offset, string_used) = (word(5), word(6));
+    let mut namehash = vec![0u8; namehash_size as usize * 12];
+    file.read_exact_at(&mut namehash, namehash_offset)?;
+    let mut strings = vec![0u8; string_used as usize];
+    file.read_exact_at(&mut strings, string_offset)?;
+    Ok(namehash
+        .chunks_exact(12)
+        .filter(|e| e[8..12] != [0; 4])
+        .filter_map(|e| {
+            let start = (u32::from_ne_bytes(e[4..8].try_into().unwrap()) as u64)
+                .checked_sub(string_offset)? as usize;
+            let name = strings.get(start..)?;
+            let end = name.iter().position(|&b| b == 0)?;
+            String::from_utf8(name[..end].to_vec()).ok()
+        })
+        .collect())
+}
+
+#[cfg(test)]
+mod locale_tests {
+    use super::*;
+
+    fn write_archive(path: &Path, names: &[&str]) {
+        let string_offset = 56 + (names.len() as u32 + 1) * 12;
+        let mut strings = Vec::new();
+        let mut namehash = Vec::new();
+        for name in names {
+            for word in [0, string_offset + strings.len() as u32, 1] {
+                namehash.extend(u32::to_ne_bytes(word));
+            }
+            strings.extend(name.bytes().chain([0]));
+        }
+        namehash.extend([0; 12]);
+        let mut archive = Vec::new();
+        for word in [
+            0xde020109,
+            0,
+            56,
+            names.len() as u32,
+            names.len() as u32 + 1,
+            string_offset,
+            strings.len() as u32,
+            strings.len() as u32,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+        ] {
+            archive.extend(u32::to_ne_bytes(word));
+        }
+        archive.extend(namehash);
+        archive.extend(strings);
+        std::fs::write(path, archive).unwrap();
+    }
+
+    #[test]
+    fn normalizes_codeset() {
+        assert_eq!(normalize_locale("es_ES.UTF-8"), "es_ES.utf8");
+        assert_eq!(normalize_locale("de_DE.8859-1@euro"), "de_DE.iso88591@euro");
+        assert_eq!(normalize_locale("sr_RS@latin"), "sr_RS@latin");
+    }
+
+    #[test]
+    fn finds_locales_the_image_generated() {
+        let dir = tempfile::tempdir().unwrap();
+        let locale_dir = dir.path().join("usr/lib/locale");
+        assert!(!locale_available(dir.path(), "es_ES.UTF-8"));
+        assert!(locale_available(dir.path(), "C.UTF-8"));
+
+        std::fs::create_dir_all(&locale_dir).unwrap();
+        write_archive(&locale_dir.join("locale-archive"), &["en_US.utf8"]);
+        assert!(locale_available(dir.path(), "en_US.UTF-8"));
+        assert!(!locale_available(dir.path(), "es_ES.UTF-8"));
+
+        std::fs::create_dir_all(locale_dir.join("es_ES.utf8")).unwrap();
+        std::fs::write(locale_dir.join("es_ES.utf8/LC_CTYPE"), "").unwrap();
+        assert!(locale_available(dir.path(), "es_ES.UTF-8"));
+    }
 }
 
 #[cfg(test)]

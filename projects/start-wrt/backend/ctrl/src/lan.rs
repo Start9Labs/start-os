@@ -59,21 +59,23 @@ pub(crate) fn validate_lan_block(addr: Ipv4Addr) -> Result<(), Error> {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct LanIpv4Response {
     pub address: String,
     pub netmask: String,
 }
+rpc_toolkit::reflect_ts!(LanIpv4Response);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct LanIpv4SetRequest {
     pub address: String,
     /// When true, forcibly delete VPN peers that would break due to block change.
     #[serde(default)]
     pub force: bool,
 }
+rpc_toolkit::reflect_ts!(LanIpv4SetRequest);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct LanIpv6Response {
     pub slaac: bool,
     pub dhcpv6: bool,
@@ -84,13 +86,15 @@ pub struct LanIpv6Response {
     /// WAN prefix length (read-only context for the UI)
     pub wan_prefix: u8,
 }
+rpc_toolkit::reflect_ts!(LanIpv6Response);
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, visit_rs::VisitFields)]
 pub struct LanIpv6SetRequest {
     pub slaac: bool,
     pub dhcpv6: bool,
     pub prefix: u8,
 }
+rpc_toolkit::reflect_ts!(LanIpv6SetRequest);
 
 pub fn lan<C: CtrlContext + Clone>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -590,10 +594,7 @@ pub async fn ipv6_set<C: CtrlContext>(
                     // IPv6 leaves clients holding SLAAC addresses until they
                     // expire on their own.
                     crate::deprecate_odhcpd_prefixes().await;
-                    let _ = crate::run_quiet_async(
-                        tokio::process::Command::new("/etc/init.d/network").arg("restart"),
-                    )
-                    .await;
+                    crate::wifi::restart_network().await;
 
                     // Regenerate server cert to include/remove IPv6 SAN.
                     // When enabling IPv6, poll for the address to appear on
@@ -831,7 +832,10 @@ pub async fn restart_network_services(new_lan_ip: Ipv4Addr, interfaces: Vec<Stri
     // triggering fresh DHCP on the new subnet. Without this,
     // clients that stay connected keep stale leases from the
     // old network block.
-    let _ = crate::run_quiet_async(&mut tokio::process::Command::new("wifi")).await;
+    if let Err(e) = crate::wifi::reload_wifi("/etc/config", crate::wifi::WifiReload::Restart).await
+    {
+        tracing::warn!("WiFi restart failed: {e}");
+    }
 }
 
 #[cfg(test)]
