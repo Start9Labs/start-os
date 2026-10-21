@@ -105,7 +105,9 @@ nothing may import it. When in doubt: the official MCP
 `<tui-textfield>` (and `tui-textfield[multi]` for chips) wraps a **native** element:
 `input[tuiInput]`, `input[tuiSelect]`, `input[tuiComboBox]` (`[strict]`, `[matcher]`),
 `input[tuiInputNumber]`, `textarea`, date/time/phone/pin variants — all extending `TuiControl`.
-Sizing via `[tuiTextfieldSize]` / `tuiTextfieldOptionsProvider`; `[content]` (Polymorpheus)
+Sizing via `tuiTextfieldSize` on the `tui-textfield` for one field (with
+`tuiTextfieldAppearance` and `tuiTextfieldCleaner`, it arrives with `TuiInput` and needs no
+import of its own), `tuiTextfieldOptionsProvider` for a subtree; `[content]` (Polymorpheus)
 renders the selected value, `[filler]` ghost-texts. Dropdown content attaches with
 `*tuiDropdown` **inside the textfield**; `tui-data-list-wrapper` takes `[items]` (`null` =
 loading state), `[itemContent]`, `[emptyContent]`; filter with `| tuiFilterByInput`;
@@ -175,6 +177,6 @@ Handles paste/drop/autofill/predictive keyboards; SSR-safe. Never keydown-regex 
 | Icon or avatar beside a label                   | `display: flex; align-items: center`    | `tuiCell="s"`; on a component, `hostDirectives: [TuiCell]` + `tuiCellOptionsProvider({ size: 's' })`            |
 | Initials avatar                                 | `initial(name)` util                    | `name \| tuiInitials` (kit) as `tuiAvatar` content; an `<img>` beside it falls back to them when it fails       |
 | Radio group                                     | `tuiGroup` of `tuiRadio` rows           | `tui-radio-list` + `[items]` + `[itemContent]`                                                                  |
-| Full-width row in a dialog/card                 | `inline-size: 100%` + padding CSS       | `tuiCell` + `tuiCellStretch`                                                                                    |
+| Full-width row in a dialog/card/list            | `inline-size: 100%` + padding CSS       | `tuiCell` + `tuiCellStretch`; its gutter is in styling.md                                                       |
 | Copy button, rating, pagination, PIN, carousel… | write it                                | it's in kit — check the docs first                                                                              |
 | Empty state                                     | custom illustration div                 | `tui-block-status`                                                                                              |
