@@ -30,11 +30,7 @@ rpc_toolkit::ts_export!(SignerInfo, namespaces = [""]);
 pub enum ContactInfo {
     Email(String),
     Matrix(String),
-    Website(
-        #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-        #[visit(opaque, type_attributes(visit::wire))]
-        Url,
-    ),
+    Website(#[visit(ts(type = "z.string()"))] Url),
 }
 
 rpc_toolkit::reflect_ts!(ContactInfo);

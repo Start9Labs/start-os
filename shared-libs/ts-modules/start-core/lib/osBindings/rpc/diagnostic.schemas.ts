@@ -4,9 +4,7 @@ const wire = <A extends z.ZodType, B extends z.ZodType>(input: A, output: B) =>
 const object = <Shape extends z.core.$ZodLooseShape>(shape: Shape) =>
   z.object(shape).meta({ additionalProperties: true })
 const empty: z.ZodType<{}, {}> = /* @__PURE__ */ object({})
-const literal_0 = /* @__PURE__ */ z.union([z.number(), z.string()]).nullable()
-const literal_1 = /* @__PURE__ */ z.string()
-const literal_2 = /* @__PURE__ */ z.string().nullable()
+const literal_0 = /* @__PURE__ */ z.string()
 export const ApiState: z.ZodEnum<{
   error: 'error'
   initializing: 'initializing'
@@ -14,10 +12,22 @@ export const ApiState: z.ZodEnum<{
 }> = /* @__PURE__ */ z.enum(['error', 'initializing', 'running']).meta({
   id: 'ApiState',
 })
-export const Guid: typeof literal_1 = /* @__PURE__ */ literal_1.meta({
+export const DiagnosticUpdateSystemParams: z.ZodObject<{
+  targetVersion: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodString>>,
+    z.ZodNullable<z.ZodString>
+  >
+  progress: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
+}> = /* @__PURE__ */ object({
+  targetVersion: wire(z.string().nullable().optional(), z.string().nullable()),
+  progress: wire(z.boolean().optional(), z.boolean()),
+}).meta({
+  id: 'DiagnosticUpdateSystemParams',
+})
+export const Guid: typeof literal_0 = /* @__PURE__ */ literal_0.meta({
   id: 'Guid',
 })
-export const HostId: typeof literal_1 = /* @__PURE__ */ literal_1.meta({
+export const HostId: typeof literal_0 = /* @__PURE__ */ literal_0.meta({
   id: 'HostId',
 })
 export const IoFormat: z.ZodEnum<{
@@ -33,17 +43,17 @@ export const IoFormat: z.ZodEnum<{
     id: 'IoFormat',
   })
 export const LogEntry: z.ZodObject<{
-  timestamp: typeof literal_1
+  timestamp: z.ZodString
   message: z.ZodString
   bootId: z.ZodString
 }> = /* @__PURE__ */ object({
-  timestamp: literal_1,
+  timestamp: z.string(),
   message: z.string(),
   bootId: z.string(),
 }).meta({
   id: 'LogEntry',
 })
-export const PackageId: typeof literal_1 = /* @__PURE__ */ literal_1.meta({
+export const PackageId: typeof literal_0 = /* @__PURE__ */ literal_0.meta({
   id: 'PackageId',
 })
 export const QueryDnsParams: z.ZodObject<{ fqdn: z.ZodString }> =
@@ -57,35 +67,21 @@ export const QueryDnsParams: z.ZodObject<{ fqdn: z.ZodString }> =
  * IPv4 and an `AAAA` at the box's IPv6 GUA. Either may be absent.
  */
 export const QueryDnsRes: z.ZodObject<{
-  ipv4: z.ZodCodec<z.ZodOptional<typeof literal_2>, typeof literal_2>
-  ipv6: z.ZodCodec<z.ZodOptional<typeof literal_2>, typeof literal_2>
+  ipv4: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodString>>,
+    z.ZodNullable<z.ZodString>
+  >
+  ipv6: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodString>>,
+    z.ZodNullable<z.ZodString>
+  >
 }> = /* @__PURE__ */ object({
-  ipv4: wire(literal_2.optional(), literal_2),
-  ipv6: wire(literal_2.optional(), literal_2),
+  ipv4: wire(z.string().nullable().optional(), z.string().nullable()),
+  ipv6: wire(z.string().nullable().optional(), z.string().nullable()),
 }).meta({
   id: 'QueryDnsRes',
   description:
     "What a public domain currently resolves to, per address family. A public\ndomain is DualStack: the operator points an `A` record at the gateway's WAN\nIPv4 and an `AAAA` at the box's IPv6 GUA. Either may be absent.",
-})
-export const UpdateSystemParams: z.ZodObject<{
-  registry: z.ZodString
-  targetVersion: z.ZodCodec<z.ZodOptional<typeof literal_2>, typeof literal_2>
-  progress: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
-}> = /* @__PURE__ */ object({
-  registry: z.string(),
-  targetVersion: wire(literal_2.optional(), literal_2),
-  progress: wire(z.boolean().optional(), z.boolean()),
-}).meta({
-  id: 'UpdateSystemParams',
-})
-export const UpdateSystemRes: z.ZodObject<{
-  target: z.ZodCodec<z.ZodOptional<typeof literal_2>, typeof literal_2>
-  progress: z.ZodCodec<z.ZodOptional<typeof literal_2>, typeof literal_2>
-}> = /* @__PURE__ */ object({
-  target: wire(literal_2.optional(), literal_2),
-  progress: wire(literal_2.optional(), literal_2),
-}).meta({
-  id: 'UpdateSystemRes',
 })
 export const LogFollowResponse: z.ZodObject<{
   startCursor: z.ZodCodec<
@@ -124,6 +120,21 @@ export const RequiresPackageId: z.ZodObject<{ package: typeof PackageId }> =
   /* @__PURE__ */ object({ package: PackageId }).meta({
     id: 'RequiresPackageId',
   })
+export const UpdateSystemRes: z.ZodObject<{
+  target: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodString>>,
+    z.ZodNullable<z.ZodString>
+  >
+  progress: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<typeof Guid>>,
+    z.ZodNullable<typeof Guid>
+  >
+}> = /* @__PURE__ */ object({
+  target: wire(z.string().nullable().optional(), z.string().nullable()),
+  progress: wire(Guid.nullable().optional(), Guid.nullable()),
+}).meta({
+  id: 'UpdateSystemRes',
+})
 export const Api = {
   _PARAMS: /* @__PURE__ */ empty,
   _CHILDREN: {
@@ -178,7 +189,10 @@ export const Api = {
                 z.string().nullable().optional(),
                 z.string().nullable(),
               ),
-              boot: wire(literal_0.optional(), literal_0),
+              boot: wire(
+                z.union([z.number(), z.string()]).nullable().optional(),
+                z.union([z.number(), z.string()]).nullable(),
+              ),
               before: wire(z.boolean().optional(), z.boolean()),
             }),
             empty,
@@ -196,7 +210,10 @@ export const Api = {
                     z.string().nullable().optional(),
                     z.string().nullable(),
                   ),
-                  boot: wire(literal_0.optional(), literal_0),
+                  boot: wire(
+                    z.union([z.number(), z.string()]).nullable().optional(),
+                    z.union([z.number(), z.string()]).nullable(),
+                  ),
                   before: wire(z.boolean().optional(), z.boolean()),
                 }),
                 empty,
@@ -213,7 +230,10 @@ export const Api = {
                 z.string().nullable().optional(),
                 z.string().nullable(),
               ),
-              boot: wire(literal_0.optional(), literal_0),
+              boot: wire(
+                z.union([z.number(), z.string()]).nullable().optional(),
+                z.union([z.number(), z.string()]).nullable(),
+              ),
               before: wire(z.boolean().optional(), z.boolean()),
             }),
             empty,
@@ -231,7 +251,10 @@ export const Api = {
                     z.string().nullable().optional(),
                     z.string().nullable(),
                   ),
-                  boot: wire(literal_0.optional(), literal_0),
+                  boot: wire(
+                    z.union([z.number(), z.string()]).nullable().optional(),
+                    z.union([z.number(), z.string()]).nullable(),
+                  ),
                   before: wire(z.boolean().optional(), z.boolean()),
                 }),
                 empty,
@@ -249,7 +272,7 @@ export const Api = {
           _RETURN: /* @__PURE__ */ z.null(),
         },
         update: {
-          _PARAMS: /* @__PURE__ */ UpdateSystemParams,
+          _PARAMS: /* @__PURE__ */ DiagnosticUpdateSystemParams,
           _RETURN: /* @__PURE__ */ UpdateSystemRes,
         },
       },

@@ -358,10 +358,12 @@ diff -u /tmp/pristine openwrt/<path> \
 the first `---`/`diff` line.)
 
 **Bumping the upstream release.** Update both values in `build/openwrt-version` (the new
-version and the sha256 of its tag tarball — download it once and `sha256sum` it), run
+version and the sha256 of its tag tarball — download it once and `sha256sum` it), set each
+feed in [`build/feeds.conf`](build/feeds.conf) to the `^<commit>` the tag's own
+`feeds.conf.default` names (the feeds are pinned to the release, not the branch), run
 `make start-wrt-openwrt-setup`, and rebuild the image. If a patch no longer applies, fix the
 affected file in the workspace by hand and regenerate that patch as above; either way, refresh
 each patch's `Applies to:` header line to the new version. The overlay needs
 attention only if upstream grew a conflicting path (the spacemit target dir is ours alone, so
-this is rare). Commit the pin bump + refreshed patches + a changelog fragment as one
+this is rare). Commit the pin bump + feed pins + refreshed patches + a changelog fragment as one
 ordinary PR.

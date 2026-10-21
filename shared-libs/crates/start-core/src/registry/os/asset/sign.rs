@@ -51,9 +51,8 @@ pub fn sign_api<C: Context>() -> ParentHandler<C> {
 pub struct SignAssetParams {
     version: Version,
     platform: InternedString,
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(skip))]
     #[serde(rename = "__Auth_signer")]
-    #[visit(opaque, type_attributes(visit::wire))]
     signer: AnyVerifyingKey,
     signature: AnySignature,
 }

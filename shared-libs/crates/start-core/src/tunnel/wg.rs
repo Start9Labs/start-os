@@ -76,11 +76,7 @@ impl WgServer {
 }
 
 #[derive(Default, Deserialize, Serialize, VisitFields)]
-pub struct WgSubnetMap(
-    #[visit(wire = "BTreeMap::<String, WgSubnetConfig>")]
-    #[visit(opaque, type_attributes(visit::wire))]
-    pub BTreeMap<Ipv4Net, WgSubnetConfig>,
-);
+pub struct WgSubnetMap(pub BTreeMap<Ipv4Net, WgSubnetConfig>);
 
 rpc_toolkit::reflect_ts!(WgSubnetMap);
 impl Map for WgSubnetMap {
@@ -106,11 +102,7 @@ pub enum DnsConfig {
     /// Forward to a device on this subnet (its WireGuard IP) on port 53.
     Device { ip: Ipv4Addr },
     /// Forward to operator-specified upstream servers (1-3, optional `:port`).
-    Custom {
-        #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
-        #[visit(opaque, type_attributes(visit::wire))]
-        servers: Vec<SocketAddr>,
-    },
+    Custom { servers: Vec<SocketAddr> },
 }
 
 rpc_toolkit::reflect_ts!(DnsConfig);
@@ -126,21 +118,11 @@ pub struct WgSubnetConfig {
     /// SNAT this subnet's egress to this WAN IP instead of `masquerade`. `None`
     /// keeps the default masquerade; a per-device `wan_ip` overrides this.
     #[serde(default)]
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub wan_ip: Option<std::net::Ipv4Addr>,
     /// Routed IPv6 prefix delegated to this subnet, if any. Each host on the
     /// subnet (the server and every client) gets one `/128` out of it with its
     /// tunnel IPv4 embedded — see [`crate::tunnel::wg6`].
     #[serde(default)]
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub ipv6: Option<Ipv6Net>,
 }
 
@@ -255,11 +237,6 @@ pub struct WgConfig {
     /// SNAT this device's egress to this WAN IP, overriding the subnet's
     /// `wan_ip` / the default masquerade. `None` falls back to the subnet rule.
     #[serde(default)]
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub wan_ip: Option<std::net::Ipv4Addr>,
 }
 

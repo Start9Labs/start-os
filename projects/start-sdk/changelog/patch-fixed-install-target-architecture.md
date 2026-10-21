@@ -1,1 +1,0 @@
-- `make install` builds the current variant for the target server's architecture when needed and installs that exact package.

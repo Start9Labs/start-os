@@ -17,7 +17,7 @@ import { DevicesApiService } from 'src/app/routes/devices/service'
 import { InboundService, VpnServer, VpnServerPeer } from '../../service'
 import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
-import { CLIENT_CONFIG } from './dialog-config'
+import { CLIENT_CONFIG, ClientConfigData } from './dialog-config'
 import { ADD_CLIENT, ClientDialogData } from './dialog-add'
 import { RENAME_CLIENT } from './dialog-rename'
 
@@ -94,6 +94,18 @@ import { RENAME_CLIENT } from './dialog-rename'
                     (click)="rename(item)"
                   >
                     {{ 'Rename' | i18n }}
+                  </button>
+                  <button
+                    tuiOption
+                    iconStart="@tui.globe"
+                    (click)="toggleDnsInjection(item)"
+                  >
+                    {{
+                      (item.allow_dns_injection
+                        ? 'Revoke DNS record publishing'
+                        : 'Allow DNS record publishing'
+                      ) | i18n
+                    }}
                   </button>
                   <button
                     tuiOption
@@ -194,15 +206,16 @@ export default class InboundClients {
 
   rename(peer: VpnServerPeer) {
     const profile = this.server()?.profile
-    if (!profile) return
+    const publicKey = peer.public_key
+    if (!profile || !publicKey) return
 
     this.dialogs
       .open<string>(RENAME_CLIENT, {
         label: this.i18n.transform('Rename Device'),
         data: peer.name,
       })
-      .subscribe(newName => {
-        this.service.addPeer(profile, { ...peer, name: newName })
+      .subscribe(name => {
+        this.service.renamePeer(profile, publicKey, name)
       })
   }
 
@@ -231,9 +244,37 @@ export default class InboundClients {
         data: {
           name: peer.name,
           config,
-        },
+          placeholderKey: true,
+        } satisfies ClientConfigData,
       })
       .subscribe()
+  }
+
+  toggleDnsInjection(peer: VpnServerPeer) {
+    const profile = this.server()?.profile
+    if (!profile || !peer.public_key) return
+    const publicKey = peer.public_key
+
+    if (peer.allow_dns_injection) {
+      this.service.setPeerDnsInjection(profile, publicKey, false)
+      return
+    }
+
+    this.dialogs
+      .open<boolean>(TUI_CONFIRM, {
+        label: this.i18n.transform('Allow DNS Record Publishing?'),
+        data: {
+          content: this.i18n.transform(
+            'This device will be able to publish DNS names that resolve on your whole network. Grant this only to a device you trust, such as your own StartOS server.',
+          ),
+          yes: this.i18n.transform('Allow'),
+          no: this.i18n.transform('Cancel'),
+        },
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() =>
+        this.service.setPeerDnsInjection(profile, publicKey, true),
+      )
   }
 
   delete(peer: VpnServerPeer) {
@@ -261,10 +302,14 @@ export default class InboundClients {
 
   private async addAndShowConfig(profile: string, peer: VpnServerPeer) {
     const response = await this.service.addPeer(profile, peer)
-    if (response?.client_config) {
+    if (response) {
       this.dialogs
         .open(CLIENT_CONFIG, {
-          data: { name: peer.name, config: response.client_config },
+          data: {
+            name: peer.name,
+            config: response.client_config,
+            placeholderKey: !!peer.public_key,
+          } satisfies ClientConfigData,
         })
         .subscribe()
     }
