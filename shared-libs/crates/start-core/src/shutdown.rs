@@ -30,12 +30,7 @@ impl Shutdown {
             tracing::info!("{}", t!("shutdown.beginning-shutdown"));
         }
 
-        // When systemd is already driving the shutdown it stops journald, unmounts,
-        // and issues the power action itself. Doing that work here — the
-        // `systemctl stop systemd-journald` and volume-group export below — blocks
-        // mid-transaction and hangs startd until its ~90s stop timeout, so exit now
-        // and leave the rest to systemd. Exception: rpi poweroff must still
-        // self-drive its standby reboot below (systemd can't power the Pi off).
+        // Repeating systemd's teardown can deadlock its shutdown transaction.
         if systemd_is_stopping() && !(&*PLATFORM == "raspberrypi" && !self.restart) {
             tracing::info!(
                 "systemd is already shutting down; exiting and leaving the power action to it"
@@ -89,11 +84,7 @@ impl Shutdown {
         });
         drop(rt);
         if &*PLATFORM == "raspberrypi" {
-            // rpi has no real power-off: "off" is emulated as a standby reboot
-            // (start_init parks on STANDBY_MODE_PATH on the way back up). A poweroff
-            // self-drives the marker + reboot even under systemd, since systemd's own
-            // poweroff would only halt the still-powered board. (A systemd-initiated
-            // reboot already exited at the top.)
+            // Raspberry Pi poweroff uses a standby reboot.
             if !self.restart {
                 std::fs::write(STANDBY_MODE_PATH, "").unwrap();
                 Command::new("sync").spawn().unwrap().wait().unwrap();
@@ -112,9 +103,6 @@ impl Shutdown {
     }
 }
 
-/// True once systemd has entered its own shutdown transaction (`systemctl
-/// is-system-running` == `stopping`). In that state the final reboot/poweroff is
-/// systemd's to issue; [`Shutdown::execute`] must not race it with its own.
 fn systemd_is_stopping() -> bool {
     std::process::Command::new("systemctl")
         .arg("is-system-running")
@@ -146,7 +134,7 @@ rpc_toolkit::reflect_ts!(ShutdownParams);
 rpc_toolkit::ts_export!(ShutdownParams, namespaces = [""]);
 
 pub(crate) const STATUS_INFO_PTR: &str = "/public/serverInfo/statusInfo";
-const TAKE_RETRY: Duration = Duration::from_secs(30);
+const COMMIT_RETRY: Duration = Duration::from_secs(30);
 
 async fn begin_shutdown(ctx: &RpcContext, restart: bool, wait: bool) {
     ctx.shutdown
@@ -161,10 +149,7 @@ async fn begin_shutdown(ctx: &RpcContext, restart: bool, wait: bool) {
     }
 }
 
-/// Records `action` as the deferred power action if a backup is underway, and
-/// reports whether it did. Unlike [`defer_or_begin`] it never performs the
-/// action, which is what the power key needs: with no backup to wait for, the
-/// press is logind's to act on.
+/// Defers power during a backup; otherwise leaves the button to logind.
 pub async fn defer_until_backup_complete(
     ctx: &RpcContext,
     action: PowerAction,
@@ -184,9 +169,6 @@ fn defer_if_backing_up(db: &mut DatabaseModel, action: PowerAction) -> Result<bo
     Ok(true)
 }
 
-/// Either records `action` for after the backup, or commits to performing it
-/// now — in one mutation, so a backup cannot start in the window between
-/// deciding and acting. Returns whether it was deferred.
 async fn defer_or_begin(ctx: &RpcContext, action: PowerAction, force: bool) -> Result<bool, Error> {
     ctx.db
         .mutate(|db| defer_or_begin_in(db, action, force))
@@ -199,11 +181,10 @@ fn defer_or_begin_in(
     action: PowerAction,
     force: bool,
 ) -> Result<bool, Error> {
-    let status = db.as_public_mut().as_server_info_mut().as_status_info_mut();
-    if !force && status.as_backup_progress().transpose_ref().is_some() {
-        status.as_deferred_power_action_mut().ser(&Some(action))?;
+    if !force && defer_if_backing_up(db, action)? {
         return Ok(true);
     }
+    let status = db.as_public_mut().as_server_info_mut().as_status_info_mut();
     status.as_deferred_power_action_mut().ser(&None)?;
     match action {
         PowerAction::Restart => status.as_restarting_mut().ser(&true)?,
@@ -212,19 +193,20 @@ fn defer_or_begin_in(
     Ok(false)
 }
 
-/// Reads the deferred action and clears it in one breath, so a cancellation that
-/// lands first wins and the caller performs nothing.
-fn take_deferred(db: &mut DatabaseModel) -> Result<Option<PowerAction>, Error> {
-    let status = db.as_public_mut().as_server_info_mut().as_status_info_mut();
-    let action = status.as_deferred_power_action().de()?;
-    status.as_deferred_power_action_mut().ser(&None)?;
-    Ok(action)
+fn commit_deferred(db: &mut DatabaseModel) -> Result<Option<PowerAction>, Error> {
+    let action = db
+        .as_public()
+        .as_server_info()
+        .as_status_info()
+        .as_deferred_power_action()
+        .de()?;
+    match action {
+        Some(action) if !defer_or_begin_in(db, action, false)? => Ok(Some(action)),
+        _ => Ok(None),
+    }
 }
 
-/// Carries out each deferred power action once the backup it was waiting on
-/// finishes. Runs for the lifetime of startd: an action can be recorded at any
-/// point during any backup — from the web UI, the CLI, or the power button — so
-/// this must survive one having failed.
+/// Executes pending power after backup completion for the lifetime of startd.
 pub async fn run_deferred_power_actions(ctx: RpcContext) {
     let mut watch = ctx
         .db
@@ -238,58 +220,25 @@ pub async fn run_deferred_power_actions(ctx: RpcContext) {
             })
             .await
         {
-            // The db is gone, so there is nothing left to retry against.
             tracing::error!("stopped watching for deferred power actions: {e}");
             tracing::debug!("{e:?}");
             return;
         }
-        let taken = ctx.db.mutate(take_deferred).await.result;
-        let action = match taken {
-            Ok(action) => action,
+        let action = match ctx.db.mutate(commit_deferred).await.result {
+            Ok(Some(action)) => action,
+            Ok(None) => continue,
             Err(e) => {
-                // A failed mutation leaves the db untouched, so retrying
-                // immediately would spin against whatever is failing.
-                tracing::error!("could not take the deferred power action: {e}");
+                tracing::error!("could not commit the deferred power action: {e}");
                 tracing::debug!("{e:?}");
-                tokio::time::sleep(TAKE_RETRY).await;
+                tokio::time::sleep(COMMIT_RETRY).await;
                 continue;
             }
         };
-        // A backup that started since the take is waited for in turn.
-        let params = ShutdownParams::default();
-        let performed = match action {
-            Some(PowerAction::Restart) => {
-                tracing::info!("backup finished; carrying out the deferred restart");
-                restart(ctx.clone(), params).await
-            }
-            Some(PowerAction::Shutdown) => {
-                tracing::info!("backup finished; carrying out the deferred shutdown");
-                shutdown(ctx.clone(), params).await
-            }
-            None => continue,
-        };
-        if let Err(e) = performed {
-            tracing::error!("deferred power action failed: {e}");
-            tracing::debug!("{e:?}");
-            // Put it back rather than losing it, and give whatever failed room
-            // to recover before trying again. Not via `defer_or_begin`: with the
-            // backup already over it would commit to performing the action
-            // instead of recording it.
-            if let Some(action) = action {
-                ctx.db
-                    .mutate(|db| {
-                        db.as_public_mut()
-                            .as_server_info_mut()
-                            .as_status_info_mut()
-                            .as_deferred_power_action_mut()
-                            .ser(&Some(action))
-                    })
-                    .await
-                    .result
-                    .log_err();
-            }
-            tokio::time::sleep(TAKE_RETRY).await;
-        }
+        tracing::info!(
+            ?action,
+            "backup finished; carrying out deferred power action"
+        );
+        begin_shutdown(&ctx, action == PowerAction::Restart, false).await;
     }
 }
 
@@ -357,7 +306,6 @@ mod test {
         json!({ "overall": { "done": 0, "total": 2, "units": null }, "phases": [] })
     }
 
-    /// `(deferred action, shutting down, restarting)`.
     fn status(db: &DatabaseModel) -> (Option<PowerAction>, bool, bool) {
         let status = db.as_public().as_server_info().as_status_info();
         (
@@ -485,10 +433,6 @@ mod test {
         }
     }
 
-    /// Why [`run_deferred_power_actions`] cannot re-arm through this function:
-    /// with the backup over it takes the other branch and commits to the action,
-    /// which as a re-arm would leave the server flagged as powering down with
-    /// nothing left to do it.
     #[test]
     fn beginning_an_action_clears_any_pending_one() {
         let mut db = db_with(json!(null), json!("restart"));
@@ -512,16 +456,41 @@ mod test {
     }
 
     #[test]
-    fn taking_the_action_clears_it_so_only_one_pass_performs_it() {
-        let mut db = db_with(json!(null), json!("restart"));
-        assert_eq!(take_deferred(&mut db).unwrap(), Some(PowerAction::Restart));
-        assert_eq!(take_deferred(&mut db).unwrap(), None);
+    fn deferred_actions_commit_power_flags_and_are_consumed_once() {
+        for (action, shutting_down, restarting) in [
+            (PowerAction::Shutdown, true, false),
+            (PowerAction::Restart, false, true),
+        ] {
+            let mut db = db_with(json!(null), imbl_value::to_value(&action).unwrap());
+            assert_eq!(commit_deferred(&mut db).unwrap(), Some(action));
+            assert_eq!(status(&db), (None, shutting_down, restarting));
+            assert_eq!(commit_deferred(&mut db).unwrap(), None);
+        }
     }
 
-    /// A cancellation that lands before the take wins outright.
     #[test]
-    fn taking_a_cancelled_action_yields_nothing() {
+    fn intervening_backup_keeps_the_action_pending_until_completion() {
+        let mut db = db_with(backing_up(), json!("restart"));
+        assert_eq!(commit_deferred(&mut db).unwrap(), None);
+        assert_eq!(status(&db), (Some(PowerAction::Restart), false, false));
+
+        db.as_public_mut()
+            .as_server_info_mut()
+            .as_status_info_mut()
+            .as_backup_progress_mut()
+            .ser(&None)
+            .unwrap();
+        assert_eq!(
+            commit_deferred(&mut db).unwrap(),
+            Some(PowerAction::Restart)
+        );
+        assert_eq!(status(&db), (None, false, true));
+    }
+
+    #[test]
+    fn cancelled_action_does_not_commit_power() {
         let mut db = db_with(json!(null), json!(null));
-        assert_eq!(take_deferred(&mut db).unwrap(), None);
+        assert_eq!(commit_deferred(&mut db).unwrap(), None);
+        assert_eq!(status(&db), (None, false, false));
     }
 }
