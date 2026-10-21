@@ -23,6 +23,8 @@ config_foreach find_bridge device
 config_foreach find_admin_vlan bridge-vlan
 [ -n "$bridge" ] || exit 0
 wan=$(uci -q get network.wan.device)
+# A VLAN-tagged WAN such as eth4.7 reserves its port.
+wan=${wan%%.*}
 
 for path in /sys/class/net/*; do
 	[ "$(basename "$(readlink "$path/device/driver")")" = r8169 ] || continue
