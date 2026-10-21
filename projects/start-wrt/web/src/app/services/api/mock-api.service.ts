@@ -1,6 +1,6 @@
 import type { Api, RpcParamType, RpcReturnType } from './bindings'
 import { inject, Injectable } from '@angular/core'
-import { pauseFor } from '@start9labs/shared'
+import { pauseFor, RPCErrorDetails, RpcError } from '@start9labs/shared'
 import { GIT_HASH } from 'src/app/utils/workspace-config'
 import {
   ApiService,
@@ -25,9 +25,12 @@ import {
   VpnServerPeerAddArgs,
   VpnServerPeerAddResponse,
   VpnServerPeerDeleteArgs,
+  VpnServerPeerRenameArgs,
   VpnServerSetArgs,
   VpnServers,
   WifiConfig,
+  WifiBlackoutSetReq,
+  WifiBlackoutSetResult,
   ScheduleWindow,
   ProfileId,
   ProfileIdOpt,
@@ -85,7 +88,12 @@ import {
 } from './api.service'
 import { UciFile, UciSection } from './types'
 import { dhcpLanSlaacDhcpv6 } from 'src/app/routes/lan/routes/ipv6/uci/mocks'
-import { hasHostnameEndpoint } from 'src/app/routes/outbound/utils'
+import {
+  configDnsServers,
+  hasHostnameEndpoint,
+} from 'src/app/routes/outbound/utils'
+import { windowsCover } from 'src/app/utils/schedule'
+import { VPN_PEERS_WOULD_BREAK_CODE } from 'src/app/services/vpn-peers'
 import {
   generateMockDataUsage,
   getMockArpOutput,
@@ -486,9 +494,7 @@ export class MockApiService extends ApiService {
     return {
       public_key: generatedKey,
       ip,
-      client_config: params.peer.public_key
-        ? undefined
-        : `[Interface]\nPrivateKey = MOCK_PRIVATE_KEY\nAddress = ${ip}/32\nDNS = ${server?.server_address.replace(/\.\d+$/, '.1') ?? '192.168.1.1'}\n\n[Peer]\nPublicKey = ${server?.public_key ?? 'mockServerKey'}\nEndpoint = ${server?.endpoint ?? 'mock'}:${server?.listen_port ?? 51820}\nAllowedIPs = ${params.peer.route_all ? '0.0.0.0/0, ::/0' : (server?.server_address.replace(/\.\d+$/, '.0/24') ?? '192.168.1.0/24')}`,
+      client_config: `[Interface]\nPrivateKey = ${params.peer.public_key ? '<PRIVATE_KEY>' : 'MOCK_PRIVATE_KEY'}\nAddress = ${ip}/32\nDNS = ${server?.server_address.replace(/\.\d+$/, '.1') ?? '192.168.1.1'}\n\n[Peer]\nPublicKey = ${server?.public_key ?? 'mockServerKey'}\nPresharedKey = MOCK_PRESHARED_KEY\nEndpoint = ${server?.endpoint ?? 'mock'}:${server?.listen_port ?? 51820}\nAllowedIPs = ${params.peer.route_all ? '0.0.0.0/0, ::/0' : (server?.server_address.replace(/\.\d+$/, '.0/24') ?? '192.168.1.0/24')}`,
     }
   }
 
@@ -511,6 +517,58 @@ export class MockApiService extends ApiService {
         'updated',
         `Removed peer '${peer.name}' from inbound VPN`,
       )
+    return null
+  }
+
+  async vpnServerPeerRename(params: VpnServerPeerRenameArgs): Promise<null> {
+    await pauseFor(250)
+    const server = this.mockVpnServers.find(s => s.profile === params.profile)
+    const peer = server?.peers.find(p => p.public_key === params.public_key)
+    if (!peer) throw new Error(`Peer ${params.public_key} not found`)
+    this.mockVpnServers = this.mockVpnServers.map(s =>
+      s.profile === params.profile
+        ? {
+            ...s,
+            peers: s.peers.map(p =>
+              p.public_key === params.public_key
+                ? { ...p, name: params.name }
+                : p,
+            ),
+          }
+        : s,
+    )
+    this.persistVpnServers()
+    this.logActivity(
+      'vpn-server',
+      'updated',
+      `Renamed peer to '${params.name}' on inbound VPN`,
+    )
+    return null
+  }
+
+  async vpnServerPeerSetDnsInjection(
+    params: RpcParamType<Api, 'vpn-server.peer-set-dns-injection'>,
+  ): Promise<RpcReturnType<Api, 'vpn-server.peer-set-dns-injection'>> {
+    await pauseFor(250)
+    const allow_dns_injection = params.allow || undefined
+    this.mockVpnServers = this.mockVpnServers.map(s =>
+      s.profile === params.profile
+        ? {
+            ...s,
+            peers: s.peers.map(p =>
+              p.public_key === params.public_key
+                ? { ...p, allow_dns_injection }
+                : p,
+            ),
+          }
+        : s,
+    )
+    this.persistVpnServers()
+    this.logActivity(
+      'vpn-server',
+      'peer-dns-injection',
+      `${params.allow ? 'Enabled' : 'Disabled'} DNS injection for inbound VPN peer`,
+    )
     return null
   }
 
@@ -627,15 +685,24 @@ export class MockApiService extends ApiService {
     return structuredClone(this.mockBlackoutWindows)
   }
 
-  async wifiBlackoutSet(params: ScheduleWindow[]): Promise<null> {
+  async wifiBlackoutSet({
+    windows,
+    confirmImmediateBlackout,
+  }: WifiBlackoutSetReq): Promise<WifiBlackoutSetResult> {
     await pauseFor(250)
-    this.mockBlackoutWindows = structuredClone(params)
+    if (!confirmImmediateBlackout) {
+      const now = new Date()
+      const minute =
+        (now.getDay() * 24 + now.getHours()) * 60 + now.getMinutes()
+      return { pendingImmediateBlackout: windowsCover(windows, minute) }
+    }
+    this.mockBlackoutWindows = structuredClone(windows)
     this.logActivity(
       'wifi',
       'updated',
-      `Updated WiFi blackout schedule (${params.length} window${params.length !== 1 ? 's' : ''})`,
+      `Updated WiFi blackout schedule (${windows.length} window${windows.length !== 1 ? 's' : ''})`,
     )
-    return null
+    return { pendingImmediateBlackout: false }
   }
 
   private mockProfiles: SecurityProfile[] = [
@@ -712,6 +779,12 @@ export class MockApiService extends ApiService {
     return profile
   }
 
+  private grantsAccessToNewProfiles(params: ProfileCreateInput): boolean {
+    if (params.lan_access === 'ALL') return true
+    if (params.lan_access === 'SAME_PROFILE') return false
+    return params.access_to_new_profiles
+  }
+
   private resolveLanAccess(
     access: ProfileCreateInput['lan_access'],
   ): SecurityProfile['lan_access'] {
@@ -758,14 +831,10 @@ export class MockApiService extends ApiService {
       outbound: params.outbound,
       lan_access: this.resolveLanAccess(params.lan_access),
       wan_access: params.wan_access,
-      access_to_new_profiles: params.access_to_new_profiles,
+      access_to_new_profiles: this.grantsAccessToNewProfiles(params),
       owns_lan: params.owns_lan,
       dns_override: params.dns_override ?? [],
-      dns_source: params.dns_override?.length
-        ? 'custom'
-        : params.outbound !== 'wan'
-          ? 'vpn'
-          : 'system',
+      dns_source: this.mockDnsSource(params.outbound, params.dns_override),
     }
 
     this.mockProfiles = [...this.mockProfiles, newProfile]
@@ -782,12 +851,63 @@ export class MockApiService extends ApiService {
     }
   }
 
+  private mockDnsSource(
+    outbound: string,
+    dnsOverride: readonly unknown[] = [],
+  ): string {
+    if (dnsOverride.length) return 'custom'
+    if (outbound === 'wan') return 'system'
+    return this.mockVpnClients.find(c => c.id === outbound)?.dns.length
+      ? 'vpn'
+      : 'system-outside-vpn'
+  }
+
+  private guardVpnPeers(
+    profile: string,
+    oldAddress: string,
+    newAddress: string,
+    force: boolean | undefined,
+  ) {
+    if (oldAddress === newAddress) return
+    const blockChanged =
+      profile === 'lan' &&
+      oldAddress.split('.').slice(0, 2).join('.') !==
+        newAddress.split('.').slice(0, 2).join('.')
+    const interfaces = blockChanged
+      ? this.mockProfiles.map(p => p.interface)
+      : [profile]
+    const affected = this.mockVpnServers.filter(
+      s => interfaces.includes(s.profile) && s.peers.length > 0,
+    )
+    if (!affected.length) return
+    if (!force) {
+      const total = affected.reduce((n, s) => n + s.peers.length, 0)
+      const profiles = affected.map(s => s.profile).join(', ')
+      throw new RpcError({
+        code: VPN_PEERS_WOULD_BREAK_CODE,
+        message: 'VPN Peers Would Break',
+        data: {
+          details: `VPN peers would break: ${total} peer(s) across profiles [${profiles}]`,
+        },
+      } as RPCErrorDetails)
+    }
+    this.mockVpnServers = this.mockVpnServers.filter(s => !affected.includes(s))
+    this.persistVpnServers()
+  }
+
   async profileUpdate(params: ProfileUpdateInput): Promise<ProfileId> {
     await pauseFor(250)
 
     const old = this.mockProfiles.find(
       p => p.interface === params.interface && p.vlan_tag === params.vlan_tag,
     )
+    if (old)
+      this.guardVpnPeers(
+        params.interface,
+        old.gateway_ip,
+        params.gateway_ip,
+        params.force,
+      )
     const newFullname = params.fullname || old?.fullname || ''
 
     this.mockProfiles = this.mockProfiles.map(p =>
@@ -799,14 +919,13 @@ export class MockApiService extends ApiService {
             outbound: params.outbound,
             lan_access: this.resolveLanAccess(params.lan_access),
             wan_access: params.wan_access,
-            access_to_new_profiles: params.access_to_new_profiles,
+            access_to_new_profiles: this.grantsAccessToNewProfiles(params),
             owns_lan: params.owns_lan,
             dns_override: params.dns_override ?? [],
-            dns_source: params.dns_override?.length
-              ? 'custom'
-              : params.outbound !== 'wan'
-                ? 'vpn'
-                : 'system',
+            dns_source: this.mockDnsSource(
+              params.outbound,
+              params.dns_override,
+            ),
           }
         : p,
     )
@@ -1182,6 +1301,12 @@ export class MockApiService extends ApiService {
 
   async lanIpv4Set(params: LanIpv4SetRequest): Promise<null> {
     await pauseFor(250)
+    this.guardVpnPeers(
+      'lan',
+      this.mockLanIpv4.address,
+      params.address,
+      params.force,
+    )
     this.mockLanIpv4 = { ...this.mockLanIpv4, address: params.address }
     // Keep Admin profile gateway in sync with LAN IP
     this.mockProfiles = this.mockProfiles.map(p =>
@@ -1288,11 +1413,18 @@ export class MockApiService extends ApiService {
   }
 
   async wanIpv6Set(params: WanIpv6SetRequest): Promise<null> {
+    const previous = this.mockWanIpv6
     await pauseFor(250)
+    const requested = params.prefix?.replace(/^\//, '') ?? ''
     this.mockWanIpv6 = {
       mode: params.mode,
       address: params.address ?? null,
-      prefix: params.prefix ?? null,
+      prefix:
+        params.mode === 'slaac' || params.mode === 'dhcpv6'
+          ? requested
+            ? `/${requested}`
+            : null
+          : (params.prefix ?? null),
       gateway: params.gateway ?? null,
       ip6prefix: params.ip6prefix ?? null,
       ip6prefixlen: params.ip6prefixlen ?? null,
@@ -1305,6 +1437,9 @@ export class MockApiService extends ApiService {
           : params.mode === 'static'
             ? (params.address ?? null)
             : (this.mockWanIpv6.assigned_ipv6 ?? '2001:db8::1'),
+    }
+    if (params.mode === 'disabled') {
+      this.mockWanIpv6 = { ...previous, mode: 'disabled', assigned_ipv6: null }
     }
     this.logActivity(
       'wan',
@@ -1646,6 +1781,7 @@ export class MockApiService extends ApiService {
       supports_ipv6: true,
       mtu: null,
       hostname_endpoint: false,
+      dns: ['10.2.0.1'],
     },
     {
       id: 'wg_mullvad',
@@ -1660,6 +1796,7 @@ export class MockApiService extends ApiService {
       supports_ipv6: false,
       mtu: 1280,
       hostname_endpoint: false,
+      dns: [],
     },
   ]
 
@@ -1693,6 +1830,7 @@ export class MockApiService extends ApiService {
         mtu:
           Number(/(^|\n)\s*MTU\s*=\s*(\d+)/i.exec(params.config)?.[2]) || null,
         hostname_endpoint: hasHostnameEndpoint(params.config),
+        dns: params.dns ?? configDnsServers(params.config),
       },
     ]
     this.logActivity(
@@ -1712,6 +1850,7 @@ export class MockApiService extends ApiService {
             label: params.label,
             target: params.target,
             mtu: params.mtu ?? null,
+            dns: params.dns ?? c.dns,
           }
         : c,
     )

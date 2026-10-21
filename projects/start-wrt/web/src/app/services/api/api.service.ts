@@ -29,12 +29,18 @@ export abstract class ApiService {
     params: VpnServerPeerAddArgs,
   ): Promise<VpnServerPeerAddResponse>
   abstract vpnServerPeerDelete(params: VpnServerPeerDeleteArgs): Promise<null>
+  abstract vpnServerPeerRename(params: VpnServerPeerRenameArgs): Promise<null>
+  abstract vpnServerPeerSetDnsInjection(
+    params: RpcParamType<Api, 'vpn-server.peer-set-dns-injection'>,
+  ): Promise<RpcReturnType<Api, 'vpn-server.peer-set-dns-injection'>>
   abstract wifiGet(): Promise<WifiConfig>
   abstract wifiSet(params: WifiConfig): Promise<WifiSetResult>
   abstract wifiGeneratePassword(): Promise<string>
   abstract wifiRegulatory(): Promise<WifiRegulatory>
   abstract wifiBlackoutGet(): Promise<ScheduleWindow[]>
-  abstract wifiBlackoutSet(params: ScheduleWindow[]): Promise<null>
+  abstract wifiBlackoutSet(
+    params: WifiBlackoutSetReq,
+  ): Promise<WifiBlackoutSetResult>
   abstract profilesList(): Promise<ProfileId[]>
   abstract profileGet(params: ProfileIdOpt): Promise<SecurityProfile>
   abstract profileCreate(params: ProfileCreateInput): Promise<ProfileId>
@@ -219,6 +225,11 @@ export type VpnServerPeerDeleteArgs = RpcParamType<
   'vpn-server.peer-delete'
 >
 
+export type VpnServerPeerRenameArgs = RpcParamType<
+  Api,
+  'vpn-server.peer-rename'
+>
+
 export type VpnServerPeerAddResponse = RpcReturnType<Api, 'vpn-server.peer-add'>
 
 export type WifiRadio = Bindings.WifiRadio
@@ -235,6 +246,13 @@ export type WifiSetResult = RpcReturnType<Api, 'wifi.set'>
 export type WifiRegulatory = RpcReturnType<Api, 'wifi.regulatory'>
 
 export type ScheduleWindow = RpcReturnType<Api, 'profiles.schedule-get'>[number]
+
+export type WifiBlackoutSetReq = { windows: ScheduleWindow[] } & Pick<
+  RpcParamType<Api, 'wifi.blackout-set'>,
+  'confirmImmediateBlackout'
+>
+
+export type WifiBlackoutSetResult = RpcReturnType<Api, 'wifi.blackout-set'>
 
 export type ProfileId = RpcReturnType<Api, 'profiles.set'>
 

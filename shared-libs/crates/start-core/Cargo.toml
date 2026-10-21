@@ -32,6 +32,7 @@ ts = [
   "rpc-toolkit/ts",
   "rpc-toolkit/chrono",
   "rpc-toolkit/ipnet",
+  "rpc-toolkit/isocountry",
   "rpc-toolkit/josekit",
   "rpc-toolkit/url",
   "rpc-toolkit/yajrc",

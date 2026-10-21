@@ -187,6 +187,24 @@ export const AutomaticPortUse: z.ZodObject<{
   id: 'AutomaticPortUse',
   description: 'One automatic port use for the published-ports UI.',
 })
+export const BlackoutSetResult: z.ZodObject<{
+  /**
+   * True (and nothing applied) when a window covers the current time and the
+   * caller hasn't confirmed yet. False once the change is applied.
+   */
+  pendingImmediateBlackout: z.ZodBoolean
+}> = /* @__PURE__ */ object({
+  /**
+   * True (and nothing applied) when a window covers the current time and the
+   * caller hasn't confirmed yet. False once the change is applied.
+   */
+  pendingImmediateBlackout: z.boolean().meta({
+    description:
+      "True (and nothing applied) when a window covers the current time and the\ncaller hasn't confirmed yet. False once the change is applied.",
+  }),
+}).meta({
+  id: 'BlackoutSetResult',
+})
 export const BlackoutWindow: z.ZodObject<{
   startTime: z.ZodString
   endTime: z.ZodString
@@ -675,6 +693,11 @@ export const OutboundVpn: z.ZodObject<{
    * The server is named by hostname; only `Internet` is a valid target.
    */
   hostname_endpoint: z.ZodBoolean
+  /**
+   * Resolvers reached through the tunnel. Empty leaves profiles routed through
+   * this VPN on the system DNS servers, or on the ISP's outside the tunnel.
+   */
+  dns: z.ZodArray<z.ZodString>
 }> = /* @__PURE__ */ object({
   id: z.string(),
   label: z.string(),
@@ -705,6 +728,14 @@ export const OutboundVpn: z.ZodObject<{
     description:
       'The server is named by hostname; only `Internet` is a valid target.',
   }),
+  /**
+   * Resolvers reached through the tunnel. Empty leaves profiles routed through
+   * this VPN on the system DNS servers, or on the ISP's outside the tunnel.
+   */
+  dns: z.array(z.string()).meta({
+    description:
+      "Resolvers reached through the tunnel. Empty leaves profiles routed through\nthis VPN on the system DNS servers, or on the ISP's outside the tunnel.",
+  }),
 }).meta({
   id: 'OutboundVpn',
 })
@@ -715,6 +746,13 @@ export const OutboundVpnCreateRequest: z.ZodObject<{
    * Raw WireGuard .conf file contents
    */
   config: z.ZodString
+  /**
+   * Replaces the config's `DNS =` servers. Absent keeps them.
+   */
+  dns: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString>>>,
+    z.ZodNullable<z.ZodArray<z.ZodString>>
+  >
 }> = /* @__PURE__ */ object({
   label: z.string(),
   target: z.string(),
@@ -723,6 +761,15 @@ export const OutboundVpnCreateRequest: z.ZodObject<{
    */
   config: z.string().meta({
     description: 'Raw WireGuard .conf file contents',
+  }),
+  /**
+   * Replaces the config's `DNS =` servers. Absent keeps them.
+   */
+  dns: wire(
+    z.array(z.string()).nullable().optional(),
+    z.array(z.string()).nullable(),
+  ).meta({
+    description: "Replaces the config's `DNS =` servers. Absent keeps them.",
   }),
 }).meta({
   id: 'OutboundVpnCreateRequest',
@@ -753,6 +800,13 @@ export const OutboundVpnUpdateRequest: z.ZodObject<{
     z.ZodOptional<z.ZodNullable<z.ZodInt>>,
     z.ZodNullable<z.ZodInt>
   >
+  /**
+   * Replaces the resolvers reached through the tunnel. Absent keeps them.
+   */
+  dns: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString>>>,
+    z.ZodNullable<z.ZodArray<z.ZodString>>
+  >
 }> = /* @__PURE__ */ object({
   id: z.string(),
   label: z.string(),
@@ -765,18 +819,28 @@ export const OutboundVpnUpdateRequest: z.ZodObject<{
     description:
       "Desired interface MTU. `None` (or absent) restores the default: the\nchain MTU for a VPN connecting through another, else the kernel's.",
   }),
+  /**
+   * Replaces the resolvers reached through the tunnel. Absent keeps them.
+   */
+  dns: wire(
+    z.array(z.string()).nullable().optional(),
+    z.array(z.string()).nullable(),
+  ).meta({
+    description:
+      'Replaces the resolvers reached through the tunnel. Absent keeps them.',
+  }),
 }).meta({
   id: 'OutboundVpnUpdateRequest',
 })
 
 /**
- * Response from adding a peer, contains client config if keys were generated
+ * Response from adding a peer
  */
 export const PeerAddResponse: z.ZodObject<{
   /**
-   * WireGuard client configuration (only present if keys were generated server-side)
+   * WireGuard client configuration. Its private key is a placeholder when the request supplied the public key.
    */
-  client_config: z.ZodOptional<z.ZodNullable<z.ZodString>>
+  client_config: z.ZodString
   /**
    * The public key of the peer
    */
@@ -787,11 +851,11 @@ export const PeerAddResponse: z.ZodObject<{
   ip: z.ZodString
 }> = /* @__PURE__ */ object({
   /**
-   * WireGuard client configuration (only present if keys were generated server-side)
+   * WireGuard client configuration. Its private key is a placeholder when the request supplied the public key.
    */
-  client_config: z.string().nullable().optional().meta({
+  client_config: z.string().meta({
     description:
-      'WireGuard client configuration (only present if keys were generated server-side)',
+      'WireGuard client configuration. Its private key is a placeholder when the request supplied the public key.',
   }),
   /**
    * The public key of the peer
@@ -807,8 +871,7 @@ export const PeerAddResponse: z.ZodObject<{
   }),
 }).meta({
   id: 'PeerAddResponse',
-  description:
-    'Response from adding a peer, contains client config if keys were generated',
+  description: 'Response from adding a peer',
 })
 export const PeerDeleteArgs: z.ZodObject<{
   /**
@@ -834,6 +897,76 @@ export const PeerDeleteArgs: z.ZodObject<{
   }),
 }).meta({
   id: 'PeerDeleteArgs',
+})
+export const PeerRenameArgs: z.ZodObject<{
+  /**
+   * Profile interface name
+   */
+  profile: z.ZodString
+  /**
+   * Public key of the peer to rename
+   */
+  public_key: z.ZodString
+  /**
+   * New human-readable name for the peer
+   */
+  name: z.ZodString
+}> = /* @__PURE__ */ object({
+  /**
+   * Profile interface name
+   */
+  profile: z.string().meta({
+    description: 'Profile interface name',
+  }),
+  /**
+   * Public key of the peer to rename
+   */
+  public_key: z.string().meta({
+    description: 'Public key of the peer to rename',
+  }),
+  /**
+   * New human-readable name for the peer
+   */
+  name: z.string().meta({
+    description: 'New human-readable name for the peer',
+  }),
+}).meta({
+  id: 'PeerRenameArgs',
+})
+export const PeerSetDnsInjectionArgs: z.ZodObject<{
+  /**
+   * Profile interface name
+   */
+  profile: z.ZodString
+  /**
+   * Public key of the peer
+   */
+  public_key: z.ZodString
+  /**
+   * Grant rather than revoke the permission
+   */
+  allow: z.ZodBoolean
+}> = /* @__PURE__ */ object({
+  /**
+   * Profile interface name
+   */
+  profile: z.string().meta({
+    description: 'Profile interface name',
+  }),
+  /**
+   * Public key of the peer
+   */
+  public_key: z.string().meta({
+    description: 'Public key of the peer',
+  }),
+  /**
+   * Grant rather than revoke the permission
+   */
+  allow: z.boolean().meta({
+    description: 'Grant rather than revoke the permission',
+  }),
+}).meta({
+  id: 'PeerSetDnsInjectionArgs',
 })
 export const ProfileId: z.ZodObject<{
   fullname: z.ZodString
@@ -1195,6 +1328,10 @@ export const VpnServerPeer: z.ZodObject<{
    * Route all traffic (LAN + WAN) through the tunnel. Default (false/absent) = split tunnel (LAN only).
    */
   route_all: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>
+  /**
+   * May publish DNS records into the router's resolver. Default (false/absent) = denied.
+   */
+  allow_dns_injection: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>
 }> = /* @__PURE__ */ object({
   /**
    * Human-readable name for the peer
@@ -1228,6 +1365,13 @@ export const VpnServerPeer: z.ZodObject<{
   route_all: z.boolean().nullable().optional().meta({
     description:
       'Route all traffic (LAN + WAN) through the tunnel. Default (false/absent) = split tunnel (LAN only).',
+  }),
+  /**
+   * May publish DNS records into the router's resolver. Default (false/absent) = denied.
+   */
+  allow_dns_injection: z.boolean().nullable().optional().meta({
+    description:
+      "May publish DNS records into the router's resolver. Default (false/absent) = denied.",
   }),
 }).meta({
   id: 'VpnServerPeer',
@@ -1391,7 +1535,8 @@ export const Device: z.ZodObject<{
   allow_auto_port_forward: z.ZodBoolean
   /**
    * Whether this device may publish DNS records into the router's resolver
-   * (`devices set-dns-injection`).
+   * (`devices set-dns-injection`; `vpn-server peer-set-dns-injection` for a
+   * VPN peer).
    */
   allow_dns_injection: z.ZodBoolean
   security_profile: z.ZodCodec<
@@ -1450,11 +1595,12 @@ export const Device: z.ZodObject<{
   }),
   /**
    * Whether this device may publish DNS records into the router's resolver
-   * (`devices set-dns-injection`).
+   * (`devices set-dns-injection`; `vpn-server peer-set-dns-injection` for a
+   * VPN peer).
    */
   allow_dns_injection: z.boolean().meta({
     description:
-      "Whether this device may publish DNS records into the router's resolver\n(`devices set-dns-injection`).",
+      "Whether this device may publish DNS records into the router's resolver\n(`devices set-dns-injection`; `vpn-server peer-set-dns-injection` for a\nVPN peer).",
   }),
   security_profile: wire(
     z.string().nullable().optional(),
@@ -2355,6 +2501,34 @@ export const WifiSetResult: z.ZodObject<{
 }).meta({
   id: 'WifiSetResult',
 })
+
+/**
+ * `wifi.blackout-set` request: the blackout windows plus a confirmation flag.
+ * A window covering the router's current time turns Wi-Fi off as soon as it is
+ * saved, for every device on it. When the flag is false, `blackout-set` applies
+ * nothing and reports that in `BlackoutSetResult` for a confirmation dialog;
+ * with the flag true it saves the windows and applies them at once.
+ */
+export const BlackoutSetRequest: z.ZodIntersection<
+  z.ZodObject<{
+    confirmImmediateBlackout: z.ZodCodec<
+      z.ZodOptional<z.ZodBoolean>,
+      z.ZodBoolean
+    >
+  }>,
+  typeof BlackoutWindows
+> = /* @__PURE__ */ z
+  .intersection(
+    object({
+      confirmImmediateBlackout: wire(z.boolean().optional(), z.boolean()),
+    }),
+    BlackoutWindows,
+  )
+  .meta({
+    id: 'BlackoutSetRequest',
+    description:
+      "`wifi.blackout-set` request: the blackout windows plus a confirmation flag.\nA window covering the router's current time turns Wi-Fi off as soon as it is\nsaved, for every device on it. When the flag is false, `blackout-set` applies\nnothing and reports that in `BlackoutSetResult` for a confirmation dialog;\nwith the flag true it saves the windows and applies them at once.",
+  })
 export const PublishedPortsSetRequest: z.ZodObject<{
   ports: z.ZodArray<typeof PublishedPortInput>
 }> = /* @__PURE__ */ object({ ports: z.array(PublishedPortInput) }).meta({
@@ -3366,6 +3540,25 @@ export const Api = {
           ),
           _RETURN: /* @__PURE__ */ z.null(),
         },
+        'peer-rename': {
+          _PARAMS: /* @__PURE__ */ z.intersection(
+            z.intersection(
+              object({
+                format: wire(
+                  IoFormat.nullable().optional(),
+                  IoFormat.nullable(),
+                ),
+              }),
+              empty,
+            ),
+            PeerRenameArgs,
+          ),
+          _RETURN: /* @__PURE__ */ z.null(),
+        },
+        'peer-set-dns-injection': {
+          _PARAMS: /* @__PURE__ */ PeerSetDnsInjectionArgs,
+          _RETURN: /* @__PURE__ */ z.null(),
+        },
         set: {
           _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
@@ -3559,6 +3752,11 @@ export const Api = {
     wifi: {
       _PARAMS: /* @__PURE__ */ empty,
       _CHILDREN: {
+        'blackout-apply': {
+          _PARAMS: /* @__PURE__ */ z.unknown(),
+          _RETURN: /* @__PURE__ */ z.unknown(),
+          _OPAQUE: true as const,
+        },
         'blackout-get': {
           _PARAMS: /* @__PURE__ */ z.intersection(
             z.intersection(
@@ -3585,12 +3783,12 @@ export const Api = {
               }),
               empty,
             ),
-            BlackoutWindows.meta({
+            BlackoutSetRequest.meta({
               description:
                 'A clap-compatible wrapper that reads the inner value as JSON from stdin\ninstead of from CLI args. Used for commands that take complex structured\ninput (entire profile objects, etc.).\n\nThis is a thin wrapper around `startos::util::serde::StdinDeserializable`\nthat adds a `CommandFactory` impl so it can be used directly as a handler\n`Params` type (rather than flattened inside a `#[derive(Parser)]` struct,\nwhich is how startos uses its version).',
             }),
           ),
-          _RETURN: /* @__PURE__ */ z.null(),
+          _RETURN: /* @__PURE__ */ BlackoutSetResult,
         },
         edit: {
           _PARAMS: /* @__PURE__ */ z.intersection(

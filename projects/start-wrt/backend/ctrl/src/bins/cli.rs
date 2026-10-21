@@ -64,6 +64,30 @@ pub fn main(args: VecDeque<OsString>) {
             None => eprintln!("{}", e.message),
         }
 
-        std::process::exit(e.code);
+        std::process::exit(exit_status(e.code));
+    }
+}
+
+/// An RPC error code outside 1–255 exits 1.
+fn exit_status(code: i32) -> i32 {
+    if (1..=255).contains(&code) {
+        code
+    } else {
+        1
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::exit_status;
+
+    #[test]
+    fn exit_status_is_nonzero_for_every_code() {
+        assert_eq!(exit_status(7), 7);
+        assert_eq!(exit_status(255), 255);
+        assert_eq!(exit_status(1024), 1);
+        assert_eq!(exit_status(1019), 1);
+        assert_eq!(exit_status(-1), 1);
+        assert_eq!(exit_status(0), 1);
     }
 }

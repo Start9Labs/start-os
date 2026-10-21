@@ -16,8 +16,6 @@ use crate::util::serde::Base64;
 #[model = "Model<Self>"]
 pub struct Blake3Commitment {
     pub hash: Base64<[u8; 32]>,
-    #[visit(ts(type = "z.number()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub size: u64,
 }
 

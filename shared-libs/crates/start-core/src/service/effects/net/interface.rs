@@ -93,11 +93,6 @@ pub struct ExportRangeServiceInterfaceParams {
     id: ServiceInterfaceId,
     name: String,
     description: String,
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     scheme: Option<InternedString>,
 }
 

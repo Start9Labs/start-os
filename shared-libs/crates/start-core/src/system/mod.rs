@@ -445,11 +445,7 @@ pub struct MetricLeaf<T> {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, VisitFields)]
-#[visit(
-    ts(type = "z.object({ value: z.string(), unit: z.string() })"),
-    wire = "rpc_toolkit::ts::Unknown"
-)]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(ts(type = "z.object({ value: z.string(), unit: z.string() })"))]
 pub struct Celsius(f64);
 
 rpc_toolkit::reflect_ts!(Celsius);
@@ -480,11 +476,7 @@ impl<'de> Deserialize<'de> for Celsius {
     }
 }
 #[derive(Clone, Debug, PartialEq, PartialOrd, VisitFields)]
-#[visit(
-    ts(type = "z.object({ value: z.string(), unit: z.string() })"),
-    wire = "rpc_toolkit::ts::Unknown"
-)]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(ts(type = "z.object({ value: z.string(), unit: z.string() })"))]
 pub struct Percentage(f64);
 
 rpc_toolkit::reflect_ts!(Percentage);
@@ -513,11 +505,7 @@ impl<'de> Deserialize<'de> for Percentage {
 }
 
 #[derive(Clone, Debug, VisitFields)]
-#[visit(
-    ts(type = "z.object({ value: z.string(), unit: z.string() })"),
-    wire = "rpc_toolkit::ts::Unknown"
-)]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(ts(type = "z.object({ value: z.string(), unit: z.string() })"))]
 pub struct MebiBytes(pub f64);
 
 rpc_toolkit::reflect_ts!(MebiBytes);
@@ -546,11 +534,7 @@ impl<'de> Deserialize<'de> for MebiBytes {
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, VisitFields)]
-#[visit(
-    ts(type = "z.object({ value: z.string(), unit: z.string() })"),
-    wire = "rpc_toolkit::ts::Unknown"
-)]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(ts(type = "z.object({ value: z.string(), unit: z.string() })"))]
 pub struct GigaBytes(f64);
 
 rpc_toolkit::reflect_ts!(GigaBytes);
@@ -655,9 +639,8 @@ rpc_toolkit::ts_export!(MetricsFollowResponse, namespaces = [""]);
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct MetricsFollowParams {
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(skip))]
     #[serde(rename = "__Auth_signer")]
-    #[visit(opaque, type_attributes(visit::wire))] // from Auth middleware
     signer: Option<InternedString>,
 }
 

@@ -53,7 +53,7 @@ function asRequiredParser<Type, Input extends { required: boolean }>(
   input: Input,
 ): z.ZodType<AsRequired<Type, Input['required']>> {
   if (testForAsRequiredParser()(input)) return parser as any
-  return parser.nullable() as any
+  return parser.nullish().transform(v => v ?? null) as any
 }
 
 /**

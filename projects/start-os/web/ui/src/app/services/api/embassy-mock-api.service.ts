@@ -29,7 +29,17 @@ import {
   ReplaceOperation,
   Revision,
 } from 'patch-db-client'
-import { from, interval, map, shareReplay, startWith, Subject, tap } from 'rxjs'
+import {
+  endWith,
+  finalize,
+  from,
+  interval,
+  map,
+  shareReplay,
+  startWith,
+  Subject,
+  tap,
+} from 'rxjs'
 import { WebSocketSubject } from 'rxjs/webSocket'
 import {
   DataModel,
@@ -192,6 +202,10 @@ export class MockApiService extends ApiService {
     'diagnostic.disk.repair': async () => {
       await pauseFor(1000)
       return null
+    },
+    'diagnostic.update': async () => {
+      await pauseFor(1000)
+      return { target: '0.4.1', progress: 'update-progress-guid' }
     },
     'diagnostic.logs': async params => {
       return this.handlers['server.logs']!(params)
@@ -1533,6 +1547,14 @@ export class MockApiService extends ApiService {
       config.openObserver?.next(new Event(''))
       return from(this.initProgress()).pipe(
         startWith(PROGRESS),
+      ) as WebSocketSubject<T>
+    } else if (guid === 'update-progress-guid') {
+      return from(this.initProgress()).pipe(
+        startWith(PROGRESS),
+        endWith(null),
+        finalize(() =>
+          config.closeObserver?.next(new CloseEvent('close', { code: 1000 })),
+        ),
       ) as WebSocketSubject<T>
     } else if (guid === 'metrics-guid') {
       return interval(1000).pipe(
