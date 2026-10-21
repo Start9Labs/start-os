@@ -828,4 +828,9 @@ export const ENGLISH: Record<string, number> = {
   'You will need to repeat this on every device you use to connect to the StartWRT UI.': 935,
   'Update server': 936,
   'Reinstalling': 937,
+  'A backup is currently running. Interrupting it now can corrupt the backup of the service being written.': 938,
+  'Wait for backup to complete': 939,
+  'Shut down now': 940,
+  'A backup is running. Your server will restart when it finishes.': 941,
+  'A backup is running. Your server will shut down when it finishes.': 942,
 }

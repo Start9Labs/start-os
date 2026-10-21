@@ -827,4 +827,9 @@ export default {
   935: 'Dies müssen Sie auf jedem Gerät wiederholen, mit dem Sie die StartWRT-Oberfläche aufrufen.',
   936: 'Server aktualisieren',
   937: 'Wird neu installiert',
+  938: 'Derzeit läuft eine Sicherung. Eine Unterbrechung kann jetzt die Sicherung des gerade geschriebenen Dienstes beschädigen.',
+  939: 'Auf Abschluss der Sicherung warten',
+  940: 'Jetzt herunterfahren',
+  941: 'Eine Sicherung läuft. Ihr Server wird nach deren Abschluss neu gestartet.',
+  942: 'Eine Sicherung läuft. Ihr Server wird nach deren Abschluss heruntergefahren.',
 } satisfies i18n

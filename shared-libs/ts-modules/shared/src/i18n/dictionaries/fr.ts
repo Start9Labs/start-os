@@ -827,4 +827,9 @@ export default {
   935: 'Vous devrez répéter cette opération sur chaque appareil utilisé pour accéder à l’interface de StartWRT.',
   936: 'Mettre à jour le serveur',
   937: 'Réinstallation',
+  938: 'Une sauvegarde est en cours. L’interrompre maintenant peut corrompre la sauvegarde du service en cours d’écriture.',
+  939: 'Attendre la fin de la sauvegarde',
+  940: 'Éteindre maintenant',
+  941: 'Une sauvegarde est en cours. Votre serveur redémarrera une fois celle-ci terminée.',
+  942: 'Une sauvegarde est en cours. Votre serveur s’éteindra une fois celle-ci terminée.',
 } satisfies i18n

@@ -827,4 +827,9 @@ export default {
   935: 'Będziesz musiał powtórzyć tę czynność na każdym urządzeniu, którego używasz do łączenia się z interfejsem StartWRT.',
   936: 'Zaktualizuj serwer',
   937: 'Ponowna instalacja',
+  938: 'Trwa tworzenie kopii zapasowej. Przerwanie jej teraz może uszkodzić kopię zapasową aktualnie zapisywanej usługi.',
+  939: 'Poczekaj na zakończenie kopii zapasowej',
+  940: 'Wyłącz teraz',
+  941: 'Trwa tworzenie kopii zapasowej. Serwer zostanie ponownie uruchomiony po jej zakończeniu.',
+  942: 'Trwa tworzenie kopii zapasowej. Serwer zostanie wyłączony po jej zakończeniu.',
 } satisfies i18n

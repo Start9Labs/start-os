@@ -827,4 +827,9 @@ export default {
   935: 'Tendrás que repetir esto en cada dispositivo que uses para acceder a la interfaz de StartWRT.',
   936: 'Actualizar servidor',
   937: 'Reinstalando',
+  938: 'Hay una copia de seguridad en curso. Interrumpirla ahora puede dañar la copia de seguridad del servicio que se está escribiendo.',
+  939: 'Esperar a que termine la copia de seguridad',
+  940: 'Apagar ahora',
+  941: 'Hay una copia de seguridad en curso. Su servidor se reiniciará cuando termine.',
+  942: 'Hay una copia de seguridad en curso. Su servidor se apagará cuando termine.',
 } satisfies i18n

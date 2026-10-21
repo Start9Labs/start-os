@@ -130,6 +130,7 @@ registerHooks({
 })
 const { PatchDB } = await import('patch-db-client')
 const { OSService } = await import('src/app/services/os.service')
+const { PowerService } = await import('src/app/services/power.service')
 const { ApiService } = await import('src/app/services/api/embassy-api.service')
 const { TaskService, DialogService, i18nPipe, i18nService } =
   await import('@start9labs/shared')
@@ -246,6 +247,7 @@ function fixture(t, cachedVersion) {
       },
     },
     { provide: OSService, useFactory: () => new OSService() },
+    { provide: PowerService, useFactory: () => new PowerService() },
   ])
   const os = injector.get(OSService)
   const availability = [],
