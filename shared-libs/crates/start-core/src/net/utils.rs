@@ -140,6 +140,13 @@ pub fn ipv6_is_local(addr: Ipv6Addr) -> bool {
     addr.is_loopback() || ipv6_is_ula(addr) || ipv6_is_link_local(addr)
 }
 
+pub(crate) fn is_internal_ip(addr: IpAddr) -> bool {
+    let addr = addr.to_canonical();
+    addr.is_loopback()
+        || addr == IpAddr::V4(crate::HOST_IP.into())
+        || addr == IpAddr::V6(crate::net::forward::START9_BRIDGE_V6_ADDR)
+}
+
 pub fn is_private_ip(addr: IpAddr) -> bool {
     match addr {
         IpAddr::V4(v4) => v4.is_private() || v4.is_loopback() || v4.is_link_local(),

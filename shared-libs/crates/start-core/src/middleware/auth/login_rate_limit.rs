@@ -98,6 +98,7 @@ mod tests {
     fn origin(gateway: &str, public: bool) -> RequestOrigin {
         RequestOrigin {
             peer_ip: Some("203.0.113.7".parse().unwrap()),
+            local_ip: Some("192.168.1.2".parse().unwrap()),
             gateway: Some(gateway.parse().unwrap()),
             public,
         }

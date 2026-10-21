@@ -3085,6 +3085,7 @@ mod upstream_alpn_tests {
                     crate::net::request_origin::RequestOrigin::from_extensions(&extensions);
                 assert_eq!(origin.peer_ip, Some(Ipv4Addr::LOCALHOST.into()));
                 assert_eq!(origin.gateway, Some(gateway_id));
+                assert_eq!(origin.local_ip, Some(frontend_addr.ip()));
                 assert_eq!(origin.public, !private);
             }
         })

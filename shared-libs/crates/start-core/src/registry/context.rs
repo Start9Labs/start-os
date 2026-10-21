@@ -391,6 +391,7 @@ impl SignatureAuthContext for RegistryContext {
     }
     async fn sig_context(
         &self,
+        _extensions: &http::Extensions,
     ) -> impl IntoIterator<Item = Result<impl AsRef<str> + Send, Error>> + Send {
         self.hostnames.iter().map(Ok)
     }
