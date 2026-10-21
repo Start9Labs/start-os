@@ -38,7 +38,7 @@ Defined in `shared-libs/crates/start-core/src/registry/mod.rs`:
 - `POST /rpc/{*path}` — JSON-RPC, wrapped in `Cors`, `Auth` (local + signature auth), and `DeviceInfoMiddleware`.
 - `GET /ws/rpc/{*path}` — WebSocket RPC continuations, keyed by a `Guid`.
 - `/rest/rpc/{*path}` — REST continuation channel (e.g. large asset streams), keyed by a `Guid`.
-- `GET /icons/{id}/{version}` and `GET /icons/{id}/{version}/dependencies/{dependency}` — a public package version's icon, or its icon for a dependency, unauthenticated. `package.get` omits public icons for StartOS 0.4.0.3 and later, which load them here. Private packages keep inline icons in authorized RPC responses.
+- `GET /icons/{id}/{version}` and `GET /icons/{id}/{version}/dependencies/{dependency}` — a package version's icon, or its icon for a dependency. `package.get` omits icons for StartOS 0.4.0.3 and later, which load them here. A private package's icons require a request signed (`X-Start-Auth-Sig` over an empty body) by a signer who may see it; StartOS's icon proxy signs for its signed registries.
 
 ## RPC API surface (`registry_api`)
 

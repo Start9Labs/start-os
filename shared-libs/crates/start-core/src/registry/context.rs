@@ -280,17 +280,7 @@ impl CallRemote<RegistryContext, RegistryUrlParams> for RpcContext {
             device_info = Some(di);
         }
 
-        let sig_context = registry_sig_context(
-            &self
-                .db
-                .peek()
-                .await
-                .as_public()
-                .as_server_info()
-                .as_signed_registries()
-                .de()?,
-            &registry,
-        );
+        let sig_context = registry_sig_context(self, &registry).await?;
         let is_onion = registry.host_str().map_or(false, |h| h.ends_with(".onion"));
 
         registry
@@ -325,16 +315,38 @@ impl CallRemote<RegistryContext, RegistryUrlParams> for RpcContext {
     }
 }
 
-/// None for a registry that does not receive signed requests.
-fn registry_sig_context(
-    signed_registries: &BTreeSet<Url>,
-    registry: &Url,
-) -> Option<InternedString> {
-    if signed_registries.contains(registry) {
-        registry.host_str().map(InternedString::from)
+/// The signature context for a request to the URL. None outside every signed registry.
+pub(crate) async fn registry_sig_context(
+    ctx: &RpcContext,
+    url: &Url,
+) -> Result<Option<InternedString>, Error> {
+    Ok(sig_context_under(
+        &ctx.db
+            .peek()
+            .await
+            .as_public()
+            .as_server_info()
+            .as_signed_registries()
+            .de()?,
+        url,
+    ))
+}
+
+fn sig_context_under(signed_registries: &BTreeSet<Url>, url: &Url) -> Option<InternedString> {
+    if signed_registries.iter().any(|r| is_under(r, url)) {
+        url.host_str().map(InternedString::from)
     } else {
         None
     }
+}
+
+fn is_under(registry: &Url, url: &Url) -> bool {
+    let base = registry.path().trim_end_matches('/');
+    registry.origin() == url.origin()
+        && url
+            .path()
+            .strip_prefix(base)
+            .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
 }
 
 /// Reaching a `.onion` registry requires the host to proxy through the Tor
@@ -469,15 +481,30 @@ mod tests {
     use super::*;
 
     #[test]
-    fn signs_only_requests_to_signed_registries() {
-        let signed: Url = "https://private.example.com".parse().unwrap();
-        let other: Url = "https://registry.start9.com/".parse().unwrap();
-        let signed_registries = BTreeSet::from(["https://private.example.com/".parse().unwrap()]);
+    fn signs_only_requests_under_signed_registries() {
+        let signed_registries = BTreeSet::from([
+            "https://private.example.com/".parse().unwrap(),
+            "https://shared.example.com/reg".parse().unwrap(),
+        ]);
+        let context = |url: &str| sig_context_under(&signed_registries, &url.parse().unwrap());
         assert_eq!(
-            registry_sig_context(&signed_registries, &signed).as_deref(),
+            context("https://private.example.com").as_deref(),
             Some("private.example.com")
         );
-        assert_eq!(registry_sig_context(&signed_registries, &other), None);
-        assert_eq!(registry_sig_context(&BTreeSet::new(), &signed), None);
+        assert_eq!(
+            context("https://private.example.com/icons/pkg/1.0.0:0").as_deref(),
+            Some("private.example.com")
+        );
+        assert_eq!(
+            context("https://shared.example.com/reg/icons/pkg/1.0.0:0").as_deref(),
+            Some("shared.example.com")
+        );
+        assert_eq!(context("https://shared.example.com/register/icons"), None);
+        assert_eq!(
+            context("https://shared.example.com/icons/pkg/1.0.0:0"),
+            None
+        );
+        assert_eq!(context("http://private.example.com/"), None);
+        assert_eq!(context("https://registry.start9.com/"), None);
     }
 }

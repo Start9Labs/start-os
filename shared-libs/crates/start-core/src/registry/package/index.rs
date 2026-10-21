@@ -61,6 +61,25 @@ pub struct Reader {
     pub admin: bool,
 }
 
+impl Reader {
+    /// None for an unsigned request or an unregistered key.
+    pub fn resolve(
+        db: &Model<RegistryDatabase>,
+        key: Option<&AnyVerifyingKey>,
+    ) -> Result<Option<Self>, Error> {
+        let Some(key) = key else {
+            return Ok(None);
+        };
+        let Some(signer) = db.as_index().as_signers().find_signer(key)? else {
+            return Ok(None);
+        };
+        Ok(Some(Reader {
+            admin: db.as_admins().de()?.contains(&signer),
+            signer,
+        }))
+    }
+}
+
 impl Model<PackageInfo> {
     pub fn is_visible_to(&self, reader: Option<&Reader>) -> Result<bool, Error> {
         if !self.as_private().de()? {
@@ -116,18 +135,8 @@ pub struct ReaderParams {
 rpc_toolkit::reflect_ts!(ReaderParams);
 
 impl ReaderParams {
-    /// None for an unsigned request or an unregistered key.
     pub fn reader(&self, db: &Model<RegistryDatabase>) -> Result<Option<Reader>, Error> {
-        let Some(key) = &self.signer else {
-            return Ok(None);
-        };
-        let Some(signer) = db.as_index().as_signers().find_signer(key)? else {
-            return Ok(None);
-        };
-        Ok(Some(Reader {
-            admin: db.as_admins().de()?.contains(&signer),
-            signer,
-        }))
+        Reader::resolve(db, self.signer.as_ref())
     }
 }
 

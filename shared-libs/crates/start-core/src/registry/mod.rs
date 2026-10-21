@@ -141,8 +141,8 @@ pub fn registry_router(ctx: RegistryContext) -> Router {
             "/icons/{id}/{version}",
             get({
                 let ctx = ctx.clone();
-                move |x::Path((id, version)): x::Path<(String, String)>| async move {
-                    package::icon::icon(&ctx, &id, &version, None).await
+                move |x::Path((id, version)): x::Path<(String, String)>, request: x::Request| async move {
+                    package::icon::icon(&ctx, &id, &version, None, request).await
                 }
             }),
         )
@@ -150,8 +150,9 @@ pub fn registry_router(ctx: RegistryContext) -> Router {
             "/icons/{id}/{version}/dependencies/{dependency}",
             get({
                 let ctx = ctx.clone();
-                move |x::Path((id, version, dependency)): x::Path<(String, String, String)>| async move {
-                    package::icon::icon(&ctx, &id, &version, Some(&dependency)).await
+                move |x::Path((id, version, dependency)): x::Path<(String, String, String)>,
+                      request: x::Request| async move {
+                    package::icon::icon(&ctx, &id, &version, Some(&dependency), request).await
                 }
             }),
         )
