@@ -181,13 +181,23 @@ function fixture(t, cachedVersion) {
     tasks = []
   let completed = 0
   const api = {
-    checkOSUpdate(params) {
-      const response = deferred()
-      requests.push({ params, ...response })
-      return response.promise
-    },
-    async updateServer(params) {
-      submissions.push(params)
+    rpc: {
+      registry: {
+        os: {
+          version: {
+            get(params) {
+              const response = deferred()
+              requests.push({ params, ...response })
+              return response.promise
+            },
+          },
+        },
+      },
+      server: {
+        async update(params) {
+          submissions.push(params)
+        },
+      },
     },
   }
   const taskService = {

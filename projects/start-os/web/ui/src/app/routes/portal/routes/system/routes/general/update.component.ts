@@ -68,7 +68,7 @@ export class SystemUpdateModal {
       const latest = this.os.updateCandidates()[0]
       if (!latest) return
 
-      await this.embassyApi.updateServer({
+      await this.embassyApi.rpc.server.update({
         targetVersion: `=${latest.version}`,
         registry: startosRegistry,
         progress: false,

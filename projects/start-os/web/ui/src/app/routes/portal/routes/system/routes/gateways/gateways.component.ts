@@ -197,7 +197,7 @@ export default class GatewaysComponent {
   async saveOutbound() {
     this.tasks.run(
       async () =>
-        await this.api.setDefaultOutbound({
+        await this.api.rpc.net.gateway.setDefaultOutbound({
           gateway: this.selectedOutbound()?.id ?? null,
         }),
       'Saving',
@@ -255,7 +255,7 @@ export default class GatewaysComponent {
             handler: async (input: typeof spec._TYPE) =>
               this.tasks.run(
                 async () =>
-                  await this.api.addTunnel({
+                  await this.api.rpc.net.tunnel.add({
                     name: input.name,
                     config:
                       input.config.selection === 'paste'

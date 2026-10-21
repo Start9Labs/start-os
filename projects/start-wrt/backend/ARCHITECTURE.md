@@ -81,12 +81,12 @@ ethernet
 
 wifi
   ├─ get / set / edit   # SSID, passwords, radio settings
-  ├─ blackout-get / blackout-set
+  ├─ blackout-get / blackout-set / blackout-apply
   └─ generate-password
 
 vpn-server              # Inbound WireGuard VPN
   ├─ list / set / delete
-  └─ peer-add / peer-delete
+  └─ peer-add / peer-delete / peer-rename / peer-set-dns-injection
 
 vpn-client              # Outbound WireGuard VPN
   ├─ list / create / update / delete
@@ -145,7 +145,7 @@ Also handles WAN access schedules — time-of-day rules that enable/disable WAN 
 
 Manages SSID, per-radio settings (band, channel, enabled, broadcast), and multi-password config. Each password maps to a profile via dynamic VLAN. The admin password uses `WifiDynamicVlan::ALLOWED`; all others use `REQUIRED`.
 
-Manages WiFi blackout schedules via crontab (`/etc/crontabs/root`).
+Manages WiFi blackout schedules: every Wi-Fi reload re-applies the state for the current time, and crontab (`/etc/crontabs/root`) lines re-apply it at each window boundary.
 
 Creates `WifiStation` (password entries) and `WifiVlan` (VLAN mapping) sections in the `wireless` UCI config.
 
@@ -216,6 +216,20 @@ Low-level UCI, file, and shell access. These are vestigial — all features now 
 | `verify.rs`                       | Factory QC checks (firmware integrity, EEPROM password, SSID broadcast)                                                                                                                                                                                      |
 | `templates/`                      | `client.conf.template` — WireGuard peer client-config template                                                                                                                                                                                               |
 | `error.rs`                        | `ErrorKind` enum and `Error` type                                                                                                                                                                                                                            |
+
+## TypeScript bindings
+
+RPC structs derive `visit_rs::VisitFields` and enums derive
+`visit_rs::VisitVariants`, supplying raw facts and static traversal.
+Adjacent `rpc_toolkit::reflect_ts!` bridges normalize serde metadata and render TypeScript while retaining generic
+payload bounds and default generic inlining. RPC interprets raw `visit(ts(...))`
+hints; signing containers use explicit storage opacity and a `string` literal.
+Local `type_attributes` selectors collect compiler-resolved wire/conversion types
+from existing literals. Raw descriptors retain every member; serde skips and
+renames do not affect reflection. Streaming roots register beside their owners
+with `rpc_toolkit::ts_export!`;
+`ctrl/examples/generate_rpc_bindings.rs` collects the `events` namespace and
+traverses `main_api()` for the RPC tree.
 
 ## UCI Library (uciedit)
 
@@ -288,7 +302,7 @@ Shared, OpenWrt-native typed sections live in `uciedit/src/openwrt.rs`; feature-
 - Validation: `InvalidValue`, `WanPortWithProfile`, `DhcpStaticHostsInSubnet`, `SubnetCollision`
 - UCI shell-out: `UciEdit` (failed `uci` CLI invocation)
 
-Auth-specific RPC error codes: 7 (incorrect password), 34 (authorization — triggers frontend logout), 40 (uninitialized).
+An RPC error carries its `ErrorKind` value as `code` and the kind's name as `message`. Code 34 (authorization) triggers frontend logout.
 
 ## Common Pitfalls
 

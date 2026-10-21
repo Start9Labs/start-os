@@ -76,7 +76,7 @@ export class OSService {
     const { startosRegistry } = await firstValueFrom(this.patch.watch$('ui'))
 
     this.catalog$.next(
-      await this.api.checkOSUpdate({
+      await this.api.rpc.registry.os.version.get({
         registry: startosRegistry,
         serverId: id,
       }),

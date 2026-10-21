@@ -8,7 +8,6 @@ use pkcs8::der::AnyRef;
 use pkcs8::{PrivateKeyInfoRef, SubjectPublicKeyInfo};
 use serde::{Deserialize, Serialize};
 use sha2::Sha512;
-use ts_rs::TS;
 
 use crate::prelude::*;
 use crate::sign::commitment::Digestable;
@@ -120,12 +119,15 @@ impl SignatureScheme for AnyScheme {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, TS)]
-#[ts(export, type = "string")]
+#[derive(Clone, Debug, PartialEq, Eq, VisitVariants)]
+#[visit(opaque, ts(type = "z.string()"))]
 #[non_exhaustive]
 pub enum AnySigningKey {
     Ed25519(<Ed25519 as SignatureScheme>::SigningKey),
 }
+
+rpc_toolkit::reflect_ts!(AnySigningKey);
+rpc_toolkit::ts_export!(AnySigningKey, namespaces = [""]);
 impl AnySigningKey {
     pub fn scheme(&self) -> AnyScheme {
         match self {
@@ -153,7 +155,6 @@ impl<'a> TryFrom<PrivateKeyInfoRef<'a>> for AnySigningKey {
 }
 impl pkcs8::EncodePrivateKey for AnySigningKey {
     fn to_pkcs8_der(&self) -> pkcs8::Result<pkcs8::SecretDocument> {
-        use pkcs8::EncodePrivateKey;
         match self {
             Self::Ed25519(s) => s.to_pkcs8_der(),
         }
@@ -193,12 +194,15 @@ impl Serialize for AnySigningKey {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TS)]
-#[ts(export, type = "string")]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, VisitVariants)]
+#[visit(opaque, ts(type = "z.string()"))]
 #[non_exhaustive]
 pub enum AnyVerifyingKey {
     Ed25519(<Ed25519 as SignatureScheme>::VerifyingKey),
 }
+
+rpc_toolkit::reflect_ts!(AnyVerifyingKey);
+rpc_toolkit::ts_export!(AnyVerifyingKey, namespaces = [""]);
 impl AnyVerifyingKey {
     pub fn scheme(&self) -> AnyScheme {
         match self {
@@ -250,7 +254,6 @@ impl<'a> TryFrom<SubjectPublicKeyInfo<AnyRef<'a>, BitStringRef<'a>>> for AnyVeri
 }
 impl pkcs8::EncodePublicKey for AnyVerifyingKey {
     fn to_public_key_der(&self) -> pkcs8::spki::Result<pkcs8::Document> {
-        use pkcs8::spki::EncodePublicKey;
         match self {
             Self::Ed25519(s) => s.to_public_key_der(),
         }
@@ -309,11 +312,14 @@ impl digest::Update for AnyDigest {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, TS)]
-#[ts(export, type = "string")]
+#[derive(Clone, Debug, PartialEq, Eq, VisitVariants)]
+#[visit(opaque, ts(type = "z.string()"))]
 pub enum AnySignature {
     Ed25519(<Ed25519 as SignatureScheme>::Signature),
 }
+
+rpc_toolkit::reflect_ts!(AnySignature);
+rpc_toolkit::ts_export!(AnySignature, namespaces = [""]);
 /// The DER document wrapping an [`AnySignature`]: the scheme's algorithm
 /// identifier plus the raw signature bytes. PEM-armored ("SIGNATURE") in the
 /// legacy wire form, bare base64 in the compact one.

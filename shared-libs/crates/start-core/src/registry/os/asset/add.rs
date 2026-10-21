@@ -9,7 +9,6 @@ use imbl_value::InternedString;
 use itertools::Itertools;
 use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 use url::Url;
 
 use crate::context::CliContext;
@@ -79,22 +78,21 @@ pub fn remove_api<C: Context>() -> ParentHandler<C> {
         )
 }
 
-#[derive(Debug, Deserialize, Serialize, TS)]
+#[derive(Debug, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct AddAssetParams {
-    #[ts(type = "string")]
     pub version: Version,
-    #[ts(type = "string")]
     pub platform: InternedString,
-    #[ts(type = "string")]
     pub url: Url,
     #[serde(rename = "__Auth_signer")]
-    #[ts(skip)]
+    #[visit(ts(skip))]
     pub signer: AnyVerifyingKey,
     pub signature: AnySignature,
     pub commitment: Blake3Commitment,
 }
+
+rpc_toolkit::reflect_ts!(AddAssetParams);
+rpc_toolkit::ts_export!(AddAssetParams, namespaces = [""]);
 
 async fn add_asset(
     ctx: RegistryContext,
@@ -295,23 +293,23 @@ pub async fn cli_add_asset(
     Ok(())
 }
 
-#[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[derive(Debug, Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct RemoveAssetParams {
-    #[ts(type = "string")]
     #[arg(help = "help.arg.os-version")]
     pub version: Version,
-    #[ts(type = "string")]
     #[arg(help = "help.arg.platform")]
     pub platform: InternedString,
     #[serde(rename = "__Auth_signer")]
-    #[ts(skip)]
+    #[visit(ts(skip))]
     #[arg(skip)]
     pub signer: Option<AnyVerifyingKey>,
 }
+
+rpc_toolkit::reflect_ts!(RemoveAssetParams);
+rpc_toolkit::ts_export!(RemoveAssetParams, namespaces = [""]);
 
 fn warn_if_absent(params: &RemoveAssetParams, removed: bool) -> Result<(), Error> {
     if !removed {

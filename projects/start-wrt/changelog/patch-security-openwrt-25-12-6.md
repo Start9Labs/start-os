@@ -1,0 +1,1 @@
+- **Update the OpenWrt base to 25.12.6**, including the hostapd fix for security advisory 2026-1 (malformed Wi-Fi 7 multi-link frames could crash the access point) and updated OpenSSL, wolfSSL, mbed TLS, and CA certificates.

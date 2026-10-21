@@ -136,27 +136,30 @@ impl HashSessionToken {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct Session {
     pub logged_in: DateTime<Utc>,
     pub last_active: DateTime<Utc>,
     pub user_agent: Option<String>,
 }
+rpc_toolkit::reflect_ts!(Session);
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginRes {
     pub session: String,
 }
+rpc_toolkit::reflect_ts!(LoginRes);
 
-#[derive(Debug, Clone, Deserialize, Serialize, Parser)]
+#[derive(Debug, Clone, Deserialize, Serialize, Parser, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginParams {
     pub password: String,
     #[serde(default)]
     pub user_agent: Option<String>,
 }
+rpc_toolkit::reflect_ts!(LoginParams);
 
 /// Read and parse the shadow file to get the password hash for a user
 async fn get_shadow_hash(username: &str) -> Result<Option<String>, Error> {
@@ -218,12 +221,7 @@ pub async fn check_password(password: &str) -> Result<(), Error> {
 
     match hash {
         None => {
-            /*
-                start-wrt will be initialized with a password which will persist across factory resets.
-
-                However in the case of a reflash, the root user will have no password;
-                Which is the default for openwrt
-            */
+            // Root has no password until setup sets one; a factory reset clears it.
             println!("No password has been set. Please set a password.");
             Ok(())
         }
@@ -377,7 +375,7 @@ pub async fn login_impl(
     Ok(hash_token.to_login_res())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct LogoutParams {
     /// Session hash injected by auth middleware
@@ -385,6 +383,7 @@ pub struct LogoutParams {
     #[arg(skip)]
     pub session_hash: Option<String>,
 }
+rpc_toolkit::reflect_ts!(LogoutParams);
 
 #[instrument(skip_all)]
 pub async fn logout(
@@ -398,11 +397,12 @@ pub async fn logout(
     Ok(())
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Parser)]
+#[derive(Debug, Clone, Deserialize, Serialize, Parser, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct VerifyPasswordParams {
     pub password: String,
 }
+rpc_toolkit::reflect_ts!(VerifyPasswordParams);
 
 #[instrument(skip_all)]
 pub async fn verify_password_impl(
@@ -412,12 +412,13 @@ pub async fn verify_password_impl(
     check_password(&password).await
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Parser)]
+#[derive(Debug, Clone, Deserialize, Serialize, Parser, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct ResetPasswordParams {
     pub old_password: String,
     pub new_password: String,
 }
+rpc_toolkit::reflect_ts!(ResetPasswordParams);
 
 /// Update a user's password hash in /etc/shadow
 async fn update_shadow_hash(username: &str, new_hash: &str) -> Result<(), Error> {
@@ -599,11 +600,12 @@ async fn cli_reset_password(
     Ok(())
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct CheckInitializedRes {
     pub initialized: bool,
 }
+rpc_toolkit::reflect_ts!(CheckInitializedRes);
 
 #[instrument(skip_all)]
 pub async fn check_initialized_impl(_ctx: ServerContext) -> Result<CheckInitializedRes, Error> {
@@ -613,11 +615,12 @@ pub async fn check_initialized_impl(_ctx: ServerContext) -> Result<CheckInitiali
     })
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, Parser)]
+#[derive(Debug, Clone, Deserialize, Serialize, Parser, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct SetInitialPasswordParams {
     pub password: String,
 }
+rpc_toolkit::reflect_ts!(SetInitialPasswordParams);
 
 #[instrument(skip_all)]
 pub async fn set_initial_password_impl(
