@@ -1,5 +1,5 @@
 use std::collections::VecDeque;
-use std::net::{IpAddr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::sync::Arc;
 
 use clap::Parser;
@@ -27,6 +27,8 @@ use crate::tunnel::db::TunnelDatabase;
 use crate::util::serde::{HandlerExtSerde, Pem, display_serializable};
 use crate::util::tui::{choose, parse_as, prompt, prompt_multiline};
 
+pub(crate) mod listener;
+
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, VisitFields)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
@@ -34,6 +36,67 @@ pub struct WebserverInfo {
     pub enabled: bool,
     pub listen: Option<SocketAddr>,
     pub certificate: Option<TunnelCertData>,
+}
+
+impl WebserverInfo {
+    pub(crate) fn reserves_plain_forward(&self, source: SocketAddrV4, count: u16) -> bool {
+        self.listen
+            .and_then(ipv4_listener_addr)
+            .is_some_and(|listen| {
+                (listen.ip().is_unspecified() || listen.ip() == source.ip())
+                    && source.port() <= listen.port()
+                    && listen.port() <= source.port().saturating_add(count.saturating_sub(1))
+            })
+    }
+}
+
+fn ipv4_listener_addr(listen: SocketAddr) -> Option<SocketAddrV4> {
+    match listen {
+        SocketAddr::V4(addr) => Some(addr),
+        SocketAddr::V6(addr) => {
+            let ip = if addr.ip().is_unspecified() {
+                Ipv4Addr::UNSPECIFIED
+            } else {
+                addr.ip().to_ipv4_mapped()?
+            };
+            Some(SocketAddrV4::new(ip, addr.port()))
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn plain_forwards_respect_configured_ui_address_and_ranges() {
+        let source = "203.0.113.4:443".parse().unwrap();
+        let mut web = WebserverInfo::default();
+        assert!(!web.reserves_plain_forward(source, 1));
+        for listen in [
+            "0.0.0.0:443",
+            "203.0.113.4:443",
+            "[::]:443",
+            "[::ffff:203.0.113.4]:443",
+        ] {
+            web.listen = Some(listen.parse().unwrap());
+            assert!(web.reserves_plain_forward(source, 1));
+            assert!(web.reserves_plain_forward("203.0.113.4:442".parse().unwrap(), 2));
+            assert!(!web.reserves_plain_forward("203.0.113.4:442".parse().unwrap(), 1));
+            assert!(!web.reserves_plain_forward("203.0.113.4:444".parse().unwrap(), 1));
+        }
+        for listen in [
+            "203.0.113.5:443",
+            "127.0.0.1:443",
+            "[::1]:443",
+            "0.0.0.0:8443",
+        ] {
+            web.listen = Some(listen.parse().unwrap());
+            assert!(!web.reserves_plain_forward(source, 1));
+        }
+        web.listen = Some("0.0.0.0:65535".parse().unwrap());
+        assert!(web.reserves_plain_forward("203.0.113.4:65534".parse().unwrap(), 2));
+    }
 }
 
 rpc_toolkit::reflect_ts!(WebserverInfo);

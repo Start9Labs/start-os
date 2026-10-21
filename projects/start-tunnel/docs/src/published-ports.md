@@ -45,6 +45,8 @@ Deleting a device or demoting it to a client clears all of its published ports (
 
 When IP Version includes IPv4 (`IPv4` or `IPv4 + IPv6`), an optional **Hostname** routes by TLS SNI so several hostnames can share one external port. SNI demultiplexing is IPv4-only — in `IPv4 + IPv6` mode it applies to the IPv4 side only, and the IPv6 side is a plain pinhole (each device already has its own address, so no demux is needed) — and it cannot be combined with a port range.
 
+SNI hostnames can share the admin UI's listen port. Connections with an unmatched hostname or without SNI reach the admin UI. Plain IPv4 forwards and port ranges that include the UI's configured listen address are rejected, including while the UI is disabled; change the UI listen address first to use that port for a plain forward.
+
 A device can access its own service through its published SNI hostname or the shared port's fallback. For these hairpin connections, the service sees StartTunnel's in-tunnel address as the client. Connections from other devices retain their original client address.
 
 Connected devices can also create SNI hostname routes **automatically**, the same way they open automatic ports. A device asks over PCP (preferred) or, when PCP can't get through, over a UPnP vendor action the tunnel advertises (`X_START9_AddHostnameMapping`). Either way the route appears in the **Automatic** table, carries a lease, and expires on its own if the device stops renewing it — and, like every automatic mapping, it can only point at the requesting device's own address.

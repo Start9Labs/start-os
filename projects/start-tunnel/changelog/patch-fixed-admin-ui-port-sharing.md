@@ -1,0 +1,1 @@
+- Keep the admin UI reachable when SNI forwards share its listen port. Reject plain forwards and port ranges that include the UI's configured listen address.

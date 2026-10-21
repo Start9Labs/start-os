@@ -1278,11 +1278,6 @@ pub async fn add_forward(
     })?;
     let source = SocketAddrV4::new(external_ip, external_port);
 
-    // Port 80 is owned by the HTTP→HTTPS redirect (default on per public IPv4).
-    // The redirect and a port-80 forward are mutually exclusive — reject rather
-    // than silently override, so the user disables the redirect first. The
-    // redirect is active on this IP (and thus conflicts) only when it's a public
-    // IPv4 the user hasn't turned off.
     let covers_80 =
         external_port <= 80 && 80 <= external_port.saturating_add(count.saturating_sub(1));
     if covers_80 {
@@ -1317,7 +1312,6 @@ pub async fn add_forward(
         return Ok(());
     }
 
-    // The span must fit the u16 port range on both the external and target side.
     if external_port.checked_add(count - 1).is_none()
         || target.port().checked_add(count - 1).is_none()
     {
@@ -1330,12 +1324,14 @@ pub async fn add_forward(
         ));
     }
 
-    // DB is the source of truth: atomically reject an overlapping or duplicate
-    // forward and reserve the slot in one mutate before touching the dataplane
-    // (mirrors add_sni_forward). A detached peek-then-insert let two concurrent
-    // adds both pass the overlap check.
     ctx.db
         .mutate(|db| {
+            if db.as_webserver().de()?.reserves_plain_forward(source, count) {
+                return Err(Error::new(
+                    eyre!(t!("tunnel.api.ui-port-reserved")),
+                    ErrorKind::InvalidRequest,
+                ));
+            }
             db.as_port_forwards_mut().mutate(|pf| {
                 if let Some(conflict) = pf.overlapping(source, count) {
                     return Err(Error::new(
