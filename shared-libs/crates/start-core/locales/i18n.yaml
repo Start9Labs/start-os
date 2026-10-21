@@ -7130,6 +7130,27 @@ about.view-or-edit-injected-dns-records:
   fr_FR: "Voir ou modifier les enregistrements DNS injectés"
   pl_PL: "Wyświetl lub edytuj wstrzyknięte rekordy DNS"
 
+tunnel.web.listen-port-forwarded:
+  en_US: "An enabled plain port forward includes this listen port; disable or remove it, or use SNI hostnames first."
+  de_DE: "Eine aktivierte einfache Portweiterleitung enthält diesen Port; deaktivieren oder entfernen Sie sie zuerst oder verwenden Sie SNI-Hostnamen."
+  es_ES: "Un reenvío de puertos simple habilitado incluye este puerto; desactívelo o elimínelo primero, o use nombres SNI."
+  fr_FR: "Une redirection de port simple activée inclut ce port ; désactivez-la ou supprimez-la d'abord, ou utilisez des noms SNI."
+  pl_PL: "Włączone zwykłe przekierowanie portu obejmuje ten port; najpierw je wyłącz lub usuń albo użyj nazw SNI."
+
+tunnel.web.ui-fallback-failed:
+  en_US: "UI fallback registration on %{address} failed (code %{code})"
+  de_DE: "Registrierung der UI-Ausweichroute auf %{address} fehlgeschlagen (Code %{code})"
+  es_ES: "Error al registrar la ruta de respaldo de la interfaz en %{address} (código %{code})"
+  fr_FR: "Échec de l'enregistrement de la route de secours de l'interface sur %{address} (code %{code})"
+  pl_PL: "Rejestracja trasy zapasowej panelu na %{address} nie powiodła się (kod %{code})"
+
+tunnel.web.ui-port-reserved:
+  en_US: "This port range includes the enabled admin UI's listen port; use SNI hostnames to share it, or disable the UI or change its listen address first."
+  de_DE: "Dieser Portbereich enthält den Port der aktivierten Verwaltungsoberfläche; verwenden Sie SNI-Hostnamen zur gemeinsamen Nutzung oder deaktivieren Sie zuerst die Oberfläche oder ändern Sie ihre Adresse."
+  es_ES: "Este rango incluye el puerto de la interfaz de administración habilitada; use nombres SNI para compartirlo, o desactive primero la interfaz o cambie su dirección."
+  fr_FR: "Cette plage inclut le port de l'interface d'administration activée ; utilisez des noms SNI pour le partager, ou désactivez d'abord l'interface ou changez son adresse."
+  pl_PL: "Ten zakres obejmuje port włączonego panelu administracyjnego; użyj nazw SNI, aby go współdzielić, albo najpierw wyłącz panel lub zmień jego adres."
+
 # volume.rs
 volume.restore-conflict:
   en_US: "Cannot roll back %{id}: both the backup and the live data contain files, so it is not clear which is current. Resolve this manually before retrying."
