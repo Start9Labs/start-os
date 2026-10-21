@@ -43,11 +43,12 @@ put space between a header and what follows it. A routed page declares no
 `router-outlet ::ng-deep + * { display: block; inline-size: min(100%, …); margin-inline: auto }`,
 sets all of them once.
 
-**A list's gutter is `--tui-padding-inline` plus `tuiCellStretch`.** Set
+**A list's gutter is `--tui-padding-inline` plus `tuiCellStretch`** (Taiga 5.27+). Set
 `--tui-padding-inline: 0.5rem` on the element holding the rows and put `tuiCellStretch` on each
 `[tuiCell]`. The row's hover background bleeds into the gutter while its text stays aligned with
 the header above. A `margin-inline: -0.5rem` on the list paired with padding on every row is
-the same thing done by hand.
+the same thing done by hand. Pins up to 5.22 ignore the token and fix the gutter at 1rem, so
+there a different width still takes that hand-written CSS until the bump.
 
 Responsive: **no `@media` for the app-standard mobile swap.** CSS: `tui-root._mobile &` /
 `:host-context(tui-root._mobile)`. TS/template: `inject(TUI_BREAKPOINT)` / `WA_IS_MOBILE` +

@@ -177,6 +177,6 @@ Handles paste/drop/autofill/predictive keyboards; SSR-safe. Never keydown-regex 
 | Icon or avatar beside a label                   | `display: flex; align-items: center`    | `tuiCell="s"`; on a component, `hostDirectives: [TuiCell]` + `tuiCellOptionsProvider({ size: 's' })`            |
 | Initials avatar                                 | `initial(name)` util                    | `name \| tuiInitials` (kit) as `tuiAvatar` content; an `<img>` beside it falls back to them when it fails       |
 | Radio group                                     | `tuiGroup` of `tuiRadio` rows           | `tui-radio-list` + `[items]` + `[itemContent]`                                                                  |
-| Full-width row in a dialog/card/list            | `inline-size: 100%` + padding CSS       | `tuiCell` + `tuiCellStretch`, gutter from `--tui-padding-inline` on the container                               |
+| Full-width row in a dialog/card/list            | `inline-size: 100%` + padding CSS       | `tuiCell` + `tuiCellStretch`; its gutter is in styling.md                                                       |
 | Copy button, rating, pagination, PIN, carousel… | write it                                | it's in kit — check the docs first                                                                              |
 | Empty state                                     | custom illustration div                 | `tui-block-status`                                                                                              |
