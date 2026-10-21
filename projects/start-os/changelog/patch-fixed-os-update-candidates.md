@@ -1,0 +1,1 @@
+- **The Software Update badge clears after an OS update, and the update dialog opens only when a newer release is available.**

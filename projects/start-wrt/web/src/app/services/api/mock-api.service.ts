@@ -88,7 +88,10 @@ import {
 } from './api.service'
 import { UciFile, UciSection } from './types'
 import { dhcpLanSlaacDhcpv6 } from 'src/app/routes/lan/routes/ipv6/uci/mocks'
-import { hasHostnameEndpoint } from 'src/app/routes/outbound/utils'
+import {
+  configDnsServers,
+  hasHostnameEndpoint,
+} from 'src/app/routes/outbound/utils'
 import { windowsCover } from 'src/app/utils/schedule'
 import { VPN_PEERS_WOULD_BREAK_CODE } from 'src/app/services/vpn-peers'
 import {
@@ -831,11 +834,7 @@ export class MockApiService extends ApiService {
       access_to_new_profiles: this.grantsAccessToNewProfiles(params),
       owns_lan: params.owns_lan,
       dns_override: params.dns_override ?? [],
-      dns_source: params.dns_override?.length
-        ? 'custom'
-        : params.outbound !== 'wan'
-          ? 'vpn'
-          : 'system',
+      dns_source: this.mockDnsSource(params.outbound, params.dns_override),
     }
 
     this.mockProfiles = [...this.mockProfiles, newProfile]
@@ -850,6 +849,17 @@ export class MockApiService extends ApiService {
       interface: newProfile.interface,
       vlan_tag: newProfile.vlan_tag,
     }
+  }
+
+  private mockDnsSource(
+    outbound: string,
+    dnsOverride: readonly unknown[] = [],
+  ): string {
+    if (dnsOverride.length) return 'custom'
+    if (outbound === 'wan') return 'system'
+    return this.mockVpnClients.find(c => c.id === outbound)?.dns.length
+      ? 'vpn'
+      : 'system-outside-vpn'
   }
 
   private guardVpnPeers(
@@ -912,11 +922,10 @@ export class MockApiService extends ApiService {
             access_to_new_profiles: this.grantsAccessToNewProfiles(params),
             owns_lan: params.owns_lan,
             dns_override: params.dns_override ?? [],
-            dns_source: params.dns_override?.length
-              ? 'custom'
-              : params.outbound !== 'wan'
-                ? 'vpn'
-                : 'system',
+            dns_source: this.mockDnsSource(
+              params.outbound,
+              params.dns_override,
+            ),
           }
         : p,
     )
@@ -1772,6 +1781,7 @@ export class MockApiService extends ApiService {
       supports_ipv6: true,
       mtu: null,
       hostname_endpoint: false,
+      dns: ['10.2.0.1'],
     },
     {
       id: 'wg_mullvad',
@@ -1786,6 +1796,7 @@ export class MockApiService extends ApiService {
       supports_ipv6: false,
       mtu: 1280,
       hostname_endpoint: false,
+      dns: [],
     },
   ]
 
@@ -1819,6 +1830,7 @@ export class MockApiService extends ApiService {
         mtu:
           Number(/(^|\n)\s*MTU\s*=\s*(\d+)/i.exec(params.config)?.[2]) || null,
         hostname_endpoint: hasHostnameEndpoint(params.config),
+        dns: params.dns ?? configDnsServers(params.config),
       },
     ]
     this.logActivity(
@@ -1838,6 +1850,7 @@ export class MockApiService extends ApiService {
             label: params.label,
             target: params.target,
             mtu: params.mtu ?? null,
+            dns: params.dns ?? c.dns,
           }
         : c,
     )
