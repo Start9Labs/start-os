@@ -15,6 +15,11 @@ use crate::wan::WAN_INTERFACE;
 const RECORD: &str = "etc/startwrt/migrations";
 
 /// Ordered oldest first. Append only: a record counts entries of this list.
+///
+/// Each migration must leave correct a configuration it already migrated, or
+/// one from any earlier release. The runner replays migrations after power
+/// loss before the record advances, after a restored backup without a
+/// record, and on a pre-runner install.
 const MIGRATIONS: &[Migration] = &[
     Migration::RemoveEtcNftablesRules,
     Migration::StripUnreferencedWanZoneVpns,
@@ -90,6 +95,9 @@ pub async fn forget_unless_restored(root: &Path, archive_listing: &str) -> Resul
 }
 
 /// The root CA marks a configuration the daemon has started on.
+///
+/// Holds while only the daemon creates the CA, after this runner at boot.
+/// A CA created earlier makes every fresh router replay every migration.
 async fn has_run_startwrt(root: &Path) -> bool {
     let ca = crate::ssl::ca_cert_path();
     tokio::fs::try_exists(root.join(ca.strip_prefix("/").unwrap_or(&ca)))
@@ -252,6 +260,31 @@ config interface 'wan'
         let firewall = read(&dir, "etc/config/firewall");
         assert!(!firewall.contains("wg_old"));
         assert!(firewall.contains("list network 'wan'"));
+    }
+
+    #[tokio::test]
+    async fn every_migration_is_safe_to_rerun() {
+        let dir = router(None, true);
+        write(&dir, "etc/config/network", PPPOE_WAN);
+        write(&dir, "etc/nftables.d/12-startwrt-sni-divert.nft", "");
+        write(
+            &dir,
+            "etc/config/firewall",
+            "config zone 'wan'\n\toption name 'wan'\n\toption input 'REJECT'\n\toption output 'ACCEPT'\n\toption forward 'REJECT'\n\tlist network 'wan'\n\tlist network 'wg_old'\n",
+        );
+        for migration in MIGRATIONS {
+            migration.apply(dir.path()).await.unwrap();
+        }
+        let migrated = [
+            read(&dir, "etc/config/network"),
+            read(&dir, "etc/config/firewall"),
+        ];
+        for migration in MIGRATIONS {
+            migration.apply(dir.path()).await.unwrap();
+        }
+        assert_eq!(read(&dir, "etc/config/network"), migrated[0]);
+        assert_eq!(read(&dir, "etc/config/firewall"), migrated[1]);
+        assert_eq!(wan_ipv6(&dir).as_deref(), Some("1"));
     }
 
     #[tokio::test]
