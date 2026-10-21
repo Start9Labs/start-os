@@ -3951,15 +3951,6 @@ export const StartOsRecoveryInfo: z.ZodObject<{
   description:
     "The public view of a backup found on a target: enough to identify it, and none of\n[`BackupUnencryptedMetadata`]'s key material.",
 })
-export const StartParams: z.ZodObject<{
-  id: typeof PackageId
-  force: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
-}> = /* @__PURE__ */ object({
-  id: PackageId,
-  force: wire(z.boolean().optional(), z.boolean()),
-}).meta({
-  id: 'StartParams',
-})
 export const SubscribeRes: z.ZodObject<{
   dump: typeof Dump
   guid: typeof Guid
@@ -6622,7 +6613,7 @@ export const Api = {
           _RETURN: /* @__PURE__ */ SideloadResponse,
         },
         start: {
-          _PARAMS: /* @__PURE__ */ StartParams,
+          _PARAMS: /* @__PURE__ */ ControlParams,
           _RETURN: /* @__PURE__ */ z.null(),
         },
         stats: {

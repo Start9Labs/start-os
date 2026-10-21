@@ -22,6 +22,8 @@ fn serde_name(v: &impl Serialize) -> String {
 
 pub const WAN_INTERFACE: &str = "wan";
 pub const WAN6_INTERFACE: &str = "wan6";
+/// netifd alias for the `wan` interface's layer-3 device.
+pub const WAN6_DEVICE: &str = "@wan";
 const DDNS_SECTION: &str = "wan";
 
 /// The `auto` option of a network interface, written without touching its other options.
@@ -486,7 +488,7 @@ pub async fn ipv4_set<C: CtrlContext>(
 
 fn default_wan6() -> NetworkInterface {
     NetworkInterface {
-        device: "@wan".to_string(),
+        device: WAN6_DEVICE.to_string(),
         proto: InterfaceProto::DHCPV6,
         reqaddress: Some("try".to_string()),
         reqprefix: Some("auto".to_string()),
@@ -652,7 +654,7 @@ pub async fn ipv6_set<C: CtrlContext>(
                     ..default_wan6()
                 },
                 WanIpv6Mode::Dhcpv6 => NetworkInterface {
-                    device: "@wan".to_string(),
+                    device: WAN6_DEVICE.to_string(),
                     proto: InterfaceProto::DHCPV6,
                     reqaddress: Some("force".to_string()),
                     reqprefix: Some(reqprefix.unwrap_or_else(|| "auto".to_string())),
@@ -667,7 +669,7 @@ pub async fn ipv6_set<C: CtrlContext>(
                     // Parse lan_prefix "addr/len" into ip6prefix for odhcpd distribution
                     let ip6prefix = req.lan_prefix.clone();
                     NetworkInterface {
-                        device: "@wan".to_string(),
+                        device: WAN6_DEVICE.to_string(),
                         proto: InterfaceProto::STATIC,
                         ip6addr,
                         ip6gw: req.gateway.clone(),
@@ -676,7 +678,7 @@ pub async fn ipv6_set<C: CtrlContext>(
                     }
                 }
                 WanIpv6Mode::SixRd => NetworkInterface {
-                    device: "@wan".to_string(),
+                    device: WAN6_DEVICE.to_string(),
                     proto: InterfaceProto::SIXRD,
                     peeraddr: req.border_relay.clone(),
                     ip6prefix: req.ip6prefix.clone(),
@@ -1003,11 +1005,7 @@ pub async fn dns_set<C: CtrlContext>(
                 );
                 if ctx.effectful() {
                     // Re-read configs to regenerate SmartDNS with the updated state
-                    let smartdns_groups = {
-                        let arena2 = Arena::new();
-                        let cfgs2 = parse_all(ctx.uci_root(), &arena2, &["startwrt"]).await?;
-                        dns::collect_smartdns_groups(&cfgs2)
-                    };
+                    let smartdns_groups = dns::load_smartdns_groups(ctx.uci_root()).await?;
                     dns::apply_smartdns_groups(smartdns_groups).await?;
                     // Use reload_system() which restarts network + smartdns + firewall + dnsmasq
                     profiles::reload_system().await?;
