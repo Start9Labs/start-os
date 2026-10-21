@@ -6,8 +6,7 @@ use imbl_value::InternedString;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, visit_rs::VisitFields)]
-#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(ts(type = "z.string()"))]
 pub struct GatewayId(InternedString);
 
 rpc_toolkit::reflect_ts!(GatewayId);

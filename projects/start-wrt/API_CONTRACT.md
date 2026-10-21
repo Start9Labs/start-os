@@ -118,7 +118,7 @@ CLI before prompting for a new one).
 struct VerifyPasswordParams {
     password: String,
 }
-// Response: null (Authorization error on a wrong password)
+// Response: null (IncorrectPassword, code 7, on a wrong password)
 ```
 
 ### `auth.check-initialized`
@@ -426,6 +426,7 @@ enum WanIpv6Mode {
 struct WanIpv6Response {
     /// A wan6 proto startwrt doesn't manage (e.g. a hand-configured `6in4`)
     /// is reported as Disabled, not an error; the config is left untouched.
+    /// A disabled wan6 still reports the settings it keeps.
     mode: WanIpv6Mode,
     /// Static mode
     address: Option<String>,
@@ -464,7 +465,8 @@ struct WanIpv6SetRequest {
     border_relay: Option<String>,
 }
 // Response: null
-// Backend: updates UCI network.wan6, restarts network, then restarts odhcpd
+// Backend: updates UCI network.wan6, restarts network, then restarts odhcpd.
+// Disabled sets `auto 0` on wan6, keeping its other options; any other mode clears it.
 ```
 
 ### `wan.mac-get`
@@ -632,6 +634,8 @@ struct LanIpv4SetRequest {
 }
 // Response: null
 // Backend: updates UCI network.lan ipaddr (netmask /24), restarts network.
+// Inbound VPN peers the new block would break fail the call with
+//   ErrorKind::VpnPeersWouldBreak unless force is set.
 // Validation: address must fall inside an RFC 1918 block at one of the
 //   selectable /16 boundaries, else ErrorKind::InvalidRequest:
 //     10.0.0.0/8     — second octet 0..=255
@@ -1240,6 +1244,8 @@ struct OutboundVpn {
     /// True when the peer Endpoint is a hostname. Such a VPN can only target
     /// "Internet"; the web UI offers no other target for it.
     hostname_endpoint: bool,
+    /// Resolvers reached through the tunnel (the interface's `list dns`).
+    dns: Vec<IpAddr>,
 }
 // Response: Vec<OutboundVpn>
 ```
@@ -1253,6 +1259,9 @@ struct OutboundVpnCreateRequest {
     target: String,
     /// Raw WireGuard .conf file contents
     config: String,
+    /// Replaces the .conf's `DNS =` servers. null/absent keeps them.
+    #[serde(default)]
+    dns: Option<Vec<IpAddr>>,
 }
 
 #[derive(Serialize)]
@@ -1264,6 +1273,16 @@ struct OutboundVpnCreateResponse {
 // An uncommented `MTU` in the .conf (1280–1500) becomes `option mtu`; a
 // commented `#MTU` is ignored. The dedicated vpn_<X> egress zone also gets
 // `option mtu_fix 1` (TCP MSS clamp) as a backstop against too-high MTU.
+// The address entries of the .conf's `DNS =` line (or `dns`, when given)
+// become `list dns`; search-domain entries are dropped.
+//
+// DNS for a profile routed through the VPN, first match wins: the profile's
+// custom servers, then the VPN's `list dns`, then the system custom servers —
+// all reached through the tunnel and failing closed with it (dnsmasq
+// `server <ip>@<iface>` for the VPN's own servers, a per-profile SmartDNS group
+// with `-interface <iface>` upstreams otherwise). With none of them, the
+// profile resolves through the ISP's servers outside the tunnel and reports
+// `dns_source = "system-outside-vpn"`.
 //
 // Validation (InvalidValue on failure): the config MUST be a WireGuard .conf —
 // it requires `[Interface]` + `[Peer]` headers, a valid PrivateKey/PublicKey
@@ -1314,10 +1333,14 @@ struct OutboundVpnUpdateRequest {
     /// submits the field's current value.
     #[serde(default)]
     mtu: Option<u16>,
+    /// Replaces the interface's `list dns`. null/absent keeps it.
+    #[serde(default)]
+    dns: Option<Vec<IpAddr>>,
 }
 // Response: null
-// Backend: updates label+target metadata and the interface `mtu` option.
-// Bounces the WG interface only when the MTU actually changed.
+// Backend: updates label+target metadata and the interface `mtu` and `dns`
+// options. Bounces the WG interface only when the MTU actually changed; a DNS
+// change rewrites the DNS forwarding of the profiles routed through it.
 //
 // Validation: same `target` rules as vpn-client.create, except the disabled
 // and chained-endpoint checks run ONLY when `target` differs from the stored
@@ -1443,8 +1466,8 @@ struct VpnServerPeerInput {
 
 #[derive(Serialize)]
 struct VpnServerPeerAddResponse {
-    /// WireGuard client config (only when server generates the keypair)
-    client_config: Option<String>,
+    /// WireGuard client config; `PrivateKey = <PRIVATE_KEY>` when the request supplied `public_key`
+    client_config: String,
     public_key: String,
     ip: String,
 }
@@ -1606,9 +1629,38 @@ full-week semantics apply to the profile `profiles.schedule-get` /
 
 ```rust
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct BlackoutSetRequest {
     windows: Vec<BlackoutWindow>,
+    /// Authorize turning Wi-Fi off now when a window covers the current time.
+    #[serde(default)]
+    confirm_immediate_blackout: bool,  // serialized as `confirmImmediateBlackout`
 }
+
+// Response:
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct BlackoutSetResult {
+    /// True (and nothing applied) when a window covers the router's current
+    /// time and the caller hasn't confirmed. False once applied.
+    pending_immediate_blackout: bool,  // `pendingImmediateBlackout`
+}
+// Backend: without confirmation it validates, applies nothing, and reports
+// whether the windows cover the current time in the router's timezone; with
+// confirmation it saves them and applies the blackout state at once — Wi-Fi
+// down inside a window, up outside every window (a radio disabled in its own
+// settings stays down). Every Wi-Fi reload, boot, and timezone change applies
+// that state again, and cron runs `wifi.blackout-apply` at each window boundary.
+```
+
+### `wifi.blackout-apply`
+
+Internal endpoint, **not called from the frontend**. Applies the blackout state
+for the current time, exactly as `wifi.blackout-set` does after saving. The
+blackout crontab runs it at every window boundary.
+
+```rust
+// Request: {}
 // Response: null
 ```
 
@@ -1720,11 +1772,18 @@ struct SecurityProfile {
     /// Always present in responses — an empty array when unset, never null
     #[serde(default)]
     dns_override: Vec<DnsServer>,
-    /// "system", "custom", or "vpn"
+    /// "system", "custom", "vpn", or "system-outside-vpn" (a VPN-routed profile
+    /// resolving through the ISP outside the tunnel)
     dns_source: String,
 }
 // Response: SecurityProfile
 ```
+
+`lan_access` reflects current firewall forwardings together with the stored
+`access_to_new_profiles` flag. `ALL` requires access to every other profile and
+the flag. No access to another existing profile returns `SAME_PROFILE` with the
+flag false; a sole profile returns `ALL` when the flag is set. Other
+combinations return `other_profiles` with the stored flag.
 
 ### `profiles.create`
 
@@ -1757,6 +1816,9 @@ struct ProfileCreateRequest {
 //   would blackhole that profile.
 ```
 
+On create and set, `lan_access: "ALL"` stores `access_to_new_profiles: true`,
+`"SAME_PROFILE"` stores `false`, and `other_profiles` preserves the supplied flag.
+
 ### `profiles.set`
 
 ```rust
@@ -1773,6 +1835,8 @@ struct ProfileSetRequest {
 }
 // Response: ProfileId
 // Validation: same gateway_ip and outbound checks as profiles.create.
+// Inbound VPN peers the new subnet would break fail the call with
+//   ErrorKind::VpnPeersWouldBreak unless force is set.
 ```
 
 ### `profiles.delete`
@@ -2141,6 +2205,7 @@ The daemon (`backend/ctrl/src/bins/daemon.rs`) also serves:
 | `wifi.edit`                         | WiFi            | CLI editor                  |
 | `wifi.blackout-get`                 | WiFi            |                             |
 | `wifi.blackout-set`                 | WiFi            |                             |
+| `wifi.blackout-apply`               | WiFi            | Internal, blackout cron     |
 | `wifi.generate-password`            | WiFi            |                             |
 | `wifi.regulatory`                   | WiFi            |                             |
 | `profiles.list`                     | Profiles        |                             |

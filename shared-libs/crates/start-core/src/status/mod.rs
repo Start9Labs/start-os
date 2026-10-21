@@ -17,11 +17,6 @@ pub mod health_check;
 pub struct StatusInfo {
     pub health: BTreeMap<HealthCheckId, NamedHealthCheckResult>,
     pub error: Option<ErrorData>,
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub started: Option<DateTime<Utc>>,
     pub desired: DesiredStatus,
 }
