@@ -590,6 +590,9 @@ export type SshAddParamsInput = z.input<typeof schemas.SshAddParams>
  * [`BackupUnencryptedMetadata`]'s key material.
  */
 export type StartOsRecoveryInfo = z.output<typeof schemas.StartOsRecoveryInfo>
+export type SubscribeIndexParamsInput = z.input<
+  typeof schemas.SubscribeIndexParams
+>
 export type SubscribeRes = z.output<typeof schemas.SubscribeRes>
 export type TestSmtpParamsInput = z.input<typeof schemas.TestSmtpParams>
 export type UmountParamsInput = z.input<typeof schemas.UmountParams>

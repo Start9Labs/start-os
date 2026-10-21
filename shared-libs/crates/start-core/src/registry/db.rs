@@ -14,8 +14,8 @@ use tracing::instrument;
 use crate::context::CliContext;
 pub use crate::db::{ApplyWithPathParams as ApplyParams, DumpParams, SubscribeRes};
 use crate::prelude::*;
-use crate::registry::context::RegistryContext;
 use crate::registry::RegistryDatabase;
+use crate::registry::context::RegistryContext;
 use crate::registry::mirror::index_mirror;
 use crate::registry::package::index::ReaderParams;
 use crate::rpc_continuations::{Guid, RpcContinuation};
@@ -137,7 +137,12 @@ pub async fn subscribe(
         Some(reader) if reader.admin => (None, ctx.db.dump_and_sub(pointer).await),
         reader => {
             let signer = match reader {
-                Some(reader) if peek.as_index().as_package().grants_private_access(&reader)? => {
+                Some(reader)
+                    if peek
+                        .as_index()
+                        .as_package()
+                        .grants_private_access(&reader)? =>
+                {
                     Some(reader.signer)
                 }
                 _ => None,

@@ -17,7 +17,7 @@ pub use imbl_value::Value;
 pub use json_patch;
 pub use json_ptr;
 pub use model::{DestructureMut, HasModel, Model, ModelExt, Pointer};
-pub use patch::{DiffPatch, Dump, Revision, diff};
+pub use patch::{diff, DiffPatch, Dump, Revision};
 pub use patch_db_macro::HasModel;
 pub use store::{MutateResult, PatchDb, Store, TypedPatchDb};
 pub use subscriber::{DbWatch, Subscriber, TypedDbWatch};

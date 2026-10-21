@@ -12,15 +12,15 @@ use rpc_toolkit::{Middleware, RpcRequest, RpcResponse};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
+use crate::PackageId;
 use crate::context::RpcContext;
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
-use crate::PackageId;
 use crate::registry::os::index::OsVersionInfoMap;
-use crate::registry::package::icon::IconStore;
 use crate::registry::package::get::{
     GetPackageParams, GetPackageResponse, GetPackageResponseFull, PackageDetailLevel,
 };
+use crate::registry::package::icon::IconStore;
 use crate::registry::package::index::PackageVersionInfo;
 use crate::util::VersionString;
 use crate::util::lshw::LshwDevice;

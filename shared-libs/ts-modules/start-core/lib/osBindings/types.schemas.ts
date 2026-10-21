@@ -5118,7 +5118,7 @@ export const OsIndex: z.ZodObject<{ versions: typeof OsVersionInfoMap }> =
 export const PackageVersionInfo: z.ZodIntersection<
   z.ZodObject<{
     /**
-     * Absent for clients that load icons from the registry's `/icons/` route.
+     * Present only in `package.get` responses to StartOS before 0.4.0.3. Others load it from the registry's `/icons/` route.
      */
     icon: z.ZodOptional<z.ZodNullable<typeof DataUrl>>
     dependencyMetadata: z.ZodRecord<z.ZodString, typeof DependencyMetadata>
@@ -5141,11 +5141,11 @@ export const PackageVersionInfo: z.ZodIntersection<
   .intersection(
     object({
       /**
-       * Absent for clients that load icons from the registry's `/icons/` route.
+       * Present only in `package.get` responses to StartOS before 0.4.0.3. Others load it from the registry's `/icons/` route.
        */
       icon: DataUrl.nullable().optional().meta({
         description:
-          "Absent for clients that load icons from the registry's `/icons/` route.",
+          "Present only in `package.get` responses to StartOS before 0.4.0.3. Others load it from the registry's `/icons/` route.",
       }),
       dependencyMetadata: z.record(z.string(), DependencyMetadata),
       sourceVersion: wire(

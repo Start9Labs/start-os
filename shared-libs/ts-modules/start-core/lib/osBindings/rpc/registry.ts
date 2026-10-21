@@ -199,6 +199,9 @@ export type SetPackagePrivateParamsInput = z.input<
 export type SignAssetParamsInput = z.input<typeof schemas.SignAssetParams>
 export type SignerInfo = z.output<typeof schemas.SignerInfo>
 export type SignerInfoInput = z.input<typeof schemas.SignerInfo>
+export type SubscribeIndexParamsInput = z.input<
+  typeof schemas.SubscribeIndexParams
+>
 export type SubscribeRes = z.output<typeof schemas.SubscribeRes>
 export type VersionSignerParamsInput = z.input<
   typeof schemas.VersionSignerParams

@@ -316,16 +316,36 @@ mod tests {
         let version: VersionString = "1.0.0:0".parse().unwrap();
         let dep: PackageId = "dep".parse().unwrap();
         assert!(store.read_all(&id, &version).await.unwrap().is_none());
-        store.ensure_matches(&id, &version, &icons(b"a")).await.unwrap();
+        store
+            .ensure_matches(&id, &version, &icons(b"a"))
+            .await
+            .unwrap();
 
         store.write(&id, &version, &icons(b"a")).await.unwrap();
-        assert_eq!(store.read_all(&id, &version).await.unwrap(), Some(icons(b"a")));
         assert_eq!(
-            store.read(&id, &version, Some(&dep)).await.unwrap().unwrap().mime,
+            store.read_all(&id, &version).await.unwrap(),
+            Some(icons(b"a"))
+        );
+        assert_eq!(
+            store
+                .read(&id, &version, Some(&dep))
+                .await
+                .unwrap()
+                .unwrap()
+                .mime,
             "image/svg+xml"
         );
-        assert!(store.read(&id, &version, Some(&id)).await.unwrap().is_none());
-        store.ensure_matches(&id, &version, &icons(b"a")).await.unwrap();
+        assert!(
+            store
+                .read(&id, &version, Some(&id))
+                .await
+                .unwrap()
+                .is_none()
+        );
+        store
+            .ensure_matches(&id, &version, &icons(b"a"))
+            .await
+            .unwrap();
         store
             .ensure_matches(&id, &version, &icons(b"b"))
             .await
@@ -360,7 +380,10 @@ mod tests {
         store.import_inline(&db).await.unwrap();
         let id = "pkg".parse().unwrap();
         assert_eq!(
-            store.read_all(&id, &"1.0.0:0".parse().unwrap()).await.unwrap(),
+            store
+                .read_all(&id, &"1.0.0:0".parse().unwrap())
+                .await
+                .unwrap(),
             Some(expected)
         );
         assert!(
