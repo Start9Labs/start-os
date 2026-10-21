@@ -82,13 +82,13 @@ ethernet
 
 wifi
   ├─ get / set / edit   # SSID, passwords, radio settings
-  ├─ blackout-get / blackout-set
+  ├─ blackout-get / blackout-set / blackout-apply
   ├─ generate-password
   └─ regulatory        # Countries + per-band channels
 
 vpn-server              # Inbound WireGuard VPN
   ├─ list / set / delete
-  └─ peer-add / peer-delete
+  └─ peer-add / peer-delete / peer-rename / peer-set-dns-injection
 
 vpn-client              # Outbound WireGuard VPN
   ├─ list / create / update / delete
@@ -150,7 +150,7 @@ Also handles WAN access schedules — time-of-day rules that enable/disable WAN 
 
 Manages SSID, per-radio settings (band, channel, enabled, broadcast), and multi-password config. Each password maps to a profile via dynamic VLAN. `dynamic_vlan` is set per `wifi-iface`: `WifiDynamicVlan::ALLOWED`, with the first profile-less (admin) password as the interface `key`, when one exists; otherwise `REQUIRED` with no key.
 
-Manages WiFi blackout schedules via crontab (`/etc/crontabs/root`).
+Manages WiFi blackout schedules: every Wi-Fi reload re-applies the state for the current time, and crontab (`/etc/crontabs/root`) lines re-apply it at each window boundary.
 
 Creates `WifiStation` (password entries) and `WifiVlan` (VLAN mapping) sections in the `wireless` UCI config.
 
@@ -201,7 +201,7 @@ Low-level UCI, file, and shell access. These are vestigial — all features now 
 | `ssh_keys.rs`                     | SSH public key CRUD (`/etc/dropbear/authorized_keys`)                                                                                                                                                                                                        |
 | `vpn_client.rs` / `vpn_server.rs` | WireGuard VPN management                                                                                                                                                                                                                                     |
 | `dns.rs`                          | DNS server configuration                                                                                                                                                                                                                                     |
-| `dns_inject.rs`                   | RFC 2136 DNS UPDATE ingress: per-device published records served through per-profile dnsmasq (`dns.injected-list`)                                                                                                                                           |
+| `dns_inject.rs`                   | RFC 2136 DNS UPDATE ingress: records published by permitted devices and inbound VPN peers, served through per-profile dnsmasq (`dns.injected-list`)                                                                                                          |
 | `activity.rs`                     | Activity logging via SQLite                                                                                                                                                                                                                                  |
 | `backup.rs` / `diagnostics.rs`    | Backup/restore and diagnostic bundles (via continuations)                                                                                                                                                                                                    |
 | `logs.rs`                         | WebSocket log streaming                                                                                                                                                                                                                                      |
@@ -308,7 +308,7 @@ Shared, OpenWrt-native typed sections live in `uciedit/src/openwrt.rs`; feature-
 - Validation: `InvalidValue`, `WanPortWithProfile`, `DhcpStaticHostsInSubnet`, `SubnetCollision`, `MissingDeviceAddress`, `PublishedPortsUseIpv6`
 - UCI errors: `UciEdit` (any `uciedit` parse, I/O, or write-conflict failure, and failed `uci` CLI calls)
 
-Auth-specific RPC error codes: 7 (incorrect password) and 34 (authorization — triggers frontend logout).
+An RPC error carries its `ErrorKind` value as `code` and the kind's name as `message`. Code 34 (authorization) triggers frontend logout.
 
 ## Common Pitfalls
 

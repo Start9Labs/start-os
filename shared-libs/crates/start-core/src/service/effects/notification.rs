@@ -12,8 +12,6 @@ pub struct CreateNotificationParams {
     /// changelogs, structured error reports). When omitted, the notification
     /// has no extra payload.
     #[serde(default)]
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub data: Option<String>,
 }
 

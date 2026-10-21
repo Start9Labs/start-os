@@ -486,14 +486,17 @@ export default class DrivesPage {
     const dataDrive = this.form.controls.dataDrive.value!
 
     this.tasks.run(async () => {
-      const result = await this.api.installOs({
-        // Null preserves the pre-installed OS.
-        osDrive: this.stateService.osDrive ? null : osDrive.stablePath,
-        dataDrive: {
-          stablePath: dataDrive.stablePath,
-          wipe,
+      const result = await this.api.rpc.setup.installOs(
+        {
+          // Null preserves the pre-installed OS.
+          osDrive: this.stateService.osDrive ? null : osDrive.stablePath,
+          dataDrive: {
+            stablePath: dataDrive.stablePath,
+            wipe,
+          },
         },
-      })
+        { timeout: 5 * 60 * 1000 },
+      )
 
       this.stateService.dataDriveGuid = result.guid ?? ''
       this.stateService.attach = result.attach
@@ -529,14 +532,16 @@ export default class DrivesPage {
     this.dialogSub?.unsubscribe()
 
     this.tasks.run(async () => {
-      await this.api.shutdown()
+      await this.api.rpc.setup.shutdown({})
       this.shuttingDown.set(true)
     }, 'Beginning shutdown')
   }
 
   private async loadDrives() {
     try {
-      this.drives.set((await this.api.getDisks()).filter(d => d.capacity > 0))
+      this.drives.set(
+        (await this.api.rpc.setup.disk.list({})).filter(d => d.capacity > 0),
+      )
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

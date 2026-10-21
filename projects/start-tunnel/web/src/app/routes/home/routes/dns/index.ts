@@ -243,7 +243,7 @@ export default class Dns {
       .subscribe(() =>
         this.tasks.run(
           async () =>
-            await this.api.removeDnsRecord({
+            await this.api.rpc.dns.remove({
               name: record.name,
               type: record.type,
             }),

@@ -92,7 +92,7 @@ La dirección IP o el nombre de dominio donde los clientes que se conectan a tra
 
 ### Perfil de seguridad
 
-El conjunto inicial de derechos de acceso y restricciones asignados a los clientes cuando se conectan al servidor VPN. Selecciona un perfil o un apagado creado previamente, o crea uno nuevo.
+El conjunto inicial de derechos de acceso y restricciones asignados a los clientes cuando se conectan al servidor VPN. Selecciona un perfil o un apagado creado previamente, o crea uno nuevo. El perfil queda fijado una vez creado el servidor; para mover una VPN a otro perfil, elimínala y añade una nueva.
 
 ### Puerto
 
@@ -111,7 +111,7 @@ La dirección IP asignada en la red de área local. Se configuró cuando se dio 
 
 ### Enrutamiento
 
-Muestra el modo de enrutamiento del tráfico del cliente. «Todo el tráfico» enruta todo el tráfico de internet a través del túnel VPN. «Solo LAN» enruta únicamente el tráfico de la red local a través del túnel. Usa el menú de acciones para cambiar entre modos.`,
+Muestra el modo de enrutamiento del tráfico del cliente. «Todo el tráfico» enruta todo el tráfico de internet a través del túnel VPN. «Solo LAN» enruta únicamente el tráfico de la red local a través del túnel. Para cambiarlo, elimina el cliente y vuelve a añadirlo con el enrutamiento que quieras.`,
   '/inbound/client/dialog-add': `## VPN entrantes
 
 ### Etiqueta
@@ -139,7 +139,7 @@ Muestra la configuración como texto. Usa el botón de copiar para copiarla al p
 
 ### QR
 
-Muestra la configuración como un código QR. Escanéalo con la aplicación móvil de WireGuard para configurar el dispositivo cliente sin introducir los datos manualmente.`,
+Muestra la configuración como un código QR cuando el router ha generado la clave privada del dispositivo. Escanéalo con la aplicación móvil de WireGuard para configurar el dispositivo cliente sin introducir los datos manualmente.`,
   '/inbound/client/dialog-rename': `## Renombrar cliente
 
 ### Nombre
@@ -187,7 +187,7 @@ Enruta una VPN a través de otra para mayor privacidad. Tu tráfico sale a trav�
 Sube un archivo de configuración de WireGuard de tu proveedor de VPN (Mullvad, ProtonVPN, IVPN, etc.) para crear un nuevo cliente VPN.`,
   '/outbound/vpn': `## VPN salientes
 
-<details><summary>Etiqueta</summary> Un nombre amigable para identificar esta conexión VPN. Usa algo descriptivo como «Mullvad Suecia» o «VPN del trabajo». </details> <details><summary>Se conecta a</summary> Hacia dónde debe enrutarse el tráfico de esta VPN:<ul><li><b>Internet:</b> El tráfico sale directamente a internet a través de esta VPN.</li><li><b>Otra VPN:</b> Encadena primero a través de otra VPN para mayor privacidad. Tu tráfico se cifrará varias veces y saldrá a través de varios servidores.</li></ul><b>Nota:</b> Encadenar VPN aumenta la latencia y puede reducir las velocidades. </details> <details><summary>Ruta de conexión</summary> Muestra la ruta completa que sigue tu tráfico desde esta VPN hasta internet. Por ejemplo: Mullvad → Proton → Internet significa que el tráfico es cifrado por Mullvad, enviado a través de Proton y luego sale a internet.</details>`,
+<details><summary>Etiqueta</summary> Un nombre amigable para identificar esta conexión VPN. Usa algo descriptivo como «Mullvad Suecia» o «VPN del trabajo». </details> <details><summary>Se conecta a</summary> Hacia dónde debe enrutarse el tráfico de esta VPN:<ul><li><b>Internet:</b> El tráfico sale directamente a internet a través de esta VPN.</li><li><b>Otra VPN:</b> Encadena primero a través de otra VPN para mayor privacidad. Tu tráfico se cifrará varias veces y saldrá a través de varios servidores.</li></ul><b>Nota:</b> Encadenar VPN aumenta la latencia y puede reducir las velocidades. </details> <details><summary>Servidores DNS</summary> Resolutores a los que acceden a través del túnel los perfiles enrutados por esta VPN sin servidores DNS propios. Déjelo en blanco para usar los servidores DNS personalizados del sistema a través del túnel o, si el sistema usa el DNS de su proveedor de Internet, los servidores de este fuera del túnel. </details> <details><summary>Ruta de conexión</summary> Muestra la ruta completa que sigue tu tráfico desde esta VPN hasta internet. Por ejemplo: Mullvad → Proton → Internet significa que el tráfico es cifrado por Mullvad, enviado a través de Proton y luego sale a internet.</details>`,
   '/outbound/dialog': `## VPN salientes
 
 Los clientes VPN crean una conexión saliente a un servidor VPN, permitiendo a los dispositivos enviar y recibir datos como si estuvieran conectados directamente a la red privada. Enmascara tu dirección IP, sortea restricciones geográficas y protege los datos sensibles en redes Wi-Fi públicas.
@@ -202,7 +202,11 @@ Sube un archivo **.conf** de WireGuard de tu proveedor de VPN. Este archivo cont
 
 ### Destino
 
-El siguiente salto en la ruta de una conexión VPN en capas.`,
+El siguiente salto en la ruta de una conexión VPN en capas.
+
+### Servidores DNS
+
+Opcional. Reemplaza los servidores DNS del archivo de configuración. Los perfiles enrutados por esta VPN resuelven a través del túnel con estos servidores, salvo que definan los suyos. Si no hay ninguno aquí, en la configuración ni en el DNS personalizado del sistema, esos perfiles resuelven a través de su proveedor de Internet, fuera del túnel.`,
   '/profiles': `## Perfiles
 
 Los perfiles de seguridad definen segmentos de red con permisos aislados. Cada perfil controla el acceso a internet y la comunicación con otros perfiles de tu red local.
@@ -213,7 +217,7 @@ Un nombre descriptivo para el perfil de seguridad, como «Invitados» o «Dispos
 
 ### DNS
 
-Qué servidores DNS usan los dispositivos de este perfil: los del sistema («Sistema»), los servidores personalizados del propio perfil («Personalizado») o, cuando se enruta a través de una VPN, los de la VPN («VPN»).
+Qué servidores DNS usan los dispositivos de este perfil: los del sistema («Sistema»), los servidores personalizados del propio perfil («Personalizado») o, cuando se enruta a través de una VPN, los de la VPN («VPN»). «Sistema (fuera de la VPN)» significa que un perfil enrutado por una VPN no tiene servidores DNS que usar a través del túnel y resuelve a través de su proveedor de Internet, fuera de él.
 
 ### Saliente
 

@@ -21,6 +21,9 @@ use crate::util::io::{TmpDir, create_file, open_file};
 use crate::util::serde::{HandlerExtSerde, apply_expr};
 use crate::util::{Apply, Invoke};
 
+#[cfg(test)]
+mod tests;
+
 pub const SKIP_ENV: &[&str] = &["TERM", "container", "HOME", "HOSTNAME"];
 
 pub fn s9pk() -> ParentHandler<CliContext> {

@@ -15,13 +15,13 @@ The admin password is user-chosen (minimum 12 characters, any format) and stored
 
 ### Password lifecycle
 
-| Stage                          | WiFi password                                                                                                        | Admin password                                   | Other settings                           |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ | ---------------------------------------- |
-| **Manufacturing**              | Vendor programs EEPROM tag 0x2F                                                                                      | Not set                                          | Default config                           |
-| **End user unboxing**          | Read from EEPROM on first boot, written to UCI                                                                       | User creates via captive portal                  | User configures                          |
-| **Factory reset** (no microSD) | Re-read from EEPROM on reboot                                                                                        | Cleared — user sets via captive portal on reboot | Wiped (overlay gone), firmware unchanged |
-| **Keep settings** (microSD)    | Carried over in the restored `/etc/config/wireless`; read from EEPROM after reboot only if that config has no AP key | User sets in wizard before reboot                | **Preserved**, firmware replaced         |
-| **Fresh Start** (microSD)      | Re-read from EEPROM after reflash → reboot                                                                           | User sets in wizard before reboot                | Wiped, firmware replaced                 |
+| Stage                          | WiFi password                                                                                                            | Admin password                                   | Other settings                           |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------ | ---------------------------------------- |
+| **Manufacturing**              | Vendor programs EEPROM tag 0x2F                                                                                          | Not set                                          | Default config                           |
+| **End user unboxing**          | Read from EEPROM on first boot, written to UCI                                                                           | User creates via captive portal                  | User configures                          |
+| **Factory reset** (no microSD) | Re-read from EEPROM on reboot                                                                                            | Cleared — user sets via captive portal on reboot | Wiped (overlay gone), firmware unchanged |
+| **Keep settings** (microSD)    | Carried over in the restored `/etc/config/wireless`; written from EEPROM instead if the old system had no admin password | User sets in wizard before reboot                | **Preserved**, firmware replaced         |
+| **Fresh Start** (microSD)      | Written from EEPROM by the wizard before reboot                                                                          | User sets in wizard before reboot                | Wiped, firmware replaced                 |
 
 If EEPROM tag 0x2F is missing or invalid (DIY install on a board the vendor never programmed, or a corrupt blob), **the AP does not come up**. The operator must connect over ethernet (or serial) and either add a Wi-Fi password with the **Admin** profile in the web UI, which also enables the radios, or use `startwrt-cli set-wifi-password` (see "Manual password provisioning" below) to provision one into UCI.
 
@@ -62,9 +62,9 @@ Manufacturing happens before the device leaves the vendor's facility. The vendor
 
 ### StartWRT-side handling
 
-`startwrt-ctrld` does not participate in EEPROM programming. On every eMMC boot, the daemon's normal-mode startup calls `restore_wifi_if_needed`, which (a microSD boot runs setup mode instead; see "Setup-mode AP"):
+`startwrt-ctrld` does not participate in EEPROM programming. On every eMMC boot, the daemon's normal-mode startup calls `restore_wifi_if_needed`, which:
 
-1. Returns early if `/etc/config/wireless` already has a key on the AP interface.
+1. Returns early if an admin password is set in `/etc/shadow`. A factory reset clears it; a router that has been set up keeps its own Wi-Fi config, including one with no Admin password or with radios disabled.
 2. Reads EEPROM tag 0x2F, validating: ONIE magic, total_length, trailing CRC-32, tag presence, 12-byte length, every byte in `PASSWORD_CHARS`.
 3. On success: writes the password to UCI, runs `wifi reload`, and brings up SSID `StartWRT`.
 4. On any failure (including unprogrammed EEPROM): logs a warning and leaves the AP unconfigured. Recovery is via an **Admin** Wi-Fi password added in the web UI, or `startwrt-cli set-wifi-password` (above).
@@ -97,6 +97,7 @@ Both first-time setup (Part 2) and reflash (Part 3) use the same mechanism:
 1. **DNS hijacking** — `dnsmasq` configured with `address=/#/<router IP>` makes all DNS queries resolve to the router, and DHCP option 114 advertises `http://<router IP>/` as the captive-portal URI.
 2. **Forwarding block** — the nftables table `inet startwrt_captive` rejects forwarded traffic and redirects port 53 to the router, so clients using their own DNS server, Private DNS, or DNS-over-HTTPS stay inside the portal too.
 3. **Captive portal detection** — Modern OSes probe known URLs on network join. When DNS hijacking redirects these probes, the OS detects a captive portal and auto-opens a browser pointed at the router's setup page.
+4. **Host gate** — While the portal is active, the web server answers a request for any name other than `router.lan` or an address literal with a redirect to `http://router.lan/`, and declines the TLS handshake for any other SNI rather than presenting the `router.lan` certificate. A website typed into a browser therefore lands on the setup page under the router's own name, and the OS probes receive the redirect that signals a portal.
 
 Both scenarios use the same `StartWRT` SSID and the same EEPROM-derived WiFi password. They differ only in what the setup page does.
 
@@ -157,7 +158,7 @@ The user connects to `StartWRT` using the sticker password. The captive portal r
 |       No        |        Yes        | Wizard reachable over ethernet only; offers **Keep settings** or **Fresh Start** |
 |       No        |        No         | Wizard reachable over ethernet only; offers **Fresh Start**                      |
 
-In the "No EEPROM password" rows, a Fresh Start (or a Keep settings flash whose restored config has no AP key) boots without WiFi. Recover by adding an **Admin** Wi-Fi password in the web UI, or with `startwrt-cli set-wifi-password`.
+In the "No EEPROM password" rows, a Fresh Start boots without WiFi; Keep settings keeps the restored Wi-Fi config. Recover by adding an **Admin** Wi-Fi password in the web UI, or with `startwrt-cli set-wifi-password`.
 
 ### Path A: Keep settings (new admin password)
 
@@ -177,9 +178,9 @@ Physical access (microSD) = sufficient authorization.
 11. "Setup complete" — "Remove the microSD card and reboot your router."
 ```
 
-On first boot from eMMC: the restored `/etc/config/wireless` already has the AP key, so `restore_wifi_if_needed` skips EEPROM and the AP comes up with the existing settings. Admin login works immediately. Config files (firewall rules, WiFi profiles, SSH keys, etc.) are preserved via `sysupgrade` conffiles. User-installed package binaries are wiped — users must reinstall packages, though their config files are retained.
+On first boot from eMMC: the restored `/etc/config/wireless` brings up the AP. Admin login works immediately. Config files (firewall rules, WiFi profiles, SSH keys, etc.) are preserved via `sysupgrade` conffiles. User-installed package binaries are wiped — users must reinstall packages, though their config files are retained.
 
-`/etc/config/wireless` is preserved across Keep settings so that user-customized VLAN/profile state survives. `restore_wifi_if_needed` short-circuits when the AP interface already has a key, so the EEPROM fallback does not overwrite the restored config; it only kicks in if the restored wireless config is missing or incomplete.
+`/etc/config/wireless` is preserved across Keep settings so that user-customized VLAN/profile state survives. The wizard writes the admin password, so `restore_wifi_if_needed` never overwrites the restored config.
 
 ### Path B: Fresh Start (full wipe, new admin password)
 
@@ -191,12 +192,13 @@ On first boot from eMMC: the restored `/etc/config/wireless` already has the AP 
  5. Flash fresh firmware
  6. Provision eMMC boot partitions (boot0/boot1: bootinfo + FSBL, skipped when already current)
  7. Write admin hash → /etc/shadow on new overlay
- 8. Write the browser's timezone to /etc/config/system on the new overlay
- 9. Mark overlay FS_STATE_READY
-10. "Setup complete" — "Remove the microSD card and reboot your router."
+ 8. Write the browser's timezone → /etc/config/system on new overlay
+ 9. Write the EEPROM WiFi password → /etc/config/wireless on new overlay
+10. Mark overlay FS_STATE_READY
+11. "Setup complete" — "Remove the microSD card and reboot your router."
 ```
 
-On first boot from eMMC: daemon reads EEPROM → writes WiFi password to UCI → AP comes up. Admin login works immediately. All settings start fresh except the timezone, taken from the browser.
+On first boot from eMMC: the AP comes up with the sticker password. Admin login works immediately. All settings start fresh except the timezone, taken from the browser.
 
 ### Package Management
 
@@ -219,17 +221,14 @@ microSD boot (setup mode)?
 ├── Yes → Read EEPROM tag 0x2F
 │         ├── Found → Start "StartWRT" AP (max_num_sta=1) → captive portal → wizard
 │         └── Missing → Skip AP setup; wizard reachable over ethernet only
-└── No  → Normal boot
-          1. WiFi key present in /etc/config/wireless?
-          │   ├── Yes → skip restore
-          │   └── No  → Read EEPROM tag 0x2F
-          │             ├── Found → Write to UCI, reload WiFi
-          │             └── Missing → Log warning, no AP. Recover via an
-          │                            Admin Wi-Fi password in the web UI
-          │                            or startwrt-cli set-wifi-password
-          2. Admin password set?
-              ├── Yes → Normal operation
-              └── No  → Captive portal active (forces admin setup before normal browsing)
+└── No  → Normal boot: admin password set in /etc/shadow?
+          ├── Yes → Normal operation (Wi-Fi config left as is)
+          └── No  → Captive portal active (forces admin setup before normal browsing),
+                    and read EEPROM tag 0x2F:
+                    ├── Found → Write to UCI, reload WiFi
+                    └── Missing → Log warning, no AP. Recover via an
+                                   Admin Wi-Fi password in the web UI
+                                   or startwrt-cli set-wifi-password
 ```
 
 ---
@@ -300,7 +299,7 @@ None — plaintext password storage in EEPROM eliminates the need for `pbkdf2`, 
 | 6   | First-time admin              | GUI prompts for admin password when unset                                                                                   |
 | 7   | Factory reset                 | Overlay wiped → daemon re-reads EEPROM → WiFi restored, admin unset, captive portal active                                  |
 | 8   | Update path                   | Settings preserved (including `/etc/config/wireless`), `/etc/shadow` rewritten, admin re-prompted only if not set in wizard |
-| 9   | Fresh Start                   | Everything wiped, WiFi restored from EEPROM on reboot, admin re-prompted only if not set in wizard                          |
+| 9   | Fresh Start                   | Everything wiped, WiFi written from EEPROM before reboot, admin re-prompted only if not set in wizard                       |
 | 10  | Identity PSK                  | After reset, sticker WiFi works; profiles can be recreated                                                                  |
 | 11  | `set-wifi-password` (default) | Generates 12-char password, prints to stdout, AP comes up with that key                                                     |
 | 12  | `set-wifi-password --manual`  | Hidden prompt + confirmation; rejects bad length / non-charset entries                                                      |

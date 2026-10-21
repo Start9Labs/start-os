@@ -1,18 +1,32 @@
 use std::path::Path;
 
-use rpc_toolkit::ts::{HandlerTSBindings, handler_bindings};
+use rpc_toolkit::ts::{Bindings, HandlerTSBindings, export_namespace, handler_bindings};
 use start_core::context::{DiagnosticContext, InitContext, RpcContext, SetupContext};
 use start_core::registry::context::RegistryContext;
 use start_core::tunnel::context::TunnelContext;
+
+/// Writes `<name>.ts` (types only) beside `<name>.schemas.ts` (runtime zod).
+fn write_pair(
+    directory: &Path,
+    name: &str,
+    bindings: Bindings,
+) -> Result<(), Box<dyn std::error::Error>> {
+    std::fs::write(directory.join(format!("{name}.ts")), bindings.types)?;
+    std::fs::write(
+        directory.join(format!("{name}.schemas.ts")),
+        bindings.schemas,
+    )?;
+    Ok(())
+}
 
 fn write_api(
     directory: &Path,
     name: &str,
     handler: impl HandlerTSBindings,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let bindings = handler_bindings(&handler, "Api")?.ok_or("API bindings are disabled")?;
-    std::fs::write(directory.join(format!("{name}.ts")), bindings)?;
-    Ok(())
+    let bindings = handler_bindings(&handler, "Api", &format!("./{name}.schemas"))?
+        .ok_or("API bindings are disabled")?;
+    write_pair(directory, name, bindings)
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -46,14 +60,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         start_core::service::effects::handler::<start_core::service::effects::context::EffectContext>(
         ),
     )?;
-    std::fs::write(
-        directory.join("types.ts"),
-        rpc_toolkit::ts::export_namespace("start_core", "")?,
+    write_pair(
+        directory,
+        "types",
+        export_namespace("start_core", "", "./types.schemas")?,
     )?;
     std::fs::create_dir_all(directory.join("tunnel"))?;
-    std::fs::write(
-        directory.join("tunnel/types.ts"),
-        rpc_toolkit::ts::export_namespace("start_core", "tunnel")?,
+    write_pair(
+        &directory.join("tunnel"),
+        "types",
+        export_namespace("start_core", "tunnel", "./types.schemas")?,
     )?;
     std::fs::write(
         directory.join("tunnel/index.ts"),
@@ -62,6 +78,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::fs::write(
         directory.join("index.ts"),
         "export * from './types'\nexport * as Tunnel from './tunnel'\n",
+    )?;
+    std::fs::write(
+        directory.join("schemas.ts"),
+        "export * from './types.schemas'\nexport * as Tunnel from './tunnel/types.schemas'\nexport * as RPC from './rpc/schemas'\n",
+    )?;
+    std::fs::write(
+        directory.join("rpc/schemas.ts"),
+        "export { Api as StartOS } from './start-os.schemas'\nexport { Api as Setup } from './setup.schemas'\nexport { Api as Init } from './init.schemas'\nexport { Api as Diagnostic } from './diagnostic.schemas'\nexport { Api as Registry } from './registry.schemas'\nexport { Api as Tunnel } from './tunnel.schemas'\nexport { Api as Effects } from './effects.schemas'\n",
     )?;
     std::fs::write(
         directory.join("rpc/index.ts"),

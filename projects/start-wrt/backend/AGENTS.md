@@ -93,10 +93,11 @@ payload bounds and inline by default. Read the
 before adding custom wire hints or projections.
 
 `ctrl/examples/generate_rpc_bindings.rs`, behind the crate's `ts` feature, generates the `Api` tree from
-`main_api::<ServerContext>()` into `web/src/app/services/api/bindings.ts` and
-near-owner `rpc_toolkit::ts_export!(Type, namespaces = ["events"])` streaming
-registrations collected by namespace into `events.ts`. Requests use input shapes; returns and streaming events use output
-shapes. Both files are generated build inputs — never hand-edit them. CLI-only
+`main_api::<ServerContext>()` into `web/src/app/services/api/bindings.ts` (types)
+and `bindings.schemas.ts` (zod schemas), and near-owner
+`rpc_toolkit::ts_export!(Type, namespaces = ["events"])` streaming registrations
+collected by namespace into `events.ts` and `events.schemas.ts`. Requests use input shapes; returns and streaming events use output
+shapes. All four files are generated build inputs — never hand-edit them. CLI-only
 backup callbacks use `no_ts()`; the RPC download/upload endpoints remain typed.
 
 ## Adding a Typed UCI Section

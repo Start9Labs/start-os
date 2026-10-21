@@ -178,16 +178,18 @@ export class HeaderMenuComponent {
       .subscribe(() =>
         this.tasks.run(
           async () =>
-            await this.api[
-              action === 'restart' ? 'restartServer' : 'shutdownServer'
-            ]({}),
+            action === 'restart'
+              ? await this.api.rpc.server.restart({})
+              : await this.api.rpc.server.shutdown({}),
           `Beginning ${action}`,
         ),
       )
   }
 
   logout() {
-    this.api.logout({}).catch(e => console.error('Failed to log out', e))
+    this.api.rpc.auth
+      .logout({})
+      .catch(e => console.error('Failed to log out', e))
     this.auth.logout()
   }
 }

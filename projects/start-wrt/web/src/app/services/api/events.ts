@@ -1,111 +1,42 @@
-export type FlashMode = 'update' | 'fresh-start'
-export type FlashModeInput = 'update' | 'fresh-start'
-export type FlashParams = {
-  mode: FlashMode
-  password: string
-  /**
-   * Browser IANA timezone (e.g. "America/New_York") captured by the wizard.
-   * Carried into the fresh eMMC config since the wizard's live set-timezone
-   * only reaches the throwaway microSD overlay. Optional for older clients.
-   */
-  timezone: string | null
-}
-export type FlashParamsInput = {
-  mode: FlashModeInput
-  password: string
-  /**
-   * Browser IANA timezone (e.g. "America/New_York") captured by the wizard.
-   * Carried into the fresh eMMC config since the wizard's live set-timezone
-   * only reaches the throwaway microSD overlay. Optional for older clients.
-   */
-  timezone?: string | null
-}
+import type { z } from 'zod'
+import type * as schemas from './events.schemas'
+export type FlashMode = z.output<typeof schemas.FlashMode>
+export type FlashModeInput = z.input<typeof schemas.FlashMode>
+export type ProgressUnits = z.output<typeof schemas.ProgressUnits>
+export type ProgressUnitsInput = z.input<typeof schemas.ProgressUnits>
 
 /**
- * Snapshot of overall + per-phase progress, sent over WebSocket.
+ * Streaming event sent to the frontend during flash.
  */
-export type FullProgress = { overall: Progress; phases: NamedProgress[] }
+export type SetupEvent = z.output<typeof schemas.SetupEvent>
 
 /**
- * Snapshot of overall + per-phase progress, sent over WebSocket.
+ * Streaming event sent to the frontend during flash.
  */
-export type FullProgressInput = {
-  overall: ProgressInput
-  phases: NamedProgressInput[]
-}
-export type NamedProgress = { name: string; progress: Progress }
-export type NamedProgressInput = { name: string; progress: ProgressInput }
+export type SetupEventInput = z.input<typeof schemas.SetupEvent>
+export type FlashParams = z.output<typeof schemas.FlashParams>
+export type FlashParamsInput = z.input<typeof schemas.FlashParams>
 
 /**
  * Progress state for a single phase or overall operation.
  * Wire-compatible with start-os's `Progress` (serialized as untagged).
  */
-export type Progress =
-  /**
-   * Not started yet — serializes as `null`
-   */
-  | null
-  /**
-   * Complete — serializes as `true` (success) or `false` (failure)
-   */
-  | boolean
-  /**
-   * In progress
-   */
-  | { done: number; total: number | null; units: ProgressUnits | null }
+export type Progress = z.output<typeof schemas.Progress>
 
 /**
  * Progress state for a single phase or overall operation.
  * Wire-compatible with start-os's `Progress` (serialized as untagged).
  */
-export type ProgressInput =
-  /**
-   * Not started yet — serializes as `null`
-   */
-  | null
-  /**
-   * Complete — serializes as `true` (success) or `false` (failure)
-   */
-  | boolean
-  /**
-   * In progress
-   */
-  | { done: number; total?: number | null; units?: ProgressUnitsInput | null }
-export type ProgressUnits = 'bytes' | 'steps'
-export type ProgressUnitsInput = 'bytes' | 'steps'
+export type ProgressInput = z.input<typeof schemas.Progress>
+export type NamedProgress = z.output<typeof schemas.NamedProgress>
+export type NamedProgressInput = z.input<typeof schemas.NamedProgress>
 
 /**
- * Streaming event sent to the frontend during flash.
+ * Snapshot of overall + per-phase progress, sent over WebSocket.
  */
-export type SetupEvent =
-  | ({ phase: 'copying' } & {
-      copied: number
-      total: number
-      step: number
-      totalSteps: number
-    })
-  | ({ phase: 'status' } & {
-      message: string
-      step: number
-      totalSteps: number
-    })
-  | { phase: 'complete' }
-  | ({ phase: 'error' } & { message: string })
+export type FullProgress = z.output<typeof schemas.FullProgress>
 
 /**
- * Streaming event sent to the frontend during flash.
+ * Snapshot of overall + per-phase progress, sent over WebSocket.
  */
-export type SetupEventInput =
-  | ({ phase: 'copying' } & {
-      copied: number
-      total: number
-      step: number
-      totalSteps: number
-    })
-  | ({ phase: 'status' } & {
-      message: string
-      step: number
-      totalSteps: number
-    })
-  | { phase: 'complete' }
-  | ({ phase: 'error' } & { message: string })
+export type FullProgressInput = z.input<typeof schemas.FullProgress>

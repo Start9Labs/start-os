@@ -54,8 +54,10 @@ src/app/
 │   ├── vpn-exposed-port.ts   # Confirm dialog: published port bypasses VPN routing
 │   └── api/
 │       ├── api.service.ts    # Abstract API facade (the methods the UI calls) + aliases over generated types
-│       ├── bindings.ts       # Generated `Api` RPC tree — do not edit
+│       ├── bindings.ts       # Generated `Api` RPC tree types — do not edit
+│       ├── bindings.schemas.ts # Generated zod schemas for bindings.ts — do not edit
 │       ├── events.ts         # Generated streaming types — do not edit
+│       ├── events.schemas.ts # Generated zod schemas for events.ts — do not edit
 │       ├── live-api.service.ts
 │       ├── mock-api.service.ts
 │       └── types.ts          # UCI section types for the mock API

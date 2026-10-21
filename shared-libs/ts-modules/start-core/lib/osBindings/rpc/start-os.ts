@@ -1,3 +1,5 @@
+import type { z } from 'zod'
+import type * as schemas from './start-os.schemas'
 export type RpcHandler = {
   _PARAMS: unknown
   _RETURN?: unknown
@@ -29,12 +31,12 @@ export type RpcParamType<
     ? Method extends `${infer Head}.${infer Tail}`
       ? Head extends keyof Children
         ? Children[Head] extends RpcHandler
-          ? Root['_PARAMS'] & RpcParamType<Children[Head], Tail>
+          ? RpcParamType<Children[Head], Tail>
           : never
         : never
       : Method extends keyof Children
         ? Children[Method] extends RpcHandler
-          ? Root['_PARAMS'] & RpcParamType<Children[Method], ''>
+          ? RpcParamType<Children[Method], ''>
           : never
         : never
     : never
@@ -60,1541 +62,398 @@ export type RpcReturnType<
         : never
     : never
 
-export type AcmeProvider = string
-export type AcmeProviderInput = string
-export type ActionId = string
-export type ActionIdInput = string
-export type ActionInput = {
-  eventId: Guid
-  spec: Record<string, unknown>
-  value: Record<string, unknown> | null
+export type RpcSchemaTree<Schema> = {
+  [Key in keyof Schema as Key extends '_OPAQUE'
+    ? never
+    : Key]: Key extends '_PARAMS'
+    ? Schema[Key] extends z.ZodType
+      ? z.input<Schema[Key]>
+      : never
+    : Key extends '_RETURN'
+      ? Schema[Key] extends z.ZodType
+        ? z.output<Schema[Key]>
+        : never
+      : Key extends '_CHILDREN'
+        ? { [Name in keyof Schema[Key]]: RpcSchemaTree<Schema[Key][Name]> }
+        : never
 }
-export type ActionResult =
-  | (
-      | ({ version: '0' } & Exclude<ActionResultV0, null>)
-      | (null extends ActionResultV0 ? { version: '0' } : never)
-    )
-  | (
-      | ({ version: '1' } & Exclude<ActionResultV1, null>)
-      | (null extends ActionResultV1 ? { version: '1' } : never)
-    )
-export type ActionResultMember = {
-  /**
-   * A human-readable name or title of the value, such as "Last Active" or "Login Password"
-   */
-  name: string
-  /**
-   * (optional) A description of the value, such as an explaining why it exists or how to use it
-   */
-  description: string | null
-} & ActionResultValue
-export type ActionResultV0 = {
-  message: string
-  value: string | null
-  copyable: boolean
-  qr: boolean
-}
-export type ActionResultV1 = {
-  /**
-   * Primary text to display as the header of the response modal. e.g. "Success!", "Name Updated", or "Service Information", whatever makes sense
-   */
-  title: string
-  /**
-   * (optional) A general message for the user, just under the title. Rendered as Markdown, with a single line break kept as a line break.
-   */
-  message: string | null
-  /**
-   * (optional) Structured data to present inside the modal
-   */
-  result: ActionResultValue | null
-}
-export type ActionResultValue =
-  | ({ type: 'single' } & {
-      /**
-       * The actual string value to display. The UI renders it as a single-line field —
-       * multi-line text belongs in a `multiline` value.
-       */
-      value: string
-      /**
-       * (optional) Whether or not to include a copy to clipboard icon to copy the value
-       */
-      copyable: boolean | null
-      /**
-       * (optional) Whether or not to also display the value as a QR code
-       */
-      qr: boolean | null
-      /**
-       * (optional) Whether or not to mask the value using ●●●●●●●, which is useful for password or other sensitive information
-       */
-      masked: boolean | null
-      /**
-       * (optional) Whether or not to include an open in new tab icon to launch the value, which must be an http(s) URL
-       */
-      launchable: boolean | null
-    })
-  | ({ type: 'multiline' } & {
-      /**
-       * The actual string value to display. The UI renders it verbatim in a read-only monospace field that keeps its line breaks
-       */
-      value: string
-      /**
-       * (optional) Whether or not to include a copy to clipboard icon to copy the value
-       */
-      copyable: boolean | null
-      /**
-       * (optional) Whether or not to also display the value as a QR code
-       */
-      qr: boolean | null
-      /**
-       * (optional) Whether or not to blur the value until the user reveals it, which is useful for a private key or other sensitive information
-       */
-      masked: boolean | null
-      /**
-       * (optional) Also offer the value as a download under this file name, such as "diagnostics.txt"
-       */
-      filename: string | null
-    })
-  | ({ type: 'group' } & {
-      /**
-       * An new group of nested values, experienced by the user as an accordion dropdown
-       */
-      value: ActionResultMember[]
-    })
-export type AddAdminParamsInput = { signer: GuidInput }
-export type AddAssetParamsInput = {
-  version: string
-  platform: string
-  url: string
-  signature: AnySignatureInput
-  commitment: Blake3CommitmentInput
-}
-export type AddCategoryParamsInput = { id: string; name: LocaleStringInput }
-export type AddDeviceParamsInput = {
-  subnet: string
-  name: string
-  ip?: string | null
-  /**
-   * Client (no autoconfig) or Server (gateway-autoconfig on by default).
-   */
-  kind?: WgClientKindInput
-}
-export type AddDnsRecordParamsInput = {
-  name: string
-  type: string
-  value: string
-  ttl?: number | null
-}
-export type AddKeyParamsInput = { name: string; key: AnyVerifyingKeyInput }
-export type AddMirrorParamsInput = {
-  url: string
-  commitment: MerkleArchiveCommitmentInput
-  signature: AnySignatureInput
-}
-export type AddPackageParamsInput = {
-  urls: string[]
-  commitment: MerkleArchiveCommitmentInput
-  signature: AnySignatureInput
-}
-export type AddPackageSignerParamsInput = {
-  id: PackageIdInput
-  signer: GuidInput
-  versions?: string | null
-  merge: boolean
-}
-export type AddPackageToCategoryParamsInput = {
-  id: string
-  package: PackageIdInput
-}
-export type AddPassthroughParamsInput = {
-  hostname: string
-  'listen-port': number
-  backend: string
-  'public-gateway': GatewayIdInput[]
-  'private-ip': string[]
-}
-export type AddPinholeParamsInput = {
-  /**
-   * The client's global IPv6 (GUA) to expose. Must be an address this tunnel
-   * delegates to a client — its subnet needs an IPv6 prefix.
-   */
-  gua: string
-  /**
-   * External port opened on the GUA.
-   */
-  externalPort: number
-  /**
-   * Destination port on the GUA. Omit for a pure pinhole (no NAT, internal ==
-   * external); set a different value for a port remap (e.g. 80 -> 443).
-   */
-  internalPort?: number | null
-  label?: string | null
-  /**
-   * Number of contiguous ports, counting up from external/internal. Default 1.
-   */
-  count?: number | null
-}
-export type AddPortForwardParamsInput = {
-  /**
-   * External (WAN) port to forward. The external IP is fixed to the target's
-   * WAN so return traffic stays symmetric.
-   */
-  externalPort: number
-  target: string
-  label?: string | null
-  /**
-   * Hostnames to SNI-demux on the shared external port. Empty = normal DNAT.
-   */
-  sni?: string[]
-  /**
-   * Number of contiguous ports to forward (a PCP PORT_SET range), counting up
-   * from both `external_port` and the target port. Defaults to 1. Not valid
-   * together with SNI demux.
-   */
-  count?: number | null
-}
-export type AddPrivateDomainParamsInput = {
-  fqdn: string
-  gateway: GatewayIdInput
-}
-export type AddPublicDomainParamsInput = {
-  fqdn: string
-  acme?: AcmeProviderInput | null
-  gateway: GatewayIdInput
-  internalPort: number
-}
-export type AddPublicDomainRes = {
-  dns: QueryDnsRes
-  port: CheckPortRes
-  portV6: CheckPortV6Res | null
-  /**
-   * The authority's own reachability requirement, where the domain has one.
-   */
-  challenge: CheckChallengeRes | null
-}
-export type AddSslOptions = {
-  preferredExternalPort: number
-  /**
-   * When `true`, the OS reverse proxy adds `X-Forwarded-Proto: https`
-   * and `X-Forwarded-For: <client-ip>` to incoming HTTP requests before
-   * forwarding them upstream. Setting this implies HTTP-aware proxying.
-   */
-  addXForwardedHeaders: boolean
-  /**
-   * The application protocols StartOS answers a client with, from those it
-   * asked for. Unset answers with whatever it asked for.
-   */
-  alpn: AlpnInfo | null
-  /**
-   * Certificate validation for the OS→container TLS leg when rewrapping.
-   * `None` (the default) validates against the StartOS root CA.
-   */
-  upstreamCertValidation: UpstreamCertValidation | null
-  /**
-   * Optional reverse-proxy auth gate. When set, the OS reverse proxy
-   * will validate the `Authorization` header on incoming HTTP requests
-   * against this configuration before forwarding them upstream.
-   * Unauthenticated requests get `401 Unauthorized` with an appropriate
-   * `WWW-Authenticate` challenge. For `Basic`, the authenticated
-   * username is forwarded to the upstream service as `X-Forwarded-User`.
-   * Setting this implies HTTP-aware proxying.
-   */
-  auth: ProxyAuth | null
-}
-export type AddSubnetParamsInput = { name: string }
-export type AddTunnelParamsInput = {
-  name: string
-  config: string
-  type?: GatewayTypeInput | null
-  setAsDefaultOutbound: boolean
-}
-export type AddVersionParamsInput = {
-  version: string
-  headline: string
-  releaseNotes: string
-  sourceVersion: string
-}
-export type AddressInfo = {
-  username: string | null
-  hostId: HostId
-  internalPort: number
-  scheme: string | null
-  sslScheme: string | null
-  suffix: string
-}
-
-/**
- * The protocols a binding answers with, carried on the wire as the list itself.
- */
-export type AlpnInfo = MaybeUtf8String[]
-export type AnySignature = string
-export type AnySignatureInput = string
-export type AnyVerifyingKey = string
-export type AnyVerifyingKeyInput = string
-export type Api = {
-  _PARAMS: {}
-  _CHILDREN: {
-    auth: {
-      _PARAMS: {}
-      _CHILDREN: {
-        'get-pubkey': { _PARAMS: {}; _RETURN: { [key: string]: unknown } }
-        login: { _PARAMS: LoginParamsInput; _RETURN: null }
-        logout: {
-          _PARAMS: LogoutParamsInput
-          _RETURN: HasUnenrolledKeys | null
-        }
-        'reset-password': { _PARAMS: ResetPasswordParamsInput; _RETURN: null }
-        session: {
-          _PARAMS: {}
-          _CHILDREN: {
-            kill: { _PARAMS: KillParamsInput; _RETURN: null }
-            list: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-                ListParamsInput
-              _RETURN: SessionList
-            }
-          }
-        }
-      }
-    }
-    backup: {
-      _PARAMS: {}
-      _CHILDREN: {
-        create: { _PARAMS: BackupParamsInput; _RETURN: null }
-        target: {
-          _PARAMS: {}
-          _CHILDREN: {
-            cifs: {
-              _PARAMS: {}
-              _CHILDREN: {
-                add: {
-                  _PARAMS: CifsAddParamsInput
-                  _RETURN: { [key: string]: BackupTarget }
-                }
-                remove: { _PARAMS: CifsRemoveParamsInput; _RETURN: null }
-                update: {
-                  _PARAMS: CifsUpdateParamsInput
-                  _RETURN: { [key: string]: BackupTarget }
-                }
-              }
-            }
-            'delete-legacy': { _PARAMS: DeleteLegacyParamsInput; _RETURN: null }
-            info: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-                InfoParamsInput
-              _RETURN: BackupInfo
-            }
-            list: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-              _RETURN: { [key: string]: BackupTarget }
-            }
-            mount: { _PARAMS: MountParamsInput; _RETURN: string }
-            umount: { _PARAMS: UmountParamsInput; _RETURN: null }
-          }
-        }
-      }
-    }
-    db: {
-      _PARAMS: {}
-      _CHILDREN: {
-        apply: { _PARAMS: ApplyParamsInput; _RETURN: null }
-        dump: { _PARAMS: DumpParamsInput; _RETURN: Dump }
-        put: {
-          _PARAMS: {}
-          _CHILDREN: {
-            ui: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) & UiParamsInput
-              _RETURN: null
-            }
-          }
-        }
-        subscribe: { _PARAMS: SubscribeParamsInput; _RETURN: SubscribeRes }
-      }
-    }
-    diagnostic: {
-      _PARAMS: {}
-      _CHILDREN: {
-        disk: {
-          _PARAMS: {}
-          _CHILDREN: {
-            forget: { _PARAMS: {}; _RETURN: null }
-            repair: { _PARAMS: {}; _RETURN: null }
-          }
-        }
-      }
-    }
-    disk: {
-      _PARAMS: {}
-      _CHILDREN: {
-        list: {
-          _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-          _RETURN: DiskInfo[]
-        }
-        repair: { _PARAMS: {}; _RETURN: null }
-      }
-    }
-    echo: { _PARAMS: EchoParamsInput; _RETURN: string }
-    'git-info': { _PARAMS: {}; _RETURN: string }
-    init: { _PARAMS: {}; _CHILDREN: {} }
-    kiosk: {
-      _PARAMS: {}
-      _CHILDREN: {
-        disable: { _PARAMS: {}; _RETURN: null }
-        enable: { _PARAMS: {}; _RETURN: null }
-      }
-    }
-    net: {
-      _PARAMS: {}
-      _CHILDREN: {
-        acme: {
-          _PARAMS: {}
-          _CHILDREN: {
-            'check-challenge': {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-                CheckChallengeParamsInput
-              _RETURN: CheckChallengeRes | null
-            }
-            init: { _PARAMS: InitAcmeParamsInput; _RETURN: null }
-            remove: { _PARAMS: RemoveAcmeParamsInput; _RETURN: null }
-          }
-        }
-        dns: {
-          _PARAMS: {}
-          _CHILDREN: {
-            'dump-table': {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-              _RETURN: { [key: string]: string | null }
-            }
-            query: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-                QueryDnsParamsInput
-              _RETURN: QueryDnsRes
-            }
-            'set-static': { _PARAMS: SetStaticDnsParamsInput; _RETURN: null }
-          }
-        }
-        forward: {
-          _PARAMS: {}
-          _CHILDREN: {
-            'dump-table': {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-              _RETURN: ForwardTable
-            }
-          }
-        }
-        gateway: {
-          _PARAMS: {}
-          _CHILDREN: {
-            'check-dns': {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-                CheckDnsParamsInput
-              _RETURN: boolean
-            }
-            'check-port': {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-                CheckPortParamsInput
-              _RETURN: CheckPortRes
-            }
-            'check-port-v6': {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-                CheckPortParamsInput
-              _RETURN: CheckPortV6Res | null
-            }
-            forget: { _PARAMS: ForgetGatewayParamsInput; _RETURN: null }
-            list: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-              _RETURN: { [key: string]: NetworkInterfaceInfo }
-            }
-            'set-default-outbound': {
-              _PARAMS: SetDefaultOutboundParamsInput
-              _RETURN: null
-            }
-            'set-name': { _PARAMS: RenameGatewayParamsInput; _RETURN: null }
-            'set-secure': {
-              _PARAMS: SetGatewaySecureParamsInput
-              _RETURN: null
-            }
-            'unset-secure': {
-              _PARAMS: UnsetGatewaySecureParamsInput
-              _RETURN: null
-            }
-          }
-        }
-        ssl: {
-          _PARAMS: {}
-          _CHILDREN: {
-            'generate-certificate': {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-                GenerateCertificateParamsInput
-              _RETURN: GenerateCertificateResponse
-            }
-          }
-        }
-        tunnel: {
-          _PARAMS: {}
-          _CHILDREN: {
-            add: { _PARAMS: AddTunnelParamsInput; _RETURN: GatewayId }
-            remove: { _PARAMS: RemoveTunnelParamsInput; _RETURN: null }
-            update: { _PARAMS: UpdateTunnelParamsInput; _RETURN: null }
-          }
-        }
-        vhost: {
-          _PARAMS: {}
-          _CHILDREN: {
-            'add-passthrough': {
-              _PARAMS: AddPassthroughParamsInput
-              _RETURN: null
-            }
-            'dump-table': {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-              _RETURN: { [key: string]: { [key: string]: string[] } }
-            }
-            'list-passthrough': {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-              _RETURN: PassthroughInfo[]
-            }
-            'remove-passthrough': {
-              _PARAMS: RemovePassthroughParamsInput
-              _RETURN: null
-            }
-          }
-        }
-      }
-    }
-    notification: {
-      _PARAMS: {}
-      _CHILDREN: {
-        create: { _PARAMS: CreateParamsInput; _RETURN: null }
-        list: {
-          _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-            ListNotificationParamsInput
-          _RETURN: NotificationWithId[]
-        }
-        'mark-seen': { _PARAMS: ModifyNotificationParamsInput; _RETURN: null }
-        'mark-seen-before': {
-          _PARAMS: ModifyNotificationBeforeParamsInput
-          _RETURN: null
-        }
-        'mark-unseen': { _PARAMS: ModifyNotificationParamsInput; _RETURN: null }
-        remove: { _PARAMS: ModifyNotificationParamsInput; _RETURN: null }
-        'remove-before': {
-          _PARAMS: ModifyNotificationBeforeParamsInput
-          _RETURN: null
-        }
-      }
-    }
-    package: {
-      _PARAMS: {}
-      _CHILDREN: {
-        action: {
-          _PARAMS: {}
-          _CHILDREN: {
-            'clear-task': { _PARAMS: ClearTaskParamsInput; _RETURN: null }
-            'get-input': {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-                GetActionInputParamsInput
-              _RETURN: ActionInput | null
-            }
-            run: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-                RunActionParamsInput
-              _RETURN: ActionResult | null
-            }
-          }
-        }
-        attach: { _PARAMS: AttachParamsInput; _RETURN: Guid }
-        backup: {
-          _PARAMS: {}
-          _CHILDREN: {
-            restore: { _PARAMS: RestorePackageParamsInput; _RETURN: null }
-          }
-        }
-        'cancel-install': { _PARAMS: CancelInstallParamsInput; _RETURN: null }
-        host: {
-          _PARAMS: RequiresPackageIdInput
-          _CHILDREN: {
-            address: {
-              _PARAMS: RequiresHostIdInput
-              _CHILDREN: {
-                domain: {
-                  _PARAMS: {}
-                  _CHILDREN: {
-                    private: {
-                      _PARAMS: {}
-                      _CHILDREN: {
-                        add: {
-                          _PARAMS: AddPrivateDomainParamsInput
-                          _RETURN: boolean
-                        }
-                        remove: {
-                          _PARAMS: RemoveDomainParamsInput
-                          _RETURN: null
-                        }
-                      }
-                    }
-                    public: {
-                      _PARAMS: {}
-                      _CHILDREN: {
-                        add: {
-                          _PARAMS: AddPublicDomainParamsInput
-                          _RETURN: AddPublicDomainRes
-                        }
-                        remove: {
-                          _PARAMS: RemoveDomainParamsInput
-                          _RETURN: null
-                        }
-                      }
-                    }
-                  }
-                }
-                list: {
-                  _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-                  _RETURN: HostAddress[]
-                }
-              }
-            }
-            binding: {
-              _PARAMS: RequiresHostIdInput
-              _CHILDREN: {
-                list: {
-                  _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-                  _RETURN: Bindings
-                }
-                'set-address-enabled': {
-                  _PARAMS: BindingSetAddressEnabledParamsInput
-                  _RETURN: null
-                }
-                'set-gua-wan': {
-                  _PARAMS: BindingSetGuaWanParamsInput
-                  _RETURN: null
-                }
-                'set-range-address-enabled': {
-                  _PARAMS: BindingSetAddressEnabledParamsInput
-                  _RETURN: null
-                }
-              }
-            }
-            list: { _PARAMS: {}; _RETURN: HostId[] }
-          }
-        }
-        install: { _PARAMS: InstallParamsInput; _RETURN: null }
-        'installed-version': {
-          _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-            InstalledVersionParamsInput
-          _RETURN: Version | null
-        }
-        list: {
-          _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-          _RETURN: unknown[]
-        }
-        logs: {
-          _PARAMS: {
-            limit?: number | null
-            cursor?: string | null
-            boot?: number | string | null
-            before?: boolean
-          } & PackageIdParamsInput
-          _RETURN: LogResponse
-          _CHILDREN: { follow: { _PARAMS: {}; _RETURN: LogFollowResponse } }
-        }
-        rebuild: { _PARAMS: RebuildParamsInput; _RETURN: null }
-        restart: { _PARAMS: ControlParamsInput; _RETURN: null }
-        'set-outbound-gateway': {
-          _PARAMS: SetOutboundGatewayParamsInput
-          _RETURN: null
-        }
-        sideload: { _PARAMS: SideloadParamsInput; _RETURN: SideloadResponse }
-        start: { _PARAMS: StartParamsInput; _RETURN: null }
-        stats: {
-          _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-          _RETURN: { [key: string]: ServiceStats | null }
-        }
-        stop: { _PARAMS: ControlParamsInput; _RETURN: null }
-        uninstall: { _PARAMS: UninstallParamsInput; _RETURN: null }
-      }
-    }
-    registry: {
-      _PARAMS: {} & RegistryUrlParamsInput
-      _CHILDREN: {
-        admin: {
-          _PARAMS: {}
-          _CHILDREN: {
-            add: { _PARAMS: AddAdminParamsInput; _RETURN: null }
-            list: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-              _RETURN: { [key: string]: SignerInfo }
-            }
-            remove: { _PARAMS: RemoveAdminParamsInput; _RETURN: null }
-            signer: {
-              _PARAMS: {}
-              _CHILDREN: {
-                add: { _PARAMS: SignerInfoInput; _RETURN: Guid }
-                edit: { _PARAMS: EditSignerParamsInput; _RETURN: null }
-                list: {
-                  _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-                  _RETURN: { [key: string]: SignerInfo }
-                }
-                remove: { _PARAMS: RemoveSignerParamsInput; _RETURN: null }
-              }
-            }
-          }
-        }
-        db: {
-          _PARAMS: {}
-          _CHILDREN: {
-            apply: { _PARAMS: ApplyWithPathParamsInput; _RETURN: null }
-            dump: { _PARAMS: DumpParamsInput; _RETURN: Dump }
-            subscribe: { _PARAMS: DumpParamsInput; _RETURN: SubscribeRes }
-          }
-        }
-        index: {
-          _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-          _RETURN: FullIndex
-        }
-        info: {
-          _PARAMS: { format?: IoFormatInput | null } & {}
-          _RETURN: RegistryInfo
-          _CHILDREN: {
-            'set-description': {
-              _PARAMS: SetDescriptionParamsInput
-              _RETURN: null
-            }
-            'set-icon': { _PARAMS: SetIconParamsInput; _RETURN: null }
-            'set-name': { _PARAMS: SetNameParamsInput; _RETURN: null }
-          }
-        }
-        metrics: {
-          _PARAMS: {}
-          _CHILDREN: {
-            downloads: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-                GetDownloadsParamsInput
-              _RETURN: DownloadsResponse
-            }
-            summary: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-              _RETURN: MetricsSummary
-            }
-            users: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-                GetUsersParamsInput
-              _RETURN: UsersResponse
-            }
-          }
-        }
-        os: {
-          _PARAMS: {}
-          _CHILDREN: {
-            asset: {
-              _PARAMS: {}
-              _CHILDREN: {
-                add: {
-                  _PARAMS: {}
-                  _CHILDREN: {
-                    img: { _PARAMS: AddAssetParamsInput; _RETURN: null }
-                    iso: { _PARAMS: AddAssetParamsInput; _RETURN: null }
-                    squashfs: { _PARAMS: AddAssetParamsInput; _RETURN: null }
-                  }
-                }
-                get: {
-                  _PARAMS: {}
-                  _CHILDREN: {
-                    img: {
-                      _PARAMS: GetOsAssetParamsInput
-                      _RETURN: RegistryAsset<Blake3Commitment>
-                    }
-                    iso: {
-                      _PARAMS: GetOsAssetParamsInput
-                      _RETURN: RegistryAsset<Blake3Commitment>
-                    }
-                    squashfs: {
-                      _PARAMS: GetOsAssetParamsInput
-                      _RETURN: RegistryAsset<Blake3Commitment>
-                    }
-                  }
-                }
-                remove: {
-                  _PARAMS: {}
-                  _CHILDREN: {
-                    img: { _PARAMS: RemoveAssetParamsInput; _RETURN: boolean }
-                    iso: { _PARAMS: RemoveAssetParamsInput; _RETURN: boolean }
-                    squashfs: {
-                      _PARAMS: RemoveAssetParamsInput
-                      _RETURN: boolean
-                    }
-                  }
-                }
-                sign: {
-                  _PARAMS: {}
-                  _CHILDREN: {
-                    img: { _PARAMS: SignAssetParamsInput; _RETURN: null }
-                    iso: { _PARAMS: SignAssetParamsInput; _RETURN: null }
-                    squashfs: { _PARAMS: SignAssetParamsInput; _RETURN: null }
-                  }
-                }
-              }
-            }
-            index: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-              _RETURN: OsIndex
-            }
-            version: {
-              _PARAMS: {}
-              _CHILDREN: {
-                add: { _PARAMS: AddVersionParamsInput; _RETURN: null }
-                get: {
-                  _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-                    GetOsVersionParamsInput
-                  _RETURN: OsVersionInfoMap
-                }
-                remove: { _PARAMS: RemoveVersionParamsInput; _RETURN: null }
-                signer: {
-                  _PARAMS: {}
-                  _CHILDREN: {
-                    add: { _PARAMS: VersionSignerParamsInput; _RETURN: null }
-                    list: {
-                      _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-                        ListVersionSignersParamsInput
-                      _RETURN: { [key: string]: SignerInfo }
-                    }
-                    remove: { _PARAMS: VersionSignerParamsInput; _RETURN: null }
-                  }
-                }
-              }
-            }
-          }
-        }
-        package: {
-          _PARAMS: {}
-          _CHILDREN: {
-            add: { _PARAMS: AddPackageParamsInput; _RETURN: null }
-            'add-mirror': { _PARAMS: AddMirrorParamsInput; _RETURN: null }
-            category: {
-              _PARAMS: {}
-              _CHILDREN: {
-                add: { _PARAMS: AddCategoryParamsInput; _RETURN: null }
-                'add-package': {
-                  _PARAMS: AddPackageToCategoryParamsInput
-                  _RETURN: null
-                }
-                list: {
-                  _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-                  _RETURN: { [key: string]: Category }
-                }
-                remove: { _PARAMS: RemoveCategoryParamsInput; _RETURN: null }
-                'remove-package': {
-                  _PARAMS: RemovePackageFromCategoryParamsInput
-                  _RETURN: null
-                }
-              }
-            }
-            get: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-                GetPackageParamsInput
-              _RETURN: GetPackageResult
-            }
-            index: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-              _RETURN: PackageIndex
-            }
-            remove: { _PARAMS: RemovePackageParamsInput; _RETURN: boolean }
-            'remove-mirror': { _PARAMS: RemoveMirrorParamsInput; _RETURN: null }
-            signer: {
-              _PARAMS: {}
-              _CHILDREN: {
-                add: { _PARAMS: AddPackageSignerParamsInput; _RETURN: null }
-                list: {
-                  _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-                    ListPackageSignersParamsInput
-                  _RETURN: { [key: string]: [SignerInfo, string] }
-                }
-                remove: {
-                  _PARAMS: RemovePackageSignerParamsInput
-                  _RETURN: null
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    server: {
-      _PARAMS: {}
-      _CHILDREN: {
-        'clear-smtp': { _PARAMS: {}; _RETURN: null }
-        'device-info': {
-          _PARAMS: { format?: IoFormatInput | null } & {}
-          _RETURN: DeviceInfo
-          _CHILDREN: {}
-        }
-        epp: {
-          _PARAMS: ({ format?: IoFormatInput | null } & {}) & EppParamsInput
-          _RETURN: EppInfo
-        }
-        experimental: {
-          _PARAMS: {}
-          _CHILDREN: { zram: { _PARAMS: ZramParamsInput; _RETURN: null } }
-        }
-        governor: {
-          _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-            GovernorParamsInput
-          _RETURN: GovernorInfo
-        }
-        host: {
-          _PARAMS: {}
-          _CHILDREN: {
-            address: {
-              _PARAMS: {}
-              _CHILDREN: {
-                domain: {
-                  _PARAMS: {}
-                  _CHILDREN: {
-                    private: {
-                      _PARAMS: {}
-                      _CHILDREN: {
-                        add: {
-                          _PARAMS: AddPrivateDomainParamsInput
-                          _RETURN: boolean
-                        }
-                        remove: {
-                          _PARAMS: RemoveDomainParamsInput
-                          _RETURN: null
-                        }
-                      }
-                    }
-                    public: {
-                      _PARAMS: {}
-                      _CHILDREN: {
-                        add: {
-                          _PARAMS: AddPublicDomainParamsInput
-                          _RETURN: AddPublicDomainRes
-                        }
-                        remove: {
-                          _PARAMS: RemoveDomainParamsInput
-                          _RETURN: null
-                        }
-                      }
-                    }
-                  }
-                }
-                list: {
-                  _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-                  _RETURN: HostAddress[]
-                }
-              }
-            }
-            binding: {
-              _PARAMS: {}
-              _CHILDREN: {
-                list: {
-                  _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-                  _RETURN: Bindings
-                }
-                'set-address-enabled': {
-                  _PARAMS: BindingSetAddressEnabledParamsInput
-                  _RETURN: null
-                }
-                'set-gua-wan': {
-                  _PARAMS: BindingSetGuaWanParamsInput
-                  _RETURN: null
-                }
-                'set-range-address-enabled': {
-                  _PARAMS: BindingSetAddressEnabledParamsInput
-                  _RETURN: null
-                }
-              }
-            }
-          }
-        }
-        'kernel-logs': {
-          _PARAMS: {
-            limit?: number | null
-            cursor?: string | null
-            boot?: number | string | null
-            before?: boolean
-          } & {}
-          _RETURN: LogResponse
-          _CHILDREN: { follow: { _PARAMS: {}; _RETURN: LogFollowResponse } }
-        }
-        logs: {
-          _PARAMS: {
-            limit?: number | null
-            cursor?: string | null
-            boot?: number | string | null
-            before?: boolean
-          } & {}
-          _RETURN: LogResponse
-          _CHILDREN: { follow: { _PARAMS: {}; _RETURN: LogFollowResponse } }
-        }
-        metrics: {
-          _PARAMS: { format?: IoFormatInput | null } & {}
-          _RETURN: Metrics
-          _CHILDREN: {
-            follow: {
-              _PARAMS: MetricsFollowParamsInput
-              _RETURN: MetricsFollowResponse
-            }
-          }
-        }
-        rebuild: { _PARAMS: {}; _RETURN: null }
-        restart: { _PARAMS: ShutdownParamsInput; _RETURN: null }
-        'set-echoip-urls': { _PARAMS: SetEchoipUrlsParamsInput; _RETURN: null }
-        'set-hostname': { _PARAMS: SetServerHostnameParamsInput; _RETURN: null }
-        'set-keyboard': { _PARAMS: KeyboardOptionsInput; _RETURN: null }
-        'set-language': { _PARAMS: SetLanguageParamsInput; _RETURN: null }
-        'set-smtp': { _PARAMS: SmtpValueInput; _RETURN: null }
-        shutdown: { _PARAMS: ShutdownParamsInput; _RETURN: null }
-        'test-smtp': { _PARAMS: TestSmtpParamsInput; _RETURN: null }
-        time: {
-          _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-          _RETURN: TimeInfo
-        }
-        'trust-ca': {
-          _PARAMS: ({ format?: IoFormatInput | null } & {}) & TrustCaParamsInput
-          _RETURN: TrustedCa
-        }
-        update: { _PARAMS: UpdateSystemParamsInput; _RETURN: UpdateSystemRes }
-        'update-firmware': { _PARAMS: {}; _RETURN: RequiresReboot }
-      }
-    }
-    setup: {
-      _PARAMS: {}
-      _CHILDREN: {
-        cifs: { _PARAMS: {}; _CHILDREN: {} }
-        disk: { _PARAMS: {}; _CHILDREN: {} }
-      }
-    }
-    ssh: {
-      _PARAMS: {}
-      _CHILDREN: {
-        add: { _PARAMS: SshAddParamsInput; _RETURN: SshKeyResponse }
-        list: {
-          _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-          _RETURN: SshKeyResponse[]
-        }
-        remove: { _PARAMS: SshDeleteParamsInput; _RETURN: null }
-      }
-    }
-    state: { _PARAMS: {}; _RETURN: ApiState }
-    tunnel: {
-      _PARAMS: {} & TunnelUrlParamsInput
-      _CHILDREN: {
-        auth: {
-          _PARAMS: {}
-          _CHILDREN: {
-            key: {
-              _PARAMS: {}
-              _CHILDREN: {
-                add: { _PARAMS: AddKeyParamsInput; _RETURN: null }
-                list: {
-                  _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-                  _RETURN: AuthKeys
-                }
-                remove: { _PARAMS: RemoveKeyParamsInput; _RETURN: null }
-              }
-            }
-            login: { _PARAMS: LoginParamsInput; _RETURN: null }
-            logout: {
-              _PARAMS: LogoutParamsInput
-              _RETURN: HasUnenrolledKeys | null
-            }
-            session: {
-              _PARAMS: {}
-              _CHILDREN: {
-                kill: { _PARAMS: KillParamsInput; _RETURN: null }
-                list: {
-                  _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-                    ListParamsInput
-                  _RETURN: SessionList
-                }
-              }
-            }
-            'set-password': { _PARAMS: SetPasswordParamsInput; _RETURN: null }
-          }
-        }
-        db: {
-          _PARAMS: {}
-          _CHILDREN: {
-            apply: { _PARAMS: ApplyWithPathParamsInput; _RETURN: null }
-            dump: { _PARAMS: DumpParamsInput; _RETURN: Dump }
-            subscribe: { _PARAMS: SubscribeParamsInput; _RETURN: SubscribeRes }
-          }
-        }
-        device: {
-          _PARAMS: {}
-          _CHILDREN: {
-            add: { _PARAMS: AddDeviceParamsInput; _RETURN: null }
-            list: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) &
-                ListDevicesParamsInput
-              _RETURN: WgSubnetConfig
-            }
-            remove: { _PARAMS: RemoveDeviceParamsInput; _RETURN: null }
-            'set-auto-port-forward': {
-              _PARAMS: SetAutoPortForwardParamsInput
-              _RETURN: null
-            }
-            'set-dns-injection': {
-              _PARAMS: SetDnsInjectionParamsInput
-              _RETURN: null
-            }
-            'set-kind': { _PARAMS: SetDeviceKindParamsInput; _RETURN: null }
-            'set-wan': { _PARAMS: SetDeviceWanParamsInput; _RETURN: null }
-            'show-config': { _PARAMS: ShowConfigParamsInput; _RETURN: string }
-          }
-        }
-        dns: {
-          _PARAMS: {}
-          _CHILDREN: {
-            add: { _PARAMS: AddDnsRecordParamsInput; _RETURN: null }
-            list: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-              _RETURN: DnsRecordEntry[]
-            }
-            remove: { _PARAMS: RemoveDnsRecordParamsInput; _RETURN: null }
-          }
-        }
-        'http-redirect': {
-          _PARAMS: {}
-          _CHILDREN: {
-            list: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-              _RETURN: HttpRedirectStatus[]
-            }
-            'set-enabled': {
-              _PARAMS: SetHttpRedirectEnabledParamsInput
-              _RETURN: null
-            }
-          }
-        }
-        pinhole: {
-          _PARAMS: {}
-          _CHILDREN: {
-            add: { _PARAMS: AddPinholeParamsInput; _RETURN: null }
-            remove: { _PARAMS: RemovePinholeParamsInput; _RETURN: null }
-            'set-enabled': {
-              _PARAMS: SetPinholeEnabledParamsInput
-              _RETURN: null
-            }
-            'update-label': {
-              _PARAMS: UpdatePinholeLabelParamsInput
-              _RETURN: null
-            }
-          }
-        }
-        'port-forward': {
-          _PARAMS: {}
-          _CHILDREN: {
-            add: { _PARAMS: AddPortForwardParamsInput; _RETURN: null }
-            remove: { _PARAMS: RemovePortForwardParamsInput; _RETURN: null }
-            'set-enabled': {
-              _PARAMS: SetPortForwardEnabledParamsInput
-              _RETURN: null
-            }
-            'update-label': {
-              _PARAMS: UpdatePortForwardLabelParamsInput
-              _RETURN: null
-            }
-          }
-        }
-        restart: { _PARAMS: {}; _RETURN: null }
-        subnet: {
-          _PARAMS: SubnetParamsInput
-          _CHILDREN: {
-            add: { _PARAMS: AddSubnetParamsInput; _RETURN: null }
-            remove: { _PARAMS: {}; _RETURN: null }
-            'set-dns': { _PARAMS: SetSubnetDnsParamsInput; _RETURN: null }
-            'set-ipv6': { _PARAMS: SetSubnetIpv6ParamsInput; _RETURN: null }
-            'set-wan': { _PARAMS: SetSubnetWanParamsInput; _RETURN: null }
-          }
-        }
-        update: {
-          _PARAMS: {}
-          _CHILDREN: {
-            apply: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-              _RETURN: TunnelUpdateResult
-            }
-            check: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-              _RETURN: TunnelUpdateResult
-            }
-          }
-        }
-        web: {
-          _PARAMS: {}
-          _CHILDREN: {
-            disable: { _PARAMS: {}; _RETURN: null }
-            enable: { _PARAMS: {}; _RETURN: null }
-            'generate-certificate': {
-              _PARAMS: GenerateCertParamsInput
-              _RETURN: string
-            }
-            'get-available-ips': {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-              _RETURN: string[]
-            }
-            'get-certificate': {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-              _RETURN: string | null
-            }
-            'get-listen': {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-              _RETURN: string | null
-            }
-            'import-certificate': {
-              _PARAMS: TunnelCertDataInput
-              _RETURN: null
-            }
-            'set-listen': { _PARAMS: SetListenParamsInput; _RETURN: null }
-            uninit: { _PARAMS: {}; _RETURN: null }
-          }
-        }
-      }
-    }
-    util: { _PARAMS: {}; _CHILDREN: {} }
-    wifi: {
-      _PARAMS: {}
-      _CHILDREN: {
-        add: { _PARAMS: WifiAddParamsInput; _RETURN: null }
-        available: {
-          _PARAMS: {}
-          _CHILDREN: {
-            get: {
-              _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-              _RETURN: WifiListOut[]
-            }
-          }
-        }
-        connect: { _PARAMS: WifiSsidParamsInput; _RETURN: null }
-        country: {
-          _PARAMS: {}
-          _CHILDREN: { set: { _PARAMS: SetCountryParamsInput; _RETURN: null } }
-        }
-        get: {
-          _PARAMS: ({ format?: IoFormatInput | null } & {}) & {}
-          _RETURN: WifiListInfo
-        }
-        remove: { _PARAMS: WifiSsidParamsInput; _RETURN: null }
-        'set-enabled': { _PARAMS: SetWifiEnabledParamsInput; _RETURN: null }
-      }
-    }
-  }
-}
-export type ApiState = 'error' | 'initializing' | 'running'
-export type ApplyParamsInput = { expr: string }
-export type ApplyWithPathParamsInput = {
-  path?: string | null
-} & ApplyParamsInput
-export type AttachParamsInput = {
-  id: PackageIdInput
-  command: string[]
-  tty: boolean
-  stderrTty: boolean
-  ptySize?: TermSizeInput | null
-  subcontainer?: string | null
-  name?: string | null
-  imageId?: string | null
-  user?: string | null
-}
-
-/**
- * The server's enrolled auth keys, keyed by their PEM encoding. Each enrolled
- * key is a sign-in: it carries the same metadata a session used to (when it
- * was created, when it was last used, and the user agent that enrolled it).
- */
-export type AuthKeys = { [key: string]: Session }
-export type BackupInfo = {
-  version: string
-  timestamp: string | null
-  packageBackups: { [key: string]: PackageBackupInfo }
-}
-export type BackupParamsInput = {
-  targetId: BackupTargetIdInput
-  oldPassword?: PasswordTypeInput | null
-  packageIds?: PackageIdInput[] | null
-  password: PasswordTypeInput
-}
-export type BackupTarget =
-  | ({ type: 'disk' } & ({
-      vendor: string | null
-      model: string | null
-    } & PartitionInfo))
-  | (
-      | ({ type: 'cifs' } & Exclude<CifsBackupTarget, null>)
-      | (null extends CifsBackupTarget ? { type: 'cifs' } : never)
-    )
-export type BackupTargetIdInput = string
-export type BasicCredential = { username: string; password: string }
-export type BindInfo = {
-  enabled: boolean
-  options: BindOptions
-  net: NetInfo
-  addresses: DerivedAddressInfo
-  /**
-   * Service interfaces exported from this binding (`Origin.export`). A single
-   * binding (host + internal port) may back several interfaces (e.g. a `ui`
-   * and an `api` on the same port), so this is keyed by interface id.
-   */
-  interfaces: { [key: string]: ServiceInterface }
-}
-export type BindOptions = {
-  preferredExternalPort: number
-  addSsl: AddSslOptions | null
-  secure: Security | null
-}
-export type BindingSetAddressEnabledParamsInput = {
-  internalPort: number
-  address: HostnameInfoInput
-  enabled?: boolean | null
-}
-export type BindingSetGuaWanParamsInput = {
-  internalPort: number
-  address: HostnameInfoInput
-  wan: boolean
-}
-export type Bindings = { [key: string]: BindInfo }
-export type Blake3Commitment = { hash: string; size: number }
-export type Blake3CommitmentInput = { hash: string; size: number }
-export type CancelInstallParamsInput = { id: PackageIdInput }
-export type CapabilityVerdict = {
-  /**
-   * `None` = never probed.
-   */
-  supported: boolean | null
-  at: string | null
-}
-export type Category = { name: LocaleString }
-export type Celsius = { value: string; unit: string }
-export type CheckChallengeParamsInput = {
-  fqdn: string
-  gateway: GatewayIdInput
-  acme: AcmeProviderInput
-}
-
-/**
- * Reachability of the port a certificate authority validates on. A null leg
- * went unprobed.
- */
-export type CheckChallengeRes = {
-  port: CheckPortRes | null
-  portV6: CheckPortV6Res | null
-}
-export type CheckDnsParamsInput = { gateway: GatewayIdInput; fqdn: string }
-export type CheckPortParamsInput = { port: number; gateway: GatewayIdInput }
-export type CheckPortRes = {
-  ip: string
-  port: number
-  openExternally: boolean
-  openInternally: boolean
-  hairpinning: boolean
-}
+export type AcmeProvider = z.output<typeof schemas.AcmeProvider>
+export type AcmeProviderInput = z.input<typeof schemas.AcmeProvider>
+export type ActionId = z.output<typeof schemas.ActionId>
+export type ActionIdInput = z.input<typeof schemas.ActionId>
+export type ActionResultV0 = z.output<typeof schemas.ActionResultV0>
+export type ActionResultValue = z.output<typeof schemas.ActionResultValue>
+export type AddDnsRecordParamsInput = z.input<typeof schemas.AddDnsRecordParams>
+export type AddPinholeParamsInput = z.input<typeof schemas.AddPinholeParams>
+export type AddPortForwardParamsInput = z.input<
+  typeof schemas.AddPortForwardParams
+>
+export type AddSubnetParamsInput = z.input<typeof schemas.AddSubnetParams>
+export type AddVersionParamsInput = z.input<typeof schemas.AddVersionParams>
+export type AnySignature = z.output<typeof schemas.AnySignature>
+export type AnySignatureInput = z.input<typeof schemas.AnySignature>
+export type AnyVerifyingKey = z.output<typeof schemas.AnyVerifyingKey>
+export type AnyVerifyingKeyInput = z.input<typeof schemas.AnyVerifyingKey>
+export type ApiState = z.output<typeof schemas.ApiState>
+export type ApplyParamsInput = z.input<typeof schemas.ApplyParams>
+export type BackupTargetIdInput = z.input<typeof schemas.BackupTargetId>
+export type BasicCredential = z.output<typeof schemas.BasicCredential>
+export type Blake3Commitment = z.output<typeof schemas.Blake3Commitment>
+export type Blake3CommitmentInput = z.input<typeof schemas.Blake3Commitment>
+export type CapabilityVerdict = z.output<typeof schemas.CapabilityVerdict>
+export type Celsius = z.output<typeof schemas.Celsius>
+export type CheckPortRes = z.output<typeof schemas.CheckPortRes>
 
 /**
  * v6 reachability of the box's GUA at a port. v6 is NAT-free (the GUA is the
  * box's own address), so there is no hairpinning. Queried separately from
  * [`CheckPortRes`] so the IPv4 and IPv6 checks can run independently.
  */
-export type CheckPortV6Res = {
-  ip: string
-  openExternally: boolean
-  openInternally: boolean
-}
-export type CifsAddParamsInput = {
-  hostname: string
-  path: string
-  username: string
-  password?: string | null
-}
-export type CifsBackupTarget = {
-  hostname: string
-  path: string
-  username: string
-  mountable: boolean
-  available: number | null
-  startOs: { [key: string]: StartOsRecoveryInfo }
-  legacyBackup: boolean
-}
-export type CifsRemoveParamsInput = { id: BackupTargetIdInput }
-export type CifsUpdateParamsInput = {
-  id: BackupTargetIdInput
-  hostname: string
-  path: string
-  username: string
-  password?: string | null
-}
-export type ClearTaskParamsInput = {
-  packageId: PackageIdInput
-  replayId: ReplayIdInput
-  force?: boolean
-}
-export type ContactInfo =
-  | { email: string }
-  | { matrix: string }
-  | { website: string }
-export type ContactInfoInput =
-  | { email: string }
-  | { matrix: string }
-  | { website: string }
-export type ContainerId = string
-export type ControlParamsInput = { id: PackageIdInput }
-export type CountEntry = { label: string; count: number }
-export type CreateParamsInput = {
-  package?: PackageIdInput | null
-  level: NotificationLevelInput
-  title: string
-  message: string
-}
-export type CurrentDependencyKind =
-  | { kind: 'exists' }
-  | ({ kind: 'running' } & { healthChecks: string[] })
-export type DataUrl = string
-export type DataUrlInput = string
-export type DeleteLegacyParamsInput = { targetId: BackupTargetIdInput }
-export type DependencyMetadata = {
-  title: LocaleString | null
-  icon?: DataUrl | null
-  description: LocaleString | null
-  optional: boolean
-  versionRange: string | null
-} & Partial<Exclude<CurrentDependencyKind | null, null>>
-export type DerivedAddressInfo = {
-  /**
-   * User override: enable these addresses (only for public IP & port)
-   */
-  enabled: string[]
-  /**
-   * User override: disable these addresses (only for domains and private IP & port)
-   */
-  disabled: [string, number][]
-  /**
-   * User override: IPv6 global-unicast addresses opted into WAN exposure.
-   * Projected into `HostnameInfo.public` by `update_addresses`, so `public`
-   * stays the single source of truth for WAN reachability (P2P address
-   * selection, upstream pinholes). A GUA not in this set is LAN-only.
-   */
-  guaWan: string[]
-  /**
-   * User override: enable these private IPs regardless of their mDNS address.
-   */
-  lanEnabled: [string, number][]
-  /**
-   * COMPUTED: NetServiceData::update — all possible addresses for this binding
-   */
-  available: HostnameInfo[]
-}
-export type Description = { short: LocaleString; long: LocaleString }
-export type DeviceFilter = {
-  description: string
-  class: 'processor' | 'display'
-  product: string | null
-  vendor: string | null
-  capabilities: string[] | null
-  driver: string | null
-}
-export type DeviceInfo = { os: OsInfo; hardware: HardwareInfo | null }
-export type DiskInfo = {
-  logicalname: string
-  stablePath: string
-  partitionTable: PartitionTable | null
-  vendor: string | null
-  model: string | null
-  partitions: PartitionInfo[]
-  capacity: number
-  guid: string | null
-  filesystem: string | null
-}
+export type CheckPortV6Res = z.output<typeof schemas.CheckPortV6Res>
+export type CifsAddParamsInput = z.input<typeof schemas.CifsAddParams>
+export type ContactInfo = z.output<typeof schemas.ContactInfo>
+export type ContactInfoInput = z.input<typeof schemas.ContactInfo>
+export type ContainerId = z.output<typeof schemas.ContainerId>
+export type CountEntry = z.output<typeof schemas.CountEntry>
+export type DataUrl = z.output<typeof schemas.DataUrl>
+export type DataUrlInput = z.input<typeof schemas.DataUrl>
+export type DeviceFilter = z.output<typeof schemas.DeviceFilter>
 
 /**
  * Per-subnet DNS proxy configuration. WireGuard clients on a subnet are pointed
  * at the subnet's in-tunnel server address (`.1`) for DNS; the forward-only proxy
  * listening there resolves every query against the upstream(s) selected here.
  */
-export type DnsConfig =
-  | {
-      /**
-       * Forward to the VPS's own system resolvers.
-       */
-      type: 'default'
-    }
-  | ({
-      /**
-       * Forward to a device on this subnet (its WireGuard IP) on port 53.
-       */
-      type: 'device'
-    } & { ip: string })
-  | ({
-      /**
-       * Forward to operator-specified upstream servers (1-3, optional `:port`).
-       */
-      type: 'custom'
-    } & { servers: string[] })
+export type DnsConfig = z.output<typeof schemas.DnsConfig>
 
 /**
  * Which upstream a subnet's DNS proxy forwards to. `Device`/`Custom` draw
  * their data from companion fields on [`SetSubnetDnsParams`].
  */
-export type DnsModeInput = 'default' | 'device' | 'custom'
+export type DnsModeInput = z.input<typeof schemas.DnsMode>
 
 /**
  * A DNS record served by the tunnel (injected via RFC 2136 or added manually).
  * `value` is the rdata as text: an IP for A/AAAA, a name for CNAME, etc.
  */
-export type DnsRecordEntry = {
-  name: string
-  type: string
-  value: string
-  ttl: number
-  /**
-   * The device IP that injected this, or `null` for a manual record.
-   */
-  source: string | null
-}
-export type DownloadsResponse = {
-  totalRequests: number
-  byPackage: CountEntry[]
-  byPackageVersion: PackageVersionCount[]
-}
-export type Dump = { id: number; value: unknown }
-export type DumpParamsInput = { pointer?: string | null }
-export type EchoParamsInput = { message: string }
-export type EditSignerParamsInput = {
-  id: GuidInput
-  setName?: string | null
-  addContact: ContactInfoInput[]
-  addKey: AnyVerifyingKeyInput[]
-  removeContact: ContactInfoInput[]
-  removeKey: AnyVerifyingKeyInput[]
-}
-export type EncryptedWireInput = { encrypted: unknown }
+export type DnsRecordEntry = z.output<typeof schemas.DnsRecordEntry>
+export type Dump = z.output<typeof schemas.Dump>
+export type DumpParamsInput = z.input<typeof schemas.DumpParams>
+export type EchoParamsInput = z.input<typeof schemas.EchoParams>
+export type EncryptedWireInput = z.input<typeof schemas.EncryptedWire>
 
 /**
  * Selects how aggressively an EPP-capable CPU pursues performance.
  */
-export type Epp = string
-export type EppInfo = { current: Epp | null; available: Epp[] }
+export type Epp = z.output<typeof schemas.Epp>
 
 /**
  * Selects how aggressively an EPP-capable CPU pursues performance.
  */
-export type EppInput = string
-export type EppParamsInput = { set?: EppInput | null }
-export type ForgetGatewayParamsInput = { gateway: GatewayIdInput }
-export type ForwardTable = { [key: string]: ForwardTarget }
-export type ForwardTarget = {
-  target: string
-  target_prefix: number
-  reqs: string
-}
-export type FullIndex = {
-  name: string | null
-  icon: DataUrl | null
-  description: LocaleString | null
-  package: PackageIndex
-  os: OsIndex
-  signers: { [key: string]: SignerInfo }
-}
-export type GatewayId = string
-export type GatewayIdInput = string
+export type EppInput = z.input<typeof schemas.Epp>
+export type ForwardTarget = z.output<typeof schemas.ForwardTarget>
+export type GatewayId = z.output<typeof schemas.GatewayId>
+export type GatewayIdInput = z.input<typeof schemas.GatewayId>
+export type GatewayType = z.output<typeof schemas.GatewayType>
+export type GatewayTypeInput = z.input<typeof schemas.GatewayType>
+export type GenerateCertParamsInput = z.input<typeof schemas.GenerateCertParams>
+export type GenerateCertificateParamsInput = z.input<
+  typeof schemas.GenerateCertificateParams
+>
+export type GenerateCertificateResponse = z.output<
+  typeof schemas.GenerateCertificateResponse
+>
+export type GetDownloadsParamsInput = z.input<typeof schemas.GetDownloadsParams>
+export type GetOsAssetParamsInput = z.input<typeof schemas.GetOsAssetParams>
+export type GetOsVersionParamsInput = z.input<typeof schemas.GetOsVersionParams>
+export type GetUsersParamsInput = z.input<typeof schemas.GetUsersParams>
+export type GigaBytes = z.output<typeof schemas.GigaBytes>
+export type GitHash = z.output<typeof schemas.GitHash>
+export type Governor = z.output<typeof schemas.Governor>
+export type GovernorInput = z.input<typeof schemas.Governor>
+export type Guid = z.output<typeof schemas.Guid>
+export type GuidInput = z.input<typeof schemas.Guid>
+
+/**
+ * Proof that a set of auth keys was unenrolled — removed from the persisted
+ * and ephemeral signer stores with any continuations they opened killed.
+ * Obtained via [`SignatureAuthContext::unenroll`], or [`Self::unenroll`]
+ * from inside a db transaction.
+ */
+export type HasUnenrolledKeys = z.output<typeof schemas.HasUnenrolledKeys>
+export type HealthCheckId = z.output<typeof schemas.HealthCheckId>
+export type HostId = z.output<typeof schemas.HostId>
+export type HostIdInput = z.input<typeof schemas.HostId>
+export type HttpRedirectStatus = z.output<typeof schemas.HttpRedirectStatus>
+export type ImageIdInput = z.input<typeof schemas.ImageId>
+export type IoFormatInput = z.input<typeof schemas.IoFormat>
+export type KeyboardOptionsInput = z.input<typeof schemas.KeyboardOptions>
+export type KillParamsInput = z.input<typeof schemas.KillParams>
+export type ListDevicesParamsInput = z.input<typeof schemas.ListDevicesParams>
+export type ListNotificationParamsInput = z.input<
+  typeof schemas.ListNotificationParams
+>
+export type ListParamsInput = z.input<typeof schemas.ListParams>
+export type ListVersionSignersParamsInput = z.input<
+  typeof schemas.ListVersionSignersParams
+>
+export type LocaleString = z.output<typeof schemas.LocaleString>
+export type LocaleStringInput = z.input<typeof schemas.LocaleString>
+export type LogEntry = z.output<typeof schemas.LogEntry>
+export type LogoutParamsInput = z.input<typeof schemas.LogoutParams>
+export type LshwDisplay = z.output<typeof schemas.LshwDisplay>
+export type LshwProcessor = z.output<typeof schemas.LshwProcessor>
+export type MaybeUtf8String = z.output<typeof schemas.MaybeUtf8String>
+export type MebiBytes = z.output<typeof schemas.MebiBytes>
+export type MerkleArchiveCommitment = z.output<
+  typeof schemas.MerkleArchiveCommitment
+>
+export type MerkleArchiveCommitmentInput = z.input<
+  typeof schemas.MerkleArchiveCommitment
+>
+export type MetricsFollowParamsInput = z.input<
+  typeof schemas.MetricsFollowParams
+>
+export type MiB = z.output<typeof schemas.MiB>
+export type ModifyNotificationBeforeParamsInput = z.input<
+  typeof schemas.ModifyNotificationBeforeParams
+>
+export type ModifyNotificationParamsInput = z.input<
+  typeof schemas.ModifyNotificationParams
+>
+export type NetInfo = z.output<typeof schemas.NetInfo>
+export type NetworkInterfaceType = z.output<typeof schemas.NetworkInterfaceType>
+export type NotificationLevel = z.output<typeof schemas.NotificationLevel>
+export type NotificationLevelInput = z.input<typeof schemas.NotificationLevel>
+export type PackageDetailLevelInput = z.input<typeof schemas.PackageDetailLevel>
+export type PackageId = z.output<typeof schemas.PackageId>
+export type PackageIdInput = z.input<typeof schemas.PackageId>
+export type PackageVersionCount = z.output<typeof schemas.PackageVersionCount>
+export type PartitionTable = z.output<typeof schemas.PartitionTable>
+export type Percentage = z.output<typeof schemas.Percentage>
+export type PluginId = z.output<typeof schemas.PluginId>
+export type PreDownloadAlertWhen = z.output<typeof schemas.PreDownloadAlertWhen>
+export type QueryDnsParamsInput = z.input<typeof schemas.QueryDnsParams>
+
+/**
+ * What a public domain currently resolves to, per address family. A public
+ * domain is DualStack: the operator points an `A` record at the gateway's WAN
+ * IPv4 and an `AAAA` at the box's IPv6 GUA. Either may be absent.
+ */
+export type QueryDnsRes = z.output<typeof schemas.QueryDnsRes>
+
+/**
+ * A registry asset with a caller-selected commitment representation.
+ */
+export type RegistryAsset<Commitment> = z.output<
+  ReturnType<typeof schemas.RegistryAsset<z.ZodType<Commitment, Commitment>>>
+>
+export type RegistryUrlParamsInput = z.input<typeof schemas.RegistryUrlParams>
+export type RemoveAssetParamsInput = z.input<typeof schemas.RemoveAssetParams>
+export type RemoveCategoryParamsInput = z.input<
+  typeof schemas.RemoveCategoryParams
+>
+export type RemoveDeviceParamsInput = z.input<typeof schemas.RemoveDeviceParams>
+export type RemoveDnsRecordParamsInput = z.input<
+  typeof schemas.RemoveDnsRecordParams
+>
+export type RemoveDomainParamsInput = z.input<typeof schemas.RemoveDomainParams>
+export type RemovePassthroughParamsInput = z.input<
+  typeof schemas.RemovePassthroughParams
+>
+export type RemovePinholeParamsInput = z.input<
+  typeof schemas.RemovePinholeParams
+>
+export type RemovePortForwardParamsInput = z.input<
+  typeof schemas.RemovePortForwardParams
+>
+export type RemoveVersionParamsInput = z.input<
+  typeof schemas.RemoveVersionParams
+>
+export type ReplayIdInput = z.input<typeof schemas.ReplayId>
+export type RequiresReboot = z.output<typeof schemas.RequiresReboot>
+export type Security = z.output<typeof schemas.Security>
+export type ServerHostname = z.output<typeof schemas.ServerHostname>
+export type ServiceInterfaceId = z.output<typeof schemas.ServiceInterfaceId>
+export type ServiceInterfaceType = z.output<typeof schemas.ServiceInterfaceType>
+export type Session = z.output<typeof schemas.Session>
+export type SetAutoPortForwardParamsInput = z.input<
+  typeof schemas.SetAutoPortForwardParams
+>
+export type SetCountryParamsInput = z.input<typeof schemas.SetCountryParams>
+export type SetDeviceWanParamsInput = z.input<typeof schemas.SetDeviceWanParams>
+export type SetDnsInjectionParamsInput = z.input<
+  typeof schemas.SetDnsInjectionParams
+>
+export type SetEchoipUrlsParamsInput = z.input<
+  typeof schemas.SetEchoipUrlsParams
+>
+export type SetHttpRedirectEnabledParamsInput = z.input<
+  typeof schemas.SetHttpRedirectEnabledParams
+>
+export type SetLanguageParamsInput = z.input<typeof schemas.SetLanguageParams>
+export type SetListenParamsInput = z.input<typeof schemas.SetListenParams>
+export type SetNameParamsInput = z.input<typeof schemas.SetNameParams>
+export type SetPasswordParamsInput = z.input<typeof schemas.SetPasswordParams>
+export type SetPinholeEnabledParamsInput = z.input<
+  typeof schemas.SetPinholeEnabledParams
+>
+export type SetPortForwardEnabledParamsInput = z.input<
+  typeof schemas.SetPortForwardEnabledParams
+>
+export type SetServerHostnameParamsInput = z.input<
+  typeof schemas.SetServerHostnameParams
+>
+export type SetStaticDnsParamsInput = z.input<typeof schemas.SetStaticDnsParams>
+export type SetSubnetIpv6ParamsInput = z.input<
+  typeof schemas.SetSubnetIpv6Params
+>
+export type SetSubnetWanParamsInput = z.input<typeof schemas.SetSubnetWanParams>
+export type SetWifiEnabledParamsInput = z.input<
+  typeof schemas.SetWifiEnabledParams
+>
+export type ShowConfigParamsInput = z.input<typeof schemas.ShowConfigParams>
+export type ShutdownParamsInput = z.input<typeof schemas.ShutdownParams>
+export type SideloadParamsInput = z.input<typeof schemas.SideloadParams>
+
+/**
+ * So a signal strength is a number between 0-100, I want the null option to be 0 since there is no signal
+ */
+export type SignalStrength = z.output<typeof schemas.SignalStrength>
+export type SmtpSecurityInput = z.input<typeof schemas.SmtpSecurity>
+export type SshDeleteParamsInput = z.input<typeof schemas.SshDeleteParams>
+export type SshKeyResponse = z.output<typeof schemas.SshKeyResponse>
+export type SshPubKeyInput = z.input<typeof schemas.SshPubKey>
+
+/**
+ * Ssid are the names of the wifis, usually human readable.
+ */
+export type Ssid = z.output<typeof schemas.Ssid>
+export type SubnetParamsInput = z.input<typeof schemas.SubnetParams>
+export type SubscribeParamsInput = z.input<typeof schemas.SubscribeParams>
+export type TermSizeInput = z.input<typeof schemas.TermSize>
+export type TimeInfo = z.output<typeof schemas.TimeInfo>
+export type TrustCaParamsInput = z.input<typeof schemas.TrustCaParams>
+export type TrustedCa = z.output<typeof schemas.TrustedCa>
+export type TunnelCertDataInput = z.input<typeof schemas.TunnelCertData>
+export type TunnelUpdateResult = z.output<typeof schemas.TunnelUpdateResult>
+export type TunnelUrlParamsInput = z.input<typeof schemas.TunnelUrlParams>
+export type UiParamsInput = z.input<typeof schemas.UiParams>
+export type UpdatePinholeLabelParamsInput = z.input<
+  typeof schemas.UpdatePinholeLabelParams
+>
+export type UpdatePortForwardLabelParamsInput = z.input<
+  typeof schemas.UpdatePortForwardLabelParams
+>
+export type UpdateSystemParamsInput = z.input<typeof schemas.UpdateSystemParams>
+
+/**
+ * How the OS reverse proxy validates the container's TLS certificate when it
+ * rewraps SSL (`add_ssl` set AND `secure.ssl == true`, so the OS terminates
+ * the client's TLS and initiates a fresh TLS connection to the container).
+ * Absent (`None`) means validate against the StartOS root CA — the default.
+ */
+export type UpstreamCertValidation = z.output<
+  typeof schemas.UpstreamCertValidation
+>
+export type UsersResponse = z.output<typeof schemas.UsersResponse>
+export type Version = z.output<typeof schemas.Version>
+export type VersionInput = z.input<typeof schemas.Version>
+
+/**
+ * A WireGuard client's role. A `Server` is a StartOS box that may configure the
+ * gateway (DNS injection / auto port-forward); a `Client` is a plain peer with
+ * no autoconfig. Stored and sticky — toggling the capability flags never changes
+ * it; the migration backfills it from those flags.
+ */
+export type WgClientKind = z.output<typeof schemas.WgClientKind>
+
+/**
+ * A WireGuard client's role. A `Server` is a StartOS box that may configure the
+ * gateway (DNS injection / auto port-forward); a `Client` is a plain peer with
+ * no autoconfig. Stored and sticky — toggling the capability flags never changes
+ * it; the migration backfills it from those flags.
+ */
+export type WgClientKindInput = z.input<typeof schemas.WgClientKind>
+export type WifiAddParamsInput = z.input<typeof schemas.WifiAddParams>
+export type WifiSsidParamsInput = z.input<typeof schemas.WifiSsidParams>
+export type ZramParamsInput = z.input<typeof schemas.ZramParams>
+export type ActionInput = z.output<typeof schemas.ActionInput>
+export type ActionResultMember = z.output<typeof schemas.ActionResultMember>
+export type ActionResultV1 = z.output<typeof schemas.ActionResultV1>
+export type AddAdminParamsInput = z.input<typeof schemas.AddAdminParams>
+export type AddAssetParamsInput = z.input<typeof schemas.AddAssetParams>
+export type AddCategoryParamsInput = z.input<typeof schemas.AddCategoryParams>
+export type AddDeviceParamsInput = z.input<typeof schemas.AddDeviceParams>
+export type AddKeyParamsInput = z.input<typeof schemas.AddKeyParams>
+export type AddMirrorParamsInput = z.input<typeof schemas.AddMirrorParams>
+export type AddPackageParamsInput = z.input<typeof schemas.AddPackageParams>
+export type AddPackageSignerParamsInput = z.input<
+  typeof schemas.AddPackageSignerParams
+>
+export type AddPackageToCategoryParamsInput = z.input<
+  typeof schemas.AddPackageToCategoryParams
+>
+export type AddPassthroughParamsInput = z.input<
+  typeof schemas.AddPassthroughParams
+>
+export type AddPrivateDomainParamsInput = z.input<
+  typeof schemas.AddPrivateDomainParams
+>
+export type AddPublicDomainParamsInput = z.input<
+  typeof schemas.AddPublicDomainParams
+>
+export type AddTunnelParamsInput = z.input<typeof schemas.AddTunnelParams>
+export type AddressInfo = z.output<typeof schemas.AddressInfo>
+
+/**
+ * The protocols a binding answers with, carried on the wire as the list itself.
+ */
+export type AlpnInfo = z.output<typeof schemas.AlpnInfo>
+export type ApplyWithPathParamsInput = z.input<
+  typeof schemas.ApplyWithPathParams
+>
+export type AttachParamsInput = z.input<typeof schemas.AttachParams>
+
+/**
+ * The server's enrolled auth keys, keyed by their PEM encoding. Each enrolled
+ * key is a sign-in: it carries the same metadata a session used to (when it
+ * was created, when it was last used, and the user agent that enrolled it).
+ */
+export type AuthKeys = z.output<typeof schemas.AuthKeys>
+export type CancelInstallParamsInput = z.input<
+  typeof schemas.CancelInstallParams
+>
+export type Category = z.output<typeof schemas.Category>
+export type CheckChallengeParamsInput = z.input<
+  typeof schemas.CheckChallengeParams
+>
+
+/**
+ * Reachability of the port a certificate authority validates on. A null leg
+ * went unprobed.
+ */
+export type CheckChallengeRes = z.output<typeof schemas.CheckChallengeRes>
+export type CheckDnsParamsInput = z.input<typeof schemas.CheckDnsParams>
+export type CheckPortParamsInput = z.input<typeof schemas.CheckPortParams>
+export type CifsRemoveParamsInput = z.input<typeof schemas.CifsRemoveParams>
+export type CifsUpdateParamsInput = z.input<typeof schemas.CifsUpdateParams>
+export type ClearTaskParamsInput = z.input<typeof schemas.ClearTaskParams>
+export type ControlParamsInput = z.input<typeof schemas.ControlParams>
+export type CreateParamsInput = z.input<typeof schemas.CreateParams>
+export type CurrentDependencyKind = z.output<
+  typeof schemas.CurrentDependencyKind
+>
+export type DeleteLegacyParamsInput = z.input<typeof schemas.DeleteLegacyParams>
+export type Description = z.output<typeof schemas.Description>
+export type DownloadsResponse = z.output<typeof schemas.DownloadsResponse>
+export type EditSignerParamsInput = z.input<typeof schemas.EditSignerParams>
+export type EppInfo = z.output<typeof schemas.EppInfo>
+export type EppParamsInput = z.input<typeof schemas.EppParams>
+export type ForgetGatewayParamsInput = z.input<
+  typeof schemas.ForgetGatewayParams
+>
+export type ForwardTable = z.output<typeof schemas.ForwardTable>
 
 /**
  * Whether the gateway reachable via this interface speaks each port-mapping
@@ -1603,463 +462,48 @@ export type GatewayIdInput = string
  * chronically uncooperative gateway is visible (and skipped) instead of being
  * retried forever.
  */
-export type GatewayPortMapCapabilities = {
-  pcp: CapabilityVerdict
-  natPmp: CapabilityVerdict
-  upnp: CapabilityVerdict
-  /**
-   * The PCP server answers ANNOUNCE with the Start9 capability marker, i.e.
-   * it honors OPTION_HOSTNAME (SNI demux).
-   */
-  pcpHostname: CapabilityVerdict
-}
-export type GatewayType = 'inbound-outbound' | 'outbound-only'
-export type GatewayTypeInput = 'inbound-outbound' | 'outbound-only'
-export type GenerateCertParamsInput = { subject: string[] }
-export type GenerateCertificateParamsInput = {
-  hostnames: string[]
-  ed25519?: boolean
-}
-export type GenerateCertificateResponse = { key: string; fullchain: string }
-export type GetActionInputParamsInput = {
-  packageId: PackageIdInput
-  actionId: ActionIdInput
-  prefill?: Record<string, unknown> | null
-}
-export type GetDownloadsParamsInput = {
-  /**
-   * Filter by package ID
-   */
-  pkgId?: string | null
-  /**
-   * Filter by version
-   */
-  version?: string | null
-  /**
-   * Start of time range (RFC 3339)
-   */
-  after?: string | null
-  /**
-   * End of time range (RFC 3339)
-   */
-  before?: string | null
-}
-export type GetOsAssetParamsInput = { version: string; platform: string }
-export type GetOsVersionParamsInput = {
-  sourceVersion?: string | null
-  targetVersion?: string | null
-  serverId?: string | null
-  platform?: string | null
-}
-export type GetPackageParamsInput = {
-  id?: PackageIdInput | null
-  targetVersion?: string | null
-  sourceVersion?: VersionInput | null
-  otherVersions?: PackageDetailLevelInput | null
-  allRevisions?: boolean
-}
-export type GetPackageResponse = {
-  categories: string[]
-  best: { [key: string]: PackageVersionInfo }
-  otherVersions?: { [key: string]: PackageInfoShort } | null
-}
-export type GetPackageResponseFull = {
-  categories: string[]
-  best: { [key: string]: PackageVersionInfo }
-  otherVersions: { [key: string]: PackageVersionInfo }
-}
-export type GetPackageResult =
-  | GetPackageResponseFull
-  | GetPackageResponse
-  | { [key: string]: GetPackageResponseFull }
-  | { [key: string]: GetPackageResponse }
-export type GetUsersParamsInput = {
-  /**
-   * Start of time range (RFC 3339)
-   */
-  after?: string | null
-  /**
-   * End of time range (RFC 3339)
-   */
-  before?: string | null
-}
-export type GigaBytes = { value: string; unit: string }
-export type GitHash = string
-export type Governor = string
-export type GovernorInfo = { current: Governor | null; available: Governor[] }
-export type GovernorInput = string
-export type GovernorParamsInput = { set?: GovernorInput | null }
-export type Guid = string
-export type GuidInput = string
-export type HardwareInfo = {
-  arch: string
-  ram: number
-  devices: LshwDevice[] | null
-}
-export type HardwareRequirements = {
-  device: DeviceFilter[]
-  ram: number | null
-  arch: string[] | null
-}
-
-/**
- * Proof that a set of auth keys was unenrolled — removed from the persisted
- * and ephemeral signer stores with any continuations they opened killed.
- * Obtained via [`SignatureAuthContext::unenroll`], or [`Self::unenroll`]
- * from inside a db transaction.
- */
-export type HasUnenrolledKeys = null
-export type HostAddress = {
-  address: string
-  public: PublicDomainConfig | null
-  private: GatewayId[] | null
-}
-export type HostId = string
-export type HostIdInput = string
-export type HostnameInfo = {
-  ssl: boolean
-  public: boolean
-  hostname: string
-  port: number | null
-  metadata: HostnameMetadata
-}
-export type HostnameInfoInput = {
-  ssl: boolean
-  public: boolean
-  hostname: string
-  port?: number | null
-  metadata: HostnameMetadataInput
-}
-export type HostnameMetadata =
-  | ({ kind: 'ipv4' } & { gateway: GatewayId })
-  | ({ kind: 'ipv6' } & { gateway: GatewayId; scopeId: number })
-  | ({ kind: 'mdns' } & { gateways: GatewayId[] })
-  | ({ kind: 'private-domain' } & { gateways: GatewayId[] })
-  | ({ kind: 'public-domain' } & { gateway: GatewayId })
-  | ({ kind: 'plugin' } & {
-      packageId: PackageId
-      removeAction: ActionId | null
-      overflowActions: ActionId[]
-      info: unknown
-    })
-export type HostnameMetadataInput =
-  | ({ kind: 'ipv4' } & { gateway: GatewayIdInput })
-  | ({ kind: 'ipv6' } & { gateway: GatewayIdInput; scopeId: number })
-  | ({ kind: 'mdns' } & { gateways: GatewayIdInput[] })
-  | ({ kind: 'private-domain' } & { gateways: GatewayIdInput[] })
-  | ({ kind: 'public-domain' } & { gateway: GatewayIdInput })
-  | ({ kind: 'plugin' } & {
-      packageId: PackageIdInput
-      removeAction?: ActionIdInput | null
-      overflowActions: ActionIdInput[]
-      info?: unknown
-    })
-export type HttpRedirectStatus = {
-  ip: string
-  /**
-   * Whether the redirect is on for this IP (default true).
-   */
-  enabled: boolean
-  /**
-   * Whether a port-forward already occupies port 80 on this IP, in which case
-   * the redirect yields and does not bind.
-   */
-  forwarded: boolean
-}
-export type InfoParamsInput = {
-  targetId: BackupTargetIdInput
-  serverId: string
-  password: string
-}
-export type InitAcmeParamsInput = {
-  provider: AcmeProviderInput
-  contact: string[]
-}
-export type InstallParamsInput = {
-  registry: string
-  id: PackageIdInput
-  version: VersionInput
-}
-export type InstalledVersionParamsInput = { id: PackageIdInput }
-export type IoFormatInput =
-  | 'json'
-  | 'json-pretty'
-  | 'yaml'
-  | 'cbor'
-  | 'toml'
-  | 'toml-pretty'
-export type IpInfo = {
-  name: string
-  scopeId: number
-  deviceType: NetworkInterfaceType | null
-  subnets: string[]
-  lanIp: string[]
-  wanIp: string | null
-  ntpServers: string[]
-  dnsServers: string[]
-}
-export type KeyboardOptionsInput = {
-  layout: string
-  keymap?: string | null
-  model?: string | null
-  variant?: string | null
-  options?: string[]
-}
-export type KillParamsInput = { ids: string[] }
-export type ListDevicesParamsInput = { subnet: string }
-export type ListNotificationParamsInput = {
-  before?: number | null
-  limit?: number | null
-}
-export type ListPackageSignersParamsInput = { id: PackageIdInput }
-export type ListParamsInput = {}
-export type ListVersionSignersParamsInput = { version: string }
-export type LocaleString = string | Record<string, string>
-export type LocaleStringInput = string | Record<string, string>
-export type LogEntry = { timestamp: string; message: string; bootId: string }
-export type LogFollowResponse = { startCursor: string | null; guid: Guid }
-export type LogResponse = {
-  entries: LogEntry[]
-  startCursor: string | null
-  endCursor: string | null
-}
-export type LoginParamsInput = {
-  password: string
-  /**
-   * The PEM-encoded public key to enroll on a successful login. The login
-   * request itself is signed with the matching secret key, so enrollment
-   * proves possession.
-   */
-  pubkey: AnyVerifyingKeyInput
-  /**
-   * Enroll in memory only, never persisted (kiosk mode, which re-enrolls
-   * on every browser restart and would otherwise accumulate keys).
-   */
-  ephemeral?: boolean
-}
-export type LogoutParamsInput = {}
-export type LshwDevice =
-  | (
-      | ({ class: 'processor' } & Exclude<LshwProcessor, null>)
-      | (null extends LshwProcessor ? { class: 'processor' } : never)
-    )
-  | (
-      | ({ class: 'display' } & Exclude<LshwDisplay, null>)
-      | (null extends LshwDisplay ? { class: 'display' } : never)
-    )
-export type LshwDisplay = {
-  product: string | null
-  vendor: string | null
-  capabilities: string[]
-  driver: string | null
-}
-export type LshwProcessor = {
-  product: string | null
-  vendor: string | null
-  capabilities: string[]
-}
-export type MaybeUtf8String = string | number[]
-export type MebiBytes = { value: string; unit: string }
-export type MerkleArchiveCommitment = {
-  rootSighash: string
-  rootMaxsize: number
-}
-export type MerkleArchiveCommitmentInput = {
-  rootSighash: string
-  rootMaxsize: number
-}
-export type Metrics = {
-  general: MetricsGeneral
-  memory: MetricsMemory
-  cpu: MetricsCpu
-  disk: MetricsDisk
-}
-export type MetricsCpu = {
-  percentageUsed: Percentage
-  idle: Percentage
-  userSpace: Percentage
-  kernelSpace: Percentage
-  wait: Percentage
-}
-export type MetricsDisk = {
-  percentageUsed: Percentage
-  used: GigaBytes
-  available: GigaBytes
-  capacity: GigaBytes
-}
-export type MetricsFollowParamsInput = {}
-export type MetricsFollowResponse = { guid: Guid; metrics: Metrics }
-export type MetricsGeneral = { temperature: Celsius | null }
-export type MetricsMemory = {
-  percentageUsed: Percentage
-  total: MebiBytes
-  available: MebiBytes
-  used: MebiBytes
-  zramTotal: MebiBytes
-  zramAvailable: MebiBytes
-  zramUsed: MebiBytes
-}
-export type MetricsSummary = {
-  totalCheckins: number
-  uniqueServers: number
-  totalPackageRequests: number
-  byArch: CountEntry[]
-  byOsVersion: CountEntry[]
-}
-export type MiB = number
-export type ModifyNotificationBeforeParamsInput = { before: number }
-export type ModifyNotificationParamsInput = { ids: number[] }
-export type MountParamsInput = {
-  targetId: BackupTargetIdInput
-  serverId?: string | null
-  password: string
-  allowPartial: boolean
-}
-export type NetInfo = {
-  assignedPort: number | null
-  assignedSslPort: number | null
-}
-export type NetworkInterfaceInfo = {
-  name: string | null
-  secure: boolean | null
-  ipInfo: IpInfo | null
-  type: GatewayType
-  portMap: GatewayPortMapCapabilities
-  /**
-   * The gateway's resolver accepted our last RFC 2136 DNS UPDATE — evidence
-   * from the update client (`net::dns_update`). A WireGuard gateway only
-   * serves the injected `<hostname>.local` while this is `supported`, so
-   * only then is the name listed on it.
-   */
-  dnsUpdate: CapabilityVerdict
-}
-export type NetworkInterfaceType =
-  | 'ethernet'
-  | 'wireless'
-  | 'bridge'
-  | 'wireguard'
-  | 'loopback'
-export type Notification = {
-  packageId: PackageId | null
-  createdAt: string
-  code: number
-  level: NotificationLevel
-  title: string
-  message: string
-  data: unknown
-  seen: boolean
-}
-export type NotificationLevel = 'success' | 'info' | 'warning' | 'error'
-export type NotificationLevelInput = 'success' | 'info' | 'warning' | 'error'
-export type NotificationWithId = { id: number } & Notification
-export type OsIndex = { versions: OsVersionInfoMap }
-export type OsInfo = {
-  version: Version
-  compat: string
-  platform: string
-  language: string | null
-}
-export type OsVersionInfo = {
-  headline: string
-  releaseNotes: string
-  sourceVersion: string
-  authorized: Guid[]
-  iso: { [key: string]: RegistryAsset<Blake3Commitment> }
-  squashfs: { [key: string]: RegistryAsset<Blake3Commitment> }
-  img: { [key: string]: RegistryAsset<Blake3Commitment> }
-}
-export type OsVersionInfoMap = { [key: string]: OsVersionInfo }
-export type PackageBackupInfo = {
-  title: string
-  version: Version
-  osVersion: string
-  timestamp: string
-}
-export type PackageDetailLevelInput = 'none' | 'short' | 'full'
-export type PackageId = string
-export type PackageIdInput = string
-export type PackageIdParamsInput = { id: PackageIdInput }
-export type PackageIndex = {
-  categories: { [key: string]: Category }
-  packages: { [key: string]: PackageInfo }
-}
-export type PackageInfo = {
-  authorized: { [key: string]: string }
-  versions: { [key: string]: PackageVersionInfo }
-  categories: string[]
-}
-export type PackageInfoShort = { releaseNotes: LocaleString }
-export type PackageMetadata = {
-  title: string
-  description: Description
-  releaseNotes: LocaleString
-  preDownloadAlert?: PreDownloadAlert | null
-  gitHash: GitHash | null
-  license: string
-  packageRepo: string
-  upstreamRepo: string
-  marketingUrl: string | null
-  donationUrl: string | null
-  osVersion: string
-  sdkVersion: string | null
-  hardwareAcceleration: boolean
-  /**
-   * Grants access to `/dev/fuse`.
-   */
-  userspaceFilesystems: boolean
-  /**
-   * Grants access to `/dev/net/tun`.
-   */
-  virtualNetworking: boolean
-  /**
-   * Grants /dev/kvm when present. The opening process must run as container root.
-   */
-  hardwareVirtualization: boolean
-  plugins: PluginId[]
-  satisfies: Version[]
-}
-export type PackageVersionCount = {
-  pkgId: string
-  version: string
-  count: number
-}
-export type PackageVersionInfo = {
-  /**
-   * Absent for clients that load icons from the registry's `/icons/` route.
-   */
-  icon?: DataUrl | null
-  dependencyMetadata: { [key: string]: DependencyMetadata }
-  sourceVersion: string | null
-  s9pks: [HardwareRequirements, RegistryAsset<MerkleArchiveCommitment>][]
-} & PackageMetadata
-export type PartitionInfo = {
-  logicalname: string
-  stablePath: string
-  label: string | null
-  capacity: number
-  used: number | null
-  available: number | null
-  startOs: { [key: string]: StartOsRecoveryInfo }
-  legacyBackup: boolean
-  guid: string | null
-  filesystem: string | null
-}
-export type PartitionTable = 'mbr' | 'gpt'
-export type PassthroughInfo = {
-  hostname: string
-  listenPort: number
-  backend: string
-  publicGateways: string[]
-  privateIps: string[]
-}
-export type PasswordTypeInput = EncryptedWireInput | string
-export type Percentage = { value: string; unit: string }
-export type PluginId = 'url-v0'
-export type PreDownloadAlert = {
-  message: LocaleString
-  when: PreDownloadAlertWhen
-}
-export type PreDownloadAlertWhen = { sourceVersion: string }
+export type GatewayPortMapCapabilities = z.output<
+  typeof schemas.GatewayPortMapCapabilities
+>
+export type GetActionInputParamsInput = z.input<
+  typeof schemas.GetActionInputParams
+>
+export type GetPackageParamsInput = z.input<typeof schemas.GetPackageParams>
+export type GovernorInfo = z.output<typeof schemas.GovernorInfo>
+export type GovernorParamsInput = z.input<typeof schemas.GovernorParams>
+export type HardwareRequirements = z.output<typeof schemas.HardwareRequirements>
+export type HostnameMetadata = z.output<typeof schemas.HostnameMetadata>
+export type HostnameMetadataInput = z.input<typeof schemas.HostnameMetadata>
+export type InfoParamsInput = z.input<typeof schemas.InfoParams>
+export type InitAcmeParamsInput = z.input<typeof schemas.InitAcmeParams>
+export type InstallParamsInput = z.input<typeof schemas.InstallParams>
+export type InstalledVersionParamsInput = z.input<
+  typeof schemas.InstalledVersionParams
+>
+export type IpInfo = z.output<typeof schemas.IpInfo>
+export type LegacyAlpnInfo = z.output<typeof schemas.LegacyAlpnInfo>
+export type ListPackageSignersParamsInput = z.input<
+  typeof schemas.ListPackageSignersParams
+>
+export type LogFollowResponse = z.output<typeof schemas.LogFollowResponse>
+export type LogResponse = z.output<typeof schemas.LogResponse>
+export type LoginParamsInput = z.input<typeof schemas.LoginParams>
+export type LshwDevice = z.output<typeof schemas.LshwDevice>
+export type MetricsCpu = z.output<typeof schemas.MetricsCpu>
+export type MetricsDisk = z.output<typeof schemas.MetricsDisk>
+export type MetricsGeneral = z.output<typeof schemas.MetricsGeneral>
+export type MetricsMemory = z.output<typeof schemas.MetricsMemory>
+export type MetricsSummary = z.output<typeof schemas.MetricsSummary>
+export type MountParamsInput = z.input<typeof schemas.MountParams>
+export type Notification = z.output<typeof schemas.Notification>
+export type OsInfo = z.output<typeof schemas.OsInfo>
+export type OsVersionInfo = z.output<typeof schemas.OsVersionInfo>
+export type PackageBackupInfo = z.output<typeof schemas.PackageBackupInfo>
+export type PackageIdParamsInput = z.input<typeof schemas.PackageIdParams>
+export type PackageInfoShort = z.output<typeof schemas.PackageInfoShort>
+export type PassthroughInfo = z.output<typeof schemas.PassthroughInfo>
+export type PasswordTypeInput = z.input<typeof schemas.PasswordType>
+export type PreDownloadAlert = z.output<typeof schemas.PreDownloadAlert>
 
 /**
  * Auth gate enforced by the OS reverse proxy on incoming requests.
@@ -2075,456 +519,129 @@ export type PreDownloadAlertWhen = { sourceVersion: string }
  * credentials across multiple bindings should pick a stable realm
  * so that browsers reuse cached credentials across them.
  */
-export type ProxyAuth =
-  | ({ type: 'bearer' } & { tokens: string[]; realm: string | null })
-  | ({ type: 'basic' } & {
-      credentials: BasicCredential[]
-      realm: string | null
-    })
-export type PublicDomainConfig = {
-  gateway: GatewayId
-  acme: AcmeProvider | null
-}
-export type QueryDnsParamsInput = { fqdn: string }
-
-/**
- * What a public domain currently resolves to, per address family. A public
- * domain is DualStack: the operator points an `A` record at the gateway's WAN
- * IPv4 and an `AAAA` at the box's IPv6 GUA. Either may be absent.
- */
-export type QueryDnsRes = { ipv4: string | null; ipv6: string | null }
-export type RebuildParamsInput = { id: PackageIdInput }
-
-/**
- * A registry asset with a caller-selected commitment representation.
- */
-export type RegistryAsset<Commitment> = {
-  publishedAt: string
-  urls: string[]
-  commitment: Commitment
-  signatures: { [key: string]: AnySignature }
-}
-export type RegistryInfo = {
-  name: string | null
-  icon: DataUrl | null
-  /**
-   * Markdown, shown above the registry's services.
-   */
-  description: LocaleString | null
-  categories: { [key: string]: Category }
-}
-export type RegistryUrlParamsInput = { registry: string }
-export type RemoveAcmeParamsInput = { provider: AcmeProviderInput }
-export type RemoveAdminParamsInput = { signer: GuidInput }
-export type RemoveAssetParamsInput = { version: string; platform: string }
-export type RemoveCategoryParamsInput = { id: string }
-export type RemoveDeviceParamsInput = { subnet: string; ip: string }
-export type RemoveDnsRecordParamsInput = { name: string; type?: string | null }
-export type RemoveDomainParamsInput = { fqdn: string }
-export type RemoveKeyParamsInput = { key: AnyVerifyingKeyInput }
-export type RemoveMirrorParamsInput = {
-  id: PackageIdInput
-  version: VersionInput
-  url: string
-}
-export type RemovePackageFromCategoryParamsInput = {
-  id: string
-  package: PackageIdInput
-}
-export type RemovePackageParamsInput = {
-  id: PackageIdInput
-  version?: VersionInput | null
-  sighash?: string | null
-  force?: boolean
-}
-export type RemovePackageSignerParamsInput = {
-  id: PackageIdInput
-  signer: GuidInput
-}
-export type RemovePassthroughParamsInput = {
-  hostname: string
-  'listen-port': number
-}
-export type RemovePinholeParamsInput = { gua: string; externalPort: number }
-export type RemovePortForwardParamsInput = {
-  source: string
-  /**
-   * Remove a single SNI route on `source`; omit to remove the whole forward.
-   */
-  hostname?: string | null
-}
-export type RemoveSignerParamsInput = { id: GuidInput }
-export type RemoveTunnelParamsInput = { id: GatewayIdInput }
-export type RemoveVersionParamsInput = { version: string }
-export type RenameGatewayParamsInput = { id: GatewayIdInput; name: string }
-export type ReplayIdInput = string
-export type RequiresHostIdInput = { host: HostIdInput }
-export type RequiresPackageIdInput = { package: PackageIdInput }
-export type RequiresReboot = boolean
-export type ResetPasswordParamsInput = {
-  newPassword?: PasswordTypeInput | null
-}
-export type RestorePackageParamsInput = {
-  targetId: BackupTargetIdInput
-  password: string
-  ids: PackageIdInput[]
-  serverId?: string | null
-}
-export type RunActionParamsInput = {
-  packageId: PackageIdInput
-  eventId?: GuidInput | null
-  actionId: ActionIdInput
-  input?: unknown | null
-}
-export type Security = { ssl: boolean }
-export type ServerHostname = string
-export type ServiceInterface = {
-  id: ServiceInterfaceId
-  name: string
-  description: string
-  masked: boolean
-  addressInfo: AddressInfo
-  type: ServiceInterfaceType
-  /**
-   * The interface address Open UI should prefer.
-   */
-  preferredLauncherAddress: string | null
-}
-export type ServiceInterfaceId = string
-export type ServiceInterfaceType = 'ui' | 'p2p' | 'api'
-export type ServiceStats = {
-  container_id: ContainerId
-  memory_usage: MiB
-  memory_limit: MiB
-}
-export type Session = {
-  /**
-   * A friendly name for the key, if one was assigned at enrollment (e.g.
-   * tunnel device keys). UI-enrolled keys are unnamed.
-   */
-  name: string | null
-  loggedIn: string
-  lastActive: string
-  userAgent: string | null
-}
-export type SessionList = { current: string | null; sessions: AuthKeys }
-export type SetAutoPortForwardParamsInput = {
-  subnet: string
-  ip: string
-  enabled: boolean
-}
-export type SetCountryParamsInput = { country: string }
-export type SetDefaultOutboundParamsInput = { gateway?: GatewayIdInput | null }
-export type SetDescriptionParamsInput = {
-  description: LocaleStringInput | null
-}
-export type SetDeviceKindParamsInput = {
-  subnet: string
-  ip: string
-  kind: WgClientKindInput
-}
-export type SetDeviceWanParamsInput = {
-  subnet: string
-  ip: string
-  wanIp?: string | null
-}
-export type SetDnsInjectionParamsInput = {
-  subnet: string
-  ip: string
-  enabled: boolean
-}
-export type SetEchoipUrlsParamsInput = { urls: string[] }
-export type SetGatewaySecureParamsInput = {
-  gateway: GatewayIdInput
-  secure?: boolean | null
-}
-export type SetHttpRedirectEnabledParamsInput = {
-  /**
-   * The public IPv4 whose default-on port-80 HTTP→HTTPS redirect to toggle.
-   */
-  ip: string
-  enabled: boolean
-}
-export type SetIconParamsInput = { icon: DataUrlInput | null }
-export type SetLanguageParamsInput = { language: string }
-export type SetListenParamsInput = { listen: string }
-export type SetNameParamsInput = { name: string }
-export type SetOutboundGatewayParamsInput = {
-  package: PackageIdInput
-  gateway?: GatewayIdInput | null
-}
-export type SetPasswordParamsInput = { password: string }
-export type SetPinholeEnabledParamsInput = {
-  gua: string
-  externalPort: number
-  enabled: boolean
-}
-export type SetPortForwardEnabledParamsInput = {
-  source: string
-  enabled: boolean
-  /**
-   * Toggle a single SNI route on `source`; omit for a DNAT forward.
-   */
-  hostname?: string | null
-}
-export type SetServerHostnameParamsInput = {
-  /**
-   * The server's `.local` hostname: up to 32 lowercase letters, numbers, and
-   * hyphens, not starting or ending with a hyphen
-   */
-  hostname: string
-}
-export type SetStaticDnsParamsInput = { servers?: string[] | null }
-export type SetSubnetDnsParamsInput = {
-  mode: DnsModeInput
-  /**
-   * The selected device's WireGuard IP; required when `mode` is `device`.
-   */
-  deviceIp?: string | null
-  /**
-   * Up to 3 upstream servers (bare IP or `ip:port`); used when `mode` is `custom`.
-   */
-  servers: string[]
-}
-export type SetSubnetIpv6ParamsInput = {
-  /**
-   * The routed IPv6 prefix delegated to this subnet (e.g. a /64 from Hetzner,
-   * a /56 from Linode). `null` disables IPv6 on the subnet.
-   */
-  prefix?: string | null
-}
-export type SetSubnetWanParamsInput = { wanIp?: string | null }
-export type SetWifiEnabledParamsInput = { enabled: boolean }
-export type ShowConfigParamsInput = { subnet: string; ip: string }
-export type ShutdownParamsInput = {
-  /**
-   * Block until graceful teardown completes (default over the CLI; the
-   * frontend omits this and gets an immediate reply). Cleared with
-   * `--nowait`. The wait can't outlive the webserver teardown that follows
-   * container shutdown, so the connection drops once services are stopped.
-   */
-  wait?: boolean
-}
-export type SideloadParamsInput = {}
-export type SideloadResponse = { upload: Guid; progress: Guid }
-export type SignAssetParamsInput = {
-  version: string
-  platform: string
-  signature: AnySignatureInput
-}
-
-/**
- * So a signal strength is a number between 0-100, I want the null option to be 0 since there is no signal
- */
-export type SignalStrength = number
-export type SignerInfo = {
-  name: string
-  contact: ContactInfo[]
-  keys: AnyVerifyingKey[]
-}
-export type SignerInfoInput = {
-  name: string
-  contact: ContactInfoInput[]
-  keys: AnyVerifyingKeyInput[]
-}
-export type SmtpSecurityInput = 'starttls' | 'tls'
-export type SmtpValueInput = {
-  host?: string
-  server?: string
-  port: number
-  from: string
-  login?: string
-  username?: string
-  password?: string | null
-  security?: SmtpSecurityInput
-} & ({ host: string } | { server: string }) &
-  ({ login: string } | { username: string })
-export type SshAddParamsInput = { key: SshPubKeyInput }
-export type SshDeleteParamsInput = { fingerprint: string }
-export type SshKeyResponse = {
-  alg: string
-  fingerprint: string
-  hostname: string
-  createdAt: string
-}
-export type SshPubKeyInput = string
-
-/**
- * Ssid are the names of the wifis, usually human readable.
- */
-export type Ssid = string
+export type ProxyAuth = z.output<typeof schemas.ProxyAuth>
+export type PublicDomainConfig = z.output<typeof schemas.PublicDomainConfig>
+export type RebuildParamsInput = z.input<typeof schemas.RebuildParams>
+export type RemoveAcmeParamsInput = z.input<typeof schemas.RemoveAcmeParams>
+export type RemoveAdminParamsInput = z.input<typeof schemas.RemoveAdminParams>
+export type RemoveKeyParamsInput = z.input<typeof schemas.RemoveKeyParams>
+export type RemoveMirrorParamsInput = z.input<typeof schemas.RemoveMirrorParams>
+export type RemovePackageFromCategoryParamsInput = z.input<
+  typeof schemas.RemovePackageFromCategoryParams
+>
+export type RemovePackageParamsInput = z.input<
+  typeof schemas.RemovePackageParams
+>
+export type RemovePackageSignerParamsInput = z.input<
+  typeof schemas.RemovePackageSignerParams
+>
+export type RemoveSignerParamsInput = z.input<typeof schemas.RemoveSignerParams>
+export type RemoveTunnelParamsInput = z.input<typeof schemas.RemoveTunnelParams>
+export type RenameGatewayParamsInput = z.input<
+  typeof schemas.RenameGatewayParams
+>
+export type RequiresHostIdInput = z.input<typeof schemas.RequiresHostId>
+export type RequiresPackageIdInput = z.input<typeof schemas.RequiresPackageId>
+export type RestorePackageParamsInput = z.input<
+  typeof schemas.RestorePackageParams
+>
+export type RunActionParamsInput = z.input<typeof schemas.RunActionParams>
+export type ServiceStats = z.output<typeof schemas.ServiceStats>
+export type SetDefaultOutboundParamsInput = z.input<
+  typeof schemas.SetDefaultOutboundParams
+>
+export type SetDescriptionParamsInput = z.input<
+  typeof schemas.SetDescriptionParams
+>
+export type SetDeviceKindParamsInput = z.input<
+  typeof schemas.SetDeviceKindParams
+>
+export type SetGatewaySecureParamsInput = z.input<
+  typeof schemas.SetGatewaySecureParams
+>
+export type SetIconParamsInput = z.input<typeof schemas.SetIconParams>
+export type SetOutboundGatewayParamsInput = z.input<
+  typeof schemas.SetOutboundGatewayParams
+>
+export type SetSubnetDnsParamsInput = z.input<typeof schemas.SetSubnetDnsParams>
+export type SideloadResponse = z.output<typeof schemas.SideloadResponse>
+export type SignAssetParamsInput = z.input<typeof schemas.SignAssetParams>
+export type SignerInfo = z.output<typeof schemas.SignerInfo>
+export type SignerInfoInput = z.input<typeof schemas.SignerInfo>
+export type SmtpValueInput = z.input<typeof schemas.SmtpValue>
+export type SshAddParamsInput = z.input<typeof schemas.SshAddParams>
 
 /**
  * The public view of a backup found on a target: enough to identify it, and none of
  * [`BackupUnencryptedMetadata`]'s key material.
  */
-export type StartOsRecoveryInfo = {
-  hostname: ServerHostname
-  version: string
-  timestamp: string
-}
-export type StartParamsInput = { id: PackageIdInput; force?: boolean }
-export type SubnetParamsInput = { subnet: string }
-export type SubscribeParamsInput = { pointer?: string | null }
-export type SubscribeRes = { dump: Dump; guid: Guid }
-export type TermSizeInput = {
-  rows: number
-  cols: number
-  pixels?: [number, number] | null
-}
-export type TestSmtpParamsInput = {
-  host: string
-  port: number
-  from: string
-  to: string
-  username: string
-  password: string
-  security?: SmtpSecurityInput
-}
-export type TimeInfo = { now: string; uptime: number }
-export type TrustCaParamsInput = { cert: string }
-export type TrustedCa = { subject: string; fingerprint: string }
-export type TunnelCertDataInput = { key: string; cert: string }
-export type TunnelUpdateResult = {
-  /**
-   * "up-to-date", "update-available", or "updating"
-   */
-  status: string
-  /**
-   * Currently installed version
-   */
-  installed: string
-  /**
-   * Available candidate version
-   */
-  candidate: string
-}
-export type TunnelUrlParamsInput = { tunnel: string }
-export type UiParamsInput = { pointer: string; value: unknown }
-export type UmountParamsInput = { targetId?: BackupTargetIdInput | null }
-export type UninstallParamsInput = {
-  id: PackageIdInput
-  soft?: boolean
-  force?: boolean
-}
-export type UnsetGatewaySecureParamsInput = { gateway: GatewayIdInput }
-export type UpdatePinholeLabelParamsInput = {
-  gua: string
-  externalPort: number
-  label?: string | null
-}
-export type UpdatePortForwardLabelParamsInput = {
-  source: string
-  label?: string | null
-  /**
-   * Label a single SNI route on `source`; omit to label the DNAT forward.
-   */
-  hostname?: string | null
-}
-export type UpdateSystemParamsInput = {
-  registry: string
-  targetVersion?: string | null
-  progress?: boolean
-}
-export type UpdateSystemRes = { target: string | null; progress: string | null }
-export type UpdateTunnelParamsInput = { id: GatewayIdInput; config: string }
-
-/**
- * How the OS reverse proxy validates the container's TLS certificate when it
- * rewraps SSL (`add_ssl` set AND `secure.ssl == true`, so the OS terminates
- * the client's TLS and initiates a fresh TLS connection to the container).
- * Absent (`None`) means validate against the StartOS root CA — the default.
- */
-export type UpstreamCertValidation =
-  /**
-   * Do not validate the container's certificate at all. Use when the
-   * container serves a self-signed cert on the trusted internal bridge.
-   */
-  | 'disable'
-  | {
-      /**
-       * Validate against this PEM-encoded certificate (or chain) instead of the
-       * StartOS root CA.
-       */
-      certificate: string
-    }
-export type UsersResponse = { uniqueServers: number; totalCheckins: number }
-export type Version = string
-export type VersionInput = string
-export type VersionSignerParamsInput = { version: string; signer: GuidInput }
-
-/**
- * A WireGuard client's role. A `Server` is a StartOS box that may configure the
- * gateway (DNS injection / auto port-forward); a `Client` is a plain peer with
- * no autoconfig. Stored and sticky — toggling the capability flags never changes
- * it; the migration backfills it from those flags.
- */
-export type WgClientKind = 'client' | 'server'
-
-/**
- * A WireGuard client's role. A `Server` is a StartOS box that may configure the
- * gateway (DNS injection / auto port-forward); a `Client` is a plain peer with
- * no autoconfig. Stored and sticky — toggling the capability flags never changes
- * it; the migration backfills it from those flags.
- */
-export type WgClientKindInput = 'client' | 'server'
-export type WgConfig = {
-  name: string
-  key: string
-  psk: string
-  /**
-   * Client (no autoconfig) vs Server (a StartOS box). Sticky; defaulted by the
-   * migration from the capability flags.
-   */
-  kind: WgClientKind
-  /**
-   * Whether this device may inject DNS records via RFC 2136. Off by default
-   * — only enable for devices you trust (it lets the device add records to
-   * the tunnel's DNS for every peer to resolve).
-   */
-  allowDnsInjection: boolean
-  /**
-   * Whether this device may auto-create port forwards via PCP/IGD. Off by
-   * default — paired with `allow_dns_injection` under one "Gateway
-   * Autoconfiguration" toggle, but tracked separately so each capability is
-   * gated on its own.
-   */
-  allowAutoPortForward: boolean
-  /**
-   * SNAT this device's egress to this WAN IP, overriding the subnet's
-   * `wan_ip` / the default masquerade. `None` falls back to the subnet rule.
-   */
-  wanIp: string | null
-}
-export type WgSubnetClients = { [key: string]: WgConfig }
-export type WgSubnetConfig = {
-  name: string
-  clients: WgSubnetClients
-  dns: DnsConfig
-  /**
-   * SNAT this subnet's egress to this WAN IP instead of `masquerade`. `None`
-   * keeps the default masquerade; a per-device `wan_ip` overrides this.
-   */
-  wanIp: string | null
-  /**
-   * Routed IPv6 prefix delegated to this subnet, if any. Each host on the
-   * subnet (the server and every client) gets one `/128` out of it with its
-   * tunnel IPv4 embedded — see [`crate::tunnel::wg6`].
-   */
-  ipv6: string | null
-}
-export type WifiAddParamsInput = { ssid: string; password: string }
-export type WifiListInfo = {
-  ssids: { [key: string]: SignalStrength }
-  connected: Ssid | null
-  country: string | null
-  ethernet: boolean
-  availableWifi: WifiListOut[]
-}
-export type WifiListOut = {
-  ssid: Ssid
-  strength: SignalStrength
-  security: string[]
-}
-export type WifiSsidParamsInput = { ssid: string }
-export type ZramParamsInput = { enable: boolean }
+export type StartOsRecoveryInfo = z.output<typeof schemas.StartOsRecoveryInfo>
+export type StartParamsInput = z.input<typeof schemas.StartParams>
+export type SubscribeRes = z.output<typeof schemas.SubscribeRes>
+export type TestSmtpParamsInput = z.input<typeof schemas.TestSmtpParams>
+export type UmountParamsInput = z.input<typeof schemas.UmountParams>
+export type UninstallParamsInput = z.input<typeof schemas.UninstallParams>
+export type UnsetGatewaySecureParamsInput = z.input<
+  typeof schemas.UnsetGatewaySecureParams
+>
+export type UpdateSystemRes = z.output<typeof schemas.UpdateSystemRes>
+export type UpdateTunnelParamsInput = z.input<typeof schemas.UpdateTunnelParams>
+export type VersionSignerParamsInput = z.input<
+  typeof schemas.VersionSignerParams
+>
+export type WgConfig = z.output<typeof schemas.WgConfig>
+export type WifiListOut = z.output<typeof schemas.WifiListOut>
+export type ActionResult = z.output<typeof schemas.ActionResult>
+export type AddPublicDomainRes = z.output<typeof schemas.AddPublicDomainRes>
+export type BackupInfo = z.output<typeof schemas.BackupInfo>
+export type BackupParamsInput = z.input<typeof schemas.BackupParams>
+export type CifsBackupTarget = z.output<typeof schemas.CifsBackupTarget>
+export type CompatibleAlpnInfo = z.output<typeof schemas.CompatibleAlpnInfo>
+export type DependencyMetadata = z.output<typeof schemas.DependencyMetadata>
+export type HardwareInfo = z.output<typeof schemas.HardwareInfo>
+export type HostAddress = z.output<typeof schemas.HostAddress>
+export type HostnameInfo = z.output<typeof schemas.HostnameInfo>
+export type HostnameInfoInput = z.input<typeof schemas.HostnameInfo>
+export type Metrics = z.output<typeof schemas.Metrics>
+export type NetworkInterfaceInfo = z.output<typeof schemas.NetworkInterfaceInfo>
+export type NotificationWithId = z.output<typeof schemas.NotificationWithId>
+export type OsVersionInfoMap = z.output<typeof schemas.OsVersionInfoMap>
+export type PackageMetadata = z.output<typeof schemas.PackageMetadata>
+export type PartitionInfo = z.output<typeof schemas.PartitionInfo>
+export type RegistryInfo = z.output<typeof schemas.RegistryInfo>
+export type ResetPasswordParamsInput = z.input<
+  typeof schemas.ResetPasswordParams
+>
+export type ServiceInterface = z.output<typeof schemas.ServiceInterface>
+export type SessionList = z.output<typeof schemas.SessionList>
+export type WgSubnetClients = z.output<typeof schemas.WgSubnetClients>
+export type WifiListInfo = z.output<typeof schemas.WifiListInfo>
+export type AddSslOptions = z.output<typeof schemas.AddSslOptions>
+export type BackupTarget = z.output<typeof schemas.BackupTarget>
+export type BindingSetAddressEnabledParamsInput = z.input<
+  typeof schemas.BindingSetAddressEnabledParams
+>
+export type BindingSetGuaWanParamsInput = z.input<
+  typeof schemas.BindingSetGuaWanParams
+>
+export type DerivedAddressInfo = z.output<typeof schemas.DerivedAddressInfo>
+export type DeviceInfo = z.output<typeof schemas.DeviceInfo>
+export type DiskInfo = z.output<typeof schemas.DiskInfo>
+export type MetricsFollowResponse = z.output<
+  typeof schemas.MetricsFollowResponse
+>
+export type OsIndex = z.output<typeof schemas.OsIndex>
+export type PackageVersionInfo = z.output<typeof schemas.PackageVersionInfo>
+export type WgSubnetConfig = z.output<typeof schemas.WgSubnetConfig>
+export type BindOptions = z.output<typeof schemas.BindOptions>
+export type GetPackageResponse = z.output<typeof schemas.GetPackageResponse>
+export type GetPackageResponseFull = z.output<
+  typeof schemas.GetPackageResponseFull
+>
+export type PackageInfo = z.output<typeof schemas.PackageInfo>
+export type BindInfo = z.output<typeof schemas.BindInfo>
+export type GetPackageResult = z.output<typeof schemas.GetPackageResult>
+export type PackageIndex = z.output<typeof schemas.PackageIndex>
+export type Bindings = z.output<typeof schemas.Bindings>
+export type FullIndex = z.output<typeof schemas.FullIndex>
+export type Api = RpcSchemaTree<typeof schemas.Api>
