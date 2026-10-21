@@ -19,7 +19,7 @@ use crate::registry::os::index::OsVersionInfoMap;
 use crate::registry::package::get::{
     GetPackageParams, GetPackageResponse, GetPackageResponseFull, PackageDetailLevel,
 };
-use crate::registry::package::index::PackageVersionInfo;
+use crate::registry::package::index::{PackageIndex, PackageVersionInfo};
 use crate::util::VersionString;
 use crate::util::lshw::LshwDevice;
 use crate::version::VersionT;
@@ -128,20 +128,30 @@ impl DeviceInfo {
         }
     }
 
-    /// Strips package icons from a `package.get` response for clients that load them from `/icons/`.
-    pub fn omit_icons(&self, method: &str, params: &Value, res: &mut Value) -> Result<(), Error> {
+    /// Strips publicly served icons for clients that load them from `/icons/`.
+    pub fn omit_icons(
+        &self,
+        method: &str,
+        params: &Value,
+        res: &mut Value,
+        index: &Model<PackageIndex>,
+    ) -> Result<(), Error> {
         if method != "package.get" || self.os.version < "0.4.0.3".parse::<Version>()? {
             return Ok(());
         }
-        let responses: Vec<&mut Value> = if params["id"].is_null() {
+        let responses: Vec<(crate::PackageId, &mut Value)> = if params["id"].is_null() {
             res.as_object_mut()
                 .into_iter()
-                .flat_map(|o| o.iter_mut().map(|(_, v)| v))
-                .collect()
+                .flat_map(|o| o.iter_mut())
+                .map(|(id, response)| Ok((id.parse()?, response)))
+                .collect::<Result<_, Error>>()?
         } else {
-            vec![res]
+            vec![(from_value(params["id"].clone())?, res)]
         };
-        for response in responses {
+        for (id, response) in responses {
+            if index.visible_package(&id, None)?.is_none() {
+                continue;
+            }
             for key in ["best", "otherVersions"] {
                 for (_, info) in response
                     .get_mut(key)
@@ -305,15 +315,16 @@ impl Middleware<RegistryContext> for DeviceInfoMiddleware {
     }
     async fn process_rpc_response(
         &mut self,
-        _: &RegistryContext,
+        ctx: &RegistryContext,
         response: &mut RpcResponse,
     ) -> () {
         if let (Some(req), Some(device_info), Ok(res)) =
             (&self.req, &self.device_info, &mut response.result)
         {
+            let index = ctx.db.peek().await.into_index().into_package();
             if let Err(e) = device_info
                 .filter_for_hardware(req.method.as_str(), req.params.clone(), res)
-                .and_then(|_| device_info.omit_icons(req.method.as_str(), &req.params, res))
+                .and_then(|_| device_info.omit_icons(req.method.as_str(), &req.params, res, &index))
             {
                 response.result = Err(e).map_err(From::from);
             }
@@ -337,9 +348,32 @@ mod tests {
             },
             hardware: None,
         }
-        .omit_icons("package.get", &params, &mut res)
+        .omit_icons("package.get", &params, &mut res, &index())
         .unwrap();
         res
+    }
+
+    fn index() -> Model<PackageIndex> {
+        json!({
+            "categories": {},
+            "packages": {
+                "pkg": {
+                    "authorized": {},
+                    "categories": [],
+                    "versions": {},
+                    "private": false,
+                    "readers": [],
+                },
+                "secret": {
+                    "authorized": {},
+                    "categories": [],
+                    "versions": {},
+                    "private": true,
+                    "readers": [],
+                },
+            },
+        })
+        .into()
     }
 
     fn package() -> Value {
@@ -366,6 +400,21 @@ mod tests {
             json!({ "pkg": package() }),
         );
         assert!(all["pkg"]["best"]["1.0.0:0"].get("icon").is_none());
+    }
+
+    #[test]
+    fn private_icons_stay_inline_for_modern_clients() {
+        assert_eq!(
+            omitted_for("0.4.0.3", json!({ "id": "secret" }), package()),
+            package()
+        );
+        let all = omitted_for(
+            "0.4.0.3",
+            json!({ "id": null }),
+            json!({ "pkg": package(), "secret": package() }),
+        );
+        assert!(all["pkg"]["best"]["1.0.0:0"].get("icon").is_none());
+        assert_eq!(all["secret"], package());
     }
 
     #[test]
