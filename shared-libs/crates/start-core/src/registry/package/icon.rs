@@ -12,6 +12,7 @@ use crate::net::static_server::{bad_request, not_found, server_error};
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
 use crate::registry::package::index::Reader;
+use crate::rpc_continuations::Guid;
 use crate::s9pk::S9pk;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::util::mime::mime;
@@ -188,19 +189,24 @@ impl IconStore {
         if let Some(stored) = self.read_all(id, version).await? {
             return check_icons_match(&stored, icons);
         }
-        let package_dir = self.package_dir(id);
-        tokio::fs::create_dir_all(&package_dir).await?;
-        let staging = tempfile::Builder::new()
-            .prefix(".icons-")
-            .tempdir_in(package_dir)?;
-        let deps = staging.path().join(DEPENDENCIES_DIR);
-        tokio::fs::create_dir_all(&deps).await?;
-        write_icon(staging.path(), ICON_STEM, &icons.icon).await?;
-        for (dep, icon) in &icons.dependencies {
-            write_icon(&deps, dep, icon).await?;
+        let staging = self
+            .package_dir(id)
+            .join(format!(".icons-{}", Guid::new().as_ref()));
+        let published = async {
+            let deps = staging.join(DEPENDENCIES_DIR);
+            tokio::fs::create_dir_all(&deps).await?;
+            write_icon(&staging, ICON_STEM, &icons.icon).await?;
+            for (dep, icon) in &icons.dependencies {
+                write_icon(&deps, dep, icon).await?;
+            }
+            tokio::fs::rename(&staging, self.version_dir(id, version)).await?;
+            Ok(())
         }
-        tokio::fs::rename(staging.path(), self.version_dir(id, version)).await?;
-        Ok(())
+        .await;
+        if published.is_err() {
+            remove_dir(&staging).await?;
+        }
+        published
     }
 
     /// Removes one version's icons, or the whole package's.
