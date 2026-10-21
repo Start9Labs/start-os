@@ -69,6 +69,62 @@ mod tests {
     use super::*;
 
     #[test]
+    fn listen_changes_reject_plain_ranges_without_changing_the_address() {
+        use std::collections::BTreeMap;
+
+        use crate::tunnel::db::{PortForwards, SniRoute};
+
+        let source = "203.0.113.4:442".parse().unwrap();
+        let target = "10.0.0.2:442".parse().unwrap();
+        let original = "0.0.0.0:8443".parse().unwrap();
+        let mut db = Model::new(&TunnelDatabase::default()).unwrap();
+        for enabled in [false, true] {
+            for auto in [false, true] {
+                db.as_port_forwards_mut()
+                    .ser(&PortForwards(BTreeMap::from([(
+                        source,
+                        PortForward::Dnat {
+                            target,
+                            label: None,
+                            enabled,
+                            count: 2,
+                            auto,
+                        },
+                    )])))
+                    .unwrap();
+                reserve_listen_address(&mut db, original).unwrap();
+                for listen in ["0.0.0.0:443", "203.0.113.4:443", "[::]:443"] {
+                    let error =
+                        reserve_listen_address(&mut db, listen.parse().unwrap()).unwrap_err();
+                    assert_eq!(error.kind, ErrorKind::InvalidRequest);
+                    assert_eq!(db.as_webserver().as_listen().de().unwrap(), Some(original));
+                }
+                for listen in ["203.0.113.5:443", "0.0.0.0:444", "[::1]:443"] {
+                    reserve_listen_address(&mut db, listen.parse().unwrap()).unwrap();
+                }
+            }
+        }
+        db.as_port_forwards_mut()
+            .ser(&PortForwards(BTreeMap::from([(
+                "203.0.113.4:443".parse().unwrap(),
+                PortForward::Sni {
+                    routes: BTreeMap::from([(
+                        "service.example.com".to_owned(),
+                        SniRoute {
+                            target,
+                            label: None,
+                            enabled: true,
+                            auto: false,
+                        },
+                    )]),
+                    fallback: None,
+                },
+            )])))
+            .unwrap();
+        reserve_listen_address(&mut db, "0.0.0.0:443".parse().unwrap()).unwrap();
+    }
+
+    #[test]
     fn plain_forwards_respect_configured_ui_address_and_ranges() {
         let source = "203.0.113.4:443".parse().unwrap();
         let mut web = WebserverInfo::default();
@@ -415,6 +471,7 @@ pub async fn set_listen(
     ctx: TunnelContext,
     SetListenParams { listen }: SetListenParams,
 ) -> Result<(), Error> {
+    let _guard = ctx.forward_write_lock.lock().await;
     listener::UiListener::check_available(listen).with_ctx(|_| {
         (
             ErrorKind::Network,
@@ -423,23 +480,25 @@ pub async fn set_listen(
     })?;
 
     ctx.db
-        .mutate(|db| {
-            db.as_webserver_mut().as_listen_mut().ser(&Some(listen))?;
-            let web = db.as_webserver().de()?;
-            let forwarded = db.as_port_forwards().de()?.0.iter().any(|(source, pf)| {
-                matches!(pf, PortForward::Dnat { .. })
-                    && web.reserves_plain_forward(*source, pf.port_span())
-            });
-            if forwarded {
-                return Err(Error::new(
-                    eyre!(t!("tunnel.web.listen-port-forwarded")),
-                    ErrorKind::InvalidRequest,
-                ));
-            }
-            Ok(())
-        })
+        .mutate(|db| reserve_listen_address(db, listen))
         .await
         .result
+}
+
+fn reserve_listen_address(db: &mut Model<TunnelDatabase>, listen: SocketAddr) -> Result<(), Error> {
+    let mut web = db.as_webserver().de()?;
+    web.listen = Some(listen);
+    let forwarded = db.as_port_forwards().de()?.0.iter().any(|(source, pf)| {
+        matches!(pf, PortForward::Dnat { .. })
+            && web.reserves_plain_forward(*source, pf.port_span())
+    });
+    if forwarded {
+        return Err(Error::new(
+            eyre!(t!("tunnel.web.listen-port-forwarded")),
+            ErrorKind::InvalidRequest,
+        ));
+    }
+    db.as_webserver_mut().as_listen_mut().ser(&Some(listen))
 }
 
 pub async fn get_listen(ctx: TunnelContext) -> Result<Option<SocketAddr>, Error> {

@@ -54,7 +54,6 @@ impl UiListener {
         })
     }
 
-    /// Fails when another socket would prevent `bind` at the address.
     pub(crate) fn check_available(addr: SocketAddr) -> Result<(), Error> {
         if let Some(addr) = direct_ipv6_addr(addr) {
             crate::net::utils::bind_tokio_listener_v6_only(addr)?;
