@@ -55,7 +55,7 @@ export class ControlsService {
         }),
       request =>
         this.tasks.run(
-          () => this.api.forceStopPackage(request),
+          () => this.api.rpc.package.forceStop(request),
           'Force stopping',
         ),
     )
@@ -67,7 +67,7 @@ export class ControlsService {
 
     if (!unmet || (await this.alert(deps))) {
       this.tasks.run(
-        async () => await this.api.startPackage({ id }),
+        async () => await this.api.rpc.package.start({ id }),
         'Starting',
       )
     }
@@ -96,7 +96,7 @@ export class ControlsService {
         : of(null),
     ).subscribe(() =>
       this.tasks.run(
-        async () => await this.api.stopPackage({ id }),
+        async () => await this.api.rpc.package.stop({ id }),
         'Stopping',
       ),
     )
@@ -104,7 +104,7 @@ export class ControlsService {
 
   async restart(id: string) {
     this.tasks.run(
-      async () => await this.api.restartPackage({ id }),
+      async () => await this.api.rpc.package.restart({ id }),
       'Restarting',
     )
   }

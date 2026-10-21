@@ -13,7 +13,7 @@ export class TimeService {
   private readonly api = inject(ApiService)
   private readonly time$ = hostTime$(
     this.patch.watch$('serverInfo', 'ntpSynced'),
-    () => this.api.getSystemTime({}),
+    () => this.api.rpc.server.time({}),
   )
 
   readonly now$ = this.time$.pipe(map(({ now, synced }) => ({ now, synced })))

@@ -11,7 +11,7 @@ test('NTP changes re-anchor the shared host clock without polling', async t => {
   const synced = new BehaviorSubject(false)
   const load = t.mock.fn(async () => ({
     now: synced.value ? '2026-10-10T12:00:00Z' : '2026-10-10T11:00:00Z',
-    uptime: synced.value ? 20n : 10n,
+    uptime: synced.value ? 20 : 10,
   }))
   const time = hostTime$(synced, load)
   const values: Array<{ now: number; uptime: number; synced: boolean }> = []

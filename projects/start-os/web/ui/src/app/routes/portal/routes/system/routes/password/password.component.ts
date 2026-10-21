@@ -100,7 +100,7 @@ export default class SystemPasswordComponent {
     }
 
     this.tasks.run(async () => {
-      await this.api.resetPassword({ newPassword })
+      await this.api.rpc.auth.resetPassword({ newPassword })
       this.form()?.form.reset()
       this.alerts
         .open(this.i18n.transform('Password changed'), {

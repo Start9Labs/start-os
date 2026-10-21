@@ -3,7 +3,7 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import { Effects } from '@start9labs/start-core/Effects'
 import * as T from '@start9labs/start-core/types'
-import { z } from '@start9labs/start-core/zExport'
+import * as z from '@start9labs/start-core/z'
 import { FileHelper } from '../util/fileHelper'
 import { sdk } from './output.sdk'
 
@@ -57,6 +57,7 @@ const host = (available: T.HostnameInfo[]): T.Host => ({
           description: '',
           masked: false,
           type: 'ui',
+          preferredLauncherAddress: null,
           addressInfo: {
             username: null,
             hostId: 'ui-multi',

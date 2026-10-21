@@ -170,7 +170,7 @@ export const APP_CONFIG: ApplicationConfig = {
       useFactory: () => {
         const api = inject(ApiService)
 
-        return (language: Languages) => api.setLanguage({ language })
+        return (language: Languages) => api.rpc.server.setLanguage({ language })
       },
     },
     {

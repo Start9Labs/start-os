@@ -1,0 +1,1 @@
+- Changing Remote Access closes WAN-side SSH sessions the new setting disallows, including changes applied from the CLI or after a WAN address change, and preserves sessions it still allows.

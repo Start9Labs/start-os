@@ -132,16 +132,19 @@ if [ "$boot_type" != "MMC" ]; then
     echo ""
 fi
 
-exec /bin/login
+while :; do
+    /bin/login
+done
 SERIALEOF
 chmod +x "${FILES_DIR}/usr/sbin/startwrt-serial"
 
 # Override inittab to use respawnlate for the serial dispatcher.
 # respawnlate runs in STATE_RUNNING (after sysinit completes), so hostname,
 # ubus, and all init.d services are available before startwrt-serial starts.
-# It also auto-starts without requiring Enter (unlike askconsole) and restarts
-# the process on exit. askfirst on an explicit ttyS0 doesn't work on this
-# hardware — Enter input is never received.
+# It also auto-starts without requiring Enter (unlike askconsole). askfirst on
+# an explicit ttyS0 doesn't work on this hardware — Enter input is never
+# received. procd never restarts this entry and sysupgrade keeps /etc/inittab;
+# startwrt-serial restarts login itself.
 mkdir -p "${FILES_DIR}/etc"
 cat > "${FILES_DIR}/etc/inittab" << 'INITTABEOF'
 ::sysinit:/etc/init.d/rcS S boot
@@ -159,12 +162,20 @@ cp "$PROJECT_DIR"/backend/hotplug/99-startwrt-published-ports "${FILES_DIR}/etc/
 chmod +x "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-published-ports"
 cp "$PROJECT_DIR"/backend/hotplug/99-startwrt-port-control "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-port-control"
 chmod +x "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-port-control"
+cp "$PROJECT_DIR"/backend/hotplug/99-startwrt-smartdns "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-smartdns"
+chmod +x "${FILES_DIR}/etc/hotplug.d/iface/99-startwrt-smartdns"
 
 # fw4 auto-includes these into `table inet fw4`. They must not go in
 # /etc/nftables.d, which sysupgrade restores over the image.
 mkdir -p "${FILES_DIR}/usr/share/nftables.d/table-pre"
 for f in "$PROJECT_DIR"/backend/nftables/*.nft; do
     cp "$f" "${FILES_DIR}/usr/share/nftables.d/table-pre/$(basename "$f")"
+done
+
+# fw4 auto-includes these at the top level, outside `table inet fw4`.
+mkdir -p "${FILES_DIR}/usr/share/nftables.d/ruleset-pre"
+for f in "$PROJECT_DIR"/backend/nftables/ruleset-pre/*.nft; do
+    cp "$f" "${FILES_DIR}/usr/share/nftables.d/ruleset-pre/$(basename "$f")"
 done
 
 # Deletes the copies earlier images staged in /etc/nftables.d. fw4 would load
