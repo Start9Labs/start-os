@@ -1,0 +1,1 @@
+- Failed service updates no longer restore stale data from an earlier update when a new rollback snapshot cannot be created.
