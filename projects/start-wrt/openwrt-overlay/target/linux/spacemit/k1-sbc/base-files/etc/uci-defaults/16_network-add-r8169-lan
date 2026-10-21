@@ -22,10 +22,12 @@ config_load network
 config_foreach find_bridge device
 config_foreach find_admin_vlan bridge-vlan
 [ -n "$bridge" ] || exit 0
+wan=$(uci -q get network.wan.device)
 
 for path in /sys/class/net/*; do
 	[ "$(basename "$(readlink "$path/device/driver")")" = r8169 ] || continue
 	dev=$(basename "$path")
+	[ "$dev" = "$wan" ] && continue
 	case " $(uci -q get "network.$bridge.ports") " in
 	*" $dev "*) continue ;;
 	esac
