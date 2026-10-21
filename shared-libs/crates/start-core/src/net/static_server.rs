@@ -33,10 +33,13 @@ use url::Url;
 use crate::context::{DiagnosticContext, InitContext, RpcContext, SetupContext};
 use crate::hostname::ServerHostname;
 use crate::middleware::auth::Auth;
-use crate::middleware::auth::signature::verify_request_signature;
+use crate::middleware::auth::signature::{
+    AUTH_SIG_HEADER, SignatureHeader, SigningContext, verify_request_signature,
+};
 use crate::middleware::cors::Cors;
 use crate::middleware::db::SyncDb;
 use crate::prelude::*;
+use crate::registry::context::registry_sig_context;
 use crate::rpc_continuations::{Guid, RpcContinuations};
 use crate::s9pk::S9pk;
 use crate::s9pk::merkle_archive::file_contents::FileContents;
@@ -83,7 +86,7 @@ impl UiContext for RpcContext {
     fn middleware(server: Server<Self>) -> HttpServer<Self> {
         server
             .middleware(Cors::new())
-            .middleware(Auth::new().with_local_auth().with_signature_auth())
+            .middleware(Auth::new().with_signature_auth().with_local_auth())
             .middleware(SyncDb::new())
     }
     fn extend_router(self, router: Router) -> Router {
@@ -93,7 +96,15 @@ impl UiContext for RpcContext {
                 let ctx = self.clone();
                 get(|x::Path(url): x::Path<Url>, request: Request| async move {
                     if_authorized(&ctx, request, |_| async {
-                        registry_icon_response(ctx.client.get(), url).await
+                        let signature = match registry_sig_context(&ctx, &url).await? {
+                            Some(sig_context) => Some(SignatureHeader::sign(
+                                &ctx.signing_key()?,
+                                &[],
+                                &sig_context,
+                            )?),
+                            None => None,
+                        };
+                        registry_icon_response(ctx.client.get(), url, signature).await
                     })
                     .await
                     .unwrap_or_else(server_error)
@@ -420,8 +431,16 @@ fn s9pk_router(ctx: RpcContext) -> Router {
         )
 }
 
-async fn registry_icon_response(client: reqwest::Client, url: Url) -> Result<Response, Error> {
-    let upstream = client.get(url).send().await.with_kind(ErrorKind::Network)?;
+async fn registry_icon_response(
+    client: reqwest::Client,
+    url: Url,
+    signature: Option<SignatureHeader>,
+) -> Result<Response, Error> {
+    let mut upstream = client.get(url);
+    if let Some(signature) = signature {
+        upstream = upstream.header(AUTH_SIG_HEADER, signature.to_header());
+    }
+    let upstream = upstream.send().await.with_kind(ErrorKind::Network)?;
     let mut response = Response::builder().status(upstream.status());
     if let Some(content_type) = upstream.headers().get(CONTENT_TYPE) {
         response = response.header(CONTENT_TYPE, content_type);
@@ -1033,9 +1052,11 @@ mod tests {
             .timeout(Duration::from_secs(5))
             .build()
             .unwrap();
-        for (status, content_type, contents) in [
-            ("200 OK", "image/svg+xml", "<svg/>"),
-            ("404 Not Found", "text/plain", "missing icon"),
+        let key =
+            crate::sign::AnySigningKey::Ed25519(ed25519_dalek::SigningKey::from_bytes(&[7; 32]));
+        for (status, content_type, contents, signed) in [
+            ("200 OK", "image/svg+xml", "<svg/>", true),
+            ("404 Not Found", "text/plain", "missing icon", false),
         ] {
             let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
             let url = Url::parse(&format!(
@@ -1053,6 +1074,8 @@ mod tests {
                     request.extend_from_slice(&buffer[..len]);
                 }
                 assert!(request.starts_with(b"GET /icons/test/1.0.0:0 HTTP/1.1\r\n"));
+                let request = String::from_utf8(request).unwrap().to_ascii_lowercase();
+                assert_eq!(request.contains("\r\nx-start-auth-sig: "), signed);
                 socket
                     .write_all(
                         format!(
@@ -1068,7 +1091,10 @@ mod tests {
                     .await
                     .unwrap();
             });
-            let response = registry_icon_response(client.clone(), url).await.unwrap();
+            let signature = signed.then(|| SignatureHeader::sign(&key, &[], "127.0.0.1").unwrap());
+            let response = registry_icon_response(client.clone(), url, signature)
+                .await
+                .unwrap();
             assert_eq!(response.status().as_u16().to_string(), &status[..3]);
             assert_eq!(header(&response, CONTENT_TYPE), content_type);
             assert_eq!(response.headers().len(), 1);

@@ -254,6 +254,16 @@ export type QueryDnsRes = z.output<typeof schemas.QueryDnsRes>
 export type QueryDnsResInput = z.input<typeof schemas.QueryDnsRes>
 
 /**
+ * The verified signer of a read request.
+ */
+export type ReaderParams = z.output<typeof schemas.ReaderParams>
+
+/**
+ * The verified signer of a read request.
+ */
+export type ReaderParamsInput = z.input<typeof schemas.ReaderParams>
+
+/**
  * A migration or backup recovery source with a caller-selected backup password representation.
  */
 export type RecoverySource<Password> = z.output<
@@ -652,6 +662,12 @@ export type GetOutboundGatewayParams = z.output<
 export type GetOutboundGatewayParamsInput = z.input<
   typeof schemas.GetOutboundGatewayParams
 >
+export type GetPackageAccessParams = z.output<
+  typeof schemas.GetPackageAccessParams
+>
+export type GetPackageAccessParamsInput = z.input<
+  typeof schemas.GetPackageAccessParams
+>
 export type GetPackageParams = z.output<typeof schemas.GetPackageParams>
 export type GetPackageParamsInput = z.input<typeof schemas.GetPackageParams>
 export type GetServiceInterfaceParams = z.output<
@@ -758,6 +774,10 @@ export type PackageBackupInfo = z.output<typeof schemas.PackageBackupInfo>
 export type PackageBackupInfoInput = z.input<typeof schemas.PackageBackupInfo>
 export type PackageInfoShort = z.output<typeof schemas.PackageInfoShort>
 export type PackageInfoShortInput = z.input<typeof schemas.PackageInfoShort>
+export type PackageReaderParams = z.output<typeof schemas.PackageReaderParams>
+export type PackageReaderParamsInput = z.input<
+  typeof schemas.PackageReaderParams
+>
 export type PassthroughInfo = z.output<typeof schemas.PassthroughInfo>
 export type PassthroughInfoInput = z.input<typeof schemas.PassthroughInfo>
 export type PasswordType = z.output<typeof schemas.PasswordType>
@@ -906,6 +926,12 @@ export type SetOutboundGatewayParams = z.output<
 export type SetOutboundGatewayParamsInput = z.input<
   typeof schemas.SetOutboundGatewayParams
 >
+export type SetPackagePrivateParams = z.output<
+  typeof schemas.SetPackagePrivateParams
+>
+export type SetPackagePrivateParamsInput = z.input<
+  typeof schemas.SetPackagePrivateParams
+>
 export type SetupExecuteParams = z.output<typeof schemas.SetupExecuteParams>
 export type SetupExecuteParamsInput = z.input<typeof schemas.SetupExecuteParams>
 export type SetupResult = z.output<typeof schemas.SetupResult>
@@ -1028,6 +1054,8 @@ export type NotificationWithId = z.output<typeof schemas.NotificationWithId>
 export type NotificationWithIdInput = z.input<typeof schemas.NotificationWithId>
 export type OsVersionInfoMap = z.output<typeof schemas.OsVersionInfoMap>
 export type OsVersionInfoMapInput = z.input<typeof schemas.OsVersionInfoMap>
+export type PackageAccess = z.output<typeof schemas.PackageAccess>
+export type PackageAccessInput = z.input<typeof schemas.PackageAccess>
 export type PackageMetadata = z.output<typeof schemas.PackageMetadata>
 export type PackageMetadataInput = z.input<typeof schemas.PackageMetadata>
 export type PackagePlugin = z.output<typeof schemas.PackagePlugin>

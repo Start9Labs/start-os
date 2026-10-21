@@ -12,12 +12,12 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::context::CliContext;
-pub use crate::db::{
-    ApplyWithPathParams as ApplyParams, DumpParams, DumpParams as SubscribeParams, SubscribeRes,
-};
+pub use crate::db::{ApplyWithPathParams as ApplyParams, DumpParams, SubscribeRes};
 use crate::prelude::*;
 use crate::registry::RegistryDatabase;
 use crate::registry::context::RegistryContext;
+use crate::registry::mirror::{index_mirror, mirror_key};
+use crate::registry::package::index::ReaderParams;
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::util::serde::{HandlerExtSerde, apply_expr};
 
@@ -44,6 +44,7 @@ pub fn db_api<C: Context>() -> ParentHandler<C> {
             "subscribe",
             from_fn_async(subscribe)
                 .with_metadata("authenticated", Value::Bool(false))
+                .with_metadata("get_signer", Value::Bool(true))
                 .no_cli(),
         )
         .subcommand(
@@ -114,17 +115,35 @@ fn subscription_pointer(pointer: Option<JsonPointer>) -> Result<JsonPointer, Err
     Ok(pointer)
 }
 
+#[derive(Debug, Deserialize, Serialize, VisitFields)]
+#[serde(rename_all = "camelCase")]
+pub struct SubscribeIndexParams {
+    pub pointer: Option<JsonPointer>,
+    #[serde(flatten)]
+    pub reader: ReaderParams,
+}
+
+rpc_toolkit::reflect_ts!(SubscribeIndexParams);
+
+/// Streams the index visible to the verified request key.
 pub async fn subscribe(
     ctx: RegistryContext,
-    SubscribeParams { pointer }: SubscribeParams,
+    SubscribeIndexParams { pointer, reader }: SubscribeIndexParams,
 ) -> Result<SubscribeRes, Error> {
-    let (dump, mut sub) = ctx.db.dump_and_sub(subscription_pointer(pointer)?).await;
+    let pointer = subscription_pointer(pointer)?;
+    let auth_key = reader.signer.as_ref().map(|key| key.interned_pem());
+    let key = mirror_key(&ctx.db.peek().await, reader.signer)?;
+    let mirror = index_mirror(&ctx.index_mirrors, &ctx.db, key).await?;
+    let (dump, mut sub) = mirror.db.dump_and_sub(pointer).await;
     let guid = Guid::new();
     ctx.rpc_continuations
         .add(
             guid.clone(),
-            RpcContinuation::ws(
+            RpcContinuation::ws_authed(
+                &ctx,
+                auth_key,
                 |mut ws| async move {
+                    let _mirror = mirror;
                     if let Err(e) = async {
                         loop {
                             tokio::select! {
@@ -174,7 +193,7 @@ mod tests {
             serde_json::json!({}),
             serde_json::json!({ "pointer": null }),
         ] {
-            let params: SubscribeParams = serde_json::from_value(params).unwrap();
+            let params: SubscribeIndexParams = serde_json::from_value(params).unwrap();
             assert!(params.pointer.is_none());
         }
     }

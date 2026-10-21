@@ -142,6 +142,7 @@ impl Public {
                 epp: None,
                 smtp: None,
                 echoip_urls: default_echoip_urls(),
+                signed_registries: BTreeSet::new(),
                 ram: 0,
                 devices: Vec::new(),
                 kiosk: Some(kiosk).filter(|_| &*PLATFORM != "raspberrypi"),
@@ -191,6 +192,9 @@ pub struct ServerInfo {
     pub smtp: Option<SmtpValue>,
     #[serde(default = "default_echoip_urls")]
     pub echoip_urls: Vec<Url>,
+    /// Registries that receive requests signed with the server's developer key.
+    #[serde(default)]
+    pub signed_registries: BTreeSet<Url>,
     pub ram: u64,
     pub devices: Vec<LshwDevice>,
     pub kiosk: Option<bool>,

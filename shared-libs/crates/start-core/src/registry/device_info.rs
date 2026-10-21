@@ -12,6 +12,7 @@ use rpc_toolkit::{Middleware, RpcRequest, RpcResponse};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
+use crate::PackageId;
 use crate::context::RpcContext;
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
@@ -19,6 +20,7 @@ use crate::registry::os::index::OsVersionInfoMap;
 use crate::registry::package::get::{
     GetPackageParams, GetPackageResponse, GetPackageResponseFull, PackageDetailLevel,
 };
+use crate::registry::package::icon::IconStore;
 use crate::registry::package::index::PackageVersionInfo;
 use crate::util::VersionString;
 use crate::util::lshw::LshwDevice;
@@ -128,22 +130,29 @@ impl DeviceInfo {
         }
     }
 
-    /// Strips package icons from a `package.get` response for clients that load them from `/icons/`.
-    pub fn omit_icons(&self, method: &str, params: &Value, res: &mut Value) -> Result<(), Error> {
-        if method != "package.get" || self.os.version < "0.4.0.3".parse::<Version>()? {
+    /// Adds stored package icons to a `package.get` response for StartOS before 0.4.0.3.
+    pub async fn inline_icons(
+        &self,
+        icons: &IconStore,
+        method: &str,
+        params: &Value,
+        res: &mut Value,
+    ) -> Result<(), Error> {
+        if method != "package.get" || self.os.version >= "0.4.0.3".parse::<Version>()? {
             return Ok(());
         }
-        let responses: Vec<&mut Value> = if params["id"].is_null() {
+        let responses: Vec<(PackageId, &mut Value)> = if params["id"].is_null() {
             res.as_object_mut()
                 .into_iter()
-                .flat_map(|o| o.iter_mut().map(|(_, v)| v))
-                .collect()
+                .flat_map(|o| o.iter_mut())
+                .map(|(id, response)| Ok((id.parse()?, response)))
+                .collect::<Result<_, Error>>()?
         } else {
-            vec![res]
+            vec![(from_value(params["id"].clone())?, res)]
         };
-        for response in responses {
+        for (id, response) in responses {
             for key in ["best", "otherVersions"] {
-                for (_, info) in response
+                for (version, info) in response
                     .get_mut(key)
                     .and_then(|v| v.as_object_mut())
                     .into_iter()
@@ -152,16 +161,24 @@ impl DeviceInfo {
                     let Some(info) = info.as_object_mut() else {
                         continue;
                     };
-                    info.remove("icon");
-                    for (_, dep) in info
+                    let Some(deps) = info
                         .get_mut("dependencyMetadata")
                         .and_then(|d| d.as_object_mut())
-                        .into_iter()
-                        .flat_map(|d| d.iter_mut())
-                    {
-                        if let Some(dep) = dep.as_object_mut() {
-                            dep.remove("icon");
+                    else {
+                        continue;
+                    };
+                    let version: VersionString = version.parse()?;
+                    for (dep, meta) in deps.iter_mut() {
+                        let dep: PackageId = dep.parse()?;
+                        if let (Some(meta), Some(icon)) = (
+                            meta.as_object_mut(),
+                            icons.read(&id, &version, Some(&dep)).await?,
+                        ) {
+                            meta.insert("icon".into(), to_value(&icon)?);
                         }
+                    }
+                    if let Some(icon) = icons.read(&id, &version, None).await? {
+                        info.insert("icon".into(), to_value(&icon)?);
                     }
                 }
             }
@@ -305,16 +322,22 @@ impl Middleware<RegistryContext> for DeviceInfoMiddleware {
     }
     async fn process_rpc_response(
         &mut self,
-        _: &RegistryContext,
+        ctx: &RegistryContext,
         response: &mut RpcResponse,
     ) -> () {
         if let (Some(req), Some(device_info), Ok(res)) =
             (&self.req, &self.device_info, &mut response.result)
         {
-            if let Err(e) = device_info
-                .filter_for_hardware(req.method.as_str(), req.params.clone(), res)
-                .and_then(|_| device_info.omit_icons(req.method.as_str(), &req.params, res))
-            {
+            let method = req.method.as_str();
+            let filtered = match device_info.filter_for_hardware(method, req.params.clone(), res) {
+                Ok(()) => {
+                    device_info
+                        .inline_icons(&ctx.icons, method, &req.params, res)
+                        .await
+                }
+                Err(e) => Err(e),
+            };
+            if let Err(e) = filtered {
                 response.result = Err(e).map_err(From::from);
             }
         }
@@ -326,8 +349,10 @@ mod tests {
     use imbl_value::json;
 
     use super::*;
+    use crate::registry::package::icon::PackageIcons;
+    use crate::util::DataUrl;
 
-    fn omitted_for(os_version: &str, params: Value, mut res: Value) -> Value {
+    fn device(os_version: &str) -> DeviceInfo {
         DeviceInfo {
             os: OsInfo {
                 version: os_version.parse().unwrap(),
@@ -337,42 +362,72 @@ mod tests {
             },
             hardware: None,
         }
-        .omit_icons("package.get", &params, &mut res)
-        .unwrap();
-        res
     }
 
     fn package() -> Value {
         json!({
             "best": { "1.0.0:0": {
-                "icon": "data:image/png;base64,aWNvbg==",
-                "dependencyMetadata": { "dep": { "icon": "data:image/png;base64,aWNvbg==" } },
+                "dependencyMetadata": { "dep": { "optional": false }, "other": { "optional": true } },
             } },
-            "otherVersions": { "0.9.0:0": { "icon": "data:image/png;base64,aWNvbg==" } },
+            "otherVersions": { "0.9.0:0": { "releaseNotes": "notes" } },
         })
     }
 
-    #[test]
-    fn icons_are_omitted_from_0_4_0_3() {
-        let res = omitted_for("0.4.0.3", json!({ "id": "pkg" }), package());
-        let best = &res["best"]["1.0.0:0"];
-        assert!(best.get("icon").is_none());
-        assert!(best["dependencyMetadata"]["dep"].get("icon").is_none());
-        assert!(res["otherVersions"]["0.9.0:0"].get("icon").is_none());
-
-        let all = omitted_for(
-            "0.4.0.3",
-            json!({ "id": null }),
-            json!({ "pkg": package() }),
-        );
-        assert!(all["pkg"]["best"]["1.0.0:0"].get("icon").is_none());
+    async fn store() -> (tempfile::TempDir, IconStore) {
+        let dir = tempfile::tempdir().unwrap();
+        let store = IconStore::new(dir.path());
+        store
+            .write(
+                &"pkg".parse().unwrap(),
+                &"1.0.0:0".parse().unwrap(),
+                &PackageIcons {
+                    icon: DataUrl::from_vec("image/png", b"icon".to_vec()),
+                    dependencies: [(
+                        "dep".parse().unwrap(),
+                        DataUrl::from_vec("image/png", b"dep".to_vec()),
+                    )]
+                    .into_iter()
+                    .collect(),
+                },
+            )
+            .await
+            .unwrap();
+        (dir, store)
     }
 
-    #[test]
-    fn icons_are_kept_before_0_4_0_3() {
+    #[tokio::test]
+    async fn icons_are_inlined_before_0_4_0_3() {
+        let (_dir, store) = store().await;
+        let mut res = package();
+        device("0.4.0.2")
+            .inline_icons(&store, "package.get", &json!({ "id": "pkg" }), &mut res)
+            .await
+            .unwrap();
+        let best = &res["best"]["1.0.0:0"];
+        assert_eq!(best["icon"], json!("data:image/png;base64,aWNvbg=="));
         assert_eq!(
-            omitted_for("0.4.0.2", json!({ "id": "pkg" }), package()),
-            package()
+            best["dependencyMetadata"]["dep"]["icon"],
+            json!("data:image/png;base64,ZGVw")
         );
+        assert!(best["dependencyMetadata"]["other"].get("icon").is_none());
+        assert!(res["otherVersions"]["0.9.0:0"].get("icon").is_none());
+
+        let mut all = json!({ "pkg": package() });
+        device("0.4.0.2")
+            .inline_icons(&store, "package.get", &json!({ "id": null }), &mut all)
+            .await
+            .unwrap();
+        assert_eq!(all["pkg"], res);
+    }
+
+    #[tokio::test]
+    async fn icons_are_not_inlined_from_0_4_0_3() {
+        let (_dir, store) = store().await;
+        let mut res = package();
+        device("0.4.0.3")
+            .inline_icons(&store, "package.get", &json!({ "id": "pkg" }), &mut res)
+            .await
+            .unwrap();
+        assert_eq!(res, package());
     }
 }

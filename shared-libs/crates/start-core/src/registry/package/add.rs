@@ -14,6 +14,7 @@ use crate::prelude::*;
 use crate::progress::FullProgressTracker;
 use crate::registry::asset::BufferedHttpSource;
 use crate::registry::context::RegistryContext;
+use crate::registry::package::icon::PackageIcons;
 use crate::registry::package::index::PackageVersionInfo;
 use crate::s9pk::S9pk;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
@@ -78,6 +79,11 @@ pub async fn add_package(
     let manifest = s9pk.as_manifest();
 
     let mut info = PackageVersionInfo::from_s9pk(&s9pk, urls).await?;
+    let icons = PackageIcons::from_s9pk(&s9pk).await?;
+    let _update = ctx.package_updates.lock().await;
+    ctx.icons
+        .ensure_matches(&manifest.id, &manifest.version, &icons)
+        .await?;
     for (_, s9pk) in &mut info.s9pks {
         if !s9pk.signatures.contains_key(&uploader) && s9pk.commitment == commitment {
             s9pk.signatures.insert(uploader.clone(), signature.clone());
@@ -119,7 +125,10 @@ pub async fn add_package(
             }
         })
         .await
-        .result
+        .result?;
+    ctx.icons
+        .write(&manifest.id, &manifest.version, &icons)
+        .await
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
@@ -250,6 +259,7 @@ pub async fn remove_package(
         signer,
     }: RemovePackageParams,
 ) -> Result<bool, Error> {
+    let _update = ctx.package_updates.lock().await;
     let peek = ctx.db.peek().await;
     let signer = signer.ok_or_else(|| {
         Error::new(
@@ -335,7 +345,17 @@ pub async fn remove_package(
             }
         })
         .await;
-    rev.result.map(|_| rev.revision.is_some())
+    rev.result?;
+    let peek = ctx.db.peek().await;
+    match peek.as_index().as_package().as_packages().as_idx(&id) {
+        None => ctx.icons.remove(&id, None).await?,
+        Some(package) => {
+            if let Some(version) = version.filter(|v| package.as_versions().as_idx(v).is_none()) {
+                ctx.icons.remove(&id, Some(&version)).await?;
+            }
+        }
+    }
+    Ok(rev.revision.is_some())
 }
 
 #[derive(Debug, Deserialize, Serialize, VisitFields)]
@@ -376,6 +396,11 @@ pub async fn add_mirror(
     let manifest = s9pk.as_manifest();
 
     let mut info = PackageVersionInfo::from_s9pk(&s9pk, vec![url]).await?;
+    let icons = PackageIcons::from_s9pk(&s9pk).await?;
+    let _update = ctx.package_updates.lock().await;
+    ctx.icons
+        .ensure_matches(&manifest.id, &manifest.version, &icons)
+        .await?;
     for (_, s9pk) in &mut info.s9pks {
         if !s9pk.signatures.contains_key(&uploader) && s9pk.commitment == commitment {
             s9pk.signatures.insert(uploader.clone(), signature.clone());
@@ -414,7 +439,10 @@ pub async fn add_mirror(
             }
         })
         .await
-        .result
+        .result?;
+    ctx.icons
+        .write(&manifest.id, &manifest.version, &icons)
+        .await
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]

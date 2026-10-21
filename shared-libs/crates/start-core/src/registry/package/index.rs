@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::u32;
 
 use chrono::Utc;
+use clap::Parser;
 use exver::{Version, VersionRange};
 use imbl_value::InternedString;
 use patch_db::ModelExt;
@@ -11,6 +12,7 @@ use url::Url;
 use crate::PackageId;
 use crate::db::model::package::CurrentDependencyKind;
 use crate::prelude::*;
+use crate::registry::RegistryDatabase;
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
 use crate::registry::device_info::DeviceInfo;
@@ -42,10 +44,126 @@ pub struct PackageInfo {
     pub authorized: BTreeMap<Guid, VersionRange>,
     pub versions: BTreeMap<VersionString, PackageVersionInfo>,
     pub categories: BTreeSet<InternedString>,
+    /// Hides the package from every read request not signed by an admin, an authorized signer, or one of `readers`.
+    #[serde(default)]
+    pub private: bool,
+    #[serde(default)]
+    pub readers: BTreeSet<Guid>,
 }
 
 rpc_toolkit::reflect_ts!(PackageInfo);
 rpc_toolkit::ts_export!(PackageInfo, namespaces = [""]);
+
+/// The registered signer of a read request.
+#[derive(Clone, Debug)]
+pub struct Reader {
+    pub signer: Guid,
+    pub admin: bool,
+}
+
+impl Reader {
+    /// None for an unsigned request or an unregistered key.
+    pub fn resolve(
+        db: &Model<RegistryDatabase>,
+        key: Option<&AnyVerifyingKey>,
+    ) -> Result<Option<Self>, Error> {
+        let Some(key) = key else {
+            return Ok(None);
+        };
+        match db.as_index().as_signers().find_signer(key)? {
+            Some(signer) => Self::for_signer(db, &signer),
+            None => Ok(None),
+        }
+    }
+
+    /// None for an unregistered signer.
+    pub fn for_signer(db: &Model<RegistryDatabase>, signer: &Guid) -> Result<Option<Self>, Error> {
+        if !db.as_index().as_signers().contains_key(signer)? {
+            return Ok(None);
+        }
+        Ok(Some(Reader {
+            admin: db.as_admins().de()?.contains(signer),
+            signer: signer.clone(),
+        }))
+    }
+}
+
+impl Model<PackageInfo> {
+    pub fn is_visible_to(&self, reader: Option<&Reader>) -> Result<bool, Error> {
+        if !self.as_private().de()? {
+            return Ok(true);
+        }
+        let Some(reader) = reader else {
+            return Ok(false);
+        };
+        Ok(reader.admin
+            || self.as_authorized().contains_key(&reader.signer)?
+            || self.as_readers().de()?.contains(&reader.signer))
+    }
+}
+
+impl Model<PackageIndex> {
+    /// None when the package is absent or hidden from the reader.
+    pub fn visible_package(
+        &self,
+        id: &PackageId,
+        reader: Option<&Reader>,
+    ) -> Result<Option<&Model<PackageInfo>>, Error> {
+        match self.as_packages().as_idx(id) {
+            Some(info) if info.is_visible_to(reader)? => Ok(Some(info)),
+            _ => Ok(None),
+        }
+    }
+
+    /// Whether the reader sees a private package.
+    pub fn grants_private_access(&self, reader: &Reader) -> Result<bool, Error> {
+        for (_, info) in self.as_packages().as_entries()? {
+            if info.as_private().de()? && info.is_visible_to(Some(reader))? {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// Removes the packages hidden from the reader.
+    pub fn retain_visible(&mut self, reader: Option<&Reader>) -> Result<(), Error> {
+        let mut hidden = Vec::new();
+        for (id, info) in self.as_packages().as_entries()? {
+            if !info.is_visible_to(reader)? {
+                hidden.push(id);
+            }
+        }
+        for id in hidden {
+            self.as_packages_mut().remove(&id)?;
+        }
+        Ok(())
+    }
+
+    /// Omits the packages hidden from the reader.
+    pub fn de_visible_to(&self, reader: Option<&Reader>) -> Result<PackageIndex, Error> {
+        let mut index = self.clone();
+        index.retain_visible(reader)?;
+        index.de()
+    }
+}
+
+/// The verified signer of a read request.
+#[derive(Debug, Default, Deserialize, Serialize, VisitFields, Parser)]
+#[group(skip)]
+pub struct ReaderParams {
+    #[arg(skip)]
+    #[visit(ts(skip))]
+    #[serde(rename = "__Auth_signer")]
+    pub signer: Option<AnyVerifyingKey>,
+}
+
+rpc_toolkit::reflect_ts!(ReaderParams);
+
+impl ReaderParams {
+    pub fn reader(&self, db: &Model<RegistryDatabase>) -> Result<Option<Reader>, Error> {
+        Reader::resolve(db, self.signer.as_ref())
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize, HasModel, VisitFields)]
 #[serde(rename_all = "camelCase")]
@@ -149,7 +267,7 @@ rpc_toolkit::reflect_ts!(PackageMetadata);
 pub struct PackageVersionInfo {
     #[serde(flatten)]
     pub metadata: PackageMetadata,
-    /// Absent for clients that load icons from the registry's `/icons/` route.
+    /// Present only in `package.get` responses to StartOS before 0.4.0.3. Others load it from the registry's `/icons/` route.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<DataUrl<'static>>,
     pub dependency_metadata: BTreeMap<PackageId, DependencyMetadata>,
@@ -165,7 +283,6 @@ impl PackageVersionInfo {
         urls: Vec<Url>,
     ) -> Result<Self, Error> {
         let manifest = s9pk.as_manifest();
-        let icon = Some(s9pk.icon_data_url().await?);
         let mut dependency_metadata = BTreeMap::new();
         for (id, info) in &manifest.dependencies.0 {
             let dep_meta = s9pk.dependency_metadata(id).await?;
@@ -173,7 +290,7 @@ impl PackageVersionInfo {
                 id.clone(),
                 DependencyMetadata {
                     title: dep_meta.map(|m| m.title),
-                    icon: s9pk.dependency_icon_data_url(id).await?,
+                    icon: None,
                     description: info.description.clone(),
                     optional: info.optional,
                     version_range: info.version_range.clone(),
@@ -183,7 +300,7 @@ impl PackageVersionInfo {
         }
         Ok(Self {
             metadata: manifest.metadata.clone(),
-            icon,
+            icon: None,
             dependency_metadata,
             source_version: Some(manifest.can_migrate_from.clone()),
             s9pks: vec![(
@@ -206,12 +323,6 @@ impl PackageVersionInfo {
         if self.metadata != other.metadata {
             return Err(Error::new(
                 color_eyre::eyre::eyre!("{}", t!("registry.package.index.metadata-mismatch")),
-                ErrorKind::InvalidRequest,
-            ));
-        }
-        if self.icon != other.icon {
-            return Err(Error::new(
-                color_eyre::eyre::eyre!("{}", t!("registry.package.index.icon-mismatch")),
                 ErrorKind::InvalidRequest,
             ));
         }
@@ -336,8 +447,13 @@ impl Model<PackageVersionInfo> {
     }
 }
 
-pub async fn get_package_index(ctx: RegistryContext) -> Result<PackageIndex, Error> {
-    ctx.db.peek().await.into_index().into_package().de()
+pub async fn get_package_index(
+    ctx: RegistryContext,
+    params: ReaderParams,
+) -> Result<PackageIndex, Error> {
+    let peek = ctx.db.peek().await;
+    let reader = params.reader(&peek)?;
+    peek.as_index().as_package().de_visible_to(reader.as_ref())
 }
 
 #[cfg(test)]

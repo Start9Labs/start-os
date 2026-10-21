@@ -38,7 +38,7 @@ Defined in `shared-libs/crates/start-core/src/registry/mod.rs`:
 - `POST /rpc/{*path}` — JSON-RPC, wrapped in `Cors`, `Auth` (local + signature auth), and `DeviceInfoMiddleware`.
 - `GET /ws/rpc/{*path}` — WebSocket RPC continuations, keyed by a `Guid`.
 - `/rest/rpc/{*path}` — REST continuation channel (e.g. large asset streams), keyed by a `Guid`.
-- `GET /icons/{id}/{version}` and `GET /icons/{id}/{version}/dependencies/{dependency}` — a package version's icon, or its icon for a dependency, unauthenticated. `package.get` omits icons for StartOS 0.4.0.3 and later, which load them here.
+- `GET /icons/{id}/{version}` and `GET /icons/{id}/{version}/dependencies/{dependency}` — a package version's icon, or its icon for a dependency. `package.get` omits icons for StartOS 0.4.0.3 and later, which load them here. A private package's icons require a request signed (`X-Start-Auth-Sig` over an empty body) by a signer who may see it; StartOS's icon proxy signs for its signed registries.
 
 ## RPC API surface (`registry_api`)
 
@@ -56,10 +56,17 @@ Subcommands (same module), each available over RPC and to the `start-registry` C
 
 ### Registry index subscriptions
 
-The public `db.subscribe` RPC accepts `{ "pointer": <JSON Pointer> }`. The pointer may select
+The unauthenticated `db.subscribe` RPC accepts `{ "pointer": <JSON Pointer> }`. The pointer may select
 `/index` or any descendant; omitting it or passing `null` selects `/index`. The response contains
 an initial `{ id, value }` dump and a continuation `guid`. Connecting to `/ws/rpc/<guid>` streams
 revisions whose JSON Patch paths are relative to the selected subtree.
+
+Subscriptions read an in-memory mirror of `/index` (`registry/mirror.rs`) without the packages
+hidden from the verified request key. A key belonging to an admin, or to a signer who can see a
+private package, gets its own mirror, which resolves the key's enrollment and permissions again on
+every revision. Every other subscription shares the public mirror, so access granted later
+appears after resubscribing. A mirror is created by its first subscription, shared by later ones,
+and dropped with the last. Signed continuations use the shared key-revocation kill mechanism.
 
 ## Data model
 
@@ -76,6 +83,7 @@ Package and OS indexes (`registry/package/index.rs`, `registry/os/index.rs`) hol
 `RegistryContext::init` resolves `datadir` (default `/var/lib/startos`) and:
 
 - Opens `<datadir>/registry.db` as a `TypedPatchDb<RegistryDatabase>`; initializes it on first run and runs pending migrations.
+- Stores package icons under `<datadir>/icons/<id>/<version>/` (`IconStore` in `registry/package/icon.rs`), not in the index. Icons a database still holds inline are written there before migrations remove them. Package mutations serialize icon matching, index updates, publication and removal. Icon publication atomically renames a complete staged directory and leaves existing matching icons intact.
 - Opens a SQLite connection for metrics.
 - Hosts asset files under the data directory.
 

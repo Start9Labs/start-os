@@ -1210,6 +1210,14 @@ export const QueryDnsRes: z.ZodObject<{
 })
 
 /**
+ * The verified signer of a read request.
+ */
+export const ReaderParams: typeof empty = /* @__PURE__ */ empty.meta({
+  id: 'ReaderParams',
+  description: 'The verified signer of a read request.',
+})
+
+/**
  * A registry asset with a caller-selected commitment representation.
  */
 export const RegistryAsset = <Commitment extends z.ZodType>(
@@ -2449,36 +2457,51 @@ export const GetActionInputParams: z.ZodObject<{
 }).meta({
   id: 'GetActionInputParams',
 })
-export const GetPackageParams: z.ZodObject<{
-  id: z.ZodCodec<
-    z.ZodOptional<z.ZodNullable<typeof PackageId>>,
-    z.ZodNullable<typeof PackageId>
-  >
-  targetVersion: z.ZodCodec<
-    z.ZodOptional<z.ZodNullable<z.ZodString>>,
-    z.ZodNullable<z.ZodString>
-  >
-  sourceVersion: z.ZodCodec<
-    z.ZodOptional<z.ZodNullable<typeof Version>>,
-    z.ZodNullable<typeof Version>
-  >
-  otherVersions: z.ZodCodec<
-    z.ZodOptional<z.ZodNullable<typeof PackageDetailLevel>>,
-    z.ZodNullable<typeof PackageDetailLevel>
-  >
-  allRevisions: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
-}> = /* @__PURE__ */ object({
-  id: wire(PackageId.nullable().optional(), PackageId.nullable()),
-  targetVersion: wire(z.string().nullable().optional(), z.string().nullable()),
-  sourceVersion: wire(Version.nullable().optional(), Version.nullable()),
-  otherVersions: wire(
-    PackageDetailLevel.nullable().optional(),
-    PackageDetailLevel.nullable(),
-  ),
-  allRevisions: wire(z.boolean().optional(), z.boolean()),
-}).meta({
-  id: 'GetPackageParams',
-})
+export const GetPackageAccessParams: z.ZodObject<{ id: typeof PackageId }> =
+  /* @__PURE__ */ object({ id: PackageId }).meta({
+    id: 'GetPackageAccessParams',
+  })
+export const GetPackageParams: z.ZodIntersection<
+  z.ZodObject<{
+    id: z.ZodCodec<
+      z.ZodOptional<z.ZodNullable<typeof PackageId>>,
+      z.ZodNullable<typeof PackageId>
+    >
+    targetVersion: z.ZodCodec<
+      z.ZodOptional<z.ZodNullable<z.ZodString>>,
+      z.ZodNullable<z.ZodString>
+    >
+    sourceVersion: z.ZodCodec<
+      z.ZodOptional<z.ZodNullable<typeof Version>>,
+      z.ZodNullable<typeof Version>
+    >
+    otherVersions: z.ZodCodec<
+      z.ZodOptional<z.ZodNullable<typeof PackageDetailLevel>>,
+      z.ZodNullable<typeof PackageDetailLevel>
+    >
+    allRevisions: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
+  }>,
+  typeof ReaderParams
+> = /* @__PURE__ */ z
+  .intersection(
+    object({
+      id: wire(PackageId.nullable().optional(), PackageId.nullable()),
+      targetVersion: wire(
+        z.string().nullable().optional(),
+        z.string().nullable(),
+      ),
+      sourceVersion: wire(Version.nullable().optional(), Version.nullable()),
+      otherVersions: wire(
+        PackageDetailLevel.nullable().optional(),
+        PackageDetailLevel.nullable(),
+      ),
+      allRevisions: wire(z.boolean().optional(), z.boolean()),
+    }),
+    ReaderParams,
+  )
+  .meta({
+    id: 'GetPackageParams',
+  })
 export const GovernorInfo: z.ZodObject<{
   current: z.ZodCodec<
     z.ZodOptional<z.ZodNullable<typeof Governor>>,
@@ -2672,8 +2695,12 @@ export const LegacyAlpnInfo: z.ZodUnion<
   .meta({
     id: 'LegacyAlpnInfo',
   })
-export const ListPackageSignersParams: z.ZodObject<{ id: typeof PackageId }> =
-  /* @__PURE__ */ object({ id: PackageId }).meta({
+export const ListPackageSignersParams: z.ZodIntersection<
+  z.ZodObject<{ id: typeof PackageId }>,
+  typeof ReaderParams
+> = /* @__PURE__ */ z
+  .intersection(object({ id: PackageId }), ReaderParams)
+  .meta({
     id: 'ListPackageSignersParams',
   })
 export const LogFollowResponse: z.ZodObject<{
@@ -2936,6 +2963,12 @@ export const PackageInfoShort: z.ZodObject<{
   releaseNotes: typeof LocaleString
 }> = /* @__PURE__ */ object({ releaseNotes: LocaleString }).meta({
   id: 'PackageInfoShort',
+})
+export const PackageReaderParams: z.ZodObject<{
+  id: typeof PackageId
+  signer: typeof Guid
+}> = /* @__PURE__ */ object({ id: PackageId, signer: Guid }).meta({
+  id: 'PackageReaderParams',
 })
 export const PassthroughInfo: z.ZodObject<{
   hostname: z.ZodString
@@ -3219,6 +3252,12 @@ export const SetOutboundGatewayParams: z.ZodObject<{
 }).meta({
   id: 'SetOutboundGatewayParams',
 })
+export const SetPackagePrivateParams: z.ZodObject<{
+  id: typeof PackageId
+  private: z.ZodBoolean
+}> = /* @__PURE__ */ object({ id: PackageId, private: z.boolean() }).meta({
+  id: 'SetPackagePrivateParams',
+})
 export const SetSubnetDnsParams: z.ZodObject<{
   mode: typeof DnsMode
   /**
@@ -3364,6 +3403,24 @@ export const StartOsRecoveryInfo: z.ZodObject<{
   description:
     "The public view of a backup found on a target: enough to identify it, and none of\n[`BackupUnencryptedMetadata`]'s key material.",
 })
+export const SubscribeIndexParams: z.ZodIntersection<
+  z.ZodObject<{
+    pointer: z.ZodCodec<
+      z.ZodOptional<z.ZodNullable<z.ZodString>>,
+      z.ZodNullable<z.ZodString>
+    >
+  }>,
+  typeof ReaderParams
+> = /* @__PURE__ */ z
+  .intersection(
+    object({
+      pointer: wire(z.string().nullable().optional(), z.string().nullable()),
+    }),
+    ReaderParams,
+  )
+  .meta({
+    id: 'SubscribeIndexParams',
+  })
 export const SubscribeRes: z.ZodObject<{
   dump: typeof Dump
   guid: typeof Guid
@@ -3832,6 +3889,15 @@ export const OsVersionInfoMap: z.ZodRecord<z.ZodString, typeof OsVersionInfo> =
   /* @__PURE__ */ z.record(z.string(), OsVersionInfo).meta({
     id: 'OsVersionInfoMap',
   })
+export const PackageAccess: z.ZodObject<{
+  private: z.ZodBoolean
+  readers: z.ZodRecord<z.ZodString, typeof SignerInfo>
+}> = /* @__PURE__ */ object({
+  private: z.boolean(),
+  readers: z.record(z.string(), SignerInfo),
+}).meta({
+  id: 'PackageAccess',
+})
 export const PackageMetadata: z.ZodObject<{
   title: z.ZodString
   description: typeof Description
@@ -4425,7 +4491,7 @@ export const OsIndex: z.ZodObject<{ versions: typeof OsVersionInfoMap }> =
 export const PackageVersionInfo: z.ZodIntersection<
   z.ZodObject<{
     /**
-     * Absent for clients that load icons from the registry's `/icons/` route.
+     * Present only in `package.get` responses to StartOS before 0.4.0.3. Others load it from the registry's `/icons/` route.
      */
     icon: z.ZodOptional<z.ZodNullable<typeof DataUrl>>
     dependencyMetadata: z.ZodRecord<z.ZodString, typeof DependencyMetadata>
@@ -4448,11 +4514,11 @@ export const PackageVersionInfo: z.ZodIntersection<
   .intersection(
     object({
       /**
-       * Absent for clients that load icons from the registry's `/icons/` route.
+       * Present only in `package.get` responses to StartOS before 0.4.0.3. Others load it from the registry's `/icons/` route.
        */
       icon: DataUrl.nullable().optional().meta({
         description:
-          "Absent for clients that load icons from the registry's `/icons/` route.",
+          "Present only in `package.get` responses to StartOS before 0.4.0.3. Others load it from the registry's `/icons/` route.",
       }),
       dependencyMetadata: z.record(z.string(), DependencyMetadata),
       sourceVersion: wire(
@@ -4558,10 +4624,26 @@ export const PackageInfo: z.ZodObject<{
   authorized: z.ZodRecord<z.ZodString, z.ZodString>
   versions: z.ZodRecord<z.ZodString, typeof PackageVersionInfo>
   categories: z.ZodArray<z.ZodString>
+  /**
+   * Hides the package from every read request not signed by an admin, an authorized signer, or one of `readers`.
+   */
+  private: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
+  readers: z.ZodCodec<
+    z.ZodOptional<z.ZodArray<typeof Guid>>,
+    z.ZodArray<typeof Guid>
+  >
 }> = /* @__PURE__ */ object({
   authorized: z.record(z.string(), z.string()),
   versions: z.record(z.string(), PackageVersionInfo),
   categories: z.array(z.string()),
+  /**
+   * Hides the package from every read request not signed by an admin, an authorized signer, or one of `readers`.
+   */
+  private: wire(z.boolean().optional(), z.boolean()).meta({
+    description:
+      'Hides the package from every read request not signed by an admin, an authorized signer, or one of `readers`.',
+  }),
+  readers: wire(z.array(Guid).optional(), z.array(Guid)),
 }).meta({
   id: 'PackageInfo',
 })
@@ -5610,7 +5692,7 @@ export const Api = {
             subscribe: {
               _PARAMS: /* @__PURE__ */ z.intersection(
                 z.intersection(empty, RegistryUrlParams),
-                DumpParams,
+                SubscribeIndexParams,
               ),
               _RETURN: /* @__PURE__ */ SubscribeRes,
             },
@@ -5629,7 +5711,7 @@ export const Api = {
                 }),
                 empty,
               ),
-              empty,
+              ReaderParams,
             ),
           ),
           _RETURN: /* @__PURE__ */ FullIndex,
@@ -5988,6 +6070,50 @@ export const Api = {
         package: {
           _PARAMS: /* @__PURE__ */ z.intersection(empty, RegistryUrlParams),
           _CHILDREN: {
+            access: {
+              _PARAMS: /* @__PURE__ */ z.intersection(empty, RegistryUrlParams),
+              _CHILDREN: {
+                'add-reader': {
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, RegistryUrlParams),
+                    PackageReaderParams,
+                  ),
+                  _RETURN: /* @__PURE__ */ z.null(),
+                },
+                get: {
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, RegistryUrlParams),
+                    z.intersection(
+                      z.intersection(
+                        object({
+                          format: wire(
+                            IoFormat.nullable().optional(),
+                            IoFormat.nullable(),
+                          ),
+                        }),
+                        empty,
+                      ),
+                      GetPackageAccessParams,
+                    ),
+                  ),
+                  _RETURN: /* @__PURE__ */ PackageAccess,
+                },
+                'remove-reader': {
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, RegistryUrlParams),
+                    PackageReaderParams,
+                  ),
+                  _RETURN: /* @__PURE__ */ z.null(),
+                },
+                'set-private': {
+                  _PARAMS: /* @__PURE__ */ z.intersection(
+                    z.intersection(empty, RegistryUrlParams),
+                    SetPackagePrivateParams,
+                  ),
+                  _RETURN: /* @__PURE__ */ z.null(),
+                },
+              },
+            },
             add: {
               _PARAMS: /* @__PURE__ */ z.intersection(
                 z.intersection(empty, RegistryUrlParams),
@@ -6084,7 +6210,7 @@ export const Api = {
                     }),
                     empty,
                   ),
-                  empty,
+                  ReaderParams,
                 ),
               ),
               _RETURN: /* @__PURE__ */ PackageIndex,
@@ -6402,6 +6528,49 @@ export const Api = {
         rebuild: {
           _PARAMS: /* @__PURE__ */ empty,
           _RETURN: /* @__PURE__ */ z.null(),
+        },
+        'registry-signing': {
+          _PARAMS: /* @__PURE__ */ empty,
+          _CHILDREN: {
+            add: {
+              _PARAMS: /* @__PURE__ */ RegistryUrlParams,
+              _RETURN: /* @__PURE__ */ z.null(),
+            },
+            key: {
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(
+                  object({
+                    format: wire(
+                      IoFormat.nullable().optional(),
+                      IoFormat.nullable(),
+                    ),
+                  }),
+                  empty,
+                ),
+                empty,
+              ),
+              _RETURN: /* @__PURE__ */ AnyVerifyingKey,
+            },
+            list: {
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(
+                  object({
+                    format: wire(
+                      IoFormat.nullable().optional(),
+                      IoFormat.nullable(),
+                    ),
+                  }),
+                  empty,
+                ),
+                empty,
+              ),
+              _RETURN: /* @__PURE__ */ z.array(z.string()),
+            },
+            remove: {
+              _PARAMS: /* @__PURE__ */ RegistryUrlParams,
+              _RETURN: /* @__PURE__ */ z.null(),
+            },
+          },
         },
         restart: {
           _PARAMS: /* @__PURE__ */ ShutdownParams,
