@@ -71,7 +71,7 @@ export interface ProfileDialogResult {
   fullname?: string
   gateway_ip: string
   outbound: string
-  lan_access: LanAccess<ProfileIdOpt>
+  lan_access: LanAccess
   wan_access: WanAccess
   access_to_new_profiles: boolean
   owns_lan: boolean
@@ -709,7 +709,7 @@ class AddProfile {
       const val = this.form.getRawValue()
 
       // Build LAN access
-      let lan_access: LanAccess<ProfileIdOpt>
+      let lan_access: LanAccess
       if (val.lanAccessType === 'all') {
         lan_access = 'ALL'
       } else if (val.lanAccessType === 'none') {
@@ -770,7 +770,9 @@ class AddProfile {
         outbound: val.outboundType === 'vpn' ? val.outboundVpn : 'wan',
         lan_access,
         wan_access,
-        access_to_new_profiles: val.accessToNewProfiles,
+        access_to_new_profiles:
+          lan_access === 'ALL' ||
+          (typeof lan_access !== 'string' && val.accessToNewProfiles),
         owns_lan: this.existing?.owns_lan || false,
         dns_override: dns_override?.length ? dns_override : undefined,
         schedule_windows: this.scheduleWindows(),

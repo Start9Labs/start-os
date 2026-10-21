@@ -83,7 +83,9 @@ export class StateService extends Observable<ServerState | null> {
     switchMap(() =>
       timer(0, 2000).pipe(
         exhaustMap(() =>
-          from(this.api.getState()).pipe(catchError(() => EMPTY)),
+          from(this.api.rpc.state({}, { timeout: 10000 })).pipe(
+            catchError(() => EMPTY),
+          ),
         ),
         take(1),
       ),
