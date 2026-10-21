@@ -14,7 +14,6 @@ use rpc_toolkit::{CallRemote, Context, HandlerArgs, HandlerExt, ParentHandler, f
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tracing::instrument;
-use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::middleware::auth::signature::{HasUnenrolledKeys, SignatureAuthContext};
@@ -29,8 +28,10 @@ use crate::{Error, ResultExt, ensure_code};
 /// The server's enrolled auth keys, keyed by their PEM encoding. Each enrolled
 /// key is a sign-in: it carries the same metadata a session used to (when it
 /// was created, when it was last used, and the user agent that enrolled it).
-#[derive(Debug, Clone, Default, Deserialize, Serialize, TS)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, VisitFields)]
 pub struct AuthKeys(pub BTreeMap<InternedString, Session>);
+
+rpc_toolkit::reflect_ts!(AuthKeys);
 impl AuthKeys {
     pub fn new() -> Self {
         Self(BTreeMap::new())
@@ -117,13 +118,15 @@ pub async fn write_shadow(password: &str) -> Result<(), Error> {
     Ok(())
 }
 
-#[derive(Clone, Serialize, Deserialize, TS)]
+#[derive(Clone, Serialize, Deserialize, VisitVariants)]
 #[serde(untagged)]
-#[ts(export)]
 pub enum PasswordType {
     EncryptedWire(EncryptedWire),
     String(String),
 }
+
+rpc_toolkit::reflect_ts!(PasswordType);
+rpc_toolkit::ts_export!(PasswordType, namespaces = [""]);
 impl PasswordType {
     pub fn decrypt(self, current_secret: impl AsRef<Jwk>) -> Result<String, Error> {
         match self {
@@ -293,13 +296,12 @@ pub fn check_password(hash: &str, password: &str) -> Result<(), Error> {
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, TS)]
+#[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct LoginParams {
     password: String,
-    #[ts(skip)]
-    #[serde(rename = "__Auth_userAgent")] // from Auth middleware
+    #[visit(ts(skip))]
+    #[serde(rename = "__Auth_userAgent")]
     user_agent: Option<String>,
     /// The PEM-encoded public key to enroll on a successful login. The login
     /// request itself is signed with the matching secret key, so enrollment
@@ -308,14 +310,17 @@ pub struct LoginParams {
     /// The key the request was actually signed with, injected by the auth
     /// middleware. Enforced to equal `pubkey`, so a login can only enroll the
     /// key that proved possession.
-    #[ts(skip)]
-    #[serde(rename = "__Auth_signer")] // from Auth middleware
+    #[visit(ts(skip))]
+    #[serde(rename = "__Auth_signer")]
     signer: AnyVerifyingKey,
     /// Enroll in memory only, never persisted (kiosk mode, which re-enrolls
     /// on every browser restart and would otherwise accumulate keys).
     #[serde(default)]
     ephemeral: bool,
 }
+
+rpc_toolkit::reflect_ts!(LoginParams);
+rpc_toolkit::ts_export!(LoginParams, namespaces = [""]);
 
 const LOGIN_RATE_LIMIT_WINDOW: Duration = Duration::from_secs(20);
 const LOGIN_RATE_LIMIT_MAX_ATTEMPTS: usize = 3;
@@ -391,15 +396,17 @@ pub async fn login_impl<C: LoginContext>(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct LogoutParams {
-    #[ts(skip)]
-    #[serde(rename = "__Auth_signer")] // from Auth middleware
+    #[visit(ts(skip))]
+    #[serde(rename = "__Auth_signer")]
     signer: InternedString,
 }
+
+rpc_toolkit::reflect_ts!(LogoutParams);
 
 pub async fn logout<C: SignatureAuthContext>(
     ctx: C,
@@ -408,32 +415,33 @@ pub async fn logout<C: SignatureAuthContext>(
     Ok(Some(ctx.unenroll([signer]).await?))
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize, TS)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct Session {
     /// A friendly name for the key, if one was assigned at enrollment (e.g.
     /// tunnel device keys). UI-enrolled keys are unnamed.
     #[serde(default)]
     pub name: Option<InternedString>,
     #[serde(default)]
-    #[ts(type = "string")]
     pub logged_in: DateTime<Utc>,
     #[serde(default)]
-    #[ts(type = "string")]
     pub last_active: DateTime<Utc>,
     #[serde(default)]
     pub user_agent: Option<String>,
 }
 
-#[derive(Deserialize, Serialize, TS)]
+rpc_toolkit::reflect_ts!(Session);
+rpc_toolkit::ts_export!(Session, namespaces = [""]);
+
+#[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct SessionList {
-    #[ts(type = "string | null")]
     current: Option<InternedString>,
     sessions: AuthKeys,
 }
+
+rpc_toolkit::reflect_ts!(SessionList);
+rpc_toolkit::ts_export!(SessionList, namespaces = [""]);
 
 pub fn session<C: Context, AC: LoginContext>() -> ParentHandler<C>
 where
@@ -490,16 +498,18 @@ fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) -> Resul
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ListParams {
     #[arg(skip)]
-    #[ts(skip)]
-    #[serde(rename = "__Auth_signer")] // from Auth middleware
+    #[visit(ts(skip))]
+    #[serde(rename = "__Auth_signer")]
     signer: Option<InternedString>,
 }
+
+rpc_toolkit::reflect_ts!(ListParams);
 
 // #[command(display(display_sessions))]
 #[instrument(skip_all)]
@@ -521,15 +531,17 @@ pub async fn list<C: LoginContext>(
     })
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct KillParams {
     #[arg(help = "help.arg.session-ids")]
     ids: Vec<String>,
 }
+
+rpc_toolkit::reflect_ts!(KillParams);
+rpc_toolkit::ts_export!(KillParams, namespaces = [""]);
 
 #[instrument(skip_all)]
 pub async fn kill<C: SignatureAuthContext>(
@@ -541,15 +553,17 @@ pub async fn kill<C: SignatureAuthContext>(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ResetPasswordParams {
     #[arg(help = "help.arg.new-password")]
     new_password: Option<PasswordType>,
 }
+
+rpc_toolkit::reflect_ts!(ResetPasswordParams);
+rpc_toolkit::ts_export!(ResetPasswordParams, namespaces = [""]);
 
 #[instrument(skip_all)]
 async fn cli_reset_password(
