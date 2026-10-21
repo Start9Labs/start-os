@@ -838,4 +838,5 @@ export default {
   945: 'Vom Gateway bereitgestellten DNS verwenden, andernfalls den öffentlichen DNS von Cloudflare',
   946: 'Ein dienstspezifisches ausgehendes Gateway hat Vorrang vor der Systemvorgabe. Dienste ohne eigene Vorgabe folgen der Systemeinstellung; Auto verwendet die physische Standardroute und bevorzugt IPv4 gegenüber IPv6.',
   948: 'StartOS verwendet das automatisch gewählte physische Gateway für DNS, bis die gespeicherten Netzwerkeinstellungen geladen sind.',
+  949: 'Dieses Gateway ist nicht mehr verfügbar',
 } satisfies i18n

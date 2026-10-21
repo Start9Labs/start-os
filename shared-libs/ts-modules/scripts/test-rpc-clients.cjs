@@ -419,14 +419,25 @@ test('StartOS DNS mock updates the selected gateway using live gateway state', a
   const client = new (load(
     'projects/start-os/web/ui/src/app/services/api/embassy-mock-api.service.ts',
   ).MockApiService)()
-  const patches = []
-  const subscription = client.mockWsSource$.subscribe(revision =>
-    patches.push(revision.patch),
+  const snapshot = await client.rpc.db.subscribe({})
+  assert.ok(
+    snapshot.dump.id > 0,
+    'the snapshot must advance the empty client cache',
   )
+  const patches = []
+  const revisionIds = []
+  const subscription = client.mockWsSource$.subscribe(revision => {
+    patches.push(revision.patch)
+    revisionIds.push(revision.id)
+  })
   await client.rpc.net.dns.setStatic({
     gateway: 'wg0',
     servers: ['192.0.2.53', '2001:db8::53', '[2001:db8::54]:5353'],
   })
+  assert.ok(
+    revisionIds[0] > snapshot.dump.id,
+    'the first mutation must follow the snapshot revision',
+  )
   assert.deepEqual(JSON.parse(JSON.stringify(patches.pop())), [
     {
       op: 'replace',
@@ -469,26 +480,33 @@ test('StartOS DNS mock updates the selected gateway using live gateway state', a
   subscription.unsubscribe()
 })
 
-test('StartOS DNS editing survives observed gateway updates and follows configuration changes', async () => {
+function gatewayDnsHarness() {
   const keys = Object.fromEntries(
-    ['task', 'i18n', 'form', 'api', 'route', 'router', 'mobile'].map(key => [
-      key,
-      Symbol(key),
-    ]),
+    ['task', 'i18n', 'form', 'api', 'confirm'].map(key => [key, Symbol(key)]),
   )
+  let context
+  const closed = []
+  const requests = []
+  const tasks = {
+    run: async task => {
+      await task()
+      return true
+    },
+  }
   const overrides = new Map([
     ['@angular/forms', {}],
-    ['@angular/router', { ActivatedRoute: keys.route, Router: keys.router }],
-    ['@ng-web-apis/platform', { WA_IS_MOBILE: keys.mobile }],
     ['@start9labs/shared', { TaskService: keys.task, i18nPipe: keys.i18n }],
-    ['@taiga-ui/cdk', {}],
+    ['@taiga-ui/cdk', { tuiMarkControlAsTouchedAndValidate: () => {} }],
     ['@taiga-ui/core', {}],
-    ['@taiga-ui/kit', {}],
+    ['@taiga-ui/kit', { TuiConfirmService: keys.confirm }],
     ['@taiga-ui/layout', {}],
+    ['@taiga-ui/polymorpheus', { injectContext: () => context }],
     ['src/app/routes/portal/components/form/containers/group.component', {}],
     ['src/app/services/api/embassy-api.service', { ApiService: keys.api }],
-    ['src/app/services/form.service', { FormService: keys.form }],
-    ['src/app/services/title.service', {}],
+    [
+      'src/app/services/form.service',
+      { FormService: keys.form, trim: () => {} },
+    ],
     [
       'src/app/utils/configBuilderToSpec',
       { configBuilderToSpec: async () => ({}) },
@@ -507,13 +525,6 @@ test('StartOS DNS editing survives observed gateway updates and follows configur
     ],
   ])
   const { dependencies, load } = harness(overrides)
-  overrides.set('@angular/core', {
-    Component: () => value => value,
-    inject: token => {
-      assert.ok(dependencies.has(token), `Missing injection: ${String(token)}`)
-      return dependencies.get(token)
-    },
-  })
   const { PatchDB } = require('patch-db-client')
   const gateway = {
     name: 'LAN',
@@ -531,24 +542,40 @@ test('StartOS DNS editing survives observed gateway updates and follows configur
       },
     },
   })
-  const query = new BehaviorSubject({ get: () => 'eth0' })
   dependencies.set(PatchDB, {
     watch$: key => (key === 'packageData' ? of({}) : network),
   })
-  dependencies.set(keys.task, {})
+  dependencies.set(keys.task, tasks)
+  dependencies.set(keys.confirm, { markAsPristine: () => {} })
   dependencies.set(keys.i18n, { transform: value => value })
-  dependencies.set(keys.form, { createForm: (_spec, value) => ({ value }) })
-  dependencies.set(keys.api, {})
-  dependencies.set(keys.route, { queryParamMap: query })
-  dependencies.set(keys.router, {})
-  dependencies.set(keys.mobile, false)
-  const page = new (load(
-    'projects/start-os/web/ui/src/app/routes/portal/routes/system/routes/dns/dns.component.ts',
-  ).default)()
+  dependencies.set(keys.form, {
+    createForm: (_spec, value) => ({ value, invalid: false }),
+  })
+  dependencies.set(keys.api, {
+    rpc: { net: { dns: { setStatic: async params => requests.push(params) } } },
+  })
+  return {
+    network,
+    gateway,
+    closed,
+    requests,
+    tasks,
+    create: id => {
+      context = { data: id, completeWith: () => closed.push(id) }
+      return new (load(
+        'projects/start-os/web/ui/src/app/routes/portal/routes/system/routes/gateways/dns.ts',
+      ).default)()
+    },
+  }
+}
+
+test('StartOS gateway DNS dialog keeps its target and unsaved edits across link updates', async () => {
+  const { network, gateway, create } = gatewayDnsHarness()
+  const dialog = create('eth0')
   await new Promise(setImmediate)
-  assert.equal(page.data().warn.length, 1)
-  assert.match(page.data().warn[0], /LAN/)
-  const edited = page.data().form
+  assert.equal(dialog.data().warn.length, 1)
+  assert.match(dialog.data().warn[0], /LAN/)
+  const edited = dialog.data().form
   edited.value.strategy = {
     selection: 'static',
     value: { servers: ['9.9.9.9'] },
@@ -561,8 +588,8 @@ test('StartOS DNS editing survives observed gateway updates and follows configur
     },
   })
   await new Promise(setImmediate)
-  assert.equal(page.data().form, edited)
-  assert.equal(page.data().form.value.strategy.value.servers[0], '9.9.9.9')
+  assert.equal(dialog.data().form, edited)
+  assert.equal(dialog.data().form.value.strategy.value.servers[0], '9.9.9.9')
   network.next({
     ...network.value,
     gateways: {
@@ -574,15 +601,133 @@ test('StartOS DNS editing survives observed gateway updates and follows configur
     },
   })
   await new Promise(setImmediate)
-  assert.notEqual(page.data().form, edited)
+  assert.notEqual(dialog.data().form, edited)
   assert.equal(
-    page.data().form.value.strategy.value.servers[0],
+    dialog.data().form.value.strategy.value.servers[0],
     '192.0.2.53:53',
   )
-  query.next({ get: () => 'wg0' })
+  const vpn = create('wg0')
   await new Promise(setImmediate)
-  assert.equal(page.data().gatewayId, 'wg0')
-  assert.equal(page.data().form.value.strategy.selection, 'automatic')
+  assert.equal(vpn.data().name, 'VPN')
+  assert.equal(vpn.data().form.value.strategy.selection, 'automatic')
+  network.next({
+    ...network.value,
+    gateways: { wg0: network.value.gateways.wg0 },
+  })
+  await new Promise(setImmediate)
+  assert.equal(dialog.data().gateway, undefined)
+  assert.equal(dialog.context.data, 'eth0')
+  assert.equal(vpn.context.data, 'wg0')
+})
+
+test('StartOS gateway DNS dialog saves only its gateway and closes only after success', async () => {
+  const fixture = gatewayDnsHarness()
+  fixture.network.value.gateways.wg0.ipInfo = null
+  const dialog = fixture.create('wg0')
+  await new Promise(setImmediate)
+  const form = dialog.data().form
+  form.value.strategy = {
+    selection: 'static',
+    value: { servers: ['192.0.2.53:5353'] },
+  }
+  form.invalid = true
+  await dialog.save(form)
+  assert.equal(fixture.requests.length, 0)
+  assert.equal(fixture.closed.length, 0)
+  form.invalid = false
+  const run = fixture.tasks.run
+  fixture.tasks.run = async () => false
+  await dialog.save(form)
+  assert.equal(fixture.closed.length, 0)
+  fixture.tasks.run = run
+  await dialog.save(form)
+  assert.deepEqual(JSON.parse(JSON.stringify(fixture.requests)), [
+    { gateway: 'wg0', servers: ['192.0.2.53:5353'] },
+  ])
+  assert.deepEqual(fixture.closed, ['wg0'])
+  const automatic = fixture.create('wg0')
+  await new Promise(setImmediate)
+  await automatic.save(automatic.data().form)
+  assert.deepEqual(JSON.parse(JSON.stringify(fixture.requests[1])), {
+    gateway: 'wg0',
+    servers: null,
+  })
+})
+
+test('StartOS gateway settings include disconnected gateways without changing active interface candidates', () => {
+  const { PatchDB } = require('patch-db-client')
+  const overrides = new Map([
+    [
+      '@angular/core/rxjs-interop',
+      {
+        toSignal: stream => {
+          let value
+          stream.subscribe(next => {
+            value = next
+          })
+          return () => value
+        },
+      },
+    ],
+  ])
+  const fixture = harness(overrides)
+  overrides.set('@angular/core', {
+    Injectable: () => value => value,
+    computed: fn => fn,
+    inject: token => fixture.dependencies.get(token),
+  })
+  const network = new BehaviorSubject({
+    defaultOutbound: 'wg0',
+    gateways: {
+      eth0: {
+        name: null,
+        ipInfo: {
+          name: 'LAN',
+          deviceType: 'ethernet',
+          subnets: ['192.0.2.2/24'],
+          wanIp: null,
+        },
+      },
+      wg0: { name: 'VPN', ipInfo: null },
+      lxcbr0: {
+        name: null,
+        ipInfo: {
+          name: 'Bridge',
+          deviceType: 'bridge',
+          subnets: [],
+          wanIp: null,
+        },
+      },
+    },
+  })
+  fixture.dependencies.set(PatchDB, { watch$: () => network })
+  const service = new (fixture.load(
+    'projects/start-os/web/ui/src/app/services/gateway.service.ts',
+  ).GatewayService)()
+  assert.equal(
+    service
+      .configuredGateways()
+      .map(g => g.id)
+      .join(','),
+    'eth0,wg0',
+  )
+  assert.equal(
+    service
+      .gateways()
+      .map(g => g.id)
+      .join(','),
+    'eth0',
+  )
+  assert.equal(service.defaultOutboundGateway().name, 'VPN')
+  network.next({
+    ...network.value,
+    gateways: { ...network.value.gateways, eth0: { name: null, ipInfo: null } },
+  })
+  assert.equal(service.gateways().length, 0)
+  assert.equal(
+    service.configuredGateways().find(g => g.id === 'eth0').name,
+    'eth0',
+  )
 })
 
 test('Brochure reports malformed registry URLs and can load the next selection', async () => {

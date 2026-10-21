@@ -1,19 +1,18 @@
 import { Component, inject, input } from '@angular/core'
-import { RouterLink } from '@angular/router'
-import { DialogService, i18nPipe, TaskService } from '@start9labs/shared'
-import { ISB } from '@start9labs/start-core'
 import {
-  TuiButton,
-  TuiDataList,
-  TuiDropdown,
-  TuiIcon,
-  TuiInput,
-} from '@taiga-ui/core'
+  DialogService,
+  DnsSourcePipe,
+  i18nPipe,
+  TaskService,
+} from '@start9labs/shared'
+import { ISB } from '@start9labs/start-core'
+import { TuiButton, TuiDataList, TuiDropdown, TuiIcon } from '@taiga-ui/core'
 import { filter } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { GatewayPlus } from 'src/app/services/gateway.service'
+import { GatewayDetails } from 'src/app/services/gateway.service'
+import GatewayDns from './dns'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { PORT_FORWARDS_MODAL } from './port-forwards.component'
 
@@ -22,7 +21,7 @@ import { PORT_FORWARDS_MODAL } from './port-forwards.component'
   template: `
     @if (gateway(); as gateway) {
       <td>
-        @switch (gateway.ipInfo.deviceType) {
+        @switch (gateway.ipInfo?.deviceType) {
           @case ('ethernet') {
             <tui-icon icon="@tui.ethernet-port" />
           }
@@ -46,10 +45,26 @@ import { PORT_FORWARDS_MODAL } from './port-forwards.component'
       <td
         class="wan"
         [style.color]="
-          gateway.ipInfo.wanIp ? undefined : 'var(--tui-text-warning)'
+          gateway.ipInfo?.wanIp ? undefined : 'var(--tui-text-warning)'
         "
       >
-        {{ gateway.ipInfo.wanIp || ('Error' | i18n) }}
+        {{
+          gateway.ipInfo
+            ? gateway.ipInfo.wanIp || ('Error' | i18n)
+            : ('Disconnected' | i18n)
+        }}
+      </td>
+      <td [attr.data-label]="'DNS' | i18n">
+        <button
+          tuiButton
+          size="s"
+          appearance="flat-grayscale"
+          iconEnd="@tui.pencil"
+          [attr.aria-label]="('DNS' | i18n) + ': ' + gateway.name"
+          (click)="editDns()"
+        >
+          {{ gateway.dns.source | dnsSource | i18n }}
+        </button>
       </td>
       <td>
         <button
@@ -66,20 +81,12 @@ import { PORT_FORWARDS_MODAL } from './port-forwards.component'
             <button tuiOption (click)="rename()">
               {{ 'Rename' | i18n }}
             </button>
-            <a
-              tuiOption
-              routerLink="../dns"
-              [queryParams]="{ gateway: gateway.id }"
-              (click)="open = false"
-            >
-              {{ 'DNS Servers' | i18n }}
-            </a>
-            @if (gateway.type !== 'outbound-only') {
+            @if (gateway.ipInfo && gateway.type !== 'outbound-only') {
               <button tuiOption (click)="viewPortForwards()">
                 {{ 'View port forwards' | i18n }}
               </button>
             }
-            @if (gateway.ipInfo.deviceType === 'wireguard') {
+            @if (gateway.ipInfo?.deviceType === 'wireguard') {
               <button tuiOption (click)="updateConfig()">
                 {{ 'Update config' | i18n }}
               </button>
@@ -96,10 +103,6 @@ import { PORT_FORWARDS_MODAL } from './port-forwards.component'
     tui-icon {
       font-size: 1.3rem;
       margin-right: 0.7rem;
-    }
-
-    td:first-child {
-      width: 24rem;
     }
 
     td:last-child {
@@ -123,7 +126,8 @@ import { PORT_FORWARDS_MODAL } from './port-forwards.component'
       }
 
       td:nth-child(3),
-      td:nth-child(4) {
+      td:nth-child(4),
+      td:nth-child(5) {
         grid-area: auto / 1 / auto / 3;
 
         &::before {
@@ -139,18 +143,21 @@ import { PORT_FORWARDS_MODAL } from './port-forwards.component'
         content: 'WAN IP: ';
       }
 
+      td:nth-child(5)::before {
+        content: attr(data-label) ': ';
+      }
+
       td:last-child {
         grid-area: 1 / 3 / 6;
       }
     }
   `,
   imports: [
-    RouterLink,
+    DnsSourcePipe,
     TuiButton,
     TuiDropdown,
     TuiDataList,
     TuiIcon,
-    TuiInput,
     i18nPipe,
   ],
 })
@@ -161,9 +168,13 @@ export class GatewaysItemComponent {
   private readonly formDialog = inject(FormDialogService)
   private readonly i18n = inject(i18nPipe)
 
-  readonly gateway = input.required<GatewayPlus>()
+  readonly gateway = input.required<GatewayDetails>()
 
   open = false
+
+  editDns() {
+    this.formDialog.open(GatewayDns, { size: 'm', data: this.gateway().id })
+  }
 
   viewPortForwards() {
     const { id, name } = this.gateway()

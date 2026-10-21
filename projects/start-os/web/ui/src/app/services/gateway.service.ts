@@ -2,15 +2,24 @@ import { computed, inject, Injectable } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { T, utils } from '@start9labs/start-core'
 import { PatchDB } from 'patch-db-client'
+
 import { DataModel } from './patch-db/data-model'
 
-export type GatewayPlus = T.NetworkInterfaceInfo & {
+export type GatewayDetails = T.NetworkInterfaceInfo & {
   id: string
   name: string
-  ipInfo: T.IpInfo
   subnets: utils.IpNet[]
   lanIpv4: string[]
   wanIp?: utils.IpAddress
+}
+
+export type GatewayPlus = GatewayDetails & { ipInfo: T.IpInfo }
+
+export function gatewayName(
+  id: string,
+  gateway?: T.NetworkInterfaceInfo,
+): string {
+  return gateway?.name ?? gateway?.ipInfo?.name ?? id
 }
 
 @Injectable()
@@ -27,34 +36,36 @@ export class GatewayService {
     const network = this.network()
     const id = network?.defaultOutbound
     if (!id) return null
-    const gateway = network.gateways[id]
-    return {
-      id,
-      name: gateway?.name ?? gateway?.ipInfo?.name ?? id,
-    }
+    return { id, name: gatewayName(id, network.gateways[id]) }
   })
 
-  readonly gateways = computed(() => {
+  readonly configuredGateways = computed(() => {
     const network = this.network()
     if (!network) return
     return Object.entries(network.gateways)
-      .filter(([_, val]) => !!val?.ipInfo)
       .filter(
-        ([_, val]) =>
-          val?.ipInfo?.deviceType !== 'bridge' &&
-          val?.ipInfo?.deviceType !== 'loopback',
+        ([, gateway]) =>
+          !['bridge', 'loopback'].includes(gateway.ipInfo?.deviceType ?? ''),
       )
-      .map(([id, val]) => {
-        const subnets = val.ipInfo?.subnets.map(s => utils.IpNet.parse(s)) ?? []
-        const name = val.name ?? val.ipInfo!.name
+      .map(([id, gateway]): GatewayDetails => {
+        const subnets =
+          gateway.ipInfo?.subnets.map(s => utils.IpNet.parse(s)) ?? []
         return {
-          ...val,
+          ...gateway,
           id,
-          name,
+          name: gatewayName(id, gateway),
           subnets,
           lanIpv4: subnets.filter(s => s.isIpv4()).map(s => s.address),
-          wanIp: val.ipInfo?.wanIp && utils.IpAddress.parse(val.ipInfo?.wanIp),
-        } as GatewayPlus
+          wanIp: gateway.ipInfo?.wanIp
+            ? utils.IpAddress.parse(gateway.ipInfo.wanIp)
+            : undefined,
+        }
       })
   })
+
+  readonly gateways = computed(() =>
+    this.configuredGateways()?.filter(
+      (gateway): gateway is GatewayPlus => !!gateway.ipInfo,
+    ),
+  )
 }

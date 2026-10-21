@@ -39,7 +39,6 @@ import {
   shareReplay,
   startWith,
   Subject,
-  tap,
 } from 'rxjs'
 import { WebSocketSubject } from 'rxjs/webSocket'
 import {
@@ -52,7 +51,6 @@ import {
 } from 'src/app/services/patch-db/data-model'
 import { PATCH_CACHE } from 'src/app/services/patch-db/patch-db-source'
 import { toAuthorityUrl } from 'src/app/utils/acme'
-import { AuthService } from '../auth.service'
 import { Mock } from './api.fixures'
 import { BTC_ICON, LND_ICON, PROXY_ICON } from './api-icons'
 import {
@@ -131,7 +129,7 @@ export class MockApiService extends ApiService {
   private readonly storage = inject(WA_SESSION_STORAGE)
   private readonly cache = inject(PATCH_CACHE)
   private readonly revertTime = 1800
-  sequence = 0
+  sequence = 1
   private readonly handlers: RpcHandlers<Api> = {
     state: async () => {
       await pauseFor(1000)
@@ -150,7 +148,7 @@ export class MockApiService extends ApiService {
       }
 
       return {
-        dump: { id: 1, value: mockPatchData },
+        dump: { id: this.sequence, value: mockPatchData },
         guid: 'db-guid',
       }
     },
@@ -1534,13 +1532,6 @@ export class MockApiService extends ApiService {
     'kiosk.disable': () => this.toggleKiosk(false),
   }
   readonly rpc = createRpcClient<ApiClient>(tableTransport<Api>(this.handlers))
-
-  constructor() {
-    super()
-    inject(AuthService)
-      .isVerified$.pipe(tap(() => (this.sequence = 0)))
-      .subscribe()
-  }
 
   async uploadFile(guid: string, body: Blob): Promise<void> {
     await pauseFor(2000)

@@ -80,6 +80,24 @@ import { GatewaysTableComponent } from './table.component'
             </b>
           </h3>
         </header>
+        <p>
+          {{
+            'StartOS and services query the OS DNS server, which uses the DNS settings of their outbound gateway.'
+              | i18n
+          }}
+        </p>
+        <p>
+          {{
+            'A service-specific outbound gateway overrides the system default. Services without an override follow the system setting; Auto uses the physical default route, preferring IPv4 over IPv6.'
+              | i18n
+          }}
+        </p>
+        <p>
+          {{
+            'Host lookups of configured WireGuard endpoint names use the automatic underlay so tunnels can reconnect. Service lookups still follow their outbound gateway.'
+              | i18n
+          }}
+        </p>
         <tui-textfield
           tuiChevron
           [stringify]="stringifyOutbound"

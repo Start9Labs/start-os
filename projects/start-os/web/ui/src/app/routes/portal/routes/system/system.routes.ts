@@ -79,8 +79,7 @@ export default [
       // },
       {
         path: 'dns',
-        title: titleResolver,
-        loadComponent: () => import('./routes/dns/dns.component'),
+        redirectTo: 'gateways',
       },
       {
         path: 'os-logs',

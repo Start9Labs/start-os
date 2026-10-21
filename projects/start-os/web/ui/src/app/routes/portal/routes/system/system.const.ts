@@ -1,5 +1,3 @@
-import { i18nKey } from '@start9labs/shared'
-
 export const SYSTEM_MENU = [
   [
     {
@@ -42,16 +40,6 @@ export const SYSTEM_MENU = [
       icon: '@tui.door-open',
       item: 'Gateways',
       link: 'gateways',
-    },
-    // {
-    //   icon: '@tui.award',
-    //   item: 'Certificate Authorities',
-    //   link: 'authorities',
-    // },
-    {
-      icon: '@tui.globe',
-      item: 'DNS' as i18nKey,
-      link: 'dns',
     },
   ],
   [

@@ -838,4 +838,5 @@ export default {
   945: 'Utiliser le DNS fourni par la passerelle, ou le DNS public de Cloudflare si aucun n’est fourni',
   946: 'La passerelle sortante propre à un service prévaut sur celle du système. Les services sans choix spécifique suivent le réglage du système ; Auto utilise la route physique par défaut, en privilégiant IPv4 à IPv6.',
   948: 'StartOS utilise la passerelle physique automatique pour le DNS jusqu’au chargement des paramètres réseau enregistrés.',
+  949: 'Cette passerelle n’est plus disponible',
 } satisfies i18n

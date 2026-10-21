@@ -42,7 +42,7 @@ To re-import a gateway's WireGuard config — for example, a StartTunnel config 
 
 ## DNS Settings
 
-Each gateway has its own [DNS settings](dns.md). Choose "DNS Servers" from the gateway's `⋮` menu to view its effective servers, see whether it uses gateway-provided DNS, a static override, or Cloudflare's public fallback, and change its settings.
+Each gateway has its own [DNS settings](dns.md) in the **DNS** column. Click the gateway's DNS control to view its effective servers and choose automatic DNS or a static override. The control identifies gateway-provided DNS, static settings, or Cloudflare's public fallback. Disconnected gateways remain listed so their DNS overrides can still be edited.
 
 ## Secure Gateways
 
