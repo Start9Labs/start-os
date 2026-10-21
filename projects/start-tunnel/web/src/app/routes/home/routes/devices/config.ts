@@ -72,9 +72,9 @@ import { ApiService } from 'src/app/services/api/api.service'
         <tui-textfield>
           <textarea
             tuiTextarea
-            [min]="16"
-            [max]="16"
-            [readOnly]="true"
+            [minRows]="16"
+            [maxRows]="16"
+            [readonly]="true"
             [value]="config()"
           ></textarea>
           <tui-icon tuiCopy />
