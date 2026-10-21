@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
@@ -29,7 +29,7 @@ use tracing::instrument;
 
 use crate::context::{CliContext, DiagnosticContext, InitContext, RpcContext, SetupContext};
 use crate::db::model::Database;
-use crate::db::model::public::{DnsSettings, NetworkInterfaceInfo};
+use crate::db::model::public::{NetworkInterfaceInfo, Public};
 use crate::net::gateway::{GatewayInfo, NetworkInterfaceController};
 use crate::net::utils::{bind_tokio_listener_reuse_port, ipv6_is_link_local};
 use crate::prelude::*;
@@ -432,28 +432,45 @@ enum PrivateScope {
 
 struct Resolver {
     authority: Watch<DnsAuthority>,
-    forwarders: Arc<SyncRwLock<BTreeMap<GatewayId, GatewayForwarder>>>,
+    forwarders: Arc<SyncRwLock<ForwarderCache>>,
     resolve: Arc<SyncRwLock<ResolveMap>>,
     scope: PrivateScope,
 }
 
+type ForwarderCache = BTreeMap<(GatewayId, VecDeque<SocketAddr>), GatewayForwarder>;
+
 struct GatewayForwarder {
     index: u32,
-    dns: DnsSettings,
     catalog: Arc<Catalog>,
+}
+
+fn configured_dns_profiles(
+    public: &Model<Public>,
+) -> Result<BTreeSet<VecDeque<SocketAddr>>, Error> {
+    let mut profiles = BTreeSet::new();
+    profiles.extend(
+        public
+            .as_server_info()
+            .as_network()
+            .as_outbound_dns()
+            .de()?,
+    );
+    for (_, package) in public.as_package_data().as_entries()? {
+        profiles.extend(package.as_outbound_dns().de()?);
+    }
+    Ok(profiles)
 }
 
 fn gateway_catalog(
     gateway: GatewayId,
     index: u32,
-    dns: &DnsSettings,
+    servers: &VecDeque<SocketAddr>,
 ) -> Result<Arc<Catalog>, Error> {
     let mut options = ResolverOpts::default();
     options.timeout = Duration::from_secs(5);
     let forwarder = ForwardZoneHandler::builder_with_config(
         ForwardConfig {
-            name_servers: dns
-                .servers
+            name_servers: servers
                 .iter()
                 .map(|addr| forward_name_server(*addr))
                 .collect(),
@@ -503,7 +520,13 @@ impl Resolver {
                 {
                     let gateway = underlay_gateway(&interfaces)
                         .or_not_found("WireGuard DNS bootstrap underlay")?;
-                    self.catalog_for_gateway(gateway, &interfaces)
+                    let db = network.db.peek().await;
+                    self.catalog_for_profile(
+                        gateway,
+                        None,
+                        &interfaces,
+                        &configured_dns_profiles(db.as_public())?,
+                    )
                 } else {
                     self.routed_catalog(source, &network.db, &interfaces).await
                 }
@@ -527,7 +550,7 @@ impl Resolver {
             "bootstrap DNS only serves the host"
         );
         let gateway = underlay_gateway(interfaces).or_not_found("bootstrap DNS underlay")?;
-        self.catalog_for_gateway(gateway, interfaces)
+        self.catalog_for_profile(gateway, None, interfaces, &BTreeSet::new())
     }
 
     async fn routed_catalog(
@@ -585,46 +608,40 @@ impl Resolver {
         let gateway = selected
             .or_else(|| auto_gateway(interfaces))
             .or_not_found("outbound DNS gateway")?;
-        self.catalog_for_profile(gateway, dns, interfaces)
-    }
-
-    fn catalog_for_gateway(
-        &self,
-        gateway: GatewayId,
-        interfaces: &OrdMap<GatewayId, NetworkInterfaceInfo>,
-    ) -> Result<Arc<Catalog>, Error> {
-        self.catalog_for_profile(gateway, None, interfaces)
+        self.catalog_for_profile(gateway, dns, interfaces, &configured_dns_profiles(public)?)
     }
 
     fn catalog_for_profile(
         &self,
         gateway: GatewayId,
-        servers: Option<std::collections::VecDeque<SocketAddr>>,
+        servers: Option<VecDeque<SocketAddr>>,
         interfaces: &OrdMap<GatewayId, NetworkInterfaceInfo>,
+        profiles: &BTreeSet<VecDeque<SocketAddr>>,
     ) -> Result<Arc<Catalog>, Error> {
-        let info = interfaces.get(&gateway).or_not_found("DNS gateway")?;
-        let ip = info
-            .ip_info
-            .as_ref()
-            .or_not_found("connected DNS gateway")?;
-        let mut dns = info.dns.clone();
-        if let Some(servers) = servers {
-            dns.static_servers = Some(servers);
-            dns.refresh(info.ip_info.as_deref());
-        }
         self.forwarders.mutate(|cache| {
-            cache.retain(|id, _| interfaces.get(id).is_some_and(|i| i.ip_info.is_some()));
-            if let Some(forwarder) = cache.get(&gateway) {
-                if forwarder.index == ip.scope_id && forwarder.dns == dns {
-                    return Ok(forwarder.catalog.clone());
-                }
+            cache.retain(|(id, servers), forwarder| {
+                interfaces.get(id).is_some_and(|info| {
+                    info.ip_info
+                        .as_ref()
+                        .is_some_and(|ip| ip.scope_id == forwarder.index)
+                        && (servers == &info.dns.servers || profiles.contains(servers))
+                })
+            });
+            let info = interfaces.get(&gateway).or_not_found("DNS gateway")?;
+            let ip = info
+                .ip_info
+                .as_ref()
+                .or_not_found("connected DNS gateway")?;
+            let servers = servers.as_ref().unwrap_or(&info.dns.servers);
+            let key = (gateway.clone(), servers.clone());
+            if let Some(forwarder) = cache.get(&key) {
+                return Ok(forwarder.catalog.clone());
             }
-            let catalog = gateway_catalog(gateway.clone(), ip.scope_id, &dns)?;
+            let catalog = gateway_catalog(gateway, ip.scope_id, servers)?;
             cache.insert(
-                gateway,
+                key,
                 GatewayForwarder {
                     index: ip.scope_id,
-                    dns,
                     catalog: catalog.clone(),
                 },
             );
@@ -1956,7 +1973,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn requester_dns_is_independent_and_profiles_replace_the_bounded_gateway_cache() {
+    async fn requester_dns_profiles_are_independent_and_cached_side_by_side() {
         let (_temp, resolver) = resolver_fixture().await;
         let controller = resolver.controller();
         let _pinned = controller
@@ -1988,22 +2005,45 @@ mod tests {
             .await
             .unwrap();
         let eth0: GatewayId = "eth0".parse().unwrap();
-        assert_eq!(
-            resolver.forwarders.peek(|c| c[&eth0].dns.servers.clone()),
-            [
-                "192.0.2.54:5353".parse().unwrap(),
-                "[2001:db8::54]:53".parse().unwrap()
-            ]
-        );
+        let host_servers: std::collections::VecDeque<SocketAddr> = [
+            "192.0.2.54:5353".parse().unwrap(),
+            "[2001:db8::54]:53".parse().unwrap(),
+        ]
+        .into();
+        let gateway_servers = resolver.net_iface.read()[&eth0].dns.servers.clone();
+        let cached = |servers: &[&std::collections::VecDeque<SocketAddr>]| {
+            let expected: BTreeSet<_> = servers
+                .iter()
+                .map(|servers| (eth0.clone(), (*servers).clone()))
+                .collect();
+            assert_eq!(
+                resolver
+                    .forwarders
+                    .peek(|c| c.keys().cloned().collect::<BTreeSet<_>>()),
+                expected
+            );
+        };
+        cached(&[&host_servers]);
         let inherited = resolver
             .forward_catalog("10.0.3.3".parse().unwrap())
             .await
             .unwrap();
         assert!(!Arc::ptr_eq(&host, &inherited));
-        assert_eq!(
-            resolver.forwarders.peek(|c| c[&eth0].dns.clone()),
-            resolver.net_iface.read()[&eth0].dns
-        );
+        cached(&[&host_servers, &gateway_servers]);
+        assert!(Arc::ptr_eq(
+            &host,
+            &resolver
+                .forward_catalog("127.0.0.1".parse().unwrap())
+                .await
+                .unwrap()
+        ));
+        assert!(Arc::ptr_eq(
+            &inherited,
+            &resolver
+                .forward_catalog("10.0.3.3".parse().unwrap())
+                .await
+                .unwrap()
+        ));
         resolver
             .db
             .put(
@@ -2019,10 +2059,9 @@ mod tests {
             .await
             .unwrap();
         assert!(!Arc::ptr_eq(&inherited, &service));
-        assert_eq!(
-            resolver.forwarders.peek(|c| c[&eth0].dns.servers.clone()),
-            ["192.0.2.55:53".parse().unwrap()]
-        );
+        let service_servers: std::collections::VecDeque<SocketAddr> =
+            ["192.0.2.55:53".parse().unwrap()].into();
+        cached(&[&host_servers, &gateway_servers, &service_servers]);
         assert!(Arc::ptr_eq(
             &service,
             &resolver
@@ -2034,11 +2073,25 @@ mod tests {
             .forward_catalog("10.0.3.3".parse().unwrap())
             .await
             .unwrap();
-        assert!(!Arc::ptr_eq(&service, &inherited_again));
-        assert_eq!(
-            resolver.forwarders.peek(|c| c[&eth0].dns.clone()),
-            resolver.net_iface.read()[&eth0].dns
-        );
+        assert!(Arc::ptr_eq(&inherited, &inherited_again));
+        resolver
+            .db
+            .put(
+                &"/public/packageData/pinned/outboundDns"
+                    .parse::<patch_db::json_ptr::JsonPointer>()
+                    .unwrap(),
+                &host_servers,
+            )
+            .await
+            .unwrap();
+        assert!(Arc::ptr_eq(
+            &host,
+            &resolver
+                .forward_catalog("10.0.3.2".parse().unwrap())
+                .await
+                .unwrap()
+        ));
+        cached(&[&host_servers, &gateway_servers]);
         resolver
             .db
             .put(
@@ -2073,11 +2126,9 @@ mod tests {
                 .await
                 .unwrap()
         ));
-        assert_eq!(
-            resolver.forwarders.peek(|c| c[&eth0].dns.servers.clone()),
-            ["192.0.2.56:53".parse().unwrap()]
-        );
-        assert_eq!(resolver.forwarders.peek(|c| c.len()), 1);
+        let inherited_servers: std::collections::VecDeque<SocketAddr> =
+            ["192.0.2.56:53".parse().unwrap()].into();
+        cached(&[&host_servers, &gateway_servers, &inherited_servers]);
         resolver.net_iface.send_if_modified(|interfaces| {
             interfaces.get_mut(&eth0).unwrap().ip_info = None;
             true
@@ -2090,6 +2141,7 @@ mod tests {
                     .is_err()
             );
         }
+        assert_eq!(resolver.forwarders.peek(|c| c.len()), 0);
         assert!(matches!(
             resolver.resolve(
                 &Name::from_ascii("localhost.").unwrap(),
@@ -2097,6 +2149,143 @@ mod tests {
             ),
             Resolution::Answer(_)
         ));
+    }
+
+    #[tokio::test]
+    async fn obsolete_dns_profiles_are_pruned_on_policy_and_interface_changes() {
+        let (_temp, resolver) = resolver_fixture().await;
+        let controller = resolver.controller();
+        let _inherited = controller
+            .add_service(
+                Some("inherited".parse().unwrap()),
+                "10.0.3.3".parse().unwrap(),
+                None,
+            )
+            .unwrap();
+        let mut gateway = resolver
+            .forward_catalog("10.0.3.3".parse().unwrap())
+            .await
+            .unwrap();
+        for server in ["192.0.2.54:53", "192.0.2.55:53", "192.0.2.56:53"] {
+            resolver
+                .db
+                .put(
+                    &"/public/serverInfo/network/outboundDns"
+                        .parse::<patch_db::json_ptr::JsonPointer>()
+                        .unwrap(),
+                    &imbl_value::json!([server]),
+                )
+                .await
+                .unwrap();
+            let host = resolver
+                .forward_catalog("127.0.0.1".parse().unwrap())
+                .await
+                .unwrap();
+            assert!(!Arc::ptr_eq(&gateway, &host));
+            assert!(Arc::ptr_eq(
+                &gateway,
+                &resolver
+                    .forward_catalog("10.0.3.3".parse().unwrap())
+                    .await
+                    .unwrap()
+            ));
+            assert_eq!(resolver.forwarders.peek(|c| c.len()), 2);
+        }
+        resolver
+            .db
+            .put(
+                &"/public/packageData/inherited/outboundDns"
+                    .parse::<patch_db::json_ptr::JsonPointer>()
+                    .unwrap(),
+                &imbl_value::json!(["192.0.2.57:53"]),
+            )
+            .await
+            .unwrap();
+        resolver
+            .forward_catalog("10.0.3.3".parse().unwrap())
+            .await
+            .unwrap();
+        assert_eq!(resolver.forwarders.peek(|c| c.len()), 3);
+        resolver
+            .db
+            .put(
+                &"/public/packageData"
+                    .parse::<patch_db::json_ptr::JsonPointer>()
+                    .unwrap(),
+                &imbl_value::json!({}),
+            )
+            .await
+            .unwrap();
+        resolver
+            .forward_catalog("127.0.0.1".parse().unwrap())
+            .await
+            .unwrap();
+        assert_eq!(resolver.forwarders.peek(|c| c.len()), 2);
+        resolver
+            .db
+            .put(
+                &"/public/serverInfo/network/outboundDns"
+                    .parse::<patch_db::json_ptr::JsonPointer>()
+                    .unwrap(),
+                &Value::Null,
+            )
+            .await
+            .unwrap();
+        assert!(Arc::ptr_eq(
+            &gateway,
+            &resolver
+                .forward_catalog("127.0.0.1".parse().unwrap())
+                .await
+                .unwrap()
+        ));
+        assert_eq!(resolver.forwarders.peek(|c| c.len()), 1);
+        let eth0: GatewayId = "eth0".parse().unwrap();
+        for server in ["192.0.2.60:53", "192.0.2.61:53"] {
+            resolver.net_iface.send_if_modified(|interfaces| {
+                let info = interfaces.get_mut(&eth0).unwrap();
+                info.dns.static_servers = Some([server.parse().unwrap()].into());
+                info.dns.refresh(info.ip_info.as_deref());
+                true
+            });
+            let updated = resolver
+                .forward_catalog("127.0.0.1".parse().unwrap())
+                .await
+                .unwrap();
+            assert!(!Arc::ptr_eq(&gateway, &updated));
+            assert_eq!(resolver.forwarders.peek(|c| c.len()), 1);
+            gateway = updated;
+        }
+        resolver.net_iface.send_if_modified(|interfaces| {
+            Arc::make_mut(interfaces.get_mut(&eth0).unwrap().ip_info.as_mut().unwrap()).scope_id +=
+                1;
+            true
+        });
+        let recreated = resolver
+            .forward_catalog("127.0.0.1".parse().unwrap())
+            .await
+            .unwrap();
+        assert!(!Arc::ptr_eq(&gateway, &recreated));
+        assert_eq!(resolver.forwarders.peek(|c| c.len()), 1);
+        resolver
+            .db
+            .put(
+                &"/public/serverInfo/network/defaultOutbound"
+                    .parse::<patch_db::json_ptr::JsonPointer>()
+                    .unwrap(),
+                &eth0,
+            )
+            .await
+            .unwrap();
+        resolver
+            .net_iface
+            .send_if_modified(|interfaces| interfaces.remove(&eth0).is_some());
+        assert!(
+            resolver
+                .forward_catalog("127.0.0.1".parse().unwrap())
+                .await
+                .is_err()
+        );
+        assert_eq!(resolver.forwarders.peek(|c| c.len()), 0);
     }
 
     #[tokio::test]
