@@ -121,6 +121,7 @@ impl Public {
                         acme
                     },
                     default_outbound: None,
+                    outbound_dns: None,
                     passthroughs: Vec::new(),
                 },
                 status_info: ServerStatus {
@@ -224,6 +225,8 @@ pub struct NetworkInfo {
     pub acme: BTreeMap<AcmeProvider, AcmeSettings>,
     #[serde(default)]
     pub default_outbound: Option<GatewayId>,
+    #[serde(default)]
+    pub outbound_dns: Option<VecDeque<SocketAddr>>,
     #[serde(default)]
     pub passthroughs: Vec<PassthroughInfo>,
 }

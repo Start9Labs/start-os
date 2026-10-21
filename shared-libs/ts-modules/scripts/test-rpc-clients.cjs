@@ -4,7 +4,7 @@ const path = require('node:path')
 const test = require('node:test')
 const vm = require('node:vm')
 const ts = require('typescript')
-const { BehaviorSubject, Observable, of, throwError } = require('rxjs')
+const { BehaviorSubject, Observable, map, of, throwError } = require('rxjs')
 
 const root = path.resolve(__dirname, '../../..')
 const config = ts.readConfigFile(
@@ -443,7 +443,11 @@ test('StartOS DNS mock updates the selected gateway using live gateway state', a
       op: 'replace',
       path: '/serverInfo/network/gateways/wg0/dns',
       value: {
-        staticServers: ['192.0.2.53', '2001:db8::53', '[2001:db8::54]:5353'],
+        staticServers: [
+          '192.0.2.53:53',
+          '[2001:db8::53]:53',
+          '[2001:db8::54]:5353',
+        ],
         servers: ['192.0.2.53:53', '[2001:db8::53]:53', '[2001:db8::54]:5353'],
         source: 'static',
       },
@@ -477,16 +481,82 @@ test('StartOS DNS mock updates the selected gateway using live gateway state', a
     client.rpc.net.dns.setStatic({ gateway: 'missing', servers: null }),
     /Unknown gateway/,
   )
+  await client.rpc.net.gateway.edit({
+    id: 'wg0',
+    name: 'Renamed VPN',
+    dns: { servers: ['192.0.2.55'] },
+  })
+  assert.deepEqual(JSON.parse(JSON.stringify(patches.pop())), [
+    {
+      op: 'replace',
+      path: '/serverInfo/network/gateways/wg0/dns',
+      value: {
+        staticServers: ['192.0.2.55:53'],
+        servers: ['192.0.2.55:53'],
+        source: 'static',
+      },
+    },
+    {
+      op: 'replace',
+      path: '/serverInfo/network/gateways/wg0/name',
+      value: 'Renamed VPN',
+    },
+  ])
+  const count = patches.length
+  await assert.rejects(
+    client.rpc.net.gateway.edit({
+      id: 'wg0',
+      name: 'Not saved',
+      dns: { servers: [] },
+    }),
+    /At least one/,
+  )
+  assert.equal(patches.length, count)
+  await client.rpc.net.gateway.setDefaultOutbound({
+    gateway: 'wg0',
+    dns: { servers: ['192.0.2.56'] },
+  })
+  assert.deepEqual(JSON.parse(JSON.stringify(patches.pop())), [
+    {
+      op: 'replace',
+      path: '/serverInfo/network/defaultOutbound',
+      value: 'wg0',
+    },
+    {
+      op: 'replace',
+      path: '/serverInfo/network/outboundDns',
+      value: ['192.0.2.56:53'],
+    },
+  ])
+  await client.rpc.package.setOutboundGateway({
+    package: 'example',
+    gateway: null,
+    dns: { servers: null },
+  })
+  assert.deepEqual(JSON.parse(JSON.stringify(patches.pop())), [
+    {
+      op: 'replace',
+      path: '/packageData/example/outboundGateway',
+      value: null,
+    },
+    { op: 'replace', path: '/packageData/example/outboundDns', value: null },
+  ])
+  await client.rpc.net.gateway.setDefaultOutbound({ gateway: null })
+  assert.equal(patches.pop().length, 1)
   subscription.unsubscribe()
 })
 
 function gatewayDnsHarness() {
   const keys = Object.fromEntries(
-    ['task', 'i18n', 'form', 'api', 'confirm'].map(key => [key, Symbol(key)]),
+    ['task', 'i18n', 'form', 'api', 'confirm', 'dialog'].map(key => [
+      key,
+      Symbol(key),
+    ]),
   )
   let context
   const closed = []
   const requests = []
+  const modals = []
   const tasks = {
     run: async task => {
       await task()
@@ -495,6 +565,20 @@ function gatewayDnsHarness() {
   }
   const overrides = new Map([
     ['@angular/forms', {}],
+    ['@angular/router', {}],
+    ['@angular/common', {}],
+    ['src/app/routes/portal/components/form.component', {}],
+    [
+      'src/app/services/form-dialog.service',
+      { FormDialogService: keys.dialog },
+    ],
+    ['src/app/services/title.service', {}],
+    ['src/app/services/action.service', {}],
+    ['src/app/services/standard-actions.service', {}],
+    ['src/app/services/pkg-status-rendering.service', {}],
+    ['src/app/utils/get-package-data', {}],
+    ['../components/action.component', {}],
+    ['./table.component', {}],
     ['@start9labs/shared', { TaskService: keys.task, i18nPipe: keys.i18n }],
     ['@taiga-ui/cdk', { tuiMarkControlAsTouchedAndValidate: () => {} }],
     ['@taiga-ui/core', {}],
@@ -532,6 +616,8 @@ function gatewayDnsHarness() {
     ipInfo: { deviceType: 'ethernet', lanIp: ['192.0.2.1'] },
   }
   const network = new BehaviorSubject({
+    defaultOutbound: null,
+    outboundDns: null,
     host: { privateDomains: { 'server.home': ['eth0'] } },
     gateways: {
       eth0: gateway,
@@ -543,16 +629,32 @@ function gatewayDnsHarness() {
     },
   })
   dependencies.set(PatchDB, {
-    watch$: key => (key === 'packageData' ? of({}) : network),
+    watch$: (key, ...path) =>
+      key === 'packageData'
+        ? of({})
+        : path.at(-1) === 'gateways'
+          ? network.pipe(map(value => value.gateways))
+          : network,
   })
   dependencies.set(keys.task, tasks)
+  dependencies.set(keys.dialog, {
+    open: (_component, options) => modals.push(options),
+  })
   dependencies.set(keys.confirm, { markAsPristine: () => {} })
   dependencies.set(keys.i18n, { transform: value => value })
   dependencies.set(keys.form, {
     createForm: (_spec, value) => ({ value, invalid: false }),
   })
   dependencies.set(keys.api, {
-    rpc: { net: { dns: { setStatic: async params => requests.push(params) } } },
+    rpc: {
+      net: {
+        gateway: {
+          edit: async params => requests.push(params),
+          setDefaultOutbound: async params => requests.push(params),
+        },
+      },
+      package: { setOutboundGateway: async params => requests.push(params) },
+    },
   })
   return {
     network,
@@ -560,23 +662,28 @@ function gatewayDnsHarness() {
     closed,
     requests,
     tasks,
+    dependencies,
+    keys,
+    load,
+    modals,
     create: id => {
       context = { data: id, completeWith: () => closed.push(id) }
       return new (load(
-        'projects/start-os/web/ui/src/app/routes/portal/routes/system/routes/gateways/dns.ts',
+        'projects/start-os/web/ui/src/app/routes/portal/routes/system/routes/gateways/edit.ts',
       ).default)()
     },
   }
 }
 
-test('StartOS gateway DNS dialog keeps its target and unsaved edits across link updates', async () => {
+test('StartOS gateway editor keeps its target and unsaved name/DNS edits across link updates', async () => {
   const { network, gateway, create } = gatewayDnsHarness()
   const dialog = create('eth0')
   await new Promise(setImmediate)
   assert.equal(dialog.data().warn.length, 1)
   assert.match(dialog.data().warn[0], /LAN/)
   const edited = dialog.data().form
-  edited.value.strategy = {
+  edited.value.name = 'New LAN name'
+  edited.value.dns = {
     selection: 'static',
     value: { servers: ['9.9.9.9'] },
   }
@@ -589,7 +696,8 @@ test('StartOS gateway DNS dialog keeps its target and unsaved edits across link 
   })
   await new Promise(setImmediate)
   assert.equal(dialog.data().form, edited)
-  assert.equal(dialog.data().form.value.strategy.value.servers[0], '9.9.9.9')
+  assert.equal(dialog.data().form.value.name, 'New LAN name')
+  assert.equal(dialog.data().form.value.dns.value.servers[0], '9.9.9.9')
   network.next({
     ...network.value,
     gateways: {
@@ -602,14 +710,11 @@ test('StartOS gateway DNS dialog keeps its target and unsaved edits across link 
   })
   await new Promise(setImmediate)
   assert.notEqual(dialog.data().form, edited)
-  assert.equal(
-    dialog.data().form.value.strategy.value.servers[0],
-    '192.0.2.53:53',
-  )
+  assert.equal(dialog.data().form.value.dns.value.servers[0], '192.0.2.53:53')
   const vpn = create('wg0')
   await new Promise(setImmediate)
   assert.equal(vpn.data().name, 'VPN')
-  assert.equal(vpn.data().form.value.strategy.selection, 'automatic')
+  assert.equal(vpn.data().form.value.dns.selection, 'automatic')
   network.next({
     ...network.value,
     gateways: { wg0: network.value.gateways.wg0 },
@@ -620,13 +725,14 @@ test('StartOS gateway DNS dialog keeps its target and unsaved edits across link 
   assert.equal(vpn.context.data, 'wg0')
 })
 
-test('StartOS gateway DNS dialog saves only its gateway and closes only after success', async () => {
+test('StartOS gateway editor saves name and DNS together and closes only after success', async () => {
   const fixture = gatewayDnsHarness()
   fixture.network.value.gateways.wg0.ipInfo = null
   const dialog = fixture.create('wg0')
   await new Promise(setImmediate)
   const form = dialog.data().form
-  form.value.strategy = {
+  form.value.name = 'Renamed VPN'
+  form.value.dns = {
     selection: 'static',
     value: { servers: ['192.0.2.53:5353'] },
   }
@@ -642,16 +748,43 @@ test('StartOS gateway DNS dialog saves only its gateway and closes only after su
   fixture.tasks.run = run
   await dialog.save(form)
   assert.deepEqual(JSON.parse(JSON.stringify(fixture.requests)), [
-    { gateway: 'wg0', servers: ['192.0.2.53:5353'] },
+    { id: 'wg0', name: 'Renamed VPN', dns: { servers: ['192.0.2.53:5353'] } },
   ])
   assert.deepEqual(fixture.closed, ['wg0'])
   const automatic = fixture.create('wg0')
   await new Promise(setImmediate)
   await automatic.save(automatic.data().form)
   assert.deepEqual(JSON.parse(JSON.stringify(fixture.requests[1])), {
-    gateway: 'wg0',
-    servers: null,
+    id: 'wg0',
+    name: null,
+    dns: { servers: null },
   })
+})
+
+test('StartOS DNS-only gateway edits preserve automatic names after a disconnect', async () => {
+  const fixture = gatewayDnsHarness()
+  const gateway = {
+    ...fixture.gateway,
+    name: null,
+    ipInfo: { ...fixture.gateway.ipInfo, name: 'Automatic LAN' },
+  }
+  fixture.network.next({
+    ...fixture.network.value,
+    gateways: { eth0: gateway },
+  })
+  const dialog = fixture.create('eth0')
+  await new Promise(setImmediate)
+  const form = dialog.data().form
+  assert.equal(form.value.name, 'Automatic LAN')
+  fixture.network.next({
+    ...fixture.network.value,
+    gateways: { eth0: { ...gateway, ipInfo: null } },
+  })
+  await new Promise(setImmediate)
+  assert.equal(dialog.data().form, form)
+  assert.equal(dialog.data().name, 'eth0')
+  await dialog.save(form)
+  assert.equal(fixture.requests[0].name, null)
 })
 
 test('StartOS gateway settings include disconnected gateways without changing active interface candidates', () => {
@@ -701,9 +834,10 @@ test('StartOS gateway settings include disconnected gateways without changing ac
     },
   })
   fixture.dependencies.set(PatchDB, { watch$: () => network })
-  const service = new (fixture.load(
+  const gatewayModule = fixture.load(
     'projects/start-os/web/ui/src/app/services/gateway.service.ts',
-  ).GatewayService)()
+  )
+  const service = new gatewayModule.GatewayService()
   assert.equal(
     service
       .configuredGateways()
@@ -719,6 +853,16 @@ test('StartOS gateway settings include disconnected gateways without changing ac
     'eth0',
   )
   assert.equal(service.defaultOutboundGateway().name, 'VPN')
+  const choices = gatewayModule.outboundGatewayOptions(
+    {
+      eth0: { name: 'Same name', ipInfo: { deviceType: 'ethernet' } },
+      eth1: { name: 'Same name', ipInfo: { deviceType: 'ethernet' } },
+    },
+    null,
+  )
+  assert.equal(new Set(Object.values(choices)).size, 2)
+  assert.equal(choices.eth0, 'Same name (eth0)')
+  assert.equal(choices.eth1, 'Same name (eth1)')
   network.next({
     ...network.value,
     gateways: { ...network.value.gateways, eth0: { name: null, ipInfo: null } },
@@ -728,6 +872,72 @@ test('StartOS gateway settings include disconnected gateways without changing ac
     service.configuredGateways().find(g => g.id === 'eth0').name,
     'eth0',
   )
+})
+
+test('StartOS host outbound form ignores observed link changes and saves gateway/DNS together', async () => {
+  const fixture = gatewayDnsHarness()
+  const page = new (fixture.load(
+    'projects/start-os/web/ui/src/app/routes/portal/routes/system/routes/gateways/gateways.component.ts',
+  ).default)()
+  await new Promise(setImmediate)
+  const initial = page.outboundForm()
+  assert.equal(initial.value.dns.selection, 'automatic')
+  fixture.network.next({
+    ...fixture.network.value,
+    gateways: {
+      ...fixture.network.value.gateways,
+      eth0: {
+        ...fixture.gateway,
+        ipInfo: { ...fixture.gateway.ipInfo, wanIp: '203.0.113.42' },
+      },
+    },
+  })
+  await new Promise(setImmediate)
+  assert.equal(page.outboundForm(), initial)
+  fixture.network.next({
+    ...fixture.network.value,
+    outboundDns: ['192.0.2.55:53'],
+  })
+  await new Promise(setImmediate)
+  assert.notEqual(page.outboundForm().key, initial.key)
+  assert.equal(page.outboundForm().value.dns.value.servers[0], '192.0.2.55:53')
+  await page.outboundButtons[0].handler({
+    gateway: 'wg0',
+    dns: { selection: 'static', value: { servers: ['192.0.2.56:5353'] } },
+  })
+  assert.deepEqual(JSON.parse(JSON.stringify(fixture.requests)), [
+    { gateway: 'wg0', dns: { servers: ['192.0.2.56:5353'] } },
+  ])
+})
+
+test('StartOS service outbound form uses gateway DNS instead of host static DNS and saves its own override', async () => {
+  const fixture = gatewayDnsHarness()
+  fixture.network.value.outboundDns = ['192.0.2.55:53']
+  const { PatchDB } = require('patch-db-client')
+  const Route = fixture.load(
+    'projects/start-os/web/ui/src/app/routes/portal/routes/services/routes/actions.component.ts',
+  ).default
+  const page = Object.create(Route.prototype)
+  page.package = () => ({
+    manifest: { id: 'example' },
+    outboundGateway: null,
+    outboundDns: null,
+  })
+  page.patch = fixture.dependencies.get(PatchDB)
+  page.i18n = fixture.dependencies.get(fixture.keys.i18n)
+  page.formDialog = fixture.dependencies.get(fixture.keys.dialog)
+  page.tasks = fixture.tasks
+  page.api = fixture.dependencies.get(fixture.keys.api)
+  await page.openOutboundModal()
+  const data = fixture.modals[0].data
+  assert.equal(data.value.dns.selection, 'automatic')
+  await data.buttons[0].handler({
+    gateway: data.value.gateway,
+    dns: { selection: 'static', value: { servers: ['192.0.2.57'] } },
+  })
+  assert.deepEqual(JSON.parse(JSON.stringify(fixture.requests)), [
+    { package: 'example', gateway: null, dns: { servers: ['192.0.2.57'] } },
+  ])
 })
 
 test('Brochure reports malformed registry URLs and can load the next selection', async () => {

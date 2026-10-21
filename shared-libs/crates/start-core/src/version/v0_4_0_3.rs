@@ -25,10 +25,11 @@ impl VersionT for Version {
         &V0_3_0_COMPAT
     }
     fn migration_revision(self) -> usize {
-        1
+        2
     }
     fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<Value, Error> {
         migrate_gateway_dns(db)?;
+        default_outbound_dns(db);
         drop_package_icons(db);
         Ok(Value::Null)
     }
@@ -83,6 +84,29 @@ fn migrate_gateway_dns(db: &mut Value) -> Result<(), Error> {
         }
     }
     Ok(())
+}
+
+fn default_outbound_dns(db: &mut Value) {
+    let Some(public) = db.get_mut("public") else {
+        return;
+    };
+    if let Some(network) = public
+        .get_mut("serverInfo")
+        .and_then(|s| s.get_mut("network"))
+        .and_then(|n| n.as_object_mut())
+    {
+        network.entry("outboundDns".into()).or_insert(Value::Null);
+    }
+    if let Some(packages) = public
+        .get_mut("packageData")
+        .and_then(|p| p.as_object_mut())
+    {
+        for (_, package) in packages.iter_mut() {
+            if let Some(package) = package.as_object_mut() {
+                package.entry("outboundDns".into()).or_insert(Value::Null);
+            }
+        }
+    }
 }
 
 fn drop_package_icons(db: &mut Value) {
@@ -158,6 +182,30 @@ mod test {
     }
 
     #[test]
+    fn requester_dns_defaults_once_without_overwriting_saved_intent() {
+        let mut db = json!({ "public": {
+            "serverInfo": { "network": {} },
+            "packageData": { "old": {}, "saved": { "outboundDns": ["192.0.2.53:53"] } }
+        } });
+        default_outbound_dns(&mut db);
+        assert_eq!(
+            db["public"]["serverInfo"]["network"]["outboundDns"],
+            Value::Null
+        );
+        assert_eq!(
+            db["public"]["packageData"]["old"]["outboundDns"],
+            Value::Null
+        );
+        assert_eq!(
+            db["public"]["packageData"]["saved"]["outboundDns"],
+            json!(["192.0.2.53:53"])
+        );
+        let once = db.clone();
+        default_outbound_dns(&mut db);
+        assert_eq!(db, once);
+    }
+
+    #[test]
     fn up_drops_package_and_dependency_icons() {
         let mut db = json!({
             "public": { "packageData": { "pkg": {
@@ -175,6 +223,7 @@ mod test {
             db,
             json!({
                 "public": { "packageData": { "pkg": {
+                    "outboundDns": null,
                     "currentDependencies": { "dep": {
                         "title": "Dep",
                         "kind": "exists",

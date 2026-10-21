@@ -5,6 +5,26 @@ import { PatchDB } from 'patch-db-client'
 
 import { DataModel } from './patch-db/data-model'
 
+function isGatewayInterface(gateway: T.NetworkInterfaceInfo): boolean {
+  return !['bridge', 'loopback'].includes(gateway.ipInfo?.deviceType ?? '')
+}
+
+export function outboundGatewayOptions(
+  gateways: Record<string, T.NetworkInterfaceInfo>,
+  selected: string | null,
+): Record<string, string> {
+  const ids = Object.entries(gateways)
+    .filter(
+      ([id, gateway]) =>
+        id === selected || (gateway.ipInfo && isGatewayInterface(gateway)),
+    )
+    .map(([id]) => id)
+  if (selected && !ids.includes(selected)) ids.push(selected)
+  return Object.fromEntries(
+    ids.map(id => [id, `${gatewayName(id, gateways[id])} (${id})`]),
+  )
+}
+
 export type GatewayDetails = T.NetworkInterfaceInfo & {
   id: string
   name: string
@@ -43,10 +63,7 @@ export class GatewayService {
     const network = this.network()
     if (!network) return
     return Object.entries(network.gateways)
-      .filter(
-        ([, gateway]) =>
-          !['bridge', 'loopback'].includes(gateway.ipInfo?.deviceType ?? ''),
-      )
+      .filter(([, gateway]) => isGatewayInterface(gateway))
       .map(([id, gateway]): GatewayDetails => {
         const subnets =
           gateway.ipInfo?.subnets.map(s => utils.IpNet.parse(s)) ?? []

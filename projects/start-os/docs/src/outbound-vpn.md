@@ -34,11 +34,11 @@ If the gateway you select for outbound traffic can't carry IPv6 — for example 
 
 For its own connections — marketplace, service-package and OS-update downloads — StartOS tries a host's IPv6 and IPv4 addresses a quarter of a second apart and uses the first connection that succeeds. Services make their own connections and follow their own behavior.
 
-The OS and services query the OS DNS server, which uses the [DNS settings](dns.md) of the requester's outbound gateway. A VPN's DNS servers, a gateway-specific static override, or Cloudflare's public fallback are reached through that same gateway. The DNS page shows which source each gateway uses. Host lookups of configured WireGuard endpoint names use the automatic physical connection to allow reconnection; service lookups keep their selected gateway.
+The OS and services query the OS DNS server. By default it uses the selected gateway's [DNS settings](dns.md); the adjacent DNS selector also allows an [OS or service-specific static override](dns.md#os-and-service-dns-overrides). These upstreams are reached through the same selected gateway. The Gateways table shows each gateway's resolver addresses and their source. Host lookups of configured WireGuard endpoint names use the automatic physical connection's gateway DNS to allow reconnection; service lookups keep their selected gateway.
 
 ## Route Individual Services Through VPN
 
-A service's own setting always takes precedence over the system-wide default — whether that default is Auto or a pinned gateway. To set one, navigate to a service and go to **Actions > Set Outbound Gateway**. You can keep one gateway pinned system-wide while routing selected services through another; choose "System default" in that dialog to clear the override and follow the system-wide setting again. Changing or clearing the override drops the service's established outbound connections. The service reconnects as needed through the newly selected gateway.
+A service's own setting always takes precedence over the system-wide default — whether that default is Auto or a pinned gateway. To set one, navigate to a service and go to **Actions > Outbound Traffic**. You can keep one gateway pinned system-wide while routing selected services through another; choose "System default" in that dialog to clear the override and follow the system-wide setting again. Changing or clearing the override drops the service's established outbound connections. The service reconnects as needed through the newly selected gateway.
 
 For example, you could route your Bitcoin node through Mullvad for privacy while leaving Nextcloud on the default gateway for better performance — even with Mullvad also pinned as the system-wide default.
 

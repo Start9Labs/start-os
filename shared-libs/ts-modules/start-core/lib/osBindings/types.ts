@@ -210,6 +210,16 @@ export type NetworkInterfaceTypeInput = z.input<
 >
 export type NotificationLevel = z.output<typeof schemas.NotificationLevel>
 export type NotificationLevelInput = z.input<typeof schemas.NotificationLevel>
+
+/**
+ * An absent update preserves DNS intent; null servers select gateway DNS.
+ */
+export type OutboundDnsUpdate = z.output<typeof schemas.OutboundDnsUpdate>
+
+/**
+ * An absent update preserves DNS intent; null servers select gateway DNS.
+ */
+export type OutboundDnsUpdateInput = z.input<typeof schemas.OutboundDnsUpdate>
 export type PackageBackupReport = z.output<typeof schemas.PackageBackupReport>
 export type PackageBackupReportInput = z.input<
   typeof schemas.PackageBackupReport
@@ -604,6 +614,8 @@ export type DomainSettings = z.output<typeof schemas.DomainSettings>
 export type DomainSettingsInput = z.input<typeof schemas.DomainSettings>
 export type DownloadsResponse = z.output<typeof schemas.DownloadsResponse>
 export type DownloadsResponseInput = z.input<typeof schemas.DownloadsResponse>
+export type EditGatewayParams = z.output<typeof schemas.EditGatewayParams>
+export type EditGatewayParamsInput = z.input<typeof schemas.EditGatewayParams>
 export type EditSignerParams = z.output<typeof schemas.EditSignerParams>
 export type EditSignerParamsInput = z.input<typeof schemas.EditSignerParams>
 export type EffectsRunActionParams = z.output<

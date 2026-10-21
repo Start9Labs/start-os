@@ -2,7 +2,7 @@ import { KeyValuePipe } from '@angular/common'
 import { Component, computed, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { getPkgId, i18nPipe, TaskService } from '@start9labs/shared'
-import { ISB, T } from '@start9labs/start-core'
+import { T } from '@start9labs/start-core'
 import { TuiCell } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom, map } from 'rxjs'
@@ -10,6 +10,10 @@ import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { ActionService } from 'src/app/services/action.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
+import {
+  gatewayName,
+  outboundGatewayOptions,
+} from 'src/app/services/gateway.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import {
   ALLOWED_STATUSES,
@@ -20,6 +24,11 @@ import {
 import { StandardActionsService } from 'src/app/services/standard-actions.service'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { getManifest } from 'src/app/utils/get-package-data'
+import {
+  outboundSettingsParams,
+  outboundSettingsSpec,
+  outboundSettingsValue,
+} from 'src/app/utils/outbound-settings'
 import { ServiceActionComponent } from '../components/action.component'
 
 @Component({
@@ -45,9 +54,9 @@ import { ServiceActionComponent } from '../components/action.component'
         <header>StartOS</header>
         <button
           tuiCell
-          [action]="outboundGatewayAction()"
+          [action]="outboundAction()"
           [inactive]="inactive"
-          (click)="openOutboundGatewayModal()"
+          (click)="openOutboundModal()"
         ></button>
         <button
           tuiCell
@@ -101,6 +110,7 @@ export default class ServiceActionsRoute {
           status,
           manifest: getManifest(pkg),
           outboundGateway: pkg.outboundGateway,
+          outboundDns: pkg.outboundDns,
           actions: Object.entries(pkg.actions)
             .filter(([_, action]) => action.visibility !== 'hidden')
             .map(([id, action]) => ({
@@ -118,10 +128,10 @@ export default class ServiceActionsRoute {
               if (b.group === specialGroup && a.group !== specialGroup)
                 return -1
 
-              const groupCompare = a.group.localeCompare(b.group) // sort groups lexicographically
+              const groupCompare = a.group.localeCompare(b.group)
               if (groupCompare !== 0) return groupCompare
 
-              return a.id.localeCompare(b.id) // sort actions within groups lexicographically
+              return a.id.localeCompare(b.id)
             })
             .reduce<
               Record<
@@ -141,17 +151,14 @@ export default class ServiceActionsRoute {
     ),
   )
 
-  readonly outboundGatewayAction = computed(() => {
-    const pkg = this.package()
-    const gatewayId = pkg?.outboundGateway
-    const gateway = gatewayId ? this.gateways()?.[gatewayId] : undefined
-    const gatewayName =
-      gatewayId && (gateway?.name ?? gateway?.ipInfo?.name ?? gatewayId)
+  readonly outboundAction = computed(() => {
+    const gatewayId = this.package()?.outboundGateway
+    const name = gatewayId
+      ? gatewayName(gatewayId, this.gateways()?.[gatewayId])
+      : this.i18n.transform('System')
     return {
-      name: this.i18n.transform('Set Outbound Gateway')!,
-      description: gatewayName
-        ? `${this.i18n.transform('Current')}: ${gatewayName}`
-        : `${this.i18n.transform('Current')}: ${this.i18n.transform('System')}`,
+      name: this.i18n.transform('Outbound Traffic')!,
+      description: `${this.i18n.transform('Current')}: ${name}`,
     }
   })
 
@@ -180,7 +187,7 @@ export default class ServiceActionsRoute {
     })
   }
 
-  async openOutboundGatewayModal() {
+  async openOutboundModal() {
     const pkg = this.package()
     if (!pkg) return
 
@@ -188,41 +195,17 @@ export default class ServiceActionsRoute {
       this.patch.watch$('serverInfo', 'network', 'gateways'),
     )
 
-    const SYSTEM_KEY = 'system'
-
-    const options: Record<string, string> = {
-      [SYSTEM_KEY]: this.i18n.transform('System default')!,
-    }
-
-    Object.entries(gateways)
-      .filter(
-        ([id, g]) =>
-          id === pkg.outboundGateway ||
-          (!!g.ipInfo &&
-            g.ipInfo.deviceType !== 'bridge' &&
-            g.ipInfo.deviceType !== 'loopback'),
-      )
-      .forEach(([id, g]) => {
-        options[id] = g.name ?? g.ipInfo?.name ?? id
-      })
-    if (pkg.outboundGateway)
-      options[pkg.outboundGateway] ??= pkg.outboundGateway
-
-    const spec = ISB.InputSpec.of({
-      gateway: ISB.Value.select({
-        name: this.i18n.transform('Outbound Gateway'),
-        description: this.i18n.transform(
-          'Select the gateway for outbound traffic',
-        ),
-        default: pkg.outboundGateway ?? SYSTEM_KEY,
-        values: options,
-      }),
-    })
+    const spec = outboundSettingsSpec(
+      this.i18n,
+      outboundGatewayOptions(gateways, pkg.outboundGateway),
+      'System default',
+    )
 
     this.formDialog.open(FormComponent, {
-      label: 'Set Outbound Gateway',
+      label: 'Outbound Traffic',
       data: {
         spec: await configBuilderToSpec(spec),
+        value: outboundSettingsValue(pkg.outboundGateway, pkg.outboundDns),
         buttons: [
           {
             text: this.i18n.transform('Save'),
@@ -231,8 +214,7 @@ export default class ServiceActionsRoute {
                 async () =>
                   await this.api.rpc.package.setOutboundGateway({
                     package: pkg.manifest.id,
-                    gateway:
-                      input.gateway === SYSTEM_KEY ? null : input.gateway,
+                    ...outboundSettingsParams(input),
                   }),
                 'Saving',
               ),

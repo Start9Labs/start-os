@@ -201,8 +201,38 @@ pub async fn set_static_dns(
     ctx: RpcContext,
     SetStaticDnsParams { gateway, servers }: SetStaticDnsParams,
 ) -> Result<(), Error> {
-    let servers = parse_static_servers(servers)?;
     let interfaces = ctx.net_controller.net_iface.watcher.ip_info();
+    let servers = validate_static_servers(servers, &interfaces)?;
+    ctx.net_controller
+        .net_iface
+        .set_dns(&gateway, servers)
+        .await
+}
+
+/// An absent update preserves DNS intent; null servers select gateway DNS.
+#[derive(Debug, Clone, Deserialize, Serialize, VisitFields)]
+#[serde(rename_all = "camelCase")]
+pub struct OutboundDnsUpdate {
+    pub servers: Option<Vec<String>>,
+}
+
+rpc_toolkit::reflect_ts!(OutboundDnsUpdate);
+rpc_toolkit::ts_export!(OutboundDnsUpdate, namespaces = [""]);
+
+pub(crate) fn validate_dns_update(
+    update: Option<OutboundDnsUpdate>,
+    interfaces: &OrdMap<GatewayId, NetworkInterfaceInfo>,
+) -> Result<Option<Option<std::collections::VecDeque<SocketAddr>>>, Error> {
+    update
+        .map(|update| validate_static_servers(update.servers, interfaces))
+        .transpose()
+}
+
+pub(crate) fn validate_static_servers(
+    servers: Option<Vec<String>>,
+    interfaces: &OrdMap<GatewayId, NetworkInterfaceInfo>,
+) -> Result<Option<std::collections::VecDeque<SocketAddr>>, Error> {
+    let servers = parse_static_servers(servers)?;
     for server in servers.iter().flatten() {
         ensure_code!(
             !is_host_address(
@@ -216,10 +246,7 @@ pub async fn set_static_dns(
             t!("net.dns.static-server-is-self", server = server)
         );
     }
-    ctx.net_controller
-        .net_iface
-        .set_dns(&gateway, servers)
-        .await
+    Ok(servers)
 }
 
 fn parse_static_servers(
@@ -540,24 +567,25 @@ impl Resolver {
         }
         let db = db.peek().await;
         let public = db.as_public();
-        let service_gateway: Option<GatewayId> = match package {
-            Some(id) => public
-                .as_package_data()
-                .as_idx(&id)
-                .or_not_found("DNS requester package")?
-                .as_outbound_gateway()
-                .de()?,
-            None => None,
+        let network = public.as_server_info().as_network();
+        let (service_gateway, dns) = match package {
+            Some(id) => {
+                let package = public
+                    .as_package_data()
+                    .as_idx(&id)
+                    .or_not_found("DNS requester package")?;
+                (
+                    package.as_outbound_gateway().de()?,
+                    package.as_outbound_dns().de()?,
+                )
+            }
+            None => (None, network.as_outbound_dns().de()?),
         };
-        let selected = service_gateway.or(public
-            .as_server_info()
-            .as_network()
-            .as_default_outbound()
-            .de()?);
+        let selected = service_gateway.or(network.as_default_outbound().de()?);
         let gateway = selected
             .or_else(|| auto_gateway(interfaces))
             .or_not_found("outbound DNS gateway")?;
-        self.catalog_for_gateway(gateway, interfaces)
+        self.catalog_for_profile(gateway, dns, interfaces)
     }
 
     fn catalog_for_gateway(
@@ -565,24 +593,38 @@ impl Resolver {
         gateway: GatewayId,
         interfaces: &OrdMap<GatewayId, NetworkInterfaceInfo>,
     ) -> Result<Arc<Catalog>, Error> {
+        self.catalog_for_profile(gateway, None, interfaces)
+    }
+
+    fn catalog_for_profile(
+        &self,
+        gateway: GatewayId,
+        servers: Option<std::collections::VecDeque<SocketAddr>>,
+        interfaces: &OrdMap<GatewayId, NetworkInterfaceInfo>,
+    ) -> Result<Arc<Catalog>, Error> {
         let info = interfaces.get(&gateway).or_not_found("DNS gateway")?;
         let ip = info
             .ip_info
             .as_ref()
             .or_not_found("connected DNS gateway")?;
+        let mut dns = info.dns.clone();
+        if let Some(servers) = servers {
+            dns.static_servers = Some(servers);
+            dns.refresh(info.ip_info.as_deref());
+        }
         self.forwarders.mutate(|cache| {
             cache.retain(|id, _| interfaces.get(id).is_some_and(|i| i.ip_info.is_some()));
             if let Some(forwarder) = cache.get(&gateway) {
-                if forwarder.index == ip.scope_id && forwarder.dns == info.dns {
+                if forwarder.index == ip.scope_id && forwarder.dns == dns {
                     return Ok(forwarder.catalog.clone());
                 }
             }
-            let catalog = gateway_catalog(gateway.clone(), ip.scope_id, &info.dns)?;
+            let catalog = gateway_catalog(gateway.clone(), ip.scope_id, &dns)?;
             cache.insert(
                 gateway,
                 GatewayForwarder {
                     index: ip.scope_id,
-                    dns: info.dns.clone(),
+                    dns,
                     catalog: catalog.clone(),
                 },
             );
@@ -1910,6 +1952,199 @@ mod tests {
                 "10.0.3.2".parse().unwrap()
             ),
             Resolution::NxDomain
+        ));
+    }
+
+    #[tokio::test]
+    async fn requester_dns_is_independent_and_profiles_replace_the_bounded_gateway_cache() {
+        let (_temp, resolver) = resolver_fixture().await;
+        let controller = resolver.controller();
+        let _pinned = controller
+            .add_service(
+                Some("pinned".parse().unwrap()),
+                "10.0.3.2".parse().unwrap(),
+                Some("fd00:3::2".parse().unwrap()),
+            )
+            .unwrap();
+        let _inherited = controller
+            .add_service(
+                Some("inherited".parse().unwrap()),
+                "10.0.3.3".parse().unwrap(),
+                None,
+            )
+            .unwrap();
+        resolver
+            .db
+            .put(
+                &"/public/serverInfo/network/outboundDns"
+                    .parse::<patch_db::json_ptr::JsonPointer>()
+                    .unwrap(),
+                &imbl_value::json!(["192.0.2.54:5353", "[2001:db8::54]:53"]),
+            )
+            .await
+            .unwrap();
+        let host = resolver
+            .forward_catalog("127.0.0.1".parse().unwrap())
+            .await
+            .unwrap();
+        let eth0: GatewayId = "eth0".parse().unwrap();
+        assert_eq!(
+            resolver.forwarders.peek(|c| c[&eth0].dns.servers.clone()),
+            [
+                "192.0.2.54:5353".parse().unwrap(),
+                "[2001:db8::54]:53".parse().unwrap()
+            ]
+        );
+        let inherited = resolver
+            .forward_catalog("10.0.3.3".parse().unwrap())
+            .await
+            .unwrap();
+        assert!(!Arc::ptr_eq(&host, &inherited));
+        assert_eq!(
+            resolver.forwarders.peek(|c| c[&eth0].dns.clone()),
+            resolver.net_iface.read()[&eth0].dns
+        );
+        resolver
+            .db
+            .put(
+                &"/public/packageData/pinned"
+                    .parse::<patch_db::json_ptr::JsonPointer>()
+                    .unwrap(),
+                &imbl_value::json!({"outboundGateway": null, "outboundDns": ["192.0.2.55:53"]}),
+            )
+            .await
+            .unwrap();
+        let service = resolver
+            .forward_catalog("10.0.3.2".parse().unwrap())
+            .await
+            .unwrap();
+        assert!(!Arc::ptr_eq(&inherited, &service));
+        assert_eq!(
+            resolver.forwarders.peek(|c| c[&eth0].dns.servers.clone()),
+            ["192.0.2.55:53".parse().unwrap()]
+        );
+        assert!(Arc::ptr_eq(
+            &service,
+            &resolver
+                .forward_catalog("fd00:3::2".parse().unwrap())
+                .await
+                .unwrap()
+        ));
+        let inherited_again = resolver
+            .forward_catalog("10.0.3.3".parse().unwrap())
+            .await
+            .unwrap();
+        assert!(!Arc::ptr_eq(&service, &inherited_again));
+        assert_eq!(
+            resolver.forwarders.peek(|c| c[&eth0].dns.clone()),
+            resolver.net_iface.read()[&eth0].dns
+        );
+        resolver
+            .db
+            .put(
+                &"/public/packageData/pinned/outboundDns"
+                    .parse::<patch_db::json_ptr::JsonPointer>()
+                    .unwrap(),
+                &Value::Null,
+            )
+            .await
+            .unwrap();
+        assert!(Arc::ptr_eq(
+            &inherited_again,
+            &resolver
+                .forward_catalog("10.0.3.2".parse().unwrap())
+                .await
+                .unwrap()
+        ));
+        resolver
+            .db
+            .put(
+                &"/public/packageData/inherited/outboundDns"
+                    .parse::<patch_db::json_ptr::JsonPointer>()
+                    .unwrap(),
+                &imbl_value::json!(["192.0.2.56:53"]),
+            )
+            .await
+            .unwrap();
+        assert!(!Arc::ptr_eq(
+            &inherited_again,
+            &resolver
+                .forward_catalog("10.0.3.3".parse().unwrap())
+                .await
+                .unwrap()
+        ));
+        assert_eq!(
+            resolver.forwarders.peek(|c| c[&eth0].dns.servers.clone()),
+            ["192.0.2.56:53".parse().unwrap()]
+        );
+        assert_eq!(resolver.forwarders.peek(|c| c.len()), 1);
+        resolver.net_iface.send_if_modified(|interfaces| {
+            interfaces.get_mut(&eth0).unwrap().ip_info = None;
+            true
+        });
+        for source in ["127.0.0.1", "10.0.3.2", "10.0.3.3"] {
+            assert!(
+                resolver
+                    .forward_catalog(source.parse().unwrap())
+                    .await
+                    .is_err()
+            );
+        }
+        assert!(matches!(
+            resolver.resolve(
+                &Name::from_ascii("localhost.").unwrap(),
+                "10.0.3.3".parse().unwrap()
+            ),
+            Resolution::Answer(_)
+        ));
+    }
+
+    #[tokio::test]
+    async fn host_static_dns_never_changes_endpoint_or_initial_bootstrap_upstreams() {
+        let (_temp, mut resolver) = resolver_fixture().await;
+        let underlay = resolver
+            .forward_catalog("127.0.0.1".parse().unwrap())
+            .await
+            .unwrap();
+        resolver
+            .db
+            .put(
+                &"/public/serverInfo/network"
+                    .parse::<patch_db::json_ptr::JsonPointer>()
+                    .unwrap(),
+                &imbl_value::json!({"defaultOutbound": "wg0", "outboundDns": ["192.0.2.54:53"]}),
+            )
+            .await
+            .unwrap();
+        resolver.net_iface.send_if_modified(|interfaces| {
+            interfaces
+                .get_mut(&"wg0".parse::<GatewayId>().unwrap())
+                .unwrap()
+                .wireguard_endpoint_domains
+                .insert("vpn.example".into());
+            true
+        });
+        let host_static = resolver
+            .forward_catalog("127.0.0.1".parse().unwrap())
+            .await
+            .unwrap();
+        let endpoint = resolver
+            .request_catalog(
+                "127.0.0.1".parse().unwrap(),
+                &Name::from_ascii("vpn.example.").unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(Arc::ptr_eq(&underlay, &endpoint));
+        assert!(!Arc::ptr_eq(&host_static, &endpoint));
+        resolver.resolver.authority =
+            Watch::new(DnsAuthority::Bootstrap(resolver.net_iface.clone()));
+        assert!(Arc::ptr_eq(
+            &endpoint,
+            &resolver
+                .forward_catalog("127.0.0.1".parse().unwrap())
+                .await
+                .unwrap()
         ));
     }
 

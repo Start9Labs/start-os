@@ -410,33 +410,7 @@ export class MockApiService extends ApiService {
     'net.dns.set-static': async params => {
       await pauseFor(2000)
 
-      const gateway = this.mockData(
-        '/serverInfo/network/gateways/' + params.gateway,
-      ) as T.NetworkInterfaceInfo | undefined
-      if (!gateway) throw new Error('Unknown gateway')
-      if (params.servers?.length === 0)
-        throw new Error('At least one DNS server is required')
-      const provided = gateway.ipInfo?.dnsServers ?? []
-      const servers =
-        params.servers ??
-        (provided.length
-          ? provided
-          : ['1.1.1.1:53', '[2606:4700:4700::1111]:53'])
-      const dns: T.DnsSettings = {
-        staticServers: params.servers ?? null,
-        servers: servers.map(server => {
-          if (new RegExp(utils.regexes.ipv4.matches()).test(server))
-            return server + ':53'
-          if (new RegExp(utils.regexes.ipv6.matches()).test(server))
-            return '[' + server + ']:53'
-          return server
-        }),
-        source: params.servers
-          ? 'static'
-          : provided.length
-            ? 'gateway'
-            : 'public-fallback',
-      }
+      const dns = this.mockGatewayDns(params.gateway, params.servers ?? null)
       const patch: ReplaceOperation<T.DnsSettings>[] = [
         {
           op: PatchOp.REPLACE,
@@ -581,16 +555,33 @@ export class MockApiService extends ApiService {
     },
     'net.gateway.set-name': async params => {
       await pauseFor(2000)
-
-      const patch: ReplaceOperation<string>[] = [
+      this.mockRevision([
         {
           op: PatchOp.REPLACE,
-          path: `/serverInfo/network/gateways/${params.id}/label`,
+          path: `/serverInfo/network/gateways/${params.id}/name`,
           value: params.name,
         },
-      ]
+      ])
+      return null
+    },
+    'net.gateway.edit': async params => {
+      await pauseFor(2000)
+      const base = `/serverInfo/network/gateways/${params.id}`
+      if (!this.mockData(base)) throw new Error('Unknown gateway')
+      const patch: Operation<any>[] = []
+      if (params.dns)
+        patch.push({
+          op: PatchOp.REPLACE,
+          path: `${base}/dns`,
+          value: this.mockGatewayDns(params.id, params.dns.servers ?? null),
+        })
+      if (params.name != null)
+        patch.push({
+          op: PatchOp.REPLACE,
+          path: `${base}/name`,
+          value: params.name,
+        })
       this.mockRevision(patch)
-
       return null
     },
     'net.tunnel.update': async params => {
@@ -611,28 +602,38 @@ export class MockApiService extends ApiService {
     },
     'net.gateway.set-default-outbound': async params => {
       await pauseFor(2000)
-      const patch = [
+      const patch: Operation<any>[] = [
         {
           op: PatchOp.REPLACE,
           path: '/serverInfo/network/defaultOutbound',
           value: params.gateway,
         },
       ]
+      if (params.dns)
+        patch.push({
+          op: PatchOp.REPLACE,
+          path: '/serverInfo/network/outboundDns',
+          value: this.mockDnsServers(params.dns.servers ?? null),
+        })
       this.mockRevision(patch)
-
       return null
     },
     'package.set-outbound-gateway': async params => {
       await pauseFor(2000)
-      const patch = [
+      const patch: Operation<any>[] = [
         {
           op: PatchOp.REPLACE,
           path: `/packageData/${params.package}/outboundGateway`,
           value: params.gateway,
         },
       ]
+      if (params.dns)
+        patch.push({
+          op: PatchOp.REPLACE,
+          path: `/packageData/${params.package}/outboundDns`,
+          value: this.mockDnsServers(params.dns.servers ?? null),
+        })
       this.mockRevision(patch)
-
       return null
     },
     'wifi.set-enabled': async params => {
@@ -2252,6 +2253,42 @@ export class MockApiService extends ApiService {
       { op: PatchOp.ADD, path: `${basePath}/available`, value: available },
     ]
     this.mockRevision(patch)
+  }
+
+  private mockDnsServers(servers: string[] | null): string[] | null {
+    if (servers?.length === 0)
+      throw new Error('At least one DNS server is required')
+    return (
+      servers?.map(server => {
+        if (new RegExp(utils.regexes.ipv4.matches()).test(server))
+          return server + ':53'
+        if (new RegExp(utils.regexes.ipv6.matches()).test(server))
+          return '[' + server + ']:53'
+        return server
+      }) ?? null
+    )
+  }
+
+  private mockGatewayDns(id: string, servers: string[] | null): T.DnsSettings {
+    const gateway = this.mockData('/serverInfo/network/gateways/' + id) as
+      | T.NetworkInterfaceInfo
+      | undefined
+    if (!gateway) throw new Error('Unknown gateway')
+    const staticServers = this.mockDnsServers(servers)
+    const provided = gateway.ipInfo?.dnsServers ?? []
+    return {
+      staticServers,
+      servers:
+        staticServers ??
+        this.mockDnsServers(
+          provided.length ? provided : ['1.1.1.1', '2606:4700:4700::1111'],
+        )!,
+      source: staticServers
+        ? 'static'
+        : provided.length
+          ? 'gateway'
+          : 'public-fallback',
+    }
   }
 
   private mockData(path: string): any {
