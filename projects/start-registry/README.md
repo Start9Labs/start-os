@@ -48,7 +48,7 @@ Configuration is read from CLI flags and a config file (`-c <path>`; default sea
 | `-d, --datadir <path>`  | data directory (default `/var/lib/startos`)     |
 | `-c, --config <path>`   | config file                                     |
 
-Server state lives in `<datadir>/registry.db` (PatchDB) plus a SQLite metrics database and hosted asset files.
+Server state lives in `<datadir>/registry.db` (PatchDB) plus a SQLite metrics database, package icons under `<datadir>/icons/`, and hosted asset files.
 
 > [!NOTE]
 > **Non-StartOS deployments only:** A separately managed reverse proxy must forward `/rpc/`,
