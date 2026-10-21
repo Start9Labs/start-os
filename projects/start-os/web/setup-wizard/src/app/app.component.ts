@@ -1,6 +1,6 @@
 import { Component, DOCUMENT, inject, OnInit } from '@angular/core'
 import { Router, RouterOutlet } from '@angular/router'
-import { ErrorService, StartupDnsStatus } from '@start9labs/shared'
+import { ErrorService } from '@start9labs/shared'
 import { TuiRoot } from '@taiga-ui/core'
 
 import { ApiService } from './services/api.service'
@@ -8,27 +8,14 @@ import { StateService } from './services/state.service'
 
 @Component({
   selector: 'app-root',
-  template: `
-    <tui-root>
-      @if (stateService.dnsStatus(); as status) {
-        <startup-dns-status [status]="status" />
-      }
-      <router-outlet />
-    </tui-root>
-  `,
-  styles: `
-    startup-dns-status:not(:empty) {
-      display: block;
-      margin: 1rem;
-    }
-  `,
-  imports: [TuiRoot, RouterOutlet, StartupDnsStatus],
+  template: '<tui-root><router-outlet /></tui-root>',
+  imports: [TuiRoot, RouterOutlet],
 })
 export class AppComponent implements OnInit {
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorService)
   private readonly router = inject(Router)
-  protected readonly stateService = inject(StateService)
+  private readonly stateService = inject(StateService)
   private readonly document = inject(DOCUMENT)
 
   async ngOnInit() {

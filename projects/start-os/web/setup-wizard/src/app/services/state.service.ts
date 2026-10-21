@@ -1,7 +1,5 @@
 import { inject, Injectable } from '@angular/core'
-import { toSignal } from '@angular/core/rxjs-interop'
 import { Router } from '@angular/router'
-import { exhaustMap, timer } from 'rxjs'
 import { ApiService, Params } from './api.service'
 import { normalizeCifsPath } from '../utils/cifs'
 
@@ -33,15 +31,6 @@ export type RecoverySource =
 export class StateService {
   private readonly api = inject(ApiService)
   private readonly router = inject(Router)
-
-  readonly dnsStatus = toSignal(
-    timer(0, 2000).pipe(
-      exhaustMap(() =>
-        this.api.rpc.net.dns.status({}, { timeout: 2000 }).catch(() => null),
-      ),
-    ),
-    { initialValue: null },
-  )
 
   // Initialized from the browser hostname during app startup.
   kiosk = false
