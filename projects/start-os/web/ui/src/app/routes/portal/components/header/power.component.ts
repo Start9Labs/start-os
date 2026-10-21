@@ -1,13 +1,8 @@
-import { Component, signal } from '@angular/core'
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
+import { Component } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-core'
 import { TuiButton, TuiDialogContext } from '@taiga-ui/core'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { take, timer } from 'rxjs'
-
-const COUNTDOWN = 30
-
 @Component({
   template: `
     <p>
@@ -29,7 +24,7 @@ const COUNTDOWN = 30
         {{ (action === 'restart' ? 'Restart now' : 'Shut down now') | i18n }}
       </button>
       <button tuiButton (click)="wait()">
-        {{ 'Wait for backup to complete' | i18n }} ({{ seconds() }})
+        {{ 'Wait for backup to complete' | i18n }}
       </button>
     </footer>
   `,
@@ -47,17 +42,6 @@ export class PowerComponent {
     injectContext<TuiDialogContext<boolean, T.PowerAction>>()
 
   protected readonly action = this.context.data
-  protected readonly seconds = signal(COUNTDOWN)
-
-  constructor() {
-    timer(0, 1000)
-      .pipe(take(COUNTDOWN + 1), takeUntilDestroyed())
-      .subscribe(tick => {
-        this.seconds.set(COUNTDOWN - tick)
-        if (tick === COUNTDOWN) this.wait()
-      })
-  }
-
   protected now() {
     this.context.completeWith(true)
   }
