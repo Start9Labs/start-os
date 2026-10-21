@@ -92,7 +92,7 @@ Die IP-Adresse oder der Domänenname, unter dem der VPN-Server von Clients errei
 
 ### Sicherheitsprofil
 
-Der anfängliche Satz an Zugriffsrechten und Einschränkungen, der Clients zugewiesen wird, wenn sie sich mit dem VPN-Server verbinden. Wählen Sie ein zuvor erstelltes Profil oder einen Zeitplan, oder erstellen Sie ein neues.
+Der anfängliche Satz an Zugriffsrechten und Einschränkungen, der Clients zugewiesen wird, wenn sie sich mit dem VPN-Server verbinden. Wählen Sie ein zuvor erstelltes Profil oder einen Zeitplan, oder erstellen Sie ein neues. Das Profil steht nach dem Erstellen des Servers fest; um ein VPN in ein anderes Profil zu verschieben, löschen Sie es und fügen Sie ein neues hinzu.
 
 ### Port
 
@@ -111,7 +111,7 @@ Die zugewiesene IP-Adresse im lokalen Netzwerk. Diese wurde beim Einrichten des 
 
 ### Routing
 
-Zeigt den Routing-Modus des Client-Datenverkehrs an. „Gesamter Datenverkehr“ leitet den gesamten Internetverkehr durch den VPN-Tunnel. „Nur LAN“ leitet nur den lokalen Netzwerkverkehr durch den Tunnel. Verwenden Sie das Aktionsmenü, um zwischen den Modi zu wechseln.`,
+Zeigt den Routing-Modus des Client-Datenverkehrs an. „Gesamter Datenverkehr“ leitet den gesamten Internetverkehr durch den VPN-Tunnel. „Nur LAN“ leitet nur den lokalen Netzwerkverkehr durch den Tunnel. Um ihn zu ändern, löschen Sie den Client und fügen Sie ihn mit dem gewünschten Routing erneut hinzu.`,
   '/inbound/client/dialog-add': `## Eingehende VPNs
 
 ### Bezeichnung
@@ -139,7 +139,7 @@ Zeigt die Konfiguration als Text an. Verwenden Sie die Schaltfläche zum Kopiere
 
 ### QR
 
-Zeigt die Konfiguration als QR-Code an. Scannen Sie ihn mit der mobilen WireGuard-App, um das Client-Gerät ohne manuelle Eingabe zu konfigurieren.`,
+Zeigt die Konfiguration als QR-Code an, wenn der Router den privaten Schlüssel des Geräts erzeugt hat. Scannen Sie ihn mit der mobilen WireGuard-App, um das Client-Gerät ohne manuelle Eingabe zu konfigurieren.`,
   '/inbound/client/dialog-rename': `## Client umbenennen
 
 ### Name
@@ -187,7 +187,7 @@ Leiten Sie ein VPN durch ein anderes für zusätzliche Privatsphäre. Ihr Datenv
 Laden Sie eine WireGuard-Konfigurationsdatei von Ihrem VPN-Anbieter (Mullvad, ProtonVPN, IVPN usw.) hoch, um einen neuen VPN-Client zu erstellen.`,
   '/outbound/vpn': `## Ausgehende VPNs
 
-<details><summary>Bezeichnung</summary> Ein einprägsamer Name zur Identifizierung dieser VPN-Verbindung. Verwenden Sie etwas Aussagekräftiges wie „Mullvad Schweden“ oder „Arbeits-VPN“. </details> <details><summary>Verbindet sich mit</summary> Wohin der Datenverkehr von diesem VPN geleitet werden soll:<ul><li><b>Internet:</b> Der Datenverkehr gelangt über dieses VPN direkt ins Internet.</li><li><b>Ein weiteres VPN:</b> Zuerst durch ein weiteres VPN verketten für zusätzliche Privatsphäre. Ihr Datenverkehr wird mehrfach verschlüsselt und verlässt das Netz über mehrere Server.</li></ul><b>Hinweis:</b> Das Verketten von VPNs erhöht die Latenz und kann die Geschwindigkeit verringern. </details> <details><summary>Verbindungspfad</summary> Zeigt den vollständigen Weg, den Ihr Datenverkehr von diesem VPN ins Internet nimmt. Zum Beispiel: Mullvad → Proton → Internet bedeutet, dass der Datenverkehr von Mullvad verschlüsselt, durch Proton gesendet wird und dann ins Internet gelangt.</details>`,
+<details><summary>Bezeichnung</summary> Ein einprägsamer Name zur Identifizierung dieser VPN-Verbindung. Verwenden Sie etwas Aussagekräftiges wie „Mullvad Schweden“ oder „Arbeits-VPN“. </details> <details><summary>Verbindet sich mit</summary> Wohin der Datenverkehr von diesem VPN geleitet werden soll:<ul><li><b>Internet:</b> Der Datenverkehr gelangt über dieses VPN direkt ins Internet.</li><li><b>Ein weiteres VPN:</b> Zuerst durch ein weiteres VPN verketten für zusätzliche Privatsphäre. Ihr Datenverkehr wird mehrfach verschlüsselt und verlässt das Netz über mehrere Server.</li></ul><b>Hinweis:</b> Das Verketten von VPNs erhöht die Latenz und kann die Geschwindigkeit verringern. </details> <details><summary>DNS-Server</summary> Resolver, die über dieses VPN geroutete Profile ohne eigene DNS-Server durch den Tunnel erreichen. Leer lassen, um die benutzerdefinierten DNS-Server des Systems durch den Tunnel zu nutzen – oder, wenn das System das DNS Ihres Internetanbieters verwendet, dessen Server außerhalb des Tunnels. </details> <details><summary>Verbindungspfad</summary> Zeigt den vollständigen Weg, den Ihr Datenverkehr von diesem VPN ins Internet nimmt. Zum Beispiel: Mullvad → Proton → Internet bedeutet, dass der Datenverkehr von Mullvad verschlüsselt, durch Proton gesendet wird und dann ins Internet gelangt.</details>`,
   '/outbound/dialog': `## Ausgehende VPNs
 
 VPN-Clients stellen eine ausgehende Verbindung zu einem VPN-Server her und ermöglichen es Geräten, Daten so zu senden und zu empfangen, als wären sie direkt mit dem privaten Netzwerk verbunden. Verbirgt Ihre IP-Adresse, umgeht geografische Beschränkungen und schützt sensible Daten in öffentlichen Wi-Fi-Netzwerken.
@@ -202,7 +202,11 @@ Laden Sie eine WireGuard- **.conf** -Datei von Ihrem VPN-Anbieter hoch. Diese Da
 
 ### Ziel
 
-Der nächste Knoten im Pfad einer mehrschichtigen VPN-Verbindung.`,
+Der nächste Knoten im Pfad einer mehrschichtigen VPN-Verbindung.
+
+### DNS-Server
+
+Optional. Ersetzt die DNS-Server aus der Konfigurationsdatei. Profile, die über dieses VPN geroutet werden, lösen Namen mit diesen Servern durch den Tunnel auf, sofern sie keine eigenen festlegen. Gibt es weder hier noch in der Konfiguration noch im benutzerdefinierten System-DNS Server, lösen diese Profile Namen über Ihren Internetanbieter außerhalb des Tunnels auf.`,
   '/profiles': `## Profile
 
 Sicherheitsprofile definieren Netzwerksegmente mit isolierten Berechtigungen. Jedes Profil steuert den Internetzugriff und die Kommunikation mit anderen Profilen in Ihrem lokalen Netzwerk.
@@ -213,7 +217,7 @@ Ein aussagekräftiger Name für das Sicherheitsprofil, etwa „Gast“ oder „I
 
 ### DNS
 
-Welche DNS-Server Geräte in diesem Profil verwenden – die des Systems („System“), die eigenen benutzerdefinierten Server des Profils („Benutzerdefiniert“) oder, beim Routing durch ein VPN, die des VPN („VPN“).
+Welche DNS-Server Geräte in diesem Profil verwenden – die des Systems („System“), die eigenen benutzerdefinierten Server des Profils („Benutzerdefiniert“) oder, beim Routing durch ein VPN, die des VPN („VPN“). „System (außerhalb des VPN)“ bedeutet, dass ein über ein VPN geroutetes Profil keine DNS-Server im Tunnel hat und Namen über Ihren Internetanbieter außerhalb des Tunnels auflöst.
 
 ### Ausgehend
 

@@ -9,6 +9,18 @@ Because `start-cli` is a thin client over `start-core`, most user-visible CLI ch
 in `start-core`; record here anything that changes this crate's entrypoint, features, packaging,
 or the CLI's externally observable behavior.
 
+## [2.4.2]
+
+### Fixed
+
+- `s9pk pack` needs less free disk space to import a container image from a tag or OCI layout.
+
+## [2.4.1]
+
+### Fixed
+
+- `s9pk pack` accepts container images whose layers store absolute or `..` paths, such as Tailscale's, resolving them against the image root.
+
 ## [2.4.0]
 
 ### Added

@@ -135,8 +135,6 @@ rpc_toolkit::ts_export!(LogFollowResponse, namespaces = [""]);
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct LogEntry {
-    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     timestamp: DateTime<Utc>,
     message: String,
     boot_id: String,
@@ -258,6 +256,7 @@ pub enum BootIdentifier {
     Index(i32),
     Id(String),
 }
+rpc_toolkit::impl_ts!(BootIdentifier => "z.union([z.number(), z.string()])", "z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>");
 impl FromStr for BootIdentifier {
     type Err = Infallible;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -357,11 +356,6 @@ pub struct LogsParams<Extra: FromArgMatches + Args = Empty> {
     cursor: Option<String>,
     #[arg(short = 'b', long = "boot", help = "help.arg.log-boot")]
     #[serde(default)]
-    #[visit(
-        ts(type = "z.union([z.number(), z.string()]).nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     boot: Option<BootIdentifier>,
     #[arg(
         short = 'B',
@@ -786,12 +780,8 @@ mod tests {
         let schema = visitor.into_bindings(None, "./schemas").unwrap().schemas;
         assert!(
             schema.contains(
-                "const literal_0 = /* @__PURE__ */ z.union([z.number(), z.string()]).nullable();\n"
+                "\"boot\": wire(z.union([z.number(), z.string()]).nullable().optional(), z.union([z.number(), z.string()]).nullable())"
             ),
-            "{schema}"
-        );
-        assert!(
-            schema.contains("\"boot\": wire(literal_0.optional(), literal_0)"),
             "{schema}"
         );
     }

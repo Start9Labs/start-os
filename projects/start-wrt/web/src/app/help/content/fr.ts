@@ -92,7 +92,7 @@ L’adresse IP ou le nom de domaine où le serveur VPN peut être joint par les 
 
 ### Profil de sécurité
 
-L’ensemble initial de droits d’accès et de restrictions attribué aux clients lorsqu’ils se connectent au serveur VPN. Sélectionnez un profil ou un planning déjà créé, ou créez-en un nouveau.
+L’ensemble initial de droits d’accès et de restrictions attribué aux clients lorsqu’ils se connectent au serveur VPN. Sélectionnez un profil ou un planning déjà créé, ou créez-en un nouveau. Le profil est fixé une fois le serveur créé ; pour déplacer un VPN vers un autre profil, supprimez-le et ajoutez-en un nouveau.
 
 ### Port
 
@@ -111,7 +111,7 @@ L’adresse IP attribuée sur le réseau local. Elle a été configurée lors de
 
 ### Acheminement
 
-Affiche le mode d’acheminement du trafic du client. « Tout le trafic » achemine tout le trafic Internet par le tunnel VPN. « LAN uniquement » achemine seulement le trafic du réseau local par le tunnel. Utilisez le menu d’actions pour basculer entre les modes.`,
+Affiche le mode d’acheminement du trafic du client. « Tout le trafic » achemine tout le trafic Internet par le tunnel VPN. « LAN uniquement » achemine seulement le trafic du réseau local par le tunnel. Pour le modifier, supprimez le client et ajoutez-le de nouveau avec l’acheminement souhaité.`,
   '/inbound/client/dialog-add': `## VPN entrants
 
 ### Étiquette
@@ -139,7 +139,7 @@ Affiche la configuration sous forme de texte. Utilisez le bouton de copie pour l
 
 ### QR
 
-Affiche la configuration sous forme de QR code. Scannez-le avec l’application mobile WireGuard pour configurer l’appareil client sans saisie manuelle.`,
+Affiche la configuration sous forme de QR code lorsque le routeur a généré la clé privée de l’appareil. Scannez-le avec l’application mobile WireGuard pour configurer l’appareil client sans saisie manuelle.`,
   '/inbound/client/dialog-rename': `## Renommer le client
 
 ### Nom
@@ -187,7 +187,7 @@ Acheminez un VPN par un autre pour davantage de confidentialité. Votre trafic r
 Téléversez un fichier de configuration WireGuard fourni par votre fournisseur de VPN (Mullvad, ProtonVPN, IVPN, etc.) pour créer un nouveau client VPN.`,
   '/outbound/vpn': `## VPN sortants
 
-<details><summary>Étiquette</summary> Un nom convivial pour identifier cette connexion VPN. Utilisez un nom descriptif comme « Mullvad Suède » ou « VPN du travail ». </details> <details><summary>Se connecte à</summary> L’endroit où le trafic de ce VPN doit être acheminé :<ul><li><b>Internet :</b> Le trafic ressort directement vers Internet par ce VPN.</li><li><b>Un autre VPN :</b> Chaîner d’abord par un autre VPN pour plus de confidentialité. Votre trafic sera chiffré plusieurs fois et ressortira par plusieurs serveurs.</li></ul><b>Remarque :</b> Le chaînage de VPN augmente la latence et peut réduire les débits. </details> <details><summary>Chemin de connexion</summary> Affiche l’itinéraire complet que prend votre trafic depuis ce VPN jusqu’à Internet. Par exemple : Mullvad → Proton → Internet signifie que le trafic est chiffré par Mullvad, envoyé via Proton, puis ressort vers Internet.</details>`,
+<details><summary>Étiquette</summary> Un nom convivial pour identifier cette connexion VPN. Utilisez un nom descriptif comme « Mullvad Suède » ou « VPN du travail ». </details> <details><summary>Se connecte à</summary> L’endroit où le trafic de ce VPN doit être acheminé :<ul><li><b>Internet :</b> Le trafic ressort directement vers Internet par ce VPN.</li><li><b>Un autre VPN :</b> Chaîner d’abord par un autre VPN pour plus de confidentialité. Votre trafic sera chiffré plusieurs fois et ressortira par plusieurs serveurs.</li></ul><b>Remarque :</b> Le chaînage de VPN augmente la latence et peut réduire les débits. </details> <details><summary>Serveurs DNS</summary> Résolveurs joints via le tunnel par les profils acheminés par ce VPN qui n’ont pas de serveurs DNS propres. Laissez vide pour utiliser les serveurs DNS personnalisés du système via le tunnel — ou, si le système utilise le DNS de votre fournisseur d’accès, les serveurs de celui-ci hors du tunnel. </details> <details><summary>Chemin de connexion</summary> Affiche l’itinéraire complet que prend votre trafic depuis ce VPN jusqu’à Internet. Par exemple : Mullvad → Proton → Internet signifie que le trafic est chiffré par Mullvad, envoyé via Proton, puis ressort vers Internet.</details>`,
   '/outbound/dialog': `## VPN sortants
 
 Les clients VPN établissent une connexion sortante vers un serveur VPN, permettant aux appareils d’envoyer et de recevoir des données comme s’ils étaient directement connectés au réseau privé. Masque votre adresse IP, contourne les restrictions géographiques et protège les données sensibles sur les réseaux Wi-Fi publics.
@@ -202,7 +202,11 @@ Téléversez un fichier **.conf** WireGuard fourni par votre fournisseur de VPN.
 
 ### Cible
 
-Le saut suivant dans le chemin d’une connexion VPN en couches.`,
+Le saut suivant dans le chemin d’une connexion VPN en couches.
+
+### Serveurs DNS
+
+Facultatif. Remplace les serveurs DNS du fichier de configuration. Les profils acheminés par ce VPN résolvent via le tunnel avec ces serveurs, sauf s’ils définissent les leurs. S’il n’y en a ni ici, ni dans la configuration, ni dans le DNS personnalisé du système, ces profils résolvent via votre fournisseur d’accès, hors du tunnel.`,
   '/profiles': `## Profils
 
 Les profils de sécurité définissent des segments de réseau aux autorisations isolées. Chaque profil contrôle l’accès à Internet et la communication avec les autres profils de votre réseau local.
@@ -213,7 +217,7 @@ Un nom descriptif pour le profil de sécurité, tel que « Invité » ou « Appa
 
 ### DNS
 
-Les serveurs DNS utilisés par les appareils de ce profil — ceux du système (« Système »), les serveurs personnalisés du profil (« Personnalisé »), ou, lors de l’acheminement par un VPN, ceux du VPN (« VPN »).
+Les serveurs DNS utilisés par les appareils de ce profil — ceux du système (« Système »), les serveurs personnalisés du profil (« Personnalisé »), ou, lors de l’acheminement par un VPN, ceux du VPN (« VPN »). « Système (hors VPN) » signifie qu’un profil acheminé par un VPN n’a aucun serveur DNS à utiliser via le tunnel et résout via votre fournisseur d’accès, hors du tunnel.
 
 ### Sortant
 

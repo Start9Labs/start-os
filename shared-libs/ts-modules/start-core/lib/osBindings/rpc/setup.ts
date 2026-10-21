@@ -63,7 +63,9 @@ export type RpcReturnType<
     : never
 
 export type RpcSchemaTree<Schema> = {
-  [Key in keyof Schema]: Key extends '_PARAMS'
+  [Key in keyof Schema as Key extends '_OPAQUE'
+    ? never
+    : Key]: Key extends '_PARAMS'
     ? Schema[Key] extends z.ZodType
       ? z.input<Schema[Key]>
       : never
@@ -105,7 +107,6 @@ export type RecoverySourceInput<Password> = z.input<
 export type ServerHostname = z.output<typeof schemas.ServerHostname>
 export type SetLanguageParamsInput = z.input<typeof schemas.SetLanguageParams>
 export type SetupInfo = z.output<typeof schemas.SetupInfo>
-export type SetupResult = z.output<typeof schemas.SetupResult>
 export type AttachParamsInput = z.input<typeof schemas.AttachParams>
 export type BackupTargetFSInput = z.input<typeof schemas.BackupTargetFS>
 export type FullProgress = z.output<typeof schemas.FullProgress>
@@ -115,6 +116,7 @@ export type LogResponse = z.output<typeof schemas.LogResponse>
 export type RequiresHostIdInput = z.input<typeof schemas.RequiresHostId>
 export type RequiresPackageIdInput = z.input<typeof schemas.RequiresPackageId>
 export type SetupExecuteParamsInput = z.input<typeof schemas.SetupExecuteParams>
+export type SetupResult = z.output<typeof schemas.SetupResult>
 
 /**
  * The public view of a backup found on a target: enough to identify it, and none of

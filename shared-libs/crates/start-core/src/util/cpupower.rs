@@ -18,8 +18,7 @@ pub const GOVERNOR_HEIRARCHY: &[Governor] = &[
 #[derive(
     Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize, VisitFields,
 )]
-#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(ts(type = "z.string()"))]
 pub struct Governor(Cow<'static, str>);
 
 rpc_toolkit::reflect_ts!(Governor);
@@ -158,8 +157,7 @@ const CPU_ROOT: &str = "/sys/devices/system/cpu";
 #[derive(
     Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize, VisitFields,
 )]
-#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(ts(type = "z.string()"))]
 pub struct Epp(Cow<'static, str>);
 
 rpc_toolkit::reflect_ts!(Epp);

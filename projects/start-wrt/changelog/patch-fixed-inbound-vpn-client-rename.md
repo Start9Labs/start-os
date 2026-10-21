@@ -1,0 +1,1 @@
+- Renaming an inbound VPN client now works. Previously every rename failed with an error and the name never changed.

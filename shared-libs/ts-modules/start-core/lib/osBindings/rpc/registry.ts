@@ -63,7 +63,9 @@ export type RpcReturnType<
     : never
 
 export type RpcSchemaTree<Schema> = {
-  [Key in keyof Schema]: Key extends '_PARAMS'
+  [Key in keyof Schema as Key extends '_OPAQUE'
+    ? never
+    : Key]: Key extends '_PARAMS'
     ? Schema[Key] extends z.ZodType
       ? z.input<Schema[Key]>
       : never
@@ -86,9 +88,6 @@ export type Blake3CommitmentInput = z.input<typeof schemas.Blake3Commitment>
 export type ContactInfo = z.output<typeof schemas.ContactInfo>
 export type ContactInfoInput = z.input<typeof schemas.ContactInfo>
 export type CountEntry = z.output<typeof schemas.CountEntry>
-export type CurrentDependencyKind = z.output<
-  typeof schemas.CurrentDependencyKind
->
 export type DataUrl = z.output<typeof schemas.DataUrl>
 export type DataUrlInput = z.input<typeof schemas.DataUrl>
 export type DeviceFilter = z.output<typeof schemas.DeviceFilter>
@@ -101,6 +100,7 @@ export type GetUsersParamsInput = z.input<typeof schemas.GetUsersParams>
 export type GitHash = z.output<typeof schemas.GitHash>
 export type Guid = z.output<typeof schemas.Guid>
 export type GuidInput = z.input<typeof schemas.Guid>
+export type HealthCheckId = z.output<typeof schemas.HealthCheckId>
 export type IoFormatInput = z.input<typeof schemas.IoFormat>
 export type ListVersionSignersParamsInput = z.input<
   typeof schemas.ListVersionSignersParams
@@ -151,7 +151,9 @@ export type ApplyWithPathParamsInput = z.input<
   typeof schemas.ApplyWithPathParams
 >
 export type Category = z.output<typeof schemas.Category>
-export type DependencyMetadata = z.output<typeof schemas.DependencyMetadata>
+export type CurrentDependencyKind = z.output<
+  typeof schemas.CurrentDependencyKind
+>
 export type Description = z.output<typeof schemas.Description>
 export type DownloadsResponse = z.output<typeof schemas.DownloadsResponse>
 export type EditSignerParamsInput = z.input<typeof schemas.EditSignerParams>
@@ -187,6 +189,7 @@ export type SubscribeRes = z.output<typeof schemas.SubscribeRes>
 export type VersionSignerParamsInput = z.input<
   typeof schemas.VersionSignerParams
 >
+export type DependencyMetadata = z.output<typeof schemas.DependencyMetadata>
 export type OsVersionInfoMap = z.output<typeof schemas.OsVersionInfoMap>
 export type PackageMetadata = z.output<typeof schemas.PackageMetadata>
 export type RegistryInfo = z.output<typeof schemas.RegistryInfo>

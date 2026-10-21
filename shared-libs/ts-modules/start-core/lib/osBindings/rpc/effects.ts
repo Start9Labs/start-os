@@ -63,7 +63,9 @@ export type RpcReturnType<
     : never
 
 export type RpcSchemaTree<Schema> = {
-  [Key in keyof Schema]: Key extends '_PARAMS'
+  [Key in keyof Schema as Key extends '_OPAQUE'
+    ? never
+    : Key]: Key extends '_PARAMS'
     ? Schema[Key] extends z.ZodType
       ? z.input<Schema[Key]>
       : never
@@ -92,9 +94,6 @@ export type ClearCallbacksParamsInput = z.input<
   typeof schemas.ClearCallbacksParams
 >
 export type ClearTasksParamsInput = z.input<typeof schemas.ClearTasksParams>
-export type CurrentDependencyKind = z.output<
-  typeof schemas.CurrentDependencyKind
->
 export type DeviceFilter = z.output<typeof schemas.DeviceFilter>
 export type EchoParamsInput = z.input<typeof schemas.EchoParams>
 export type ErrorData = z.output<typeof schemas.ErrorData>
@@ -203,6 +202,9 @@ export type CreateNotificationParamsInput = z.input<
 >
 export type CreateSubcontainerFsParamsInput = z.input<
   typeof schemas.CreateSubcontainerFsParams
+>
+export type CurrentDependencyKind = z.output<
+  typeof schemas.CurrentDependencyKind
 >
 export type DependencyRequirement = z.output<
   typeof schemas.DependencyRequirement

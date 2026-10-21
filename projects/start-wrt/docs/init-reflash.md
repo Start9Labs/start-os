@@ -62,9 +62,9 @@ Manufacturing happens before the device leaves the vendor's facility. The vendor
 
 ### StartWRT-side handling
 
-`startwrt-ctrld` does not participate in EEPROM programming. On every boot (eMMC or microSD), the daemon's normal-mode startup calls `restore_wifi_if_needed`, which:
+`startwrt-ctrld` does not participate in EEPROM programming. On every eMMC boot, the daemon's normal-mode startup calls `restore_wifi_if_needed`, which:
 
-1. Returns early if `/etc/config/wireless` already has a key on the AP interface.
+1. Returns early if an admin password is set in `/etc/shadow`. A factory reset clears it; a router that has been set up keeps its own Wi-Fi config, including one with no Admin password or with radios disabled.
 2. Reads EEPROM tag 0x2F, validating: ONIE magic, total_length, trailing CRC-32, tag presence, 12-byte length, every byte in `PASSWORD_CHARS`.
 3. On success: writes the password to UCI, runs `wifi reload`, and brings up SSID `StartWRT`.
 4. On any failure (including unprogrammed EEPROM): logs a warning and leaves the AP unconfigured. Recovery is via `startwrt-cli set-wifi-password` (above).
@@ -92,10 +92,11 @@ The same charset is enforced by:
 
 ## Captive Portal Mechanism
 
-Both first-time setup (Part 2) and reflash (Part 3) use the same two-layer mechanism:
+Both first-time setup (Part 2) and reflash (Part 3) use the same three-layer mechanism:
 
 1. **DNS hijacking** — `dnsmasq` configured with `address=/#/<router IP>` makes all DNS queries resolve to the router.
 2. **Captive portal detection** — Modern OSes probe known URLs on network join. When DNS hijacking redirects these probes, the OS detects a captive portal and auto-opens a browser pointed at the router's setup page.
+3. **Host gate** — While the portal is active, the web server answers a request for any name other than `router.lan` or an address literal with a redirect to `http://router.lan/`, and declines the TLS handshake for any other SNI rather than presenting the `router.lan` certificate. A website typed into a browser therefore lands on the setup page under the router's own name, and the OS probes receive the redirect that signals a portal.
 
 Both scenarios use the same `StartWRT` SSID and the same EEPROM-derived WiFi password. They differ only in what the setup page does.
 
@@ -176,9 +177,9 @@ Physical access (microSD) = sufficient authorization.
 11. "Update complete. Remove microSD and reboot."
 ```
 
-On first boot from eMMC: daemon reads EEPROM → writes WiFi password to UCI → AP comes up. Admin login works immediately. Config files (firewall rules, WiFi profiles, SSH keys, etc.) are preserved via `sysupgrade` conffiles. User-installed package binaries are wiped — users must reinstall packages, though their config files are retained.
+On first boot from eMMC: the restored `/etc/config/wireless` brings up the AP. Admin login works immediately. Config files (firewall rules, WiFi profiles, SSH keys, etc.) are preserved via `sysupgrade` conffiles. User-installed package binaries are wiped — users must reinstall packages, though their config files are retained.
 
-`/etc/config/wireless` is preserved across Update so that user-customized VLAN/profile state survives. `restore_wifi_if_needed` short-circuits when the AP interface already has a key, so the EEPROM fallback does not overwrite the restored config; it only kicks in if the restored wireless config is missing or incomplete.
+`/etc/config/wireless` is preserved across Update so that user-customized VLAN/profile state survives. The wizard writes the admin password, so `restore_wifi_if_needed` never overwrites the restored config.
 
 ### Path B: Fresh Start (full wipe, new admin password)
 
@@ -191,11 +192,12 @@ On first boot from eMMC: daemon reads EEPROM → writes WiFi password to UCI →
  6. Flash fresh firmware
  7. Provision eMMC boot partitions (boot0/boot1: bootinfo + FSBL, skipped when already current)
  8. Write admin hash → /etc/shadow on new overlay
- 9. Mark overlay FS_STATE_READY
-10. "Setup complete. Remove microSD and reboot."
+ 9. Write the EEPROM WiFi password → /etc/config/wireless on new overlay
+10. Mark overlay FS_STATE_READY
+11. "Setup complete. Remove microSD and reboot."
 ```
 
-On first boot from eMMC: daemon reads EEPROM → writes WiFi password to UCI → AP comes up. Admin login works immediately. All settings start fresh.
+On first boot from eMMC: the AP comes up with the sticker password. Admin login works immediately. All settings start fresh.
 
 ### Package Management
 
@@ -298,7 +300,7 @@ None — plaintext password storage in EEPROM eliminates the need for `pbkdf2`, 
 | 6   | First-time admin              | GUI prompts for admin password when unset                                                                                   |
 | 7   | Factory reset                 | Overlay wiped → daemon re-reads EEPROM → WiFi restored, admin unset, captive portal active                                  |
 | 8   | Update path                   | Settings preserved (including `/etc/config/wireless`), `/etc/shadow` rewritten, admin re-prompted only if not set in wizard |
-| 9   | Fresh Start                   | Everything wiped, WiFi restored from EEPROM on reboot, admin re-prompted only if not set in wizard                          |
+| 9   | Fresh Start                   | Everything wiped, WiFi written from EEPROM before reboot, admin re-prompted only if not set in wizard                       |
 | 10  | Identity PSK                  | After reset, sticker WiFi works; profiles can be recreated                                                                  |
 | 11  | `set-wifi-password` (default) | Generates 12-char password, prints to stdout, AP comes up with that key                                                     |
 | 12  | `set-wifi-password --manual`  | Hidden prompt + confirmation; rejects bad length / non-charset entries                                                      |
