@@ -1,4 +1,4 @@
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
@@ -17,13 +17,10 @@ pub(crate) struct UiListener {
 impl UiListener {
     pub(crate) fn bind(addr: SocketAddr, sni: Arc<SniDemux>) -> Result<Self, Error> {
         let mut listeners = Vec::new();
-        let external = ipv4_listener_addr(addr);
-        if let SocketAddr::V6(addr) = addr {
-            if addr.ip().to_ipv4_mapped().is_none() {
-                listeners.push(crate::net::utils::bind_tokio_listener_v6_only(addr)?);
-            }
+        if let Some(addr) = direct_ipv6_addr(addr) {
+            listeners.push(crate::net::utils::bind_tokio_listener_v6_only(addr)?);
         }
-        let fallback = if let Some(external) = external {
+        let fallback = if let Some(external) = ipv4_listener_addr(addr) {
             let listener = crate::net::utils::bind_tokio_listener(
                 SocketAddrV4::new(Ipv4Addr::LOCALHOST, 0).into(),
             )?;
@@ -56,6 +53,24 @@ impl UiListener {
             fallback,
         })
     }
+
+    /// Fails when another socket would prevent `bind` at the address.
+    pub(crate) fn check_available(addr: SocketAddr) -> Result<(), Error> {
+        if let Some(addr) = direct_ipv6_addr(addr) {
+            crate::net::utils::bind_tokio_listener_v6_only(addr)?;
+        }
+        if let Some(external) = ipv4_listener_addr(addr) {
+            crate::net::utils::bind_tokio_listener_reuse_port(external.into())?;
+        }
+        Ok(())
+    }
+}
+
+fn direct_ipv6_addr(addr: SocketAddr) -> Option<SocketAddrV6> {
+    match addr {
+        SocketAddr::V6(addr) if addr.ip().to_ipv4_mapped().is_none() => Some(addr),
+        _ => None,
+    }
 }
 
 impl Accept for UiListener {
@@ -87,6 +102,21 @@ mod tests {
     use tokio::time::timeout;
 
     use super::*;
+
+    #[tokio::test]
+    async fn wildcard_ui_address_is_available_beside_sni_listener() {
+        let sni =
+            crate::net::utils::bind_tokio_listener_reuse_port((Ipv4Addr::LOCALHOST, 0).into())
+                .unwrap();
+        let port = sni.local_addr().unwrap().port();
+        assert!(
+            tokio::net::TcpListener::bind((Ipv4Addr::UNSPECIFIED, port))
+                .await
+                .is_err()
+        );
+        UiListener::check_available((Ipv4Addr::UNSPECIFIED, port).into()).unwrap();
+        UiListener::check_available((Ipv6Addr::UNSPECIFIED, port).into()).unwrap();
+    }
 
     #[tokio::test]
     async fn ui_ipv6_and_dual_stack_listeners_remain_reachable() {

@@ -7137,6 +7137,13 @@ tunnel.api.ui-port-reserved:
   fr_FR: "Cette plage inclut le port configuré de l'interface d'administration ; utilisez des noms SNI pour le partager ou changez d'abord l'adresse de l'interface."
   pl_PL: "Ten zakres obejmuje skonfigurowany port panelu administracyjnego; użyj nazw SNI, aby go współdzielić, lub najpierw zmień adres panelu."
 
+tunnel.web.listen-port-forwarded:
+  en_US: "A plain port forward includes this listen port; remove it or use SNI hostnames first."
+  de_DE: "Eine einfache Portweiterleitung enthält diesen Port; entfernen Sie sie zuerst oder verwenden Sie SNI-Hostnamen."
+  es_ES: "Un reenvío de puertos simple incluye este puerto; elimínelo primero o use nombres SNI."
+  fr_FR: "Une redirection de port simple inclut ce port ; supprimez-la d'abord ou utilisez des noms SNI."
+  pl_PL: "Zwykłe przekierowanie portu obejmuje ten port; najpierw je usuń lub użyj nazw SNI."
+
 tunnel.web.ui-fallback-failed:
   en_US: "UI fallback registration on %{address} failed (code %{code})"
   de_DE: "Registrierung der UI-Ausweichroute auf %{address} fehlgeschlagen (Code %{code})"

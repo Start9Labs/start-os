@@ -23,7 +23,7 @@ use crate::net::web_server::Accept;
 use crate::prelude::*;
 use crate::tunnel::auth::SetPasswordParams;
 use crate::tunnel::context::TunnelContext;
-use crate::tunnel::db::TunnelDatabase;
+use crate::tunnel::db::{PortForward, TunnelDatabase};
 use crate::util::serde::{HandlerExtSerde, Pem, display_serializable};
 use crate::util::tui::{choose, parse_as, prompt, prompt_multiline};
 
@@ -415,21 +415,27 @@ pub async fn set_listen(
     ctx: TunnelContext,
     SetListenParams { listen }: SetListenParams,
 ) -> Result<(), Error> {
-    // Validate that the address is available to bind
-    tokio::net::TcpListener::bind(listen)
-        .await
-        .with_kind(ErrorKind::Network)
-        .with_ctx(|_| {
-            (
-                ErrorKind::Network,
-                format!("{} is not available to bind to", listen),
-            )
-        })?;
+    listener::UiListener::check_available(listen).with_ctx(|_| {
+        (
+            ErrorKind::Network,
+            format!("{} is not available to bind to", listen),
+        )
+    })?;
 
     ctx.db
         .mutate(|db| {
             db.as_webserver_mut().as_listen_mut().ser(&Some(listen))?;
-
+            let web = db.as_webserver().de()?;
+            let forwarded = db.as_port_forwards().de()?.0.iter().any(|(source, pf)| {
+                matches!(pf, PortForward::Dnat { .. })
+                    && web.reserves_plain_forward(*source, pf.port_span())
+            });
+            if forwarded {
+                return Err(Error::new(
+                    eyre!(t!("tunnel.web.listen-port-forwarded")),
+                    ErrorKind::InvalidRequest,
+                ));
+            }
             Ok(())
         })
         .await
