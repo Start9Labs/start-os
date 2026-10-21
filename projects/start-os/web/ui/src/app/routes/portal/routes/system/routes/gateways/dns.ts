@@ -194,7 +194,7 @@ export default class GatewayDns {
               ),
             ))
         ) {
-          for (const g of Object.values(gateways)) {
+          for (const [id, g] of Object.entries(gateways)) {
             if (
               gateway.dns.servers.some(server =>
                 g.ipInfo?.lanIp.some(
@@ -206,7 +206,7 @@ export default class GatewayDns {
               )
             ) {
               warn.push(
-                `${this.i18n.transform('Warning. StartOS is currently using the following gateway for DNS')}: ${g.name ?? g.ipInfo!.name}. ${this.i18n.transform('If you intend to use this gateway for private domain resolution, set alternative static DNS servers using the form above.')}`,
+                `${this.i18n.transform('Warning. StartOS is currently using the following gateway for DNS')}: ${gatewayName(id, g)}. ${this.i18n.transform('If you intend to use this gateway for private domain resolution, set alternative static DNS servers using the form above.')}`,
               )
             }
           }
