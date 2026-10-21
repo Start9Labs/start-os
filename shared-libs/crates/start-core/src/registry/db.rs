@@ -12,12 +12,12 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 use crate::context::CliContext;
-pub use crate::db::{
-    ApplyWithPathParams as ApplyParams, DumpParams, DumpParams as SubscribeParams, SubscribeRes,
-};
+pub use crate::db::{ApplyWithPathParams as ApplyParams, DumpParams, SubscribeRes};
 use crate::prelude::*;
-use crate::registry::RegistryDatabase;
 use crate::registry::context::RegistryContext;
+use crate::registry::RegistryDatabase;
+use crate::registry::mirror::index_mirror;
+use crate::registry::package::index::ReaderParams;
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::util::serde::{HandlerExtSerde, apply_expr};
 
@@ -44,6 +44,7 @@ pub fn db_api<C: Context>() -> ParentHandler<C> {
             "subscribe",
             from_fn_async(subscribe)
                 .with_metadata("authenticated", Value::Bool(false))
+                .with_metadata("get_signer", Value::Bool(true))
                 .no_cli(),
         )
         .subcommand(
@@ -114,17 +115,46 @@ fn subscription_pointer(pointer: Option<JsonPointer>) -> Result<JsonPointer, Err
     Ok(pointer)
 }
 
+#[derive(Debug, Deserialize, Serialize, VisitFields)]
+#[serde(rename_all = "camelCase")]
+pub struct SubscribeParams {
+    pub pointer: Option<JsonPointer>,
+    #[serde(flatten)]
+    pub reader: ReaderParams,
+}
+
+rpc_toolkit::reflect_ts!(SubscribeParams);
+
+/// Admins subscribe to the database; every other subscriber to the mirror of what it may see.
 pub async fn subscribe(
     ctx: RegistryContext,
-    SubscribeParams { pointer }: SubscribeParams,
+    SubscribeParams { pointer, reader }: SubscribeParams,
 ) -> Result<SubscribeRes, Error> {
-    let (dump, mut sub) = ctx.db.dump_and_sub(subscription_pointer(pointer)?).await;
+    let pointer = subscription_pointer(pointer)?;
+    let peek = ctx.db.peek().await;
+    let reader = reader.reader(&peek)?;
+    let (mirror, (dump, mut sub)) = match reader {
+        Some(reader) if reader.admin => (None, ctx.db.dump_and_sub(pointer).await),
+        reader => {
+            let signer = match reader {
+                Some(reader) if peek.as_index().as_package().grants_private_access(&reader)? => {
+                    Some(reader.signer)
+                }
+                _ => None,
+            };
+            let mirror = index_mirror(&ctx.index_mirrors, &ctx.db, signer).await?;
+            let dump_and_sub = mirror.db.dump_and_sub(pointer).await;
+            (Some(mirror), dump_and_sub)
+        }
+    };
+    drop(peek);
     let guid = Guid::new();
     ctx.rpc_continuations
         .add(
             guid.clone(),
             RpcContinuation::ws(
                 |mut ws| async move {
+                    let _mirror = mirror;
                     if let Err(e) = async {
                         loop {
                             tokio::select! {

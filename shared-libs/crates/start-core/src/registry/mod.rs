@@ -29,6 +29,7 @@ pub mod device_info;
 pub mod info;
 pub mod metrics;
 mod migrations;
+pub mod mirror;
 pub mod os;
 pub mod package;
 pub mod signer;

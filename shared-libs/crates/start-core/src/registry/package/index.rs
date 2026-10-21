@@ -70,12 +70,20 @@ impl Reader {
         let Some(key) = key else {
             return Ok(None);
         };
-        let Some(signer) = db.as_index().as_signers().find_signer(key)? else {
+        match db.as_index().as_signers().find_signer(key)? {
+            Some(signer) => Self::for_signer(db, &signer),
+            None => Ok(None),
+        }
+    }
+
+    /// None for an unregistered signer.
+    pub fn for_signer(db: &Model<RegistryDatabase>, signer: &Guid) -> Result<Option<Self>, Error> {
+        if !db.as_index().as_signers().contains_key(signer)? {
             return Ok(None);
-        };
+        }
         Ok(Some(Reader {
-            admin: db.as_admins().de()?.contains(&signer),
-            signer,
+            admin: db.as_admins().de()?.contains(signer),
+            signer: signer.clone(),
         }))
     }
 }
@@ -107,18 +115,35 @@ impl Model<PackageIndex> {
         }
     }
 
-    /// Omits the packages hidden from the reader.
-    pub fn de_visible_to(&self, reader: Option<&Reader>) -> Result<PackageIndex, Error> {
-        let mut packages = BTreeMap::new();
-        for (id, info) in self.as_packages().as_entries()? {
-            if info.is_visible_to(reader)? {
-                packages.insert(id, info.de()?);
+    /// Whether the reader sees a private package.
+    pub fn grants_private_access(&self, reader: &Reader) -> Result<bool, Error> {
+        for (_, info) in self.as_packages().as_entries()? {
+            if info.as_private().de()? && info.is_visible_to(Some(reader))? {
+                return Ok(true);
             }
         }
-        Ok(PackageIndex {
-            categories: self.as_categories().de()?,
-            packages,
-        })
+        Ok(false)
+    }
+
+    /// Removes the packages hidden from the reader.
+    pub fn retain_visible(&mut self, reader: Option<&Reader>) -> Result<(), Error> {
+        let mut hidden = Vec::new();
+        for (id, info) in self.as_packages().as_entries()? {
+            if !info.is_visible_to(reader)? {
+                hidden.push(id);
+            }
+        }
+        for id in hidden {
+            self.as_packages_mut().remove(&id)?;
+        }
+        Ok(())
+    }
+
+    /// Omits the packages hidden from the reader.
+    pub fn de_visible_to(&self, reader: Option<&Reader>) -> Result<PackageIndex, Error> {
+        let mut index = self.clone();
+        index.retain_visible(reader)?;
+        index.de()
     }
 }
 

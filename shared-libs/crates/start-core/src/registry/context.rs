@@ -30,6 +30,7 @@ use crate::prelude::*;
 use crate::registry::RegistryDatabase;
 use crate::registry::device_info::{DEVICE_INFO_HEADER, DeviceInfo};
 use crate::registry::migrations::run_migrations;
+use crate::registry::mirror::IndexMirrors;
 use crate::registry::signer::SignerInfo;
 use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
 use crate::sign::AnyVerifyingKey;
@@ -92,6 +93,7 @@ pub struct RegistryContextSeed {
     pub client: Client,
     pub shutdown: Sender<()>,
     pub metrics_db: SyncMutex<Connection>,
+    pub index_mirrors: IndexMirrors,
 }
 
 #[derive(Clone)]
@@ -171,6 +173,7 @@ impl RegistryContext {
                 .with_kind(crate::ErrorKind::ParseUrl)?,
             shutdown,
             metrics_db,
+            index_mirrors: IndexMirrors::default(),
         })))
     }
 }
