@@ -334,8 +334,7 @@ pub struct ImageConfig {
     pub arch: BTreeSet<InternedString>,
     pub emulate_missing: bool,
     #[serde(rename = "emulateMissingAs", skip_serializing_if = "Option::is_none")]
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
+    #[visit(ts(skip))]
     legacy_emulate_missing_as: Option<InternedString>,
     #[serde(default)]
     pub nvidia_container: bool,
@@ -662,7 +661,7 @@ impl ImageSource {
                     }
                 }
                 ImageSource::DockerTag(tag) => {
-                    image_from_tag(*CONTAINER_TOOL, tag, &docker_platform, &tmp_dir).await?
+                    image_from_tag(*CONTAINER_TOOL, tag, &docker_platform).await?
                 }
                 ImageSource::OciLayout { path, reference } => {
                     super::image::from_path(path, &docker_platform, reference.as_deref()).await?
@@ -719,29 +718,16 @@ pub(super) async fn write_image<S: From<TmpSource<PackSource>> + FileSource + Cl
     Ok(())
 }
 
-async fn export_archive(command: &mut Command, path: &Path) -> Result<(), Error> {
-    command
-        .output_to(&mut create_file(path).await?)
-        .invoke(ErrorKind::Docker)
-        .await?;
-    Ok(())
-}
-
 async fn image_from_tag(
     tool: &str,
     image: &str,
     platform: &str,
-    temp: &TmpDir,
 ) -> Result<(Squashfs<DynFileSource>, DockerImageConfig), Error> {
-    let archive = temp.join(Guid::new().as_ref()).with_extension("tar");
-    if export_archive(&mut image_save_command(tool, image, platform), &archive)
-        .await
-        .is_ok()
-    {
-        match super::image::from_path(&archive, platform, None).await {
-            Err(error) if error.source.is::<super::image::MissingImagePlatform>() => {}
-            result => return result,
-        }
+    match image_from_command(&mut image_save_command(tool, image, platform), platform).await {
+        Err(error)
+            if error.kind == ErrorKind::Docker
+                || error.source.is::<super::image::MissingImagePlatform>() => {}
+        result => return result,
     }
     Command::new(tool)
         .arg("image")
@@ -750,8 +736,7 @@ async fn image_from_tag(
         .arg(image)
         .invoke(ErrorKind::Docker)
         .await?;
-    export_archive(&mut image_save_command(tool, image, platform), &archive).await?;
-    super::image::from_path(&archive, platform, None).await
+    image_from_command(&mut image_save_command(tool, image, platform), platform).await
 }
 
 async fn image_from_command(

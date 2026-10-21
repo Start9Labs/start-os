@@ -242,21 +242,20 @@ For custom hooks, reuse the actual decoder/serializer DTO in an authored wire hi
 
 The application owns that hint's agreement with the actual hook. Neither typed
 metadata nor hook signatures infer arbitrary JSON shape or validation predicates.
-A non-omitted opaque field needs a selected typed target, including literal replacements.
-
-For a literal replacement of hidden storage, supply typed optionality separately:
+A non-omitted opaque field needs a selected typed target. The target supplies
+both the shape and `TS::IS_OPTION`, so it never needs a literal beside it:
 
 ```rust
-#[visit(opaque, ts(type = "z.string()"), wire = "String",
-        type_attributes(visit::wire))]
+#[visit(opaque, wire = "Option<String>", type_attributes(visit::wire))]
 ```
 
-`ts(type = "...")` holds a zod expression. `#[visit(opaque, ts(skip))]` omits a
-named field. Tuple and newtype omission is rejected. Literal text owns
-nullability, not typed option status. Every replaced field needs typed facts from
-ordinary storage or a selected wire target with `TS::IS_OPTION`; RPC combines that
-fact with serde policy. A literal `null` or source spelling alone cannot supply
-that fact. Reflection retains all descriptors and attributes, including opaque
+`ts(type = "...")` holds a zod expression. It replaces a field whose type
+implements `TS`, or a whole opaque container, where no field facts are read.
+`#[visit(opaque, ts(skip))]` omits a named field. Tuple and newtype omission is
+rejected. Literal text owns nullability, not typed option status. Every field
+takes `TS::IS_OPTION` from ordinary storage or a selected wire target; RPC
+combines that fact with serde policy. A literal `null` or source spelling alone
+cannot supply that fact. Reflection retains all descriptors and attributes, including opaque
 storage and unselected hints. Container and variant opacity applies to descendant
 storage fields, not to selected metadata callbacks.
 

@@ -4,6 +4,7 @@ use std::sync::Arc;
 use serde_json::{Value, json};
 
 use super::*;
+use crate::util::io::TmpDir;
 use crate::util::squashfs::test_support::append;
 
 #[derive(Clone, Default)]

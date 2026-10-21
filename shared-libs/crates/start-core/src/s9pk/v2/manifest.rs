@@ -142,17 +142,7 @@ impl Manifest {
 pub struct HardwareRequirements {
     #[serde(default)]
     pub device: Vec<DeviceFilter>,
-    #[visit(
-        ts(type = "z.number().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub ram: Option<u64>,
-    #[visit(
-        ts(type = "z.array(z.string()).nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub arch: Option<BTreeSet<InternedString>>,
 }
 
@@ -196,11 +186,7 @@ impl HardwareRequirements {
 }
 
 #[derive(Clone, Debug, PartialEq, VisitVariants)]
-#[visit(
-    ts(type = "z.union([z.string(), z.record(z.string(), z.string())])"),
-    wire = "rpc_toolkit::ts::Unknown"
-)]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(ts(type = "z.union([z.string(), z.record(z.string(), z.string())])"))]
 pub enum LocaleString {
     Translated(String),
     LanguageMap(InOMap<InternedString, String>),
@@ -317,23 +303,9 @@ impl ValueParserFactory for LocaleString {
 #[serde(rename_all = "camelCase")]
 pub struct DeviceFilter {
     pub description: String,
-    #[visit(
-        ts(type = "z.enum([\"processor\", \"display\"])"),
-        wire = "rpc_toolkit::ts::Unknown"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
+    #[visit(ts(type = "z.enum([\"processor\", \"display\"])"))]
     pub class: InternedString,
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub product: Option<Regex>,
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub vendor: Option<Regex>,
 
     pub capabilities: Option<BTreeSet<InternedString>>,

@@ -107,7 +107,6 @@ export type RecoverySourceInput<Password> = z.input<
 export type ServerHostname = z.output<typeof schemas.ServerHostname>
 export type SetLanguageParamsInput = z.input<typeof schemas.SetLanguageParams>
 export type SetupInfo = z.output<typeof schemas.SetupInfo>
-export type SetupResult = z.output<typeof schemas.SetupResult>
 export type AttachParamsInput = z.input<typeof schemas.AttachParams>
 export type BackupTargetFSInput = z.input<typeof schemas.BackupTargetFS>
 export type FullProgress = z.output<typeof schemas.FullProgress>
@@ -117,6 +116,7 @@ export type LogResponse = z.output<typeof schemas.LogResponse>
 export type RequiresHostIdInput = z.input<typeof schemas.RequiresHostId>
 export type RequiresPackageIdInput = z.input<typeof schemas.RequiresPackageId>
 export type SetupExecuteParamsInput = z.input<typeof schemas.SetupExecuteParams>
+export type SetupResult = z.output<typeof schemas.SetupResult>
 
 /**
  * The public view of a backup found on a target: enough to identify it, and none of

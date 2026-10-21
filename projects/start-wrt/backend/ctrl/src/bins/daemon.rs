@@ -238,8 +238,11 @@ async fn inner_main() -> Result<(), Error> {
             {
                 tracing::error!("WiFi AP setup failed: {e}");
             }
-            let _ =
-                crate::run_quiet_async(tokio::process::Command::new("wifi").arg("reload")).await;
+            if let Err(e) =
+                crate::wifi::reload_wifi("/etc/config", crate::wifi::WifiReload::Reload).await
+            {
+                tracing::error!("WiFi reload failed: {e}");
+            }
 
             // Enable captive portal only when WiFi AP can start
             if let Err(e) = crate::captive::enable_captive_portal().await {
@@ -264,18 +267,17 @@ async fn inner_main() -> Result<(), Error> {
             tracing::error!("WiFi channel width repair failed: {e}");
         }
 
-        // Reassert WiFi blackout if we rebooted inside an active window. Runs
-        // *after* restore_wifi_if_needed and heal_channel_widths (which apply
-        // their config via `wifi reload`) so our `wifi down` is the final
-        // word and the radio ends down. Nothing after this point brings the radio
-        // back up — bootstrap_admin_profile, apply_remote_access, the WAN-schedule
-        // and captive-portal steps touch firewall/dnsmasq, not the wifi radios —
-        // so the radio stays down until cron's window-end `wifi up`, by which time
-        // restore has ensured the AP config is valid. (Note: netifd already
-        // brought radios up earlier in boot — this closes the steady-state gap,
-        // not the boot-window one; see reconcile_blackout_at_boot.)
-        if let Err(e) = crate::wifi::reconcile_blackout_at_boot(&ServerContext::default()).await {
-            tracing::error!("Failed to reconcile WiFi blackout at boot: {e}");
+        // netifd raises the radios at boot whatever the blackout schedule says.
+        match crate::wifi::apply_blackout("/etc/config").await {
+            Ok(true) => crate::activity::log(
+                "wifi",
+                "blackout-reasserted",
+                true,
+                "Reasserted WiFi blackout after reboot (inside active window)",
+                None,
+            ),
+            Ok(false) => {}
+            Err(e) => tracing::error!("Failed to apply WiFi blackout at boot: {e}"),
         }
         if let Err(e) = crate::profiles::bootstrap_admin_profile("/etc/config").await {
             tracing::error!("Admin profile bootstrap failed: {e}");
@@ -285,11 +287,11 @@ async fn inner_main() -> Result<(), Error> {
         if let Err(e) = crate::profiles::heal_ipv6_state("/etc/config").await {
             tracing::error!("IPv6 state repair failed: {e}");
         }
-        // Installs the hairpin accept and re-derives every hairpin projection
-        // (fw4 drops a redirect whose list names a deleted zone). Reloads the
-        // firewall only when something changed.
-        if let Err(e) = crate::published_ports::heal_hairpin("/etc/config").await {
-            tracing::error!("Hairpin repair failed: {e}");
+        // Installs the hairpin accept and the IPv6 MAC binding, and re-derives
+        // every hairpin projection (fw4 drops a redirect whose list names a
+        // deleted zone). Reloads the firewall only when something changed.
+        if let Err(e) = crate::published_ports::heal_published_ports("/etc/config").await {
+            tracing::error!("Published-port firewall repair failed: {e}");
         }
         if let Err(e) = crate::vpn_client::heal_vpn_clients("/etc/config").await {
             tracing::error!("Outbound VPN repair failed: {e}");
@@ -299,6 +301,9 @@ async fn inner_main() -> Result<(), Error> {
         }
         if let Err(e) = crate::dns::heal_smartdns_conf("/etc/config").await {
             tracing::error!("SmartDNS config repair failed: {e}");
+        }
+        if let Err(e) = crate::profiles::heal_dns_forwarding(ServerContext::default()).await {
+            tracing::error!("DNS forwarding repair failed: {e}");
         }
         // Repairs a reservation name from a release that let one through, which
         // dnsmasq refuses to start on. Must precede the fingerprint hook: both

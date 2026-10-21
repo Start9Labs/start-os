@@ -55,20 +55,8 @@ pub struct PartitionInfo {
     pub logicalname: PathBuf,
     pub stable_path: PathBuf,
     pub label: Option<String>,
-    #[visit(ts(type = "z.number()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub capacity: u64,
-    #[visit(
-        ts(type = "z.number().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub used: Option<u64>,
-    #[visit(
-        ts(type = "z.number().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub available: Option<u64>,
     pub start_os: BTreeMap<String, StartOsRecoveryInfo>,
     pub legacy_backup: bool,
@@ -125,8 +113,6 @@ impl From<BackupUnencryptedMetadata> for StartOsRecoveryInfo {
 pub struct StartOsRecoveryInfo {
     pub hostname: ServerHostname,
     pub version: exver::Version,
-    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub timestamp: DateTime<Utc>,
 }
 
