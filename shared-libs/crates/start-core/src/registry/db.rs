@@ -117,18 +117,18 @@ fn subscription_pointer(pointer: Option<JsonPointer>) -> Result<JsonPointer, Err
 
 #[derive(Debug, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-pub struct SubscribeParams {
+pub struct SubscribeIndexParams {
     pub pointer: Option<JsonPointer>,
     #[serde(flatten)]
     pub reader: ReaderParams,
 }
 
-rpc_toolkit::reflect_ts!(SubscribeParams);
+rpc_toolkit::reflect_ts!(SubscribeIndexParams);
 
 /// Admins subscribe to the database; every other subscriber to the mirror of what it may see.
 pub async fn subscribe(
     ctx: RegistryContext,
-    SubscribeParams { pointer, reader }: SubscribeParams,
+    SubscribeIndexParams { pointer, reader }: SubscribeIndexParams,
 ) -> Result<SubscribeRes, Error> {
     let pointer = subscription_pointer(pointer)?;
     let peek = ctx.db.peek().await;
@@ -204,7 +204,7 @@ mod tests {
             serde_json::json!({}),
             serde_json::json!({ "pointer": null }),
         ] {
-            let params: SubscribeParams = serde_json::from_value(params).unwrap();
+            let params: SubscribeIndexParams = serde_json::from_value(params).unwrap();
             assert!(params.pointer.is_none());
         }
     }
