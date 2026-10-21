@@ -42,7 +42,7 @@ nothing may import it. When in doubt: the official MCP
   `TUI_TRUE_HANDLER`/`TUI_FALSE_HANDLER`; `TuiMapperPipe` (`value | tuiMapper: fn : args` —
   pure template mapping without component methods), `TuiFilterPipe`, `TuiObfuscatePipe`;
   `TUI_DEFAULT_MATCHER(item, search)` for a case-insensitive "contains" filter (it trims
-  `search` from 5.27; on older pins, trim it yourself).
+  `search` itself).
 - Types: `TuiBooleanHandler`, `TuiStringHandler`, `TuiContext<T>`, `TuiStringMatcher`,
   `TuiIdentityMatcher`, `TuiValidationError`.
 
@@ -80,10 +80,6 @@ nothing may import it. When in doubt: the official MCP
   `tui-line-clamp` for truncation, and `tuiFade="vertical"` on a scroll container fades the
   edges its content overflows; `<tui-scrollbar>` for themed scrollbars
   (`provideTaiga({ scrollbars: 'native' })` opts out — the fleet's embedded UIs do).
-  On 5.22–5.25 `tui-scrollbar`'s inner `.t-content` is `min-inline-size: fit-content`, so one
-  `white-space: nowrap` descendant widens the whole scroll area. On those pins `tuiFade`
-  truncation inside a scrollbar needs `.t-content` reset to `min-inline-size: 0` through
-  `:host ::ng-deep tui-scrollbar > .t-content`; the override goes with the bump to 5.26+.
 
 ### Overlay facts
 
