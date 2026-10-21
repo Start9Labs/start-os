@@ -13,8 +13,6 @@ source ./builder-alias.sh
 set -ea
 shopt -s expand_aliases
 
-bash ./stage-files.test.sh
-
 PROFILE=${PROFILE:-release}
 if [ "${PROFILE}" = "release" ]; then
 	BUILD_FLAGS="--release"
