@@ -120,6 +120,11 @@ export type PluginId = z.output<typeof schemas.PluginId>
 export type PreDownloadAlertWhen = z.output<typeof schemas.PreDownloadAlertWhen>
 
 /**
+ * The verified signer of a read request.
+ */
+export type ReaderParamsInput = z.input<typeof schemas.ReaderParams>
+
+/**
  * A registry asset with a caller-selected commitment representation.
  */
 export type RegistryAsset<Commitment> = z.output<
@@ -157,6 +162,9 @@ export type CurrentDependencyKind = z.output<
 export type Description = z.output<typeof schemas.Description>
 export type DownloadsResponse = z.output<typeof schemas.DownloadsResponse>
 export type EditSignerParamsInput = z.input<typeof schemas.EditSignerParams>
+export type GetPackageAccessParamsInput = z.input<
+  typeof schemas.GetPackageAccessParams
+>
 export type GetPackageParamsInput = z.input<typeof schemas.GetPackageParams>
 export type HardwareRequirements = z.output<typeof schemas.HardwareRequirements>
 export type ListPackageSignersParamsInput = z.input<
@@ -165,6 +173,9 @@ export type ListPackageSignersParamsInput = z.input<
 export type MetricsSummary = z.output<typeof schemas.MetricsSummary>
 export type OsVersionInfo = z.output<typeof schemas.OsVersionInfo>
 export type PackageInfoShort = z.output<typeof schemas.PackageInfoShort>
+export type PackageReaderParamsInput = z.input<
+  typeof schemas.PackageReaderParams
+>
 export type PreDownloadAlert = z.output<typeof schemas.PreDownloadAlert>
 export type RemoveAdminParamsInput = z.input<typeof schemas.RemoveAdminParams>
 export type RemoveMirrorParamsInput = z.input<typeof schemas.RemoveMirrorParams>
@@ -182,6 +193,9 @@ export type SetDescriptionParamsInput = z.input<
   typeof schemas.SetDescriptionParams
 >
 export type SetIconParamsInput = z.input<typeof schemas.SetIconParams>
+export type SetPackagePrivateParamsInput = z.input<
+  typeof schemas.SetPackagePrivateParams
+>
 export type SignAssetParamsInput = z.input<typeof schemas.SignAssetParams>
 export type SignerInfo = z.output<typeof schemas.SignerInfo>
 export type SignerInfoInput = z.input<typeof schemas.SignerInfo>
@@ -191,6 +205,7 @@ export type VersionSignerParamsInput = z.input<
 >
 export type DependencyMetadata = z.output<typeof schemas.DependencyMetadata>
 export type OsVersionInfoMap = z.output<typeof schemas.OsVersionInfoMap>
+export type PackageAccess = z.output<typeof schemas.PackageAccess>
 export type PackageMetadata = z.output<typeof schemas.PackageMetadata>
 export type RegistryInfo = z.output<typeof schemas.RegistryInfo>
 export type OsIndex = z.output<typeof schemas.OsIndex>

@@ -108,9 +108,8 @@ impl Model<PackageIndex> {
 #[group(skip)]
 pub struct ReaderParams {
     #[arg(skip)]
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(skip))]
     #[serde(rename = "__Auth_signer")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub signer: Option<AnyVerifyingKey>,
 }
 

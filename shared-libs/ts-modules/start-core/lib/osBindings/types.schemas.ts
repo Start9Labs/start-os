@@ -1164,6 +1164,14 @@ export const QueryDnsRes: z.ZodObject<{
 })
 
 /**
+ * The verified signer of a read request.
+ */
+export const ReaderParams: typeof empty = /* @__PURE__ */ empty.meta({
+  id: 'ReaderParams',
+  description: 'The verified signer of a read request.',
+})
+
+/**
  * A migration or backup recovery source with a caller-selected backup password representation.
  */
 export const RecoverySource = <Password extends z.ZodType>(
@@ -2538,36 +2546,51 @@ export const GetOutboundGatewayParams: z.ZodObject<{
 }).meta({
   id: 'GetOutboundGatewayParams',
 })
-export const GetPackageParams: z.ZodObject<{
-  id: z.ZodCodec<
-    z.ZodOptional<z.ZodNullable<typeof PackageId>>,
-    z.ZodNullable<typeof PackageId>
-  >
-  targetVersion: z.ZodCodec<
-    z.ZodOptional<z.ZodNullable<z.ZodString>>,
-    z.ZodNullable<z.ZodString>
-  >
-  sourceVersion: z.ZodCodec<
-    z.ZodOptional<z.ZodNullable<typeof Version>>,
-    z.ZodNullable<typeof Version>
-  >
-  otherVersions: z.ZodCodec<
-    z.ZodOptional<z.ZodNullable<typeof PackageDetailLevel>>,
-    z.ZodNullable<typeof PackageDetailLevel>
-  >
-  allRevisions: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
-}> = /* @__PURE__ */ object({
-  id: wire(PackageId.nullable().optional(), PackageId.nullable()),
-  targetVersion: wire(z.string().nullable().optional(), z.string().nullable()),
-  sourceVersion: wire(Version.nullable().optional(), Version.nullable()),
-  otherVersions: wire(
-    PackageDetailLevel.nullable().optional(),
-    PackageDetailLevel.nullable(),
-  ),
-  allRevisions: wire(z.boolean().optional(), z.boolean()),
-}).meta({
-  id: 'GetPackageParams',
-})
+export const GetPackageAccessParams: z.ZodObject<{ id: typeof PackageId }> =
+  /* @__PURE__ */ object({ id: PackageId }).meta({
+    id: 'GetPackageAccessParams',
+  })
+export const GetPackageParams: z.ZodIntersection<
+  z.ZodObject<{
+    id: z.ZodCodec<
+      z.ZodOptional<z.ZodNullable<typeof PackageId>>,
+      z.ZodNullable<typeof PackageId>
+    >
+    targetVersion: z.ZodCodec<
+      z.ZodOptional<z.ZodNullable<z.ZodString>>,
+      z.ZodNullable<z.ZodString>
+    >
+    sourceVersion: z.ZodCodec<
+      z.ZodOptional<z.ZodNullable<typeof Version>>,
+      z.ZodNullable<typeof Version>
+    >
+    otherVersions: z.ZodCodec<
+      z.ZodOptional<z.ZodNullable<typeof PackageDetailLevel>>,
+      z.ZodNullable<typeof PackageDetailLevel>
+    >
+    allRevisions: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
+  }>,
+  typeof ReaderParams
+> = /* @__PURE__ */ z
+  .intersection(
+    object({
+      id: wire(PackageId.nullable().optional(), PackageId.nullable()),
+      targetVersion: wire(
+        z.string().nullable().optional(),
+        z.string().nullable(),
+      ),
+      sourceVersion: wire(Version.nullable().optional(), Version.nullable()),
+      otherVersions: wire(
+        PackageDetailLevel.nullable().optional(),
+        PackageDetailLevel.nullable(),
+      ),
+      allRevisions: wire(z.boolean().optional(), z.boolean()),
+    }),
+    ReaderParams,
+  )
+  .meta({
+    id: 'GetPackageParams',
+  })
 export const GetServiceInterfaceParams: z.ZodObject<{
   packageId: z.ZodCodec<
     z.ZodOptional<z.ZodNullable<typeof PackageId>>,
@@ -2907,8 +2930,12 @@ export const LegacyAlpnInfo: z.ZodUnion<
   .meta({
     id: 'LegacyAlpnInfo',
   })
-export const ListPackageSignersParams: z.ZodObject<{ id: typeof PackageId }> =
-  /* @__PURE__ */ object({ id: PackageId }).meta({
+export const ListPackageSignersParams: z.ZodIntersection<
+  z.ZodObject<{ id: typeof PackageId }>,
+  typeof ReaderParams
+> = /* @__PURE__ */ z
+  .intersection(object({ id: PackageId }), ReaderParams)
+  .meta({
     id: 'ListPackageSignersParams',
   })
 export const ListServiceInterfacesParams: z.ZodObject<{
@@ -3197,6 +3224,12 @@ export const PackageInfoShort: z.ZodObject<{
   releaseNotes: typeof LocaleString
 }> = /* @__PURE__ */ object({ releaseNotes: LocaleString }).meta({
   id: 'PackageInfoShort',
+})
+export const PackageReaderParams: z.ZodObject<{
+  id: typeof PackageId
+  signer: typeof Guid
+}> = /* @__PURE__ */ object({ id: PackageId, signer: Guid }).meta({
+  id: 'PackageReaderParams',
 })
 export const PassthroughInfo: z.ZodObject<{
   hostname: z.ZodString
@@ -3598,6 +3631,12 @@ export const SetOutboundGatewayParams: z.ZodObject<{
   gateway: wire(GatewayId.nullable().optional(), GatewayId.nullable()),
 }).meta({
   id: 'SetOutboundGatewayParams',
+})
+export const SetPackagePrivateParams: z.ZodObject<{
+  id: typeof PackageId
+  private: z.ZodBoolean
+}> = /* @__PURE__ */ object({ id: PackageId, private: z.boolean() }).meta({
+  id: 'SetPackagePrivateParams',
 })
 export const SetupExecuteParams: z.ZodObject<{
   guid: z.ZodString
@@ -4299,6 +4338,15 @@ export const OsVersionInfoMap: z.ZodRecord<z.ZodString, typeof OsVersionInfo> =
   /* @__PURE__ */ z.record(z.string(), OsVersionInfo).meta({
     id: 'OsVersionInfoMap',
   })
+export const PackageAccess: z.ZodObject<{
+  private: z.ZodBoolean
+  readers: z.ZodRecord<z.ZodString, typeof SignerInfo>
+}> = /* @__PURE__ */ object({
+  private: z.boolean(),
+  readers: z.record(z.string(), SignerInfo),
+}).meta({
+  id: 'PackageAccess',
+})
 export const PackageMetadata: z.ZodObject<{
   title: z.ZodString
   description: typeof Description
@@ -5227,10 +5275,26 @@ export const PackageInfo: z.ZodObject<{
   authorized: z.ZodRecord<z.ZodString, z.ZodString>
   versions: z.ZodRecord<z.ZodString, typeof PackageVersionInfo>
   categories: z.ZodArray<z.ZodString>
+  /**
+   * Hides the package from every read request not signed by an admin, an authorized signer, or one of `readers`.
+   */
+  private: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
+  readers: z.ZodCodec<
+    z.ZodOptional<z.ZodArray<typeof Guid>>,
+    z.ZodArray<typeof Guid>
+  >
 }> = /* @__PURE__ */ object({
   authorized: z.record(z.string(), z.string()),
   versions: z.record(z.string(), PackageVersionInfo),
   categories: z.array(z.string()),
+  /**
+   * Hides the package from every read request not signed by an admin, an authorized signer, or one of `readers`.
+   */
+  private: wire(z.boolean().optional(), z.boolean()).meta({
+    description:
+      'Hides the package from every read request not signed by an admin, an authorized signer, or one of `readers`.',
+  }),
+  readers: wire(z.array(Guid).optional(), z.array(Guid)),
 }).meta({
   id: 'PackageInfo',
 })
@@ -5643,6 +5707,13 @@ export const ServerInfo: z.ZodObject<{
     z.ZodOptional<z.ZodArray<z.ZodString>>,
     z.ZodArray<z.ZodString>
   >
+  /**
+   * Registries that receive requests signed with the server's developer key.
+   */
+  signedRegistries: z.ZodCodec<
+    z.ZodOptional<z.ZodArray<z.ZodString>>,
+    z.ZodArray<z.ZodString>
+  >
   ram: z.ZodInt
   devices: z.ZodArray<typeof LshwDevice>
   kiosk: z.ZodCodec<
@@ -5676,6 +5747,16 @@ export const ServerInfo: z.ZodObject<{
   epp: wire(Epp.nullable().optional(), Epp.nullable()),
   smtp: wire(SmtpValue.nullable().optional(), SmtpValue.nullable()),
   echoipUrls: wire(z.array(z.string()).optional(), z.array(z.string())),
+  /**
+   * Registries that receive requests signed with the server's developer key.
+   */
+  signedRegistries: wire(
+    z.array(z.string()).optional(),
+    z.array(z.string()),
+  ).meta({
+    description:
+      "Registries that receive requests signed with the server's developer key.",
+  }),
   ram: z.int(),
   devices: z.array(LshwDevice),
   kiosk: wire(z.boolean().nullable().optional(), z.boolean().nullable()),

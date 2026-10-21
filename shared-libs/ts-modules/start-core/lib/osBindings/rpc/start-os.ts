@@ -243,6 +243,11 @@ export type QueryDnsParamsInput = z.input<typeof schemas.QueryDnsParams>
 export type QueryDnsRes = z.output<typeof schemas.QueryDnsRes>
 
 /**
+ * The verified signer of a read request.
+ */
+export type ReaderParamsInput = z.input<typeof schemas.ReaderParams>
+
+/**
  * A registry asset with a caller-selected commitment representation.
  */
 export type RegistryAsset<Commitment> = z.output<
@@ -468,6 +473,9 @@ export type GatewayPortMapCapabilities = z.output<
 export type GetActionInputParamsInput = z.input<
   typeof schemas.GetActionInputParams
 >
+export type GetPackageAccessParamsInput = z.input<
+  typeof schemas.GetPackageAccessParams
+>
 export type GetPackageParamsInput = z.input<typeof schemas.GetPackageParams>
 export type GovernorInfo = z.output<typeof schemas.GovernorInfo>
 export type GovernorParamsInput = z.input<typeof schemas.GovernorParams>
@@ -501,6 +509,9 @@ export type OsVersionInfo = z.output<typeof schemas.OsVersionInfo>
 export type PackageBackupInfo = z.output<typeof schemas.PackageBackupInfo>
 export type PackageIdParamsInput = z.input<typeof schemas.PackageIdParams>
 export type PackageInfoShort = z.output<typeof schemas.PackageInfoShort>
+export type PackageReaderParamsInput = z.input<
+  typeof schemas.PackageReaderParams
+>
 export type PassthroughInfo = z.output<typeof schemas.PassthroughInfo>
 export type PasswordTypeInput = z.input<typeof schemas.PasswordType>
 export type PreDownloadAlert = z.output<typeof schemas.PreDownloadAlert>
@@ -563,6 +574,9 @@ export type SetIconParamsInput = z.input<typeof schemas.SetIconParams>
 export type SetOutboundGatewayParamsInput = z.input<
   typeof schemas.SetOutboundGatewayParams
 >
+export type SetPackagePrivateParamsInput = z.input<
+  typeof schemas.SetPackagePrivateParams
+>
 export type SetSubnetDnsParamsInput = z.input<typeof schemas.SetSubnetDnsParams>
 export type SideloadResponse = z.output<typeof schemas.SideloadResponse>
 export type SignAssetParamsInput = z.input<typeof schemas.SignAssetParams>
@@ -606,6 +620,7 @@ export type Metrics = z.output<typeof schemas.Metrics>
 export type NetworkInterfaceInfo = z.output<typeof schemas.NetworkInterfaceInfo>
 export type NotificationWithId = z.output<typeof schemas.NotificationWithId>
 export type OsVersionInfoMap = z.output<typeof schemas.OsVersionInfoMap>
+export type PackageAccess = z.output<typeof schemas.PackageAccess>
 export type PackageMetadata = z.output<typeof schemas.PackageMetadata>
 export type PartitionInfo = z.output<typeof schemas.PartitionInfo>
 export type RegistryInfo = z.output<typeof schemas.RegistryInfo>

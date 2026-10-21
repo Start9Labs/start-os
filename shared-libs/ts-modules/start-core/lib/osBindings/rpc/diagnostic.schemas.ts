@@ -413,6 +413,7 @@ export const Api = {
           ),
           _CHILDREN: {},
         },
+        'registry-signing': { _PARAMS: /* @__PURE__ */ empty, _CHILDREN: {} },
       },
     },
     setup: {
