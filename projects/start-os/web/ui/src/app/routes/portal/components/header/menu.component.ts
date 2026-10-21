@@ -184,7 +184,9 @@ export class HeaderMenuComponent {
   }
 
   logout() {
-    this.api.logout({}).catch(e => console.error('Failed to log out', e))
+    this.api.rpc.auth
+      .logout({})
+      .catch(e => console.error('Failed to log out', e))
     this.auth.logout()
   }
 }

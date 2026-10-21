@@ -3,7 +3,6 @@ use std::time::Duration;
 use clap::Parser;
 use patch_db::json_ptr::JsonPointer;
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 
 use crate::PLATFORM;
 use crate::context::RpcContext;
@@ -124,9 +123,8 @@ fn systemd_is_stopping() -> bool {
         .unwrap_or(false)
 }
 
-#[derive(Debug, Clone, Default, Deserialize, Serialize, Parser, TS)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct ShutdownParams {
@@ -144,9 +142,10 @@ pub struct ShutdownParams {
     force: bool,
 }
 
+rpc_toolkit::reflect_ts!(ShutdownParams);
+rpc_toolkit::ts_export!(ShutdownParams, namespaces = [""]);
+
 pub(crate) const STATUS_INFO_PTR: &str = "/public/serverInfo/statusInfo";
-/// How long to leave a failing patch-db alone before trying to take the
-/// deferred action again.
 const TAKE_RETRY: Duration = Duration::from_secs(30);
 
 async fn begin_shutdown(ctx: &RpcContext, restart: bool, wait: bool) {

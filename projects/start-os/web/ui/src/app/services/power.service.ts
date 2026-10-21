@@ -37,7 +37,9 @@ export class PowerService {
   }
 
   cancel() {
-    this.tasks.run(async () => await this.api.cancelDeferredPower({}))
+    this.tasks.run(
+      async () => await this.api.rpc.server.cancelDeferredPower({}),
+    )
   }
 
   private run(action: T.PowerAction, force: boolean): Observable<boolean> {
@@ -45,8 +47,8 @@ export class PowerService {
       this.tasks.run(
         async () =>
           action === 'restart'
-            ? await this.api.restartServer({ force })
-            : await this.api.shutdownServer({ force }),
+            ? await this.api.rpc.server.restart({ force })
+            : await this.api.rpc.server.shutdown({ force }),
         !force && this.backingUp()
           ? 'Wait for backup to complete'
           : `Beginning ${action}`,

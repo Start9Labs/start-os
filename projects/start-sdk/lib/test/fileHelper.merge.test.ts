@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
 import { FileHelper } from '../util/fileHelper'
-import { z } from '@start9labs/start-core/zExport'
+import * as z from '@start9labs/start-core/z'
 
 const shape = z.looseObject({ A: z.string(), K: z.string().optional() })
 const effects = {} as any

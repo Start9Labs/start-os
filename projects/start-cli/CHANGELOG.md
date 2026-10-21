@@ -9,6 +9,34 @@ Because `start-cli` is a thin client over `start-core`, most user-visible CLI ch
 in `start-core`; record here anything that changes this crate's entrypoint, features, packaging,
 or the CLI's externally observable behavior.
 
+## [2.4.2]
+
+### Fixed
+
+- `s9pk pack` needs less free disk space to import a container image from a tag or OCI layout.
+
+## [2.4.1]
+
+### Fixed
+
+- `s9pk pack` accepts container images whose layers store absolute or `..` paths, such as Tailscale's, resolving them against the image root.
+
+## [2.4.0]
+
+### Added
+
+- Pack images from local OCI layout directories or archives, selecting nested multi-platform images by platform and optional reference. Docker Buildx exports OCI directly; its selected builder must support OCI output. Registry tags still use Docker/Podman, with exported configuration replacing image inspection. Legacy image conversion no longer requires a container engine or binfmt registration.
+
+### Changed
+
+- **`s9pk pack` and `s9pk edit add-image` create SquashFS images natively**, without requiring `mksquashfs` or `tar2sqfs` on the packaging workstation. Packaged JavaScript files are readable and directories traversable by the service runtime without changing source permissions. Container filesystems are reconstructed from hash-verified image layers without Docker container initialization state, preserving image timestamps and hardlink identity across layers. JavaScript and asset timestamps are normalized to zero, including v1 conversion. An immutable platform-specific image configuration, identical writer options, and the locked codec produce identical SquashFS bytes.
+
+### Fixed
+
+- **`s9pk edit add-image` re-signs edited packages with the workspace build key**, keeping their signatures valid.
+
+- **Package manifest paths containing apostrophes work during packing and validation.**
+
 ## [2.3.0]
 
 ### Added

@@ -318,6 +318,8 @@ pub struct WifiDevice {
     pub band: String,
     #[uci(inpt)]
     pub channel: WifiChannel,
+    /// PHY mode and channel width, e.g. `HE80` or `HT40+`.
+    pub htmode: Option<String>,
     pub country: Option<String>,
     /// Keeps automatic channel selection off radar-detection channels.
     pub acs_exclude_dfs: Option<bool>,

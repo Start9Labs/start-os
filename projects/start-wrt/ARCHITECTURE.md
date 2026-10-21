@@ -38,6 +38,7 @@ StartWRT is an OpenWrt-based router OS for home self-hosting. It pairs a Rust ba
 ├── openwrt-patches/     # Start9 patches to upstream OpenWrt files (patch -p1 at setup)
 ├── openwrt-overlay/     # Start9 additions to the OpenWrt tree (spacemit target, boot pkgs; rsynced at setup)
 ├── build/               # Build scripts, OpenWrt diffconfig + version pin
+├── bench/               # Live-bench driver for a physical test router (see AGENTS.md "Live bench")
 ├── docs/                # User-facing docs book (src/, book.toml) + cross-cutting specs/proposals
 └── API_CONTRACT.md      # Complete RPC endpoint contract with Rust types
 ```
@@ -153,7 +154,7 @@ The binary is self-contained — the web UI is embedded via `include_dir`. Facto
 
 ## Key Design Decisions
 
-1. **One SSID, many passwords.** Per-password VLAN assignment via `wpa_psk_file` with dynamic VLAN.
+1. **One SSID, many passwords.** Per-password VLAN assignment via `wpa_psk_file` with dynamic VLAN. This is why the network is WPA2-PSK and not WPA3-SAE: the AP identifies which password a WPA2 client used by testing each candidate against the handshake MIC, but SAE requires the AP to commit to a single password before it can test anything — the same property that blocks offline dictionary attacks. hostapd can only select among several `sae_password`s by a cleartext password identifier (which mainstream client UIs don't expose) or a pre-registered MAC (defeated by MAC randomization), so WPA3 would break password-to-profile mapping.
 
 2. **VLANs for isolation.** Layer 2 isolation via bridge VLAN filtering. On boards with a hardware switch (DSA), filtering happens in silicon; on boards without (BPI-F3), it's done in the kernel's software bridge. The UCI `bridge-vlan` configuration is the same either way. An earlier nftables approach was abandoned because in-hardware switching bypasses the OS.
 

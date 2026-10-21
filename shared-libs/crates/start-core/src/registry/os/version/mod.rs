@@ -9,7 +9,6 @@ use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
-use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::prelude::*;
@@ -49,6 +48,7 @@ pub fn version_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(get_version)
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_metadata("get_device_info", Value::Bool(true))
+                .override_return_ts_as::<super::index::OsVersionInfoMap>()
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| {
                     display_version_info(handle.params, result)
@@ -58,27 +58,27 @@ pub fn version_api<C: Context>() -> ParentHandler<C> {
         )
 }
 
-#[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[derive(Debug, Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct AddVersionParams {
-    #[ts(type = "string")]
     #[arg(help = "help.arg.os-version")]
     pub version: Version,
     #[arg(help = "help.arg.version-headline")]
     pub headline: String,
     #[arg(help = "help.arg.release-notes")]
     pub release_notes: String,
-    #[ts(type = "string")]
     #[arg(help = "help.arg.source-version-range")]
     pub source_version: VersionRange,
     #[arg(skip)]
-    #[ts(skip)]
+    #[visit(ts(skip))]
     #[serde(rename = "__Auth_signer")]
     pub signer: Option<AnyVerifyingKey>,
 }
+
+rpc_toolkit::reflect_ts!(AddVersionParams);
+rpc_toolkit::ts_export!(AddVersionParams, namespaces = [""]);
 
 pub async fn add_version(
     ctx: RegistryContext,
@@ -111,16 +111,17 @@ pub async fn add_version(
         .result
 }
 
-#[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[derive(Debug, Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct RemoveVersionParams {
-    #[ts(type = "string")]
     #[arg(help = "help.arg.os-version")]
     pub version: Version,
 }
+
+rpc_toolkit::reflect_ts!(RemoveVersionParams);
+rpc_toolkit::ts_export!(RemoveVersionParams, namespaces = [""]);
 
 pub async fn remove_version(
     ctx: RegistryContext,
@@ -138,28 +139,27 @@ pub async fn remove_version(
         .result
 }
 
-#[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[derive(Debug, Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct GetOsVersionParams {
-    #[ts(type = "string | null")]
     #[arg(long = "src", help = "help.arg.source-version")]
     pub source_version: Option<Version>,
-    #[ts(type = "string | null")]
     #[arg(long, help = "help.arg.target-version-range")]
     pub target_version: Option<VersionRange>,
     #[arg(long = "id", help = "help.arg.server-id")]
     server_id: Option<String>,
-    #[ts(type = "string | null")]
     #[arg(long, help = "help.arg.platform")]
     platform: Option<InternedString>,
-    #[ts(skip)]
+    #[visit(ts(skip))]
     #[arg(skip)]
     #[serde(rename = "__DeviceInfo_device_info")]
     pub device_info: Option<DeviceInfo>,
 }
+
+rpc_toolkit::reflect_ts!(GetOsVersionParams);
+rpc_toolkit::ts_export!(GetOsVersionParams, namespaces = [""]);
 
 pub async fn get_version(
     ctx: RegistryContext,

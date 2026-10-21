@@ -10,7 +10,6 @@ use ipnet::IpNet;
 use isocountry::CountryCode;
 use patch_db::{HasModel, Value};
 use serde::{Deserialize, Serialize};
-use ts_rs::TS;
 use url::Url;
 
 use crate::account::AccountInfo;
@@ -35,16 +34,17 @@ use crate::{GatewayId, PLATFORM};
 
 pub static DB_UI_SEED_CELL: OnceLock<&'static str> = OnceLock::new();
 
-#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+#[derive(Debug, Deserialize, Serialize, HasModel, VisitFields)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct Public {
     pub server_info: ServerInfo,
     pub package_data: AllPackageData,
-    #[ts(type = "unknown")]
     pub ui: Value,
 }
+
+rpc_toolkit::reflect_ts!(Public);
+rpc_toolkit::ts_export!(Public, namespaces = [""]);
 impl Public {
     pub fn init(
         account: &AccountInfo,
@@ -163,27 +163,22 @@ pub fn default_echoip_urls() -> Vec<Url> {
     ]
 }
 
-#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+#[derive(Debug, Deserialize, Serialize, HasModel, VisitFields)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct ServerInfo {
     pub id: String,
     pub hostname: InternedString,
-    #[ts(type = "string")]
     pub version: Version,
-    #[ts(type = "string")]
     pub package_version_compat: VersionRange,
-    #[ts(type = "Record<string, unknown>")]
+    #[visit(ts(type = "z.record(z.string(), z.unknown())"))]
     pub post_init_migration_todos: BTreeMap<Version, Value>,
     #[serde(default)]
     pub latest_migration_revision: usize,
-    #[ts(type = "string | null")]
     pub last_backup: Option<DateTime<Utc>>,
     pub network: NetworkInfo,
     #[serde(default)]
     pub status_info: ServerStatus,
-    #[ts(type = "number")]
     pub unread_notification_count: u64,
     pub pubkey: String,
     pub ca_fingerprint: String,
@@ -196,9 +191,7 @@ pub struct ServerInfo {
     pub epp: Option<Epp>,
     pub smtp: Option<SmtpValue>,
     #[serde(default = "default_echoip_urls")]
-    #[ts(type = "string[]")]
     pub echoip_urls: Vec<Url>,
-    #[ts(type = "number")]
     pub ram: u64,
     pub devices: Vec<LshwDevice>,
     pub kiosk: Option<bool>,
@@ -206,9 +199,11 @@ pub struct ServerInfo {
     pub keyboard: Option<KeyboardOptions>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, TS)]
+rpc_toolkit::reflect_ts!(ServerInfo);
+rpc_toolkit::ts_export!(ServerInfo, namespaces = [""]);
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, VisitVariants)]
 #[serde(rename_all = "lowercase")]
-#[ts(export)]
 pub enum RestartReason {
     Mdns,
     Language,
@@ -216,22 +211,25 @@ pub enum RestartReason {
     Update,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, TS)]
+rpc_toolkit::reflect_ts!(RestartReason);
+rpc_toolkit::ts_export!(RestartReason, namespaces = [""]);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, VisitVariants)]
 #[serde(rename_all = "lowercase")]
-#[ts(export)]
 pub enum PowerAction {
     Restart,
     Shutdown,
 }
 
-#[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
+rpc_toolkit::reflect_ts!(PowerAction);
+rpc_toolkit::ts_export!(PowerAction, namespaces = [""]);
+
+#[derive(Debug, Default, Deserialize, Serialize, HasModel, VisitFields)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct NetworkInfo {
     pub wifi: WifiInfo,
     pub host: Host,
-    #[ts(as = "BTreeMap::<GatewayId, NetworkInterfaceInfo>")]
     #[serde(default)]
     pub gateways: OrdMap<GatewayId, NetworkInterfaceInfo>,
     #[serde(default)]
@@ -239,36 +237,36 @@ pub struct NetworkInfo {
     #[serde(default)]
     pub dns: DnsSettings,
     #[serde(default)]
-    #[ts(type = "string | null")]
     pub default_outbound: Option<GatewayId>,
     #[serde(default)]
     pub passthroughs: Vec<PassthroughInfo>,
 }
 
-#[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
+rpc_toolkit::reflect_ts!(NetworkInfo);
+rpc_toolkit::ts_export!(NetworkInfo, namespaces = [""]);
+
+#[derive(Debug, Default, Deserialize, Serialize, HasModel, VisitFields)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct DnsSettings {
-    #[ts(type = "string[]")]
     pub dhcp_servers: VecDeque<SocketAddr>,
-    #[ts(type = "string[] | null")]
     pub static_servers: Option<VecDeque<SocketAddr>>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel, TS)]
+rpc_toolkit::reflect_ts!(DnsSettings);
+rpc_toolkit::ts_export!(DnsSettings, namespaces = [""]);
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel, VisitFields)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct NetworkInterfaceInfo {
     pub name: Option<InternedString>,
     pub secure: Option<bool>,
     pub ip_info: Option<Arc<IpInfo>>,
-    // Pre-release dev DBs persisted this as `null` for auto-discovered gateways;
-    // coerce absent/null to the default so those nodes still load.
     #[serde(default, rename = "type")]
     #[serde(deserialize_with = "deserialize_null_default")]
-    #[ts(rename = "type")]
+    #[visit(input_wire = "Option<GatewayType>")]
+    #[visit(type_attributes(visit::input_wire))]
     pub gateway_type: GatewayType,
     #[serde(default)]
     pub port_map: GatewayPortMapCapabilities,
@@ -280,15 +278,19 @@ pub struct NetworkInterfaceInfo {
     pub dns_update: CapabilityVerdict,
 }
 
+rpc_toolkit::reflect_ts!(NetworkInterfaceInfo);
+rpc_toolkit::ts_export!(NetworkInterfaceInfo, namespaces = [""]);
+
 /// Whether the gateway reachable via this interface speaks each port-mapping
 /// protocol, as last probed. Fed by the watcher's periodic probes and by
 /// failure/success evidence from the port-map client, and synced to the db so a
 /// chronically uncooperative gateway is visible (and skipped) instead of being
 /// retried forever.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, HasModel, TS)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, HasModel, VisitFields,
+)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct GatewayPortMapCapabilities {
     pub pcp: CapabilityVerdict,
     pub nat_pmp: CapabilityVerdict,
@@ -298,16 +300,22 @@ pub struct GatewayPortMapCapabilities {
     pub pcp_hostname: CapabilityVerdict,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, HasModel, TS)]
+rpc_toolkit::reflect_ts!(GatewayPortMapCapabilities);
+rpc_toolkit::ts_export!(GatewayPortMapCapabilities, namespaces = [""]);
+
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize, HasModel, VisitFields,
+)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct CapabilityVerdict {
     /// `None` = never probed.
     pub supported: Option<bool>,
-    #[ts(type = "string | null")]
     pub at: Option<DateTime<Utc>>,
 }
+
+rpc_toolkit::reflect_ts!(CapabilityVerdict);
+rpc_toolkit::ts_export!(CapabilityVerdict, namespaces = [""]);
 
 impl CapabilityVerdict {
     pub fn supported(supported: bool) -> Self {
@@ -362,28 +370,26 @@ impl NetworkInterfaceInfo {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, TS, HasModel)]
-#[ts(export)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, VisitFields, HasModel)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct IpInfo {
-    #[ts(type = "string")]
     pub name: InternedString,
     pub scope_id: u32,
     pub device_type: Option<NetworkInterfaceType>,
-    #[ts(type = "string[]")]
     pub subnets: OrdSet<IpNet>,
-    #[ts(type = "string[]")]
     pub lan_ip: OrdSet<IpAddr>,
     pub wan_ip: Option<Ipv4Addr>,
-    #[ts(type = "string[]")]
     pub ntp_servers: OrdSet<InternedString>,
-    #[ts(type = "string[]")]
     pub dns_servers: OrdSet<IpAddr>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
-#[ts(export)]
+rpc_toolkit::reflect_ts!(IpInfo);
+rpc_toolkit::ts_export!(IpInfo, namespaces = [""]);
+
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, VisitVariants,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum NetworkInterfaceType {
     Ethernet,
@@ -392,6 +398,9 @@ pub enum NetworkInterfaceType {
     Wireguard,
     Loopback,
 }
+
+rpc_toolkit::reflect_ts!(NetworkInterfaceType);
+rpc_toolkit::ts_export!(NetworkInterfaceType, namespaces = [""]);
 
 #[derive(
     Clone,
@@ -404,10 +413,9 @@ pub enum NetworkInterfaceType {
     Ord,
     Deserialize,
     Serialize,
-    TS,
+    VisitVariants,
     clap::ValueEnum,
 )]
-#[ts(export)]
 #[serde(rename_all = "kebab-case")]
 pub enum GatewayType {
     #[default]
@@ -415,13 +423,18 @@ pub enum GatewayType {
     OutboundOnly,
 }
 
-#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+rpc_toolkit::reflect_ts!(GatewayType);
+rpc_toolkit::ts_export!(GatewayType, namespaces = [""]);
+
+#[derive(Debug, Deserialize, Serialize, HasModel, VisitFields)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct AcmeSettings {
     pub contact: Vec<String>,
 }
+
+rpc_toolkit::reflect_ts!(AcmeSettings);
+rpc_toolkit::ts_export!(AcmeSettings, namespaces = [""]);
 impl DbAccessByKey<AcmeSettings> for Database {
     type Key<'a> = &'a AcmeProvider;
     fn access_by_key<'a>(
@@ -436,18 +449,19 @@ impl DbAccessByKey<AcmeSettings> for Database {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+#[derive(Debug, Deserialize, Serialize, HasModel, VisitFields)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct DomainSettings {
     pub gateway: GatewayId,
 }
 
-#[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
+rpc_toolkit::reflect_ts!(DomainSettings);
+rpc_toolkit::ts_export!(DomainSettings, namespaces = [""]);
+
+#[derive(Debug, Default, Deserialize, Serialize, HasModel, VisitFields)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct ServerStatus {
     pub backup_progress: Option<FullProgress>,
     pub update_progress: Option<FullProgress>,
@@ -457,33 +471,38 @@ pub struct ServerStatus {
     pub restarting: bool,
     #[serde(default)]
     pub restart: Option<RestartReason>,
-    /// A restart or shutdown that was asked for while a backup was running, and
-    /// which StartOS carries out once the backup finishes.
+    /// A power action queued until the running backup finishes.
     #[serde(default)]
     pub deferred_power_action: Option<PowerAction>,
 }
 
-#[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
+rpc_toolkit::reflect_ts!(ServerStatus);
+rpc_toolkit::ts_export!(ServerStatus, namespaces = [""]);
+
+#[derive(Debug, Default, Deserialize, Serialize, HasModel, VisitFields)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct WifiInfo {
     pub enabled: bool,
     pub interface: Option<GatewayId>,
     pub ssids: BTreeSet<String>,
     pub selected: Option<String>,
-    #[ts(type = "string | null")]
     pub last_region: Option<CountryCode>,
 }
 
-#[derive(Debug, Deserialize, Serialize, TS)]
+rpc_toolkit::reflect_ts!(WifiInfo);
+rpc_toolkit::ts_export!(WifiInfo, namespaces = [""]);
+
+#[derive(Debug, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct ServerSpecs {
     pub cpu: String,
     pub disk: String,
     pub memory: String,
 }
+
+rpc_toolkit::reflect_ts!(ServerSpecs);
+rpc_toolkit::ts_export!(ServerSpecs, namespaces = [""]);
 
 #[cfg(test)]
 mod test {
