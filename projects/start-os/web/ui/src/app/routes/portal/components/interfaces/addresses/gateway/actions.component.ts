@@ -313,23 +313,27 @@ export class GatewayActionsComponent {
     this.tasks.run(async () => {
       if (addr.hostnameInfo.metadata.kind === 'public-domain') {
         if (this.packageId()) {
-          await this.api.pkgRemovePublicDomain({
+          await this.api.rpc.package.host.address.domain.public.remove({
             fqdn: host,
             package: this.packageId(),
             host: iface.addressInfo.hostId,
           })
         } else {
-          await this.api.osUiRemovePublicDomain({ fqdn: host })
+          await this.api.rpc.server.host.address.domain.public.remove({
+            fqdn: host,
+          })
         }
       } else if (addr.hostnameInfo.metadata.kind === 'private-domain') {
         if (this.packageId()) {
-          await this.api.pkgRemovePrivateDomain({
+          await this.api.rpc.package.host.address.domain.private.remove({
             fqdn: host,
             package: this.packageId(),
             host: iface.addressInfo.hostId,
           })
         } else {
-          await this.api.osUiRemovePrivateDomain({ fqdn: host })
+          await this.api.rpc.server.host.address.domain.private.remove({
+            fqdn: host,
+          })
         }
       }
     }, 'Removing')

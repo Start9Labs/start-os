@@ -36,8 +36,7 @@ pub struct MountTarget {
     #[serde(default)]
     idmap: Vec<IdMap>,
     #[serde(skip_deserializing)]
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
+    #[visit(ts(skip))]
     filetype: FileType,
 }
 

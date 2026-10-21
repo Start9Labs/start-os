@@ -1,10 +1,6 @@
 use serde_derive_internals::{ast, attr, Ctxt, Derive};
 use syn::{Attribute, Meta};
-use visit_rs::reflection::{
-    DeclarationInfo, GenericParameter, MetadataPosition, Position, TypeAttributeInfo,
-};
-
-use super::types::TSVisitor;
+use visit_rs::reflection::{DeclarationInfo, GenericParameter, MetadataPosition, Position};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Direction {
@@ -18,20 +14,20 @@ pub(super) enum Style {
     Newtype,
     Unit,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) enum Tag {
     External,
     Internal(String),
     Adjacent(String, String),
     Untagged,
 }
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(super) struct Hints {
     pub literal: Option<String>,
     pub skip: bool,
     pub errors: Vec<String>,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Field {
     pub docs: Vec<String>,
     pub name: String,
@@ -41,7 +37,7 @@ pub(super) struct Field {
     pub flatten: bool,
     pub hints: Hints,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct Variant {
     pub docs: Vec<String>,
     pub name: String,
@@ -51,28 +47,32 @@ pub(super) struct Variant {
     pub custom: bool,
     pub other: bool,
 }
-#[derive(Clone)]
-struct Target {
-    position: MetadataPosition,
-    path: Vec<String>,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct Target {
+    pub position: MetadataPosition,
+    pub path: Vec<String>,
 }
-struct FieldPlan {
-    position: Position,
-    field: Field,
-    target: Option<Target>,
-    error: Option<String>,
+#[derive(Debug, Clone)]
+pub(super) struct FieldPlan {
+    pub position: Position,
+    pub field: Field,
+    pub target: Option<Target>,
+    pub error: Option<String>,
 }
-struct VariantPlan {
-    variant: Variant,
-    fields: Vec<FieldPlan>,
+#[derive(Debug, Clone)]
+pub(super) struct VariantPlan {
+    pub index: usize,
+    pub variant: Variant,
+    pub fields: Vec<FieldPlan>,
 }
+#[derive(Debug, Clone)]
 pub(super) struct Plan {
-    hints: Hints,
-    target: Option<Target>,
-    style: Option<Style>,
-    tag: Option<(String, String)>,
-    fields: Vec<FieldPlan>,
-    variants: Vec<VariantPlan>,
+    pub hints: Hints,
+    pub target: Option<Target>,
+    pub style: Option<Style>,
+    pub tag: Option<(String, String)>,
+    pub fields: Vec<FieldPlan>,
+    pub variants: Vec<VariantPlan>,
 }
 
 use visit_rs::metadata::{AttributeMeta, MetaValue};
@@ -484,6 +484,15 @@ fn fields(
         } else {
             None
         };
+        let aliases = if input {
+            a.aliases()
+                .iter()
+                .map(|a| a.value.clone())
+                .filter(|alias| *alias != name)
+                .collect()
+        } else {
+            Vec::new()
+        };
         plans.push(FieldPlan {
             position,
             target,
@@ -491,11 +500,7 @@ fn fields(
             field: Field {
                 docs: docs(&f.original.attrs),
                 name,
-                aliases: if input {
-                    a.aliases().iter().map(|a| a.value.clone()).collect()
-                } else {
-                    Vec::new()
-                },
+                aliases,
                 optional: if input {
                     default || !a.default().is_none()
                 } else {
@@ -624,6 +629,7 @@ pub(super) fn normalize(info: &DeclarationInfo, direction: Direction) -> Result<
                     fields(&v.fields, Some(index), input, false, false, s)?
                 };
                 plan.variants.push(VariantPlan {
+                    index,
                     variant: Variant {
                         docs: docs(&v.original.attrs),
                         name: if input {
@@ -634,7 +640,12 @@ pub(super) fn normalize(info: &DeclarationInfo, direction: Direction) -> Result<
                         .value
                         .clone(),
                         aliases: if input {
-                            a.aliases().iter().map(|a| a.value.clone()).collect()
+                            let name = a.name().deserialize_name().value.clone();
+                            a.aliases()
+                                .iter()
+                                .map(|a| a.value.clone())
+                                .filter(|alias| *alias != name)
+                                .collect()
                         } else {
                             Vec::new()
                         },
@@ -653,101 +664,4 @@ pub(super) fn normalize(info: &DeclarationInfo, direction: Direction) -> Result<
         }
     }
     Ok(plan)
-}
-impl Target {
-    fn callback(
-        &self,
-        targets: &[(TypeAttributeInfo, fn(&mut TSVisitor))],
-    ) -> Option<fn(&mut TSVisitor)> {
-        targets
-            .iter()
-            .find(|(info, _)| {
-                info.position == self.position
-                    && info
-                        .path
-                        .iter()
-                        .copied()
-                        .eq(self.path.iter().map(String::as_str))
-            })
-            .map(|(_, callback)| *callback)
-    }
-    fn required(
-        &self,
-        visitor: &mut TSVisitor,
-        targets: &[(TypeAttributeInfo, fn(&mut TSVisitor))],
-    ) -> Option<fn(&mut TSVisitor)> {
-        let callback = self.callback(targets);
-        if callback.is_none() {
-            visitor.error(format!("Missing selected type metadata callback at {:?} for {}; add a local visit(type_attributes(...)) selector", self.position, self.path.join("::")));
-        }
-        callback
-    }
-}
-impl FieldPlan {
-    fn render(
-        self,
-        visitor: &mut TSVisitor,
-        storage: &[(Position, Option<fn(&mut TSVisitor)>)],
-        targets: &[(TypeAttributeInfo, fn(&mut TSVisitor))],
-    ) {
-        if let Some(error) = self.error {
-            visitor.error(error);
-            return;
-        }
-        let callback = if self.field.hints.skip {
-            None
-        } else if let Some(target) = self.target {
-            target.required(visitor, targets)
-        } else {
-            storage
-                .iter()
-                .find(|(position, _)| *position == self.position)
-                .and_then(|(_, callback)| *callback)
-        };
-        visitor.render_field(self.field, callback);
-    }
-}
-impl Plan {
-    pub(super) fn render(
-        self,
-        visitor: &mut TSVisitor,
-        storage: &[(Position, Option<fn(&mut TSVisitor)>)],
-        targets: &[(TypeAttributeInfo, fn(&mut TSVisitor))],
-    ) {
-        let Plan {
-            hints,
-            target,
-            style,
-            tag,
-            fields,
-            variants,
-        } = self;
-        visitor.errors.extend(hints.errors);
-        if hints.skip {
-            visitor.error("TypeScript skip requires a named field");
-        }
-        if let Some(literal) = hints.literal {
-            visitor.ts.push_str(&literal);
-        } else if let Some(target) = target {
-            if let Some(callback) = target.required(visitor, targets) {
-                callback(visitor);
-            }
-        } else if let Some(style) = style {
-            visitor.structure(style, tag, |visitor| {
-                for field in fields {
-                    field.render(visitor, storage, targets);
-                }
-            });
-        } else {
-            visitor.enumeration(|visitor| {
-                for VariantPlan { variant, fields } in variants {
-                    visitor.variant(variant, |visitor| {
-                        for field in fields {
-                            field.render(visitor, storage, targets);
-                        }
-                    });
-                }
-            });
-        }
-    }
 }

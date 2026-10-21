@@ -139,8 +139,6 @@ async fn cli_dump(
 #[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct DumpParams {
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub pointer: Option<JsonPointer>,
 }
 
@@ -153,12 +151,9 @@ pub async fn dump(ctx: RpcContext, DumpParams { pointer }: DumpParams) -> Result
 #[derive(Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct SubscribeParams {
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub pointer: Option<JsonPointer>,
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(skip))]
     #[serde(rename = "__Auth_signer")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub signer: Option<InternedString>,
 }
 
@@ -402,8 +397,6 @@ pub fn put<C: Context>() -> ParentHandler<C> {
 #[command(rename_all = "kebab-case")]
 pub struct UiParams {
     #[arg(help = "help.arg.json-pointer")]
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pointer: JsonPointer,
     #[arg(help = "help.arg.json-value")]
     value: Value,

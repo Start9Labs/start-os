@@ -1,10 +1,14 @@
 import { Injectable } from '@angular/core'
 import { DiskInfo, pauseFor, StartOSDiskInfo } from '@start9labs/shared'
-import { T } from '@start9labs/start-core'
-import * as jose from 'node-jose'
+import {
+  createRpcClient,
+  RpcHandlers,
+  T,
+  tableTransport,
+} from '@start9labs/start-core'
 import { interval, map, Observable } from 'rxjs'
 import { InstallOsParams, InstallOsRes } from '../types'
-import { ApiService, Params } from './api.service'
+import { Api, ApiClient, ApiService, Params } from './api.service'
 
 @Injectable({
   providedIn: 'root',
@@ -12,6 +16,122 @@ import { ApiService, Params } from './api.service'
 export class MockApiService extends ApiService {
   private statusIndex = 0
   private installCompleted = false
+  private readonly handlers: RpcHandlers<Api> = {
+    'setup.status': async () => {
+      await pauseFor(500)
+
+      this.statusIndex++
+
+      if (this.statusIndex === 1) {
+        return { status: 'needs-install' }
+      }
+
+      if (this.statusIndex > 3) {
+        return {
+          status: 'complete',
+          hostname: 'server-name',
+          rootCa: ROOT_CA,
+          needsRestart: this.installCompleted,
+        }
+      }
+
+      return {
+        status: 'running',
+        progress: PROGRESS,
+        guid: 'progress-guid',
+      }
+    },
+    'setup.get-pubkey': async () => {
+      await pauseFor(300)
+      return {
+        kty: 'EC',
+        crv: 'P-256',
+        x: 'yHTDYSfjU809fkSv9MmN4wuojf5c3cnD7ZDN13n-jz4',
+        y: '8Mpkn744A5KDag0DmX2YivB63srjbugYZzWc3JOpQXI',
+      }
+    },
+    'setup.set-keyboard': async params => {
+      await pauseFor(300)
+      return null
+    },
+    'setup.set-language': async params => {
+      await pauseFor(300)
+      return null
+    },
+    'setup.disk.list': async () => {
+      await pauseFor(500)
+      return MOCK_DISKS
+    },
+    'setup.install-os': async params => {
+      await pauseFor(2000)
+      this.installCompleted = true
+      return {
+        guid: params.dataDrive ? 'mock-data-guid' : null,
+        osDrive: params.osDrive ?? null,
+        attach: !!params.dataDrive && !params.dataDrive.wipe,
+        mokEnrolled: true,
+      }
+    },
+    'setup.cifs.verify': async params => {
+      await pauseFor(1000)
+      return {
+        '9876-5432-1234-5678': {
+          hostname: 'server-name',
+          version: '0.4.0',
+          timestamp: new Date().toISOString(),
+        },
+        '9876-5432-1234-5671': {
+          hostname: 'server-name',
+          version: '0.4.0',
+          timestamp: new Date().toISOString(),
+        },
+      }
+    },
+    'setup.attach': async params => {
+      await pauseFor(1000)
+      this.statusIndex = 1
+      return {
+        progress: PROGRESS,
+        guid: 'progress-guid',
+      }
+    },
+    'setup.execute': async params => {
+      await pauseFor(1000)
+      this.statusIndex = 1
+      return {
+        progress: PROGRESS,
+        guid: 'progress-guid',
+      }
+    },
+    'setup.logs.follow': async () => {
+      await pauseFor(500)
+      return {
+        startCursor: 'fakestartcursor',
+        guid: 'logs-guid',
+      }
+    },
+    'setup.complete': async () => {
+      await pauseFor(500)
+      return {
+        hostname: 'server-name',
+        rootCa: ROOT_CA,
+        needsRestart: this.installCompleted,
+      }
+    },
+    'setup.exit': async () => {
+      await pauseFor(500)
+      return null
+    },
+    'setup.shutdown': async () => {
+      await pauseFor(500)
+      return null
+    },
+    'setup.restart': async () => {
+      await pauseFor(500)
+      return null
+    },
+  }
+  readonly rpc = createRpcClient<ApiClient>(tableTransport<Api>(this.handlers))
 
   openWebsocket$<T>(guid: string): Observable<T> {
     if (guid === 'logs-guid') {
@@ -46,132 +166,6 @@ export class MockApiService extends ApiService {
     }
     await pauseFor(500)
     return params.message
-  }
-
-  async getStatus(): Promise<T.SetupStatusRes> {
-    await pauseFor(500)
-
-    this.statusIndex++
-
-    if (this.statusIndex === 1) {
-      return { status: 'needs-install' }
-    }
-
-    if (this.statusIndex > 3) {
-      return {
-        status: 'complete',
-        hostname: 'server-name',
-        rootCa: ROOT_CA,
-        needsRestart: this.installCompleted,
-      }
-    }
-
-    return {
-      status: 'running',
-      progress: PROGRESS,
-      guid: 'progress-guid',
-    }
-  }
-
-  async getPubKey(): Promise<void> {
-    await pauseFor(300)
-    this.pubkey = await jose.JWK.asKey({
-      kty: 'EC',
-      crv: 'P-256',
-      x: 'yHTDYSfjU809fkSv9MmN4wuojf5c3cnD7ZDN13n-jz4',
-      y: '8Mpkn744A5KDag0DmX2YivB63srjbugYZzWc3JOpQXI',
-    })
-  }
-
-  async setKeyboard(_params: Params<'setup.set-keyboard'>): Promise<null> {
-    await pauseFor(300)
-    return null
-  }
-
-  async setLanguage(params: Params<'setup.set-language'>): Promise<null> {
-    await pauseFor(300)
-    return null
-  }
-
-  async getDisks(): Promise<DiskInfo[]> {
-    await pauseFor(500)
-    return MOCK_DISKS
-  }
-
-  async installOs(params: InstallOsParams): Promise<InstallOsRes> {
-    await pauseFor(2000)
-    this.installCompleted = true
-    return {
-      guid: params.dataDrive ? 'mock-data-guid' : null,
-      osDrive: params.osDrive ?? null,
-      attach: !!params.dataDrive && !params.dataDrive.wipe,
-      mokEnrolled: true,
-    }
-  }
-
-  async verifyCifs(
-    params: Params<'setup.cifs.verify'>,
-  ): Promise<Record<string, StartOSDiskInfo>> {
-    await pauseFor(1000)
-    return {
-      '9876-5432-1234-5678': {
-        hostname: 'server-name',
-        version: '0.4.0',
-        timestamp: new Date().toISOString(),
-      },
-      '9876-5432-1234-5671': {
-        hostname: 'server-name',
-        version: '0.4.0',
-        timestamp: new Date().toISOString(),
-      },
-    }
-  }
-
-  async attach(params: Params<'setup.attach'>): Promise<T.SetupProgress> {
-    await pauseFor(1000)
-    this.statusIndex = 1
-    return {
-      progress: PROGRESS,
-      guid: 'progress-guid',
-    }
-  }
-
-  async execute(params: Params<'setup.execute'>): Promise<T.SetupProgress> {
-    await pauseFor(1000)
-    this.statusIndex = 1
-    return {
-      progress: PROGRESS,
-      guid: 'progress-guid',
-    }
-  }
-
-  async initFollowLogs(): Promise<T.LogFollowResponse> {
-    await pauseFor(500)
-    return {
-      startCursor: 'fakestartcursor',
-      guid: 'logs-guid',
-    }
-  }
-
-  async complete(): Promise<T.SetupResult> {
-    await pauseFor(500)
-    return {
-      hostname: 'server-name',
-      rootCa: ROOT_CA,
-      needsRestart: this.installCompleted,
-    }
-  }
-
-  async exit(): Promise<void> {
-    await pauseFor(500)
-  }
-
-  async shutdown(): Promise<void> {
-    await pauseFor(500)
-  }
-
-  async restart(): Promise<void> {
-    await pauseFor(500)
   }
 }
 

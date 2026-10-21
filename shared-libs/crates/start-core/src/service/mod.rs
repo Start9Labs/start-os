@@ -923,27 +923,17 @@ impl std::fmt::Display for SubcontainerInfo {
 #[serde(rename_all = "camelCase")]
 pub struct AttachParams {
     pub id: PackageId,
-    #[visit(ts(type = "string[]"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
+    #[visit(opaque, wire = "Vec<String>", type_attributes(visit::wire))]
     pub command: Vec<OsString>,
     pub tty: bool,
     pub stderr_tty: bool,
     pub pty_size: Option<TermSize>,
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(skip))]
     #[serde(rename = "__Auth_signer")]
-    #[visit(opaque, type_attributes(visit::wire))]
     signer: Option<InternedString>,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
-    #[visit(opaque, type_attributes(visit::wire))]
     subcontainer: Option<Guid>,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
-    #[visit(opaque, type_attributes(visit::wire))]
     name: Option<InternedString>,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
-    #[visit(opaque, type_attributes(visit::wire))]
     image_id: Option<ImageId>,
-    #[visit(ts(type = "string | null"), wire = "Option<rpc_toolkit::ts::Unknown>")]
-    #[visit(opaque, type_attributes(visit::wire))]
     user: Option<InternedString>,
 }
 

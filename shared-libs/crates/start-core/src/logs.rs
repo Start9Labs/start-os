@@ -135,8 +135,6 @@ rpc_toolkit::ts_export!(LogFollowResponse, namespaces = [""]);
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct LogEntry {
-    #[visit(ts(type = "string"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     timestamp: DateTime<Utc>,
     message: String,
     boot_id: String,
@@ -258,6 +256,7 @@ pub enum BootIdentifier {
     Index(i32),
     Id(String),
 }
+rpc_toolkit::impl_ts!(BootIdentifier => "z.union([z.number(), z.string()])", "z.ZodUnion<readonly [z.ZodNumber, z.ZodString]>");
 impl FromStr for BootIdentifier {
     type Err = Infallible;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -357,11 +356,6 @@ pub struct LogsParams<Extra: FromArgMatches + Args = Empty> {
     cursor: Option<String>,
     #[arg(short = 'b', long = "boot", help = "help.arg.log-boot")]
     #[serde(default)]
-    #[visit(
-        ts(type = "number | string | null"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     boot: Option<BootIdentifier>,
     #[arg(
         short = 'B',
@@ -761,7 +755,7 @@ pub async fn follow_logs<Context: AsRef<RpcContinuations>>(
 
 #[cfg(all(test, feature = "ts"))]
 mod tests {
-    use rpc_toolkit::ts::{Direction, TSVisitor};
+    use rpc_toolkit::ts::TSVisitor;
 
     use super::*;
 
@@ -781,16 +775,14 @@ mod tests {
             );
         }
         assert!(serde_json::from_value::<LogsParams>(serde_json::json!({"boot": true})).is_err());
-        for direction in [Direction::Input, Direction::Output] {
-            let mut visitor = TSVisitor::new();
-            visitor.with_direction(direction, |visitor| visitor.append_type::<LogsParams>());
-            let schema = visitor.into_module("Logs").unwrap();
-            let field = if direction == Direction::Input {
-                "\"boot\"?:(number | string | null)"
-            } else {
-                "\"boot\":(number | string | null)"
-            };
-            assert!(schema.contains(field), "{schema}");
-        }
+        let mut visitor = TSVisitor::new();
+        visitor.declare::<LogsParams>("Logs");
+        let schema = visitor.into_bindings(None, "./schemas").unwrap().schemas;
+        assert!(
+            schema.contains(
+                "\"boot\": wire(z.union([z.number(), z.string()]).nullable().optional(), z.union([z.number(), z.string()]).nullable())"
+            ),
+            "{schema}"
+        );
     }
 }
