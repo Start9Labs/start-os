@@ -50,5 +50,6 @@ format-check:
 .PHONY: release-notes-test
 release-notes-test:
 	python3 scripts/tests/release-notes-test.py
+	bash scripts/tests/release-resume-test.sh
 
 test: | start-core-test start-sdk-test backup-fs-test container-runtime-test start-os-scripts-test start-wrt-test release-notes-test

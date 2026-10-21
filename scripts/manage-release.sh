@@ -769,6 +769,10 @@ published_exists() {
     [ "$(curl -sI "${APT_NO_CACHE[@]}" -o /dev/null -w '%{http_code}' "$1")" = 200 ]
 }
 
+os_img_gz_origin() {
+    echo "${S3_ORIGIN}/v${VERSION}/$(basename "$1").gz"
+}
+
 detect_progress() {
     local assets arch triple platform url published=1
     DONE=()
@@ -785,7 +789,7 @@ detect_progress() {
             for platform in $OS_PLATFORMS; do
                 [[ " $(os_image_exts "$platform") " == *" img "* ]] || continue
                 url=$(asset_url "$STARTOS_SOURCE_REGISTRY" img "$platform")
-                if [ -z "$url" ] || ! published_exists "${S3_ORIGIN}/v${VERSION}/$(basename "$url").gz"; then
+                if [ -z "$url" ] || ! published_exists "$(os_img_gz_origin "$url")"; then
                     published=
                 fi
             done
@@ -1215,6 +1219,22 @@ matches_commitment() {
     [ -f "$1" ] && [ "$(b3sum --no-names "$1")" = "$(asset_commitment_b3 "$2" "$3" "$4")" ]
 }
 
+pull_published_img_gz() {
+    local img=$1 url tmp digest
+    url=$(os_img_gz_origin "$img")
+    published_exists "$url" || return 0
+    tmp=$(mktemp "${img}.gz.XXXXXX")
+    if ! curl -fsSL "${APT_NO_CACHE[@]}" "$url" -o "$tmp" \
+        || ! digest=$(gzip -dc "$tmp" | b3sum --no-names) \
+        || [ "$digest" != "$(b3sum --no-names "$img")" ]; then
+        rm -f "$tmp"
+        >&2 echo "  ✗ published ${img}.gz does not decompress to the indexed image"
+        return 1
+    fi
+    touch -r "$img" "$tmp"
+    mv -f "$tmp" "${img}.gz"
+}
+
 cmd_pull() {
     ensure_release_dir
     # Released assets replace any GHA-pulled ones, so the marker no longer applies.
@@ -1241,13 +1261,16 @@ cmd_pull() {
                     [ "$ext" != img ] || expected+=("${published}.gz")
                     if matches_commitment "$published" "$STARTOS_SOURCE_REGISTRY" "$ext" "$platform"; then
                         echo "  ${ext} ${platform} -> ${published} (already here)"
-                        continue
+                    else
+                        echo "  ${ext} ${platform} -> ${published}"
+                        tmp=$(mktemp -d "$(pwd)/.get-${platform}-${ext}.XXXXXX")
+                        start-cli --registry="$STARTOS_SOURCE_REGISTRY" registry os asset get "$ext" "$VERSION" "$platform" -d "$tmp"
+                        mv -f "$tmp"/* "$published"
+                        rmdir "$tmp"
                     fi
-                    echo "  ${ext} ${platform} -> ${published}"
-                    tmp=$(mktemp -d "$(pwd)/.get-${platform}-${ext}.XXXXXX")
-                    start-cli --registry="$STARTOS_SOURCE_REGISTRY" registry os asset get "$ext" "$VERSION" "$platform" -d "$tmp"
-                    mv -f "$tmp"/* "$published"
-                    rmdir "$tmp"
+                    if [ "$ext" = img ]; then
+                        pull_published_img_gz "$published" || return 1
+                    fi
                 done
             done
             ensure_img_gz
