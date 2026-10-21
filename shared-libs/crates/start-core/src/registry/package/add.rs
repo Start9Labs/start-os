@@ -80,6 +80,7 @@ pub async fn add_package(
 
     let mut info = PackageVersionInfo::from_s9pk(&s9pk, urls).await?;
     let icons = PackageIcons::from_s9pk(&s9pk).await?;
+    let _update = ctx.package_updates.lock().await;
     ctx.icons
         .ensure_matches(&manifest.id, &manifest.version, &icons)
         .await?;
@@ -258,6 +259,7 @@ pub async fn remove_package(
         signer,
     }: RemovePackageParams,
 ) -> Result<bool, Error> {
+    let _update = ctx.package_updates.lock().await;
     let peek = ctx.db.peek().await;
     let signer = signer.ok_or_else(|| {
         Error::new(
@@ -395,6 +397,7 @@ pub async fn add_mirror(
 
     let mut info = PackageVersionInfo::from_s9pk(&s9pk, vec![url]).await?;
     let icons = PackageIcons::from_s9pk(&s9pk).await?;
+    let _update = ctx.package_updates.lock().await;
     ctx.icons
         .ensure_matches(&manifest.id, &manifest.version, &icons)
         .await?;

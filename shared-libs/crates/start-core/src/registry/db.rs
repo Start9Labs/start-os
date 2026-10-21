@@ -125,39 +125,22 @@ pub struct SubscribeIndexParams {
 
 rpc_toolkit::reflect_ts!(SubscribeIndexParams);
 
-/// Admins subscribe to the database; every other subscriber to the mirror of what it may see.
+/// Streams the index visible to the verified request key.
 pub async fn subscribe(
     ctx: RegistryContext,
     SubscribeIndexParams { pointer, reader }: SubscribeIndexParams,
 ) -> Result<SubscribeRes, Error> {
     let pointer = subscription_pointer(pointer)?;
-    let peek = ctx.db.peek().await;
-    let reader = reader.reader(&peek)?;
-    let (mirror, (dump, mut sub)) = match reader {
-        Some(reader) if reader.admin => (None, ctx.db.dump_and_sub(pointer).await),
-        reader => {
-            let signer = match reader {
-                Some(reader)
-                    if peek
-                        .as_index()
-                        .as_package()
-                        .grants_private_access(&reader)? =>
-                {
-                    Some(reader.signer)
-                }
-                _ => None,
-            };
-            let mirror = index_mirror(&ctx.index_mirrors, &ctx.db, signer).await?;
-            let dump_and_sub = mirror.db.dump_and_sub(pointer).await;
-            (Some(mirror), dump_and_sub)
-        }
-    };
-    drop(peek);
+    let auth_key = reader.signer.as_ref().map(|key| key.interned_pem());
+    let mirror = index_mirror(&ctx.index_mirrors, &ctx.db, reader.signer).await?;
+    let (dump, mut sub) = mirror.db.dump_and_sub(pointer).await;
     let guid = Guid::new();
     ctx.rpc_continuations
         .add(
             guid.clone(),
-            RpcContinuation::ws(
+            RpcContinuation::ws_authed(
+                &ctx,
+                auth_key,
                 |mut ws| async move {
                     let _mirror = mirror;
                     if let Err(e) = async {

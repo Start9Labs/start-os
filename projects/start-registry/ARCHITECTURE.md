@@ -61,10 +61,11 @@ The unauthenticated `db.subscribe` RPC accepts `{ "pointer": <JSON Pointer> }`. 
 an initial `{ id, value }` dump and a continuation `guid`. Connecting to `/ws/rpc/<guid>` streams
 revisions whose JSON Patch paths are relative to the selected subtree.
 
-An admin's subscription reads the registry database. Every other subscription reads an in-memory
-mirror of `/index` (`registry/mirror.rs`) without the packages hidden from it: one public mirror,
-and one per signer who can see a private package. A mirror is created by its first subscription,
-shared by later ones, and dropped with the last.
+Subscriptions read an in-memory mirror of `/index` (`registry/mirror.rs`) without the packages
+hidden from the verified request key: one public mirror for unsigned requests and one per key
+for signed requests, including admins. Each revision resolves the key's enrollment and permissions
+again. A mirror is created by its first subscription, shared by later ones, and dropped with the last.
+Signed continuations use the shared key-revocation kill mechanism.
 
 ## Data model
 
@@ -81,7 +82,7 @@ Package and OS indexes (`registry/package/index.rs`, `registry/os/index.rs`) hol
 `RegistryContext::init` resolves `datadir` (default `/var/lib/startos`) and:
 
 - Opens `<datadir>/registry.db` as a `TypedPatchDb<RegistryDatabase>`; initializes it on first run and runs pending migrations.
-- Stores package icons under `<datadir>/icons/<id>/<version>/` (`IconStore` in `registry/package/icon.rs`), not in the index. Icons a database still holds inline are written there before migrations remove them.
+- Stores package icons under `<datadir>/icons/<id>/<version>/` (`IconStore` in `registry/package/icon.rs`), not in the index. Icons a database still holds inline are written there before migrations remove them. Package mutations serialize icon matching, index updates, publication and removal. Icon publication atomically renames a complete staged directory and leaves existing matching icons intact.
 - Opens a SQLite connection for metrics.
 - Hosts asset files under the data directory.
 

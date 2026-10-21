@@ -115,16 +115,6 @@ impl Model<PackageIndex> {
         }
     }
 
-    /// Whether the reader sees a private package.
-    pub fn grants_private_access(&self, reader: &Reader) -> Result<bool, Error> {
-        for (_, info) in self.as_packages().as_entries()? {
-            if info.as_private().de()? && info.is_visible_to(Some(reader))? {
-                return Ok(true);
-            }
-        }
-        Ok(false)
-    }
-
     /// Removes the packages hidden from the reader.
     pub fn retain_visible(&mut self, reader: Option<&Reader>) -> Result<(), Error> {
         let mut hidden = Vec::new();
