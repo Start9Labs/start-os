@@ -1,6 +1,7 @@
 import { i18nKey, i18nPipe } from '@start9labs/shared'
 import { ISB } from '@start9labs/start-core'
 
+import { configBuilderToSpec } from './configBuilderToSpec'
 import {
   dnsSelectionServers,
   dnsSelectionSpec,
@@ -22,6 +23,24 @@ export function outboundSettingsSpec(
     }),
     dns: dnsSelectionSpec(i18n),
   })
+}
+
+export async function outboundSettingsForm(
+  i18n: i18nPipe,
+  settings: {
+    gateway: string | null
+    dns: string[] | null
+    options: Record<string, string>
+  },
+  defaultName: i18nKey,
+) {
+  return {
+    key: JSON.stringify([settings.gateway, settings.dns]),
+    spec: await configBuilderToSpec(
+      outboundSettingsSpec(i18n, settings.options, defaultName),
+    ),
+    value: outboundSettingsValue(settings.gateway, settings.dns),
+  }
 }
 
 type OutboundSettings = ReturnType<typeof outboundSettingsSpec>['_TYPE']

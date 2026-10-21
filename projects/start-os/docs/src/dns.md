@@ -21,7 +21,7 @@ Host lookups of configured WireGuard endpoint hostnames use the automatic physic
 
 ## Setup and Recovery DNS
 
-During setup and early diagnostics, before stored network settings load, the same StartOS DNS server serves host lookups through the automatic physical gateway. It uses that connection's DNS servers, or the Cloudflare public fallback above. Setup, initialization, and diagnostic screens show the active gateway, resolver addresses, and fallback source while this bootstrap policy applies. Service queries cannot use bootstrap DNS.
+During setup and early diagnostics, before stored network settings load, the same StartOS DNS server serves host lookups through the automatic physical gateway. It uses that connection's DNS servers, or the Cloudflare public fallback above. Service queries cannot use bootstrap DNS.
 
 Once stored network settings load, DNS adopts the saved gateway choices and overrides. A later initialization failure does not restore the physical-gateway bootstrap policy: diagnostics keep using the loaded policy, including blocking queries assigned to an unavailable gateway. The host-only WireGuard endpoint exception above remains available.
 
@@ -38,7 +38,7 @@ DNS overrides remain saved while a gateway is disconnected. When upgrading from 
 
 The **DNS** dropdown beside the outbound gateway selector defaults to **Use Gateway DNS**. Choose **Static** to supply servers for that requester instead. Its DNS queries still pass through the OS DNS server and travel through its selected outbound gateway; an unavailable gateway blocks them.
 
-Configure the OS under `System > Gateways > Outbound Traffic`. Configure a service under **Actions > Outbound Traffic**. The OS's static DNS override applies to the OS only. A service using **System default** for its gateway and **Use Gateway DNS** for DNS uses that gateway's own settings, not the OS's DNS override. Each service can save its own static servers independently.
+Configure the OS under `System > Outbound Traffic`, directly below **Gateways**. Configure a service using its **Outbound Traffic** tab, directly above **Actions & Config**. The OS's static DNS override applies to the OS only. A service using **System default** for its gateway and **Use Gateway DNS** for DNS uses that gateway's own settings, not the OS's DNS override. Each service can save its own static servers independently.
 
 Gateway and DNS selections save together. DNS overrides remain saved while their gateway is disconnected. The host-only WireGuard endpoint exception above continues to use the physical connection's gateway DNS.
 

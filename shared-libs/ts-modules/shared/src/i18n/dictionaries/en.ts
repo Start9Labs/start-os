@@ -837,4 +837,5 @@ export const ENGLISH: Record<string, number> = {
   'Gateway is no longer available': 949,
   'Use Gateway DNS': 950,
   'Fallback': 951,
+  'Outbound settings are unavailable while this service is inactive.': 952,
 }

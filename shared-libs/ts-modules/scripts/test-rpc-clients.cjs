@@ -4,7 +4,14 @@ const path = require('node:path')
 const test = require('node:test')
 const vm = require('node:vm')
 const ts = require('typescript')
-const { BehaviorSubject, Observable, map, of, throwError } = require('rxjs')
+const {
+  BehaviorSubject,
+  Observable,
+  filter,
+  map,
+  of,
+  throwError,
+} = require('rxjs')
 
 const root = path.resolve(__dirname, '../../..')
 const config = ts.readConfigFile(
@@ -40,9 +47,15 @@ function harness(moduleOverrides = new Map()) {
     Injectable: () => value => value,
     Component: () => value => value,
     signal: initial => {
-      let value = initial
-      return Object.assign(() => value, { set: next => (value = next) })
+      const stream$ = new BehaviorSubject(initial)
+      return Object.assign(() => stream$.value, {
+        set: next => stream$.next(next),
+        stream$,
+      })
     },
+    input: Object.assign(initial => angular.signal(initial), {
+      required: () => angular.signal(undefined),
+    }),
     inject: token => {
       assert.ok(dependencies.has(token), `Missing injection: ${String(token)}`)
       return dependencies.get(token)
@@ -575,8 +588,6 @@ function gatewayDnsHarness() {
     ['src/app/services/title.service', {}],
     ['src/app/services/action.service', {}],
     ['src/app/services/standard-actions.service', {}],
-    ['src/app/services/pkg-status-rendering.service', {}],
-    ['src/app/utils/get-package-data', {}],
     ['../components/action.component', {}],
     ['./table.component', {}],
     ['@start9labs/shared', { TaskService: keys.task, i18nPipe: keys.i18n }],
@@ -598,6 +609,8 @@ function gatewayDnsHarness() {
     [
       '@angular/core/rxjs-interop',
       {
+        toObservable: signal =>
+          signal.stream$.pipe(filter(value => value !== undefined)),
         toSignal: stream => {
           let value
           stream.subscribe(next => {
@@ -628,10 +641,11 @@ function gatewayDnsHarness() {
       },
     },
   })
+  const packages = new BehaviorSubject({})
   dependencies.set(PatchDB, {
     watch$: (key, ...path) =>
       key === 'packageData'
-        ? of({})
+        ? packages.pipe(map(value => (path.length ? value[path[0]] : value)))
         : path.at(-1) === 'gateways'
           ? network.pipe(map(value => value.gateways))
           : network,
@@ -658,6 +672,7 @@ function gatewayDnsHarness() {
   })
   return {
     network,
+    packages,
     gateway,
     closed,
     requests,
@@ -877,7 +892,7 @@ test('StartOS gateway settings include disconnected gateways without changing ac
 test('StartOS host outbound form ignores observed link changes and saves gateway/DNS together', async () => {
   const fixture = gatewayDnsHarness()
   const page = new (fixture.load(
-    'projects/start-os/web/ui/src/app/routes/portal/routes/system/routes/gateways/gateways.component.ts',
+    'projects/start-os/web/ui/src/app/routes/portal/routes/system/routes/outbound-traffic/index.ts',
   ).default)()
   await new Promise(setImmediate)
   const initial = page.outboundForm()
@@ -910,34 +925,70 @@ test('StartOS host outbound form ignores observed link changes and saves gateway
   ])
 })
 
-test('StartOS service outbound form uses gateway DNS instead of host static DNS and saves its own override', async () => {
+test('StartOS service outbound page keeps independent intent scoped to its route and lifecycle', async () => {
   const fixture = gatewayDnsHarness()
   fixture.network.value.outboundDns = ['192.0.2.55:53']
-  const { PatchDB } = require('patch-db-client')
-  const Route = fixture.load(
-    'projects/start-os/web/ui/src/app/routes/portal/routes/services/routes/actions.component.ts',
-  ).default
-  const page = Object.create(Route.prototype)
-  page.package = () => ({
-    manifest: { id: 'example' },
+  const pkg = {
+    stateInfo: { state: 'installed', manifest: { id: 'example' } },
+    statusInfo: {
+      desired: { main: 'stopped' },
+      started: null,
+      health: {},
+      error: null,
+    },
+    tasks: {},
+    currentDependencies: {},
     outboundGateway: null,
     outboundDns: null,
+  }
+  fixture.packages.next({
+    example: pkg,
+    other: {
+      ...pkg,
+      stateInfo: { state: 'installed', manifest: { id: 'other' } },
+      outboundDns: ['192.0.2.58:53'],
+    },
   })
-  page.patch = fixture.dependencies.get(PatchDB)
-  page.i18n = fixture.dependencies.get(fixture.keys.i18n)
-  page.formDialog = fixture.dependencies.get(fixture.keys.dialog)
-  page.tasks = fixture.tasks
-  page.api = fixture.dependencies.get(fixture.keys.api)
-  await page.openOutboundModal()
-  const data = fixture.modals[0].data
-  assert.equal(data.value.dns.selection, 'automatic')
-  await data.buttons[0].handler({
-    gateway: data.value.gateway,
+  const page = new (fixture.load(
+    'projects/start-os/web/ui/src/app/routes/portal/routes/services/routes/outbound-traffic/index.ts',
+  ).default)()
+  page.pkgId.set('example')
+  await new Promise(setImmediate)
+  const initial = page.outboundForm()
+  assert.equal(initial.value.dns.selection, 'automatic')
+  assert.equal(initial.inactive, false)
+  fixture.network.next({
+    ...fixture.network.value,
+    outboundDns: ['192.0.2.99:53'],
+  })
+  await new Promise(setImmediate)
+  assert.equal(page.outboundForm(), initial)
+  await initial.buttons[0].handler({
+    gateway: initial.value.gateway,
     dns: { selection: 'static', value: { servers: ['192.0.2.57'] } },
   })
+  page.pkgId.set('other')
+  await new Promise(setImmediate)
+  const other = page.outboundForm()
+  assert.notEqual(other.key, initial.key)
+  assert.equal(other.value.dns.value.servers[0], '192.0.2.58:53')
+  await other.buttons[0].handler(other.value)
   assert.deepEqual(JSON.parse(JSON.stringify(fixture.requests)), [
     { package: 'example', gateway: null, dns: { servers: ['192.0.2.57'] } },
+    { package: 'other', gateway: null, dns: { servers: ['192.0.2.58:53'] } },
   ])
+  fixture.packages.next({
+    ...fixture.packages.value,
+    other: {
+      ...fixture.packages.value.other,
+      stateInfo: { state: 'removing' },
+    },
+  })
+  await new Promise(setImmediate)
+  assert.equal(page.outboundForm().inactive, true)
+  fixture.packages.next({ example: pkg })
+  await new Promise(setImmediate)
+  assert.equal(page.outboundForm(), null)
 })
 
 test('Brochure reports malformed registry URLs and can load the next selection', async () => {

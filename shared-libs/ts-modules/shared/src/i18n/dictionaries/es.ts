@@ -836,4 +836,5 @@ export default {
   949: 'Esta puerta de enlace ya no está disponible',
   950: 'Usar DNS de la puerta de enlace',
   951: 'Respaldo',
+  952: 'La configuración del tráfico saliente no está disponible mientras este servicio esté inactivo.',
 } satisfies i18n

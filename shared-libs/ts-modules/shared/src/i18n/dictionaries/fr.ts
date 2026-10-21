@@ -836,4 +836,5 @@ export default {
   949: 'Cette passerelle n’est plus disponible',
   950: 'Utiliser le DNS de la passerelle',
   951: 'Secours',
+  952: 'Les paramètres du trafic sortant sont indisponibles tant que ce service est inactif.',
 } satisfies i18n

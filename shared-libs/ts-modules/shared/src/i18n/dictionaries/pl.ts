@@ -836,4 +836,5 @@ export default {
   949: 'Ta brama nie jest już dostępna',
   950: 'Używaj DNS bramy',
   951: 'Zapasowy',
+  952: 'Ustawienia ruchu wychodzącego są niedostępne, gdy ta usługa jest nieaktywna.',
 } satisfies i18n

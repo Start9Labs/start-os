@@ -41,6 +41,11 @@ export const SYSTEM_MENU = [
       item: 'Gateways',
       link: 'gateways',
     },
+    {
+      icon: '@tui.globe',
+      item: 'Outbound Traffic',
+      link: 'outbound-traffic',
+    },
   ],
   [
     {

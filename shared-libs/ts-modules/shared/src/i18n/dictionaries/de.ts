@@ -836,4 +836,5 @@ export default {
   949: 'Dieses Gateway ist nicht mehr verfügbar',
   950: 'Gateway-DNS verwenden',
   951: 'Ersatz',
+  952: 'Ausgehende Verbindungen können nicht konfiguriert werden, solange dieser Dienst inaktiv ist.',
 } satisfies i18n
