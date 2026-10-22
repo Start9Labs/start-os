@@ -559,6 +559,59 @@ test('StartOS DNS mock updates the selected gateway using live gateway state', a
   subscription.unsubscribe()
 })
 
+test('StartOS list capacity respects exact and zero limits', () => {
+  const arrayToken = Symbol('FormArrayName')
+  const control = {
+    controls: [],
+    get length() {
+      return this.controls.length
+    },
+  }
+  const overrides = new Map(
+    [
+      '@angular/core/rxjs-interop',
+      '@start9labs/shared',
+      '@taiga-ui/cdk',
+      '@taiga-ui/core',
+      '@taiga-ui/kit',
+      'src/app/services/form.service',
+      '../pipes/hint.pipe',
+      '../pipes/mustache.pipe',
+      './control.component',
+      './control.directive',
+      './object.component',
+    ].map(source => [source, {}]),
+  )
+  overrides.set('@angular/core', {
+    Component: () => value => value,
+    Input: () => () => {},
+    forwardRef: factory => factory,
+    inject: token => (token === arrayToken ? { control } : {}),
+  })
+  overrides.set('@angular/forms', { FormArrayName: arrayToken })
+  const { FormArrayComponent } = harness(overrides).load(
+    'projects/start-os/web/ui/src/app/routes/portal/components/form/containers/array.component.ts',
+  )
+  const component = new FormArrayComponent()
+  for (const [disabled, maxLength, length, expected] of [
+    [false, 3, 0, true],
+    [false, 3, 2, true],
+    [false, 3, 3, false],
+    [false, 0, 0, false],
+    [false, null, 5, true],
+    ['Unavailable', 3, 2, false],
+    ['Unavailable', null, 0, false],
+  ]) {
+    component.spec = { disabled, maxLength }
+    control.controls = Array(length)
+    assert.equal(
+      component.canAdd,
+      expected,
+      JSON.stringify({ disabled, maxLength, length }),
+    )
+  }
+})
+
 function gatewayDnsHarness() {
   const keys = Object.fromEntries(
     ['task', 'i18n', 'form', 'api', 'confirm', 'dialog'].map(key => [
