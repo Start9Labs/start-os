@@ -4,7 +4,7 @@ MCowBQYDK2VwAyEAgpcI3hOExv1njCt+zJoYBartdyk4SKiqSIy3+9tcpOI=
 -----END PUBLIC KEY-----
 `,
   `-----BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEASv7fB+rs6FRL+pk7KXaoXONNn26dRkwMB9LXUqmXXLM=
+MCowBQYDK2VwAyEAfeubYt/ozIfZspUZdmu2Fa6sK2psMnHVGxuVolo8u40=
 -----END PUBLIC KEY-----
 `,
   // Ed25519 primary key from apt/start9.gpg.

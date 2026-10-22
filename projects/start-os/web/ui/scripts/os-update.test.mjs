@@ -500,7 +500,7 @@ for (const [name, key] of [
 test('the trusted list contains the requested maintainer keys and the Start9 OpenPGP primary key', () => {
   for (const body of [
     'MCowBQYDK2VwAyEAgpcI3hOExv1njCt+zJoYBartdyk4SKiqSIy3+9tcpOI=',
-    'MCowBQYDK2VwAyEASv7fB+rs6FRL+pk7KXaoXONNn26dRkwMB9LXUqmXXLM=',
+    'MCowBQYDK2VwAyEAfeubYt/ozIfZspUZdmu2Fa6sK2psMnHVGxuVolo8u40=',
   ]) {
     assert.equal(
       trustedOsUpdateSigners([
@@ -540,6 +540,7 @@ test('the trusted list contains the requested maintainer keys and the Start9 Ope
   assert.deepEqual(
     trustedOsUpdateSigners([
       '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAqPjOeMD2CB3UEASoICgfJlfrO5ygjOSBCCNRyDBs75A=\n-----END PUBLIC KEY-----\n',
+      '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEASv7fB+rs6FRL+pk7KXaoXONNn26dRkwMB9LXUqmXXLM=\n-----END PUBLIC KEY-----\n',
     ]),
     [],
   )
