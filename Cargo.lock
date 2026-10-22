@@ -2484,6 +2484,7 @@ dependencies = [
  "serde",
  "serde_yaml",
  "smallvec",
+ "stacker",
  "yasi",
 ]
 
