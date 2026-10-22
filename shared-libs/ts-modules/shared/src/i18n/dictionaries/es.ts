@@ -633,8 +633,6 @@ export default {
   716: 'Continuar con la configuración',
   717: 'Establecer puerta de enlace saliente',
   718: 'Actual',
-  719: 'Predeterminado del sistema',
-  720: 'Puerta de enlace saliente',
   721: 'Selecciona la puerta de enlace para el tráfico saliente',
   722: 'El tipo de puerta de enlace',
   723: 'Solo saliente',
@@ -839,4 +837,5 @@ export default {
   952: 'La configuración del tráfico saliente no está disponible mientras este servicio esté inactivo.',
   953: 'Actualización del sistema operativo bloqueada',
   954: 'Esta actualización del sistema operativo no incluye ningún firmante de confianza. Su instalación desde la interfaz está bloqueada. Una actualización maliciosa podría tomar el control total de tu servidor, robar claves privadas y contraseñas o destruir tus datos permanentemente.',
+  955: 'Usar la puerta de enlace del sistema',
 } satisfies i18n
