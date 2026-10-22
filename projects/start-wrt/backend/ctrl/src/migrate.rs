@@ -26,6 +26,7 @@ const MIGRATIONS: &[Migration] = &[
     Migration::StripUnreferencedWanZoneVpns,
     Migration::PppoeWanIpv6,
     Migration::StoreLanAccessMode,
+    Migration::RemoveSessionsJson,
 ];
 
 #[derive(Clone, Copy, Debug)]
@@ -40,6 +41,9 @@ enum Migration {
     PppoeWanIpv6,
     /// Earlier releases kept a profile's LAN Access only as its forwardings.
     StoreLanAccessMode,
+    /// Cookie sessions lived in `/etc/startwrt/sessions.json` before sign-ins
+    /// enrolled keys.
+    RemoveSessionsJson,
 }
 
 impl Migration {
@@ -49,6 +53,7 @@ impl Migration {
             Migration::StripUnreferencedWanZoneVpns => strip_unreferenced_wan_zone_vpns(root).await,
             Migration::PppoeWanIpv6 => pppoe_wan_ipv6(root).await,
             Migration::StoreLanAccessMode => store_lan_access_mode(root).await,
+            Migration::RemoveSessionsJson => remove_sessions_json(root).await,
         }
     }
 }
@@ -146,6 +151,13 @@ async fn remove_etc_nftables_rules(root: &Path) -> Result<(), Error> {
         }
     }
     Ok(())
+}
+
+async fn remove_sessions_json(root: &Path) -> Result<(), Error> {
+    match tokio::fs::remove_file(root.join("etc/startwrt/sessions.json")).await {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.into()),
+        _ => Ok(()),
+    }
 }
 
 async fn strip_unreferenced_wan_zone_vpns(root: &Path) -> Result<(), Error> {
@@ -291,6 +303,7 @@ config forwarding
         write(&dir, "etc/config/network", PPPOE_WAN);
         write(&dir, "etc/nftables.d/12-startwrt-sni-divert.nft", "");
         write(&dir, "etc/nftables.d/user.nft", "");
+        write(&dir, "etc/startwrt/sessions.json", "{}");
         write(
             &dir,
             "etc/config/firewall",
@@ -304,6 +317,7 @@ config forwarding
             .join("etc/nftables.d/12-startwrt-sni-divert.nft")
             .exists());
         assert!(dir.path().join("etc/nftables.d/user.nft").exists());
+        assert!(!dir.path().join("etc/startwrt/sessions.json").exists());
         let firewall = read(&dir, "etc/config/firewall");
         assert!(!firewall.contains("wg_old"));
         assert!(firewall.contains("list network 'wan'"));

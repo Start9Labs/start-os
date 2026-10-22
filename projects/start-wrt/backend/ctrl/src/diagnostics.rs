@@ -71,22 +71,24 @@ async fn create(ctx: ServerContext) -> Result<DiagnosticsCreateRes, Error> {
 
     let fname = filename.clone();
     let guid = Guid::new();
-    ctx.continuations.add(
-        guid.clone(),
-        RpcContinuation::rest(
-            move |_req| async move {
-                Ok(Response::builder()
-                    .header(header::CONTENT_TYPE, "text/plain")
-                    .header(
-                        header::CONTENT_DISPOSITION,
-                        format!("attachment; filename=\"{fname}\""),
-                    )
-                    .body(Body::from(body))
-                    .unwrap())
-            },
-            continuations::DEFAULT_TTL,
-        ),
-    );
+    ctx.continuations
+        .add(
+            guid.clone(),
+            RpcContinuation::rest(
+                move |_req| async move {
+                    Ok(Response::builder()
+                        .header(header::CONTENT_TYPE, "text/plain")
+                        .header(
+                            header::CONTENT_DISPOSITION,
+                            format!("attachment; filename=\"{fname}\""),
+                        )
+                        .body(Body::from(body))
+                        .unwrap())
+                },
+                continuations::DEFAULT_TTL,
+            ),
+        )
+        .await;
 
     Ok(DiagnosticsCreateRes { guid, filename })
 }

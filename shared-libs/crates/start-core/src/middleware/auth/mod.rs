@@ -74,24 +74,23 @@ impl<C: Context> Middleware<C> for Auth<C> {
     ) -> Result<(), RpcResponse> {
         let m: Metadata =
             from_value(metadata.clone()).map_err(|e| RpcResponse::from_result(Err(e)))?;
+        // Every method runs: a signed request keeps its signer even when the
+        // local token already admitted it.
+        let mut authorized = false;
         let mut err = None;
         for middleware in self.0.iter_mut() {
-            if let Err(e) = middleware
+            match middleware
                 .process_rpc_request(context, metadata.clone(), request)
                 .await
             {
-                if m.authenticated {
-                    err = Some(e);
-                }
-            } else {
-                return Ok(());
+                Ok(()) => authorized = true,
+                Err(e) => err = Some(e),
             }
         }
-        if let Some(e) = err {
-            return Err(e);
+        match err {
+            Some(e) if !authorized && m.authenticated => Err(e),
+            _ => Ok(()),
         }
-
-        Ok(())
     }
     async fn process_rpc_response(&mut self, context: &C, response: &mut RpcResponse) {
         for middleware in self.0.iter_mut() {

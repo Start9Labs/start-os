@@ -1,12 +1,14 @@
 use std::process::Stdio;
+use std::time::Duration;
 
-use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
+use axum::extract::ws::Message;
+use imbl_value::InternedString;
 use serde::{Deserialize, Serialize};
+use startos::util::net::WebSocket;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
+use crate::continuations::{Guid, RpcContinuation};
 use crate::invoke::Invoke;
 use crate::prelude::*;
 use crate::ServerContext;
@@ -44,15 +46,36 @@ pub fn parse_logread_line(line: &str) -> Option<LogEntry> {
     })
 }
 
-pub async fn logs_ws_handler(headers: axum::http::HeaderMap, ws: WebSocketUpgrade) -> Response {
-    // Validate session cookie before upgrading
-    if !crate::middleware::validate_session_from_headers(&headers).await {
-        return StatusCode::UNAUTHORIZED.into_response();
-    }
-    ws.on_upgrade(handle_ws)
+#[derive(Deserialize, Serialize, visit_rs::VisitFields)]
+pub struct FollowLogsParams {
+    #[visit(ts(skip))]
+    #[serde(rename = "__Auth_signer")]
+    signer: Option<InternedString>,
+}
+rpc_toolkit::reflect_ts!(FollowLogsParams);
+
+#[derive(Serialize, Deserialize, visit_rs::VisitFields)]
+pub struct FollowLogsRes {
+    /// Streams each new [`LogEntry`] as JSON from `/ws/rpc/{guid}`.
+    pub guid: Guid,
+}
+rpc_toolkit::reflect_ts!(FollowLogsRes);
+
+pub async fn follow_logs(
+    ctx: ServerContext,
+    FollowLogsParams { signer }: FollowLogsParams,
+) -> Result<FollowLogsRes, Error> {
+    let guid = Guid::new();
+    ctx.continuations
+        .add(
+            guid.clone(),
+            RpcContinuation::ws_authed(ctx.clone(), signer, stream_logs, Duration::from_secs(30)),
+        )
+        .await;
+    Ok(FollowLogsRes { guid })
 }
 
-async fn handle_ws(mut ws: WebSocket) {
+async fn stream_logs(mut ws: WebSocket) {
     let mut child = match Command::new("logread")
         .arg("-f")
         .stdout(Stdio::piped())

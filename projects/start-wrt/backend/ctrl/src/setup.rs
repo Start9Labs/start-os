@@ -846,7 +846,7 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
     ParentHandler::new().subcommand(
         "status",
         from_fn_async(setup_status_impl)
-            .with_metadata("no_auth", Value::Bool(true))
+            .with_metadata("authenticated", Value::Bool(false))
             .no_cli(),
     )
 }

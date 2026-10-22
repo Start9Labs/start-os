@@ -4,16 +4,15 @@ Rust crates powering the StartWRT router daemon and CLI. Three crates: `ctrl` (R
 
 ## Transport
 
-HTTP server on ports 80 (HTTP) and 443 (HTTPS, if TLS setup succeeds). JSON-RPC 2.0 at `POST /rpc/v1` via [rpc-toolkit](../../../shared-libs/crates/rpc-toolkit). Session cookie authentication with rate limiting.
+HTTP server on ports 80 (HTTP) and 443 (HTTPS, if TLS setup succeeds). JSON-RPC 2.0 at `POST /rpc/v1` via [rpc-toolkit](../../../shared-libs/crates/rpc-toolkit). Request-signature and local-token authentication from `start-core` (see [auth.rs](#authrs--authentication)).
 
 Additional routes:
 
 | Route                                     | Purpose                                                           |
 | ----------------------------------------- | ----------------------------------------------------------------- |
-| `GET /api/logs`                           | WebSocket for live log streaming                                  |
 | `POST /api/setup/flash`                   | NDJSON streaming for setup wizard                                 |
 | `GET\|POST /rest/rpc/{guid}`              | Continuation endpoint for backup/restore/diagnostics (10MB limit) |
-| `GET /ws/rpc/{guid}`                      | WebSocket continuation endpoint (progress streaming for updates)  |
+| `GET /ws/rpc/{guid}`                      | WebSocket continuation endpoint (update progress, live logs)      |
 | `GET /luci`                               | Convenience redirect to `/cgi-bin/luci`                           |
 | `GET /static/local-root-ca.crt`           | Root CA certificate download (no auth)                            |
 | `GET /static/local-root-ca.mobileconfig`  | Root CA as an Apple configuration profile (no auth)               |
@@ -36,8 +35,8 @@ pub trait CtrlContext: Context + Clone {
 }
 ```
 
-- **`ServerContext`**: always reads `/etc/config/`, always reloads services. Holds `RpcContinuations` for long-running operations.
-- **`CliContext`**: configurable root (`--config-root`), cookie persistence in `~/.startwrt/.cookies.json`, calls server via HTTP when needed. Injects the local auth cookie from `/run/startwrt/rpc.authcookie` into requests to loopback hosts only.
+- **`ServerContext`**: always reads `/etc/config/`, always reloads services. Holds `start-core`'s `RpcContinuations` for long-running operations and the auth state (enrolled keys, nonce cache). `ServerContext::default()` carries an in-memory auth state that enrolls nothing; only the daemon opens `/etc/startwrt/auth.db`.
+- **`CliContext`**: configurable root (`--config-root`), calls server via HTTP when needed. Signs each request with the identity key at `~/.startwrt/id.key.pem` once one exists, and sends the local auth token from `/run/startwrt/rpc.authcookie` as `Authorization: Bearer` to loopback hosts only.
 
 The single binary `startwrt` uses `MultiExecutable` to dispatch based on the symlink name (`startwrt-ctrld` or `startwrt-cli`) or the first argument.
 
@@ -63,8 +62,9 @@ All methods assembled in `main_api()` → `ParentHandler<C>`:
 
 ```
 auth
-  ├─ login              # Session creation (rate-limited: 3 per 20s)
-  ├─ logout             # Session destruction
+  ├─ login              # Enroll the signing key (rate-limited: 3 per 20s)
+  ├─ logout             # Revoke the signing key
+  ├─ session list / kill
   ├─ verify-password    # Password check without login
   ├─ set-password        # Change password
   ├─ check-initialized  # Has admin password been set?
@@ -163,24 +163,25 @@ Maps physical ports to profiles via bridge VLAN assignments on the LAN bridge (`
 - **vpn_server**: Inbound WireGuard servers. Each server interface bound to a profile. Manages peer key generation, allowed IPs, and warns before deleting servers that would break peer connectivity.
 - **vpn_client**: Outbound WireGuard clients. Supports VPN chaining (client A routes through client B). Detects cycles and warns before deleting clients that are in use by profiles or other VPN clients.
 
-### auth.rs — Session Authentication
+### auth.rs — Authentication
 
-- Sessions stored as JSON in `/etc/startwrt/sessions.json`
+The daemon runs `start-core`'s `Auth` middleware with `LocalAuth` and `SignatureAuth`; `auth.rs` supplies the StartWRT side of their context traits.
+
+- The handler tree is `start-core`'s `auth()` (login, logout, session list/kill) with StartWRT's password handlers chained on, the same shape as StartTunnel's.
+- Enrolled keys live in a patch-db at `/etc/startwrt/auth.db`, listed in sysupgrade's `keep.d`. A key's `lastActive` is written at most hourly (`LAST_ACTIVE_RESOLUTION`), so routine requests never write to flash. Keys unused for 30 days are unenrolled by `start-core`'s `reap_idle_keys`, run hourly once the clock is trusted.
+- Signing identities: `router.lan`, every address on the router's interfaces (loopback and link-local IPv6 excluded; start-core accepts a loopback address from a loopback peer), and the enabled DDNS hostname, re-read only when `/etc/config/ddns` changes.
+- Timestamps are enforced once `/var/state/dnsmasqsec` exists (dnsmasq's ntp hotplug writes it when ntpd reports valid time); before that, only the nonce cache stops replays.
 - Password validated against `/etc/shadow` (or `STARTWRT_DEV_PASSWORD` env var in dev)
-- Tokens: random bytes → base32 encoding (sent to client), SHA-256 hash (stored server-side)
-- 1-day session expiry, HTTP-only SameSite=Strict cookie
-- Rate limiting: 3 login attempts per 20 seconds
-- Local auth cookie: generated at daemon startup → `/run/startwrt/rpc.authcookie`, read by CLI to authenticate without a session
+- Rate limiting: 3 login attempts per 20 seconds per signed identity
+- Local auth token: generated at daemon startup → `/run/startwrt/rpc.authcookie` (`root:root`, `0640`)
 
-### middleware/auth.rs — HTTP Session Middleware
+Handler metadata:
 
-`SessionAuth` middleware applied to all RPC endpoints. Uses handler metadata to determine behavior:
+- `authenticated: false` — no credential needed (status endpoints, first-time setup)
+- `login: true` — the request must be signed, by a key not yet enrolled
+- `get_signer: true` — inject the signing key as `__Auth_signer`
 
-- `login: true` — rate-limit, inject user agent
-- `no_auth: true` — skip auth (status endpoints)
-- `get_session: true` — inject `sessionHash` into params
-
-Every other call needs a valid session cookie or the local auth cookie; the peer address grants nothing.
+Every other call needs a valid signature or the local token; the peer address grants nothing.
 
 Returns RPC error code 34 on auth failure (frontend auto-logs out).
 
@@ -204,14 +205,14 @@ Low-level UCI, file, and shell access. These are vestigial — all features now 
 | `dns_inject.rs`                   | RFC 2136 DNS UPDATE ingress: records published by permitted devices and inbound VPN peers, served through per-profile dnsmasq (`dns.injected-list`)                                                                                                          |
 | `activity.rs`                     | Activity logging via SQLite                                                                                                                                                                                                                                  |
 | `backup.rs` / `diagnostics.rs`    | Backup/restore and diagnostic bundles (via continuations)                                                                                                                                                                                                    |
-| `logs.rs`                         | WebSocket log streaming                                                                                                                                                                                                                                      |
+| `logs.rs`                         | Log snapshot and `system.logs-follow` streaming                                                                                                                                                                                                              |
 | `ssl.rs`                          | TLS cert generation: Root CA → Intermediate CA → Server cert                                                                                                                                                                                                 |
 | `init.rs`                         | Early boot WiFi config, password generation                                                                                                                                                                                                                  |
 | `setup.rs` / `flash.rs`           | Setup wizard, firmware flashing                                                                                                                                                                                                                              |
 | `captive.rs`                      | Captive portal management                                                                                                                                                                                                                                    |
 | `embedded_web.rs`                 | Serves the Angular SPA from `include_dir`                                                                                                                                                                                                                    |
 | `luci_proxy.rs`                   | Reverse proxy to LuCI on localhost:8080                                                                                                                                                                                                                      |
-| `continuations.rs`                | Long-running operation handling (GUID-based, timeout, kill signals)                                                                                                                                                                                          |
+| `continuations.rs`                | Serves `start-core` RPC continuations at `/rest/rpc/{guid}`                                                                                                                                                                                                  |
 | `update.rs`                       | OTA update engine — download/verify/flash, progress via continuations                                                                                                                                                                                        |
 | `registry/`                       | Registry client (`device_info`, `asset`, `os`, `signer`)                                                                                                                                                                                                     |
 | `sign/`                           | ed25519 signature + commitment verification                                                                                                                                                                                                                  |

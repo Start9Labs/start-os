@@ -1,0 +1,1 @@
+- `start-cli auth login` and `auth logout` run on the server itself enroll and revoke the CLI's key instead of failing, and `auth session list` there marks the CLI's key as current.
