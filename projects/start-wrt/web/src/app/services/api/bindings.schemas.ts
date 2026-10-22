@@ -690,76 +690,6 @@ export const MacStrategy: z.ZodEnum<{ router: 'router'; custom: 'custom' }> =
   /* @__PURE__ */ z.enum(['router', 'custom']).meta({
     id: 'MacStrategy',
   })
-export const OutboundVpn: z.ZodObject<{
-  id: z.ZodString
-  label: z.ZodString
-  target: z.ZodString
-  enabled: z.ZodBoolean
-  used_by: z.ZodArray<z.ZodString>
-  /**
-   * True when the VPN's WireGuard interface has at least one IPv6 address;
-   * false means profiles routed through this VPN will have IPv6 disabled
-   * (per `outbound_supports_ipv6` in profiles.rs).
-   */
-  supports_ipv6: z.ZodBoolean
-  /**
-   * Interface MTU, if explicitly set. `None` means the kernel default
-   * (1420 on a clean path) is in effect. Editable via `update`.
-   */
-  mtu: z.ZodCodec<
-    z.ZodOptional<z.ZodNullable<z.ZodInt>>,
-    z.ZodNullable<z.ZodInt>
-  >
-  /**
-   * The server is named by hostname; only `Internet` is a valid target.
-   */
-  hostname_endpoint: z.ZodBoolean
-  /**
-   * Resolvers reached through the tunnel. Empty leaves profiles routed through
-   * this VPN on the system DNS servers, or on the ISP's outside the tunnel.
-   */
-  dns: z.ZodArray<z.ZodString>
-}> = /* @__PURE__ */ object({
-  id: z.string(),
-  label: z.string(),
-  target: z.string(),
-  enabled: z.boolean(),
-  used_by: z.array(z.string()),
-  /**
-   * True when the VPN's WireGuard interface has at least one IPv6 address;
-   * false means profiles routed through this VPN will have IPv6 disabled
-   * (per `outbound_supports_ipv6` in profiles.rs).
-   */
-  supports_ipv6: z.boolean().meta({
-    description:
-      "True when the VPN's WireGuard interface has at least one IPv6 address;\nfalse means profiles routed through this VPN will have IPv6 disabled\n(per `outbound_supports_ipv6` in profiles.rs).",
-  }),
-  /**
-   * Interface MTU, if explicitly set. `None` means the kernel default
-   * (1420 on a clean path) is in effect. Editable via `update`.
-   */
-  mtu: wire(z.int().nullable().optional(), z.int().nullable()).meta({
-    description:
-      'Interface MTU, if explicitly set. `None` means the kernel default\n(1420 on a clean path) is in effect. Editable via `update`.',
-  }),
-  /**
-   * The server is named by hostname; only `Internet` is a valid target.
-   */
-  hostname_endpoint: z.boolean().meta({
-    description:
-      'The server is named by hostname; only `Internet` is a valid target.',
-  }),
-  /**
-   * Resolvers reached through the tunnel. Empty leaves profiles routed through
-   * this VPN on the system DNS servers, or on the ISP's outside the tunnel.
-   */
-  dns: z.array(z.string()).meta({
-    description:
-      "Resolvers reached through the tunnel. Empty leaves profiles routed through\nthis VPN on the system DNS servers, or on the ISP's outside the tunnel.",
-  }),
-}).meta({
-  id: 'OutboundVpn',
-})
 export const OutboundVpnCreateRequest: z.ZodObject<{
   label: z.ZodString
   target: z.ZodString
@@ -809,6 +739,16 @@ export const OutboundVpnSetEnabledRequest: z.ZodObject<{
 }> = /* @__PURE__ */ object({ id: z.string(), enabled: z.boolean() }).meta({
   id: 'OutboundVpnSetEnabledRequest',
 })
+export const OutboundVpnStatus: z.ZodEnum<{
+  disabled: 'disabled'
+  connected: 'connected'
+  idle: 'idle'
+  'not-responding': 'not-responding'
+}> = /* @__PURE__ */ z
+  .enum(['disabled', 'connected', 'idle', 'not-responding'])
+  .meta({
+    id: 'OutboundVpnStatus',
+  })
 export const OutboundVpnUpdateRequest: z.ZodObject<{
   id: z.ZodString
   label: z.ZodString
@@ -1761,6 +1701,97 @@ export const LogsResponse: z.ZodObject<{
   entries: z.ZodArray<typeof LogEntry>
 }> = /* @__PURE__ */ object({ entries: z.array(LogEntry) }).meta({
   id: 'LogsResponse',
+})
+export const OutboundVpn: z.ZodObject<{
+  id: z.ZodString
+  label: z.ZodString
+  target: z.ZodString
+  enabled: z.ZodBoolean
+  used_by: z.ZodArray<z.ZodString>
+  /**
+   * True when the VPN's WireGuard interface has at least one IPv6 address;
+   * false means profiles routed through this VPN will have IPv6 disabled
+   * (per `outbound_supports_ipv6` in profiles.rs).
+   */
+  supports_ipv6: z.ZodBoolean
+  /**
+   * Interface MTU, if explicitly set. `None` means the kernel default
+   * (1420 on a clean path) is in effect. Editable via `update`.
+   */
+  mtu: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodInt>>,
+    z.ZodNullable<z.ZodInt>
+  >
+  /**
+   * The server is named by hostname; only `Internet` is a valid target.
+   */
+  hostname_endpoint: z.ZodBoolean
+  /**
+   * Resolvers reached through the tunnel. Empty leaves profiles routed through
+   * this VPN on the system DNS servers, or on the ISP's outside the tunnel.
+   */
+  dns: z.ZodArray<z.ZodString>
+  status: typeof OutboundVpnStatus
+  /**
+   * Seconds since the tunnel's latest handshake, measured on the router.
+   * `None` when it has never completed one.
+   */
+  last_handshake_secs: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodInt>>,
+    z.ZodNullable<z.ZodInt>
+  >
+}> = /* @__PURE__ */ object({
+  id: z.string(),
+  label: z.string(),
+  target: z.string(),
+  enabled: z.boolean(),
+  used_by: z.array(z.string()),
+  /**
+   * True when the VPN's WireGuard interface has at least one IPv6 address;
+   * false means profiles routed through this VPN will have IPv6 disabled
+   * (per `outbound_supports_ipv6` in profiles.rs).
+   */
+  supports_ipv6: z.boolean().meta({
+    description:
+      "True when the VPN's WireGuard interface has at least one IPv6 address;\nfalse means profiles routed through this VPN will have IPv6 disabled\n(per `outbound_supports_ipv6` in profiles.rs).",
+  }),
+  /**
+   * Interface MTU, if explicitly set. `None` means the kernel default
+   * (1420 on a clean path) is in effect. Editable via `update`.
+   */
+  mtu: wire(z.int().nullable().optional(), z.int().nullable()).meta({
+    description:
+      'Interface MTU, if explicitly set. `None` means the kernel default\n(1420 on a clean path) is in effect. Editable via `update`.',
+  }),
+  /**
+   * The server is named by hostname; only `Internet` is a valid target.
+   */
+  hostname_endpoint: z.boolean().meta({
+    description:
+      'The server is named by hostname; only `Internet` is a valid target.',
+  }),
+  /**
+   * Resolvers reached through the tunnel. Empty leaves profiles routed through
+   * this VPN on the system DNS servers, or on the ISP's outside the tunnel.
+   */
+  dns: z.array(z.string()).meta({
+    description:
+      "Resolvers reached through the tunnel. Empty leaves profiles routed through\nthis VPN on the system DNS servers, or on the ISP's outside the tunnel.",
+  }),
+  status: OutboundVpnStatus,
+  /**
+   * Seconds since the tunnel's latest handshake, measured on the router.
+   * `None` when it has never completed one.
+   */
+  last_handshake_secs: wire(
+    z.int().nullable().optional(),
+    z.int().nullable(),
+  ).meta({
+    description:
+      "Seconds since the tunnel's latest handshake, measured on the router.\n`None` when it has never completed one.",
+  }),
+}).meta({
+  id: 'OutboundVpn',
 })
 export const PeerAddArgs: z.ZodObject<{
   /**

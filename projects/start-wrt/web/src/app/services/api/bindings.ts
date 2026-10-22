@@ -153,7 +153,6 @@ export type LoginRes = z.output<typeof schemas.LoginRes>
 export type LogoutParamsInput = z.input<typeof schemas.LogoutParams>
 export type MacStrategy = z.output<typeof schemas.MacStrategy>
 export type MacStrategyInput = z.input<typeof schemas.MacStrategy>
-export type OutboundVpn = z.output<typeof schemas.OutboundVpn>
 export type OutboundVpnCreateRequestInput = z.input<
   typeof schemas.OutboundVpnCreateRequest
 >
@@ -166,6 +165,7 @@ export type OutboundVpnDeleteRequestInput = z.input<
 export type OutboundVpnSetEnabledRequestInput = z.input<
   typeof schemas.OutboundVpnSetEnabledRequest
 >
+export type OutboundVpnStatus = z.output<typeof schemas.OutboundVpnStatus>
 export type OutboundVpnUpdateRequestInput = z.input<
   typeof schemas.OutboundVpnUpdateRequest
 >
@@ -259,6 +259,7 @@ export type EditArgsInput = z.input<typeof schemas.EditArgs>
 export type EthernetSetRequestInput = z.input<typeof schemas.EthernetSetRequest>
 export type EthernetSetResult = z.output<typeof schemas.EthernetSetResult>
 export type LogsResponse = z.output<typeof schemas.LogsResponse>
+export type OutboundVpn = z.output<typeof schemas.OutboundVpn>
 export type PeerAddArgsInput = z.input<typeof schemas.PeerAddArgs>
 export type ProfileSetRequestInput = z.input<typeof schemas.ProfileSetRequest>
 export type PublishedPort = z.output<typeof schemas.PublishedPort>

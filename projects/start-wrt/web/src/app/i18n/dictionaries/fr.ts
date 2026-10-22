@@ -555,4 +555,12 @@ export default {
   583: 'Saisissez des adresses IP séparées par des virgules',
   580: 'Système (hors VPN)',
   585: 'Préfixe délégué',
+  586: 'Inactif',
+  587: 'Ne répond pas',
+  588: 'Dernier handshake',
+  589: 'Le tunnel a effectué un handshake récemment. Le trafic des profils qui utilisent ce VPN passe par lui.',
+  590: "Activé, sans trafic récent. Rien n'a eu besoin de ce tunnel, il n'est donc pas connecté pour le moment. Il se connecte dès qu'un profil qui l'utilise envoie du trafic.",
+  591: "Le routeur envoie des données au serveur de votre fournisseur VPN et ne reçoit aucune réponse. Les profils qui utilisent ce VPN n'ont pas d'internet tant qu'il ne répond pas. Vérifiez auprès de votre fournisseur que le serveur est en ligne et que cette configuration est toujours valide. Vous devrez peut-être en télécharger une nouvelle. Pour remettre ces profils en ligne entre-temps, basculez-les vers un autre VPN. Désactiver ce VPN rétablit aussi leur accès à internet, mais leur trafic contournera alors le VPN.",
+  592: "Désactivé. Les profils ne peuvent pas l'utiliser tant qu'il n'est pas réactivé.",
+  593: 'Jamais',
 } satisfies i18n

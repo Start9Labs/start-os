@@ -1259,6 +1259,23 @@ struct OutboundVpn {
     hostname_endpoint: bool,
     /// Resolvers reached through the tunnel (the interface's `list dns`).
     dns: Vec<IpAddr>,
+    status: OutboundVpnStatus,
+    /// Seconds since the tunnel's latest handshake, measured on the router.
+    /// null when it has never completed one.
+    last_handshake_secs: Option<u64>,
+}
+
+#[serde(rename_all = "kebab-case")]
+enum OutboundVpnStatus {
+    Disabled,
+    /// A handshake completed within the last 180 seconds.
+    Connected,
+    /// Nothing has sent through the tunnel since its session lapsed.
+    Idle,
+    /// Sends go unanswered: the peer never answered a second handshake
+    /// initiation, keepalives go unanswered, or the router sent after the session
+    /// lapsed within the last 120 seconds. Also an enabled tunnel with no peer endpoint.
+    NotResponding,
 }
 // Response: Vec<OutboundVpn>
 ```

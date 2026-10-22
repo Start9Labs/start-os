@@ -12,6 +12,7 @@ use crate::invoke::Invoke;
 use crate::prelude::*;
 use crate::profiles::Lookup;
 use crate::utils::{DeserializeStdin, HandlerExtSerde};
+use crate::wg::{self, WgPeerStats};
 use crate::{CliContext, CtrlContext, Error, ServerContext};
 
 pub fn devices<C: CtrlContext>() -> ParentHandler<C> {
@@ -556,14 +557,6 @@ struct VpnPeerConfig {
     allow_dns_injection: bool,
 }
 
-/// An active VPN peer from `wg show`
-struct WgActivePeer {
-    public_key: String,
-    latest_handshake: u64,
-    rx_bytes: u64,
-    tx_bytes: u64,
-}
-
 /// Collect VPN server info from already-parsed UCI configs
 fn get_vpn_server_info(cfgs: &Configs, lookup: &Lookup) -> Vec<VpnServerInfo> {
     cfgs["startwrt"]
@@ -631,34 +624,13 @@ fn get_vpn_peer_configs(cfgs: &Configs, wg_interface: &str) -> Vec<VpnPeerConfig
         .collect()
 }
 
-/// Parse `wg show <interface> dump` output into active peer entries.
-/// First line is the interface itself; subsequent lines are peers.
-fn parse_wg_show_dump(output: &str) -> Vec<WgActivePeer> {
-    output
-        .lines()
-        .skip(1) // skip interface line
-        .filter_map(|line| {
-            let fields: Vec<&str> = line.split('\t').collect();
-            if fields.len() < 7 {
-                return None;
-            }
-            Some(WgActivePeer {
-                public_key: fields[0].to_string(),
-                latest_handshake: fields[4].parse().unwrap_or(0),
-                rx_bytes: fields[5].parse().unwrap_or(0),
-                tx_bytes: fields[6].parse().unwrap_or(0),
-            })
-        })
-        .collect()
-}
-
 /// Query all WireGuard interfaces and return active peer data.
-/// Returns Vec<(wg_interface_name, Vec<WgActivePeer>)>.
-async fn query_wg_active_peers(wg_interfaces: &[String]) -> Vec<(String, Vec<WgActivePeer>)> {
+/// Returns Vec<(wg_interface_name, Vec<WgPeerStats>)>.
+async fn query_wg_active_peers(wg_interfaces: &[String]) -> Vec<(String, Vec<WgPeerStats>)> {
     let mut results = Vec::new();
     for iface in wg_interfaces {
         let output = run_cmd("wg", &["show", iface, "dump"]).await;
-        let peers = parse_wg_show_dump(&output);
+        let peers = wg::parse_dump(&output);
         results.push((iface.clone(), peers));
     }
     results
@@ -1595,12 +1567,11 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    let handshake_timeout = 180; // 3 minutes
 
-    // Build active peer index: public_key → WgActivePeer, keyed per interface
-    let mut wg_active_by_iface: HashMap<String, HashMap<String, &WgActivePeer>> = HashMap::new();
+    // Build active peer index: public_key → WgPeerStats, keyed per interface
+    let mut wg_active_by_iface: HashMap<String, HashMap<String, &WgPeerStats>> = HashMap::new();
     for (iface, peers) in &wg_active_peers {
-        let peer_map: HashMap<String, &WgActivePeer> =
+        let peer_map: HashMap<String, &WgPeerStats> =
             peers.iter().map(|p| (p.public_key.clone(), p)).collect();
         wg_active_by_iface.insert(iface.clone(), peer_map);
     }
@@ -1615,7 +1586,7 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<Device>, Error> {
             let is_online = active
                 .map(|a| {
                     a.latest_handshake > 0
-                        && now_unix.saturating_sub(a.latest_handshake) < handshake_timeout
+                        && now_unix.saturating_sub(a.latest_handshake) < wg::REJECT_AFTER_SECS
                 })
                 .unwrap_or(false);
 
