@@ -128,6 +128,11 @@ impl DeviceInfo {
         }
     }
 
+    /// Whether this client reads `id-Ed25519` registry signatures as Ed25519ph.
+    pub fn reads_legacy_signatures(&self, startwrt: bool) -> Result<bool, Error> {
+        Ok(startwrt || self.os.version <= "0.4.0.3".parse::<Version>()?)
+    }
+
     /// Strips package icons from a `package.get` response for clients that load them from `/icons/`.
     pub fn omit_icons(&self, method: &str, params: &Value, res: &mut Value) -> Result<(), Error> {
         if method != "package.get" || self.os.version < "0.4.0.3".parse::<Version>()? {
@@ -261,6 +266,7 @@ pub struct DeviceInfoMiddleware {
     device_info_header: Option<HeaderValue>,
     device_info: Option<DeviceInfo>,
     req: Option<RpcRequest>,
+    legacy_signatures: bool,
 }
 impl DeviceInfoMiddleware {
     pub fn new() -> Self {
@@ -268,6 +274,7 @@ impl DeviceInfoMiddleware {
             device_info_header: None,
             device_info: None,
             req: None,
+            legacy_signatures: false,
         }
     }
 }
@@ -284,18 +291,22 @@ impl Middleware<RegistryContext> for DeviceInfoMiddleware {
     }
     async fn process_rpc_request(
         &mut self,
-        _: &RegistryContext,
+        ctx: &RegistryContext,
         metadata: Self::Metadata,
         request: &mut RpcRequest,
     ) -> Result<(), RpcResponse> {
         async move {
+            let Some(header) = &self.device_info_header else {
+                return Ok(());
+            };
             if metadata.get_device_info {
-                if let Some(device_info) = &self.device_info_header {
-                    let device_info = DeviceInfo::from_header_value(device_info)?;
-                    request.params["__DeviceInfo_device_info"] = to_value(&device_info)?;
-                    self.device_info = Some(device_info);
-                    self.req = Some(request.clone());
-                }
+                let device_info = DeviceInfo::from_header_value(header)?;
+                request.params["__DeviceInfo_device_info"] = to_value(&device_info)?;
+                self.legacy_signatures = device_info.reads_legacy_signatures(ctx.startwrt)?;
+                self.device_info = Some(device_info);
+                self.req = Some(request.clone());
+            } else if let Ok(device_info) = DeviceInfo::from_header_value(header) {
+                self.legacy_signatures = device_info.reads_legacy_signatures(ctx.startwrt)?;
             }
 
             Ok::<_, Error>(())
@@ -317,6 +328,9 @@ impl Middleware<RegistryContext> for DeviceInfoMiddleware {
             {
                 response.result = Err(e).map_err(From::from);
             }
+        }
+        if let (true, Ok(res)) = (self.legacy_signatures, &mut response.result) {
+            crate::sign::compat::downgrade_signatures(res);
         }
     }
 }

@@ -6,7 +6,7 @@ use crate::prelude::*;
 use crate::s9pk::S9pk;
 use crate::s9pk::merkle_archive::MerkleArchive;
 use crate::s9pk::merkle_archive::source::FileSource;
-use crate::sign::commitment::{Commitment, Digestable};
+use crate::sign::commitment::{Commitment, Digestable, SignedCommitment};
 use crate::util::io::TrackingIO;
 use crate::util::serde::Base64;
 
@@ -48,6 +48,9 @@ impl MerkleArchiveCommitment {
             Ok(None)
         }
     }
+}
+impl SignedCommitment for MerkleArchiveCommitment {
+    const TYPE_ID: u8 = 2;
 }
 impl Digestable for MerkleArchiveCommitment {
     fn update<D: Update>(&self, digest: &mut D) {

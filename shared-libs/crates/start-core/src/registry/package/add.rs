@@ -19,8 +19,7 @@ use crate::s9pk::S9pk;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::v2::SIG_CONTEXT;
 use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
-use crate::sign::ed25519::Ed25519;
-use crate::sign::{AnySignature, AnyVerifyingKey, SignatureScheme};
+use crate::sign::{AnySignature, AnyVerifyingKey};
 use crate::util::VersionString;
 use crate::util::io::TrackingIO;
 use crate::util::serde::Base64;
@@ -48,9 +47,7 @@ pub async fn add_package(
         signature,
     }: AddPackageParams,
 ) -> Result<(), Error> {
-    uploader
-        .scheme()
-        .verify_commitment(&uploader, &commitment, SIG_CONTEXT, &signature)?;
+    uploader.verify_commitment(&commitment, SIG_CONTEXT, &signature)?;
     let peek = ctx.db.peek().await;
     let uploader_guid = peek.as_index().as_signers().get_signer(&uploader)?;
 
@@ -188,7 +185,10 @@ pub async fn cli_add_package_impl(
 
     sign_phase.start();
     let commitment = s9pk.as_archive().commitment().await?;
-    let signature = Ed25519.sign_commitment(ctx.id_key()?, &commitment, SIG_CONTEXT)?;
+    let signature = ctx
+        .id_key()?
+        .sign_commitment(&commitment, SIG_CONTEXT)
+        .await?;
     sign_phase.complete();
 
     for (url, mut phase) in verify {
@@ -204,7 +204,7 @@ pub async fn cli_add_package_impl(
         "package.add",
         imbl_value::json!({
             "urls": &url,
-            "signature": AnySignature::Ed25519(signature),
+            "signature": signature,
             "commitment": commitment,
         }),
     )
@@ -361,9 +361,7 @@ pub async fn add_mirror(
         signature,
     }: AddMirrorParams,
 ) -> Result<(), Error> {
-    uploader
-        .scheme()
-        .verify_commitment(&uploader, &commitment, SIG_CONTEXT, &signature)?;
+    uploader.verify_commitment(&commitment, SIG_CONTEXT, &signature)?;
     let peek = ctx.db.peek().await;
     let uploader_guid = peek.as_index().as_signers().get_signer(&uploader)?;
 
@@ -470,7 +468,10 @@ pub async fn cli_add_mirror(
 
     sign_phase.start();
     let commitment = s9pk.as_archive().commitment().await?;
-    let signature = Ed25519.sign_commitment(ctx.id_key()?, &commitment, SIG_CONTEXT)?;
+    let signature = ctx
+        .id_key()?
+        .sign_commitment(&commitment, SIG_CONTEXT)
+        .await?;
     sign_phase.complete();
 
     for (url, mut phase) in verify {
@@ -486,7 +487,7 @@ pub async fn cli_add_mirror(
         &parent_method.into_iter().chain(method).join("."),
         imbl_value::json!({
             "url": &url,
-            "signature": AnySignature::Ed25519(signature),
+            "signature": signature,
             "commitment": commitment,
         }),
     )

@@ -8,6 +8,12 @@ pub mod blake3;
 pub mod merkle_archive;
 pub mod request;
 
+/// A commitment that registry signatures cover.
+pub trait SignedCommitment: Digestable {
+    /// Distinguishes commitment types that encode alike.
+    const TYPE_ID: u8;
+}
+
 pub trait Digestable {
     fn update<D: Update>(&self, digest: &mut D);
 }

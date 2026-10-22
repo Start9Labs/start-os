@@ -7,7 +7,7 @@ use crate::CAP_10_MiB;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::hash::VerifyingWriter;
 use crate::s9pk::merkle_archive::source::ArchiveSource;
-use crate::sign::commitment::{Commitment, Digestable};
+use crate::sign::commitment::{Commitment, Digestable, SignedCommitment};
 use crate::util::io::{ParallelBlake3Writer, TrackingIO};
 use crate::util::serde::Base64;
 
@@ -21,6 +21,9 @@ pub struct Blake3Commitment {
 
 rpc_toolkit::reflect_ts!(Blake3Commitment);
 rpc_toolkit::ts_export!(Blake3Commitment, namespaces = [""]);
+impl SignedCommitment for Blake3Commitment {
+    const TYPE_ID: u8 = 1;
+}
 impl Digestable for Blake3Commitment {
     fn update<D: Update>(&self, digest: &mut D) {
         digest.update(&*self.hash);
