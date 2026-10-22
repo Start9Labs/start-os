@@ -390,6 +390,29 @@ fn s9pk_router(ctx: RpcContext) -> Router {
                 },
             )
         })
+        .route("/installing/{s9pk}/{*path}", {
+            let ctx = ctx.clone();
+            get(
+                |x::Path((s9pk, path)): x::Path<(String, PathBuf)>, request: Request| async move {
+                    if_authorized(&ctx, request, |request| async {
+                        let id = s9pk
+                            .strip_suffix(".s9pk")
+                            .unwrap_or(&s9pk)
+                            .parse::<PackageId>()?;
+                        let Some(s9pk) = ctx.installing_s9pks.peek(|s| s.get(&id).cloned()) else {
+                            return Ok(not_found());
+                        };
+                        let (parts, _) = request.into_parts();
+                        match FileData::from_s9pk(&parts, &s9pk, &path).await? {
+                            Some(file) => file.into_response(&parts),
+                            None => Ok(not_found()),
+                        }
+                    })
+                    .await
+                    .unwrap_or_else(server_error)
+                },
+            )
+        })
         .route(
             "/proxy/{url}/{*path}",
             get(

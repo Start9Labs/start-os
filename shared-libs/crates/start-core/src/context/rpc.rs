@@ -42,6 +42,8 @@ use crate::net::wifi::WpaCli;
 use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle};
 use crate::rpc_continuations::{Guid, OpenAuthedContinuations, RpcContinuations};
+use crate::s9pk::S9pk;
+use crate::s9pk::merkle_archive::source::DynFileSource;
 use crate::service::ServiceMap;
 use crate::service::effects::callbacks::ServiceCallbacks;
 use crate::service::effects::subcontainer::NVIDIA_OVERLAY_PATH;
@@ -68,6 +70,7 @@ pub struct RpcContextSeed {
     pub s9pk_arch: Option<&'static str>,
     pub services: ServiceMap,
     pub cancellable_installs: SyncMutex<BTreeMap<PackageId, oneshot::Sender<()>>>,
+    pub installing_s9pks: SyncMutex<BTreeMap<PackageId, S9pk<DynFileSource>>>,
     pub metrics_cache: Watch<Option<crate::system::Metrics>>,
     pub shutdown: broadcast::Sender<Option<Shutdown>>,
     pub lxc_manager: Arc<LxcManager>,
@@ -422,6 +425,7 @@ impl RpcContext {
             },
             services,
             cancellable_installs: SyncMutex::new(BTreeMap::new()),
+            installing_s9pks: SyncMutex::new(BTreeMap::new()),
             metrics_cache,
             rpc_continuations: RpcContinuations::new(),
             shutdown,
