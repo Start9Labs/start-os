@@ -26,7 +26,7 @@ use crate::prelude::*;
 use crate::rpc_continuations::OpenAuthedContinuations;
 use crate::sign::commitment::Commitment;
 use crate::sign::commitment::request::RequestCommitment;
-use crate::sign::{AnySignature, AnySigningKey, AnyVerifyingKey};
+use crate::sign::{AnySignature, AnySigningKey, AnyVerifyingKey, Signer};
 use crate::util::serde::Base64;
 use crate::util::sync::SyncMutex;
 
@@ -347,20 +347,12 @@ fn loopback_identity(request: &Request) -> Option<InternedString> {
 }
 
 pub trait SigningContext {
-    fn signing_key(&self) -> Result<AnySigningKey, Error>;
+    fn signing_key(&self) -> Result<Signer, Error>;
 }
 
 impl SigningContext for CliContext {
-    fn signing_key(&self) -> Result<AnySigningKey, Error> {
-        Ok(AnySigningKey::Ed25519(self.id_key()?.clone()))
-    }
-}
-
-impl SigningContext for RpcContext {
-    fn signing_key(&self) -> Result<AnySigningKey, Error> {
-        Ok(AnySigningKey::Ed25519(
-            self.account.peek(|a| a.developer_key.clone()),
-        ))
+    fn signing_key(&self) -> Result<Signer, Error> {
+        Ok(self.id_key()?.clone())
     }
 }
 
@@ -558,7 +550,7 @@ impl SignatureHeader {
             )?,
         })
     }
-    pub fn sign(signer: &AnySigningKey, body: &[u8], context: &str) -> Result<Self, Error> {
+    pub async fn sign(signer: &Signer, body: &[u8], context: &str) -> Result<Self, Error> {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_secs() as i64)
@@ -570,51 +562,35 @@ impl SignatureHeader {
             size: body.len() as u64,
             blake3: Base64(*blake3::hash(body).as_bytes()),
         };
-        let signature = sign_request(signer, &commitment, context)?;
+        let signature = signer
+            .sign_message(&request_signing_message(&commitment, context)?)
+            .await?;
         Ok(Self {
             commitment,
-            signer: signer.verifying_key(),
+            signer: signer.verifying_key().await?,
             signature,
         })
     }
 }
 
-/// Protocol tag prefixed to request-auth signing messages: cross-protocol
-/// separation so an RPC signature can never collide with a package/registry
-/// signature (which use the Ed25519ph context parameter for the same job).
-const REQUEST_AUTH_TAG: &[u8] = b"Start-Auth-Sig v1\0";
+const REQUEST_AUTH_TAG: &[u8] = b"Start-Auth-Sig v2\0";
+const REQUEST_AUTH_TAG_V1: &[u8] = b"Start-Auth-Sig v1\0";
 
-/// The message a request signature commits to: a fixed protocol tag, the
-/// commitment, then the server identity (hostname/IP/domain) in the signed
-/// bytes. Signed with pure Ed25519, so any WebCrypto client can produce it.
-fn request_signing_message(commitment: &RequestCommitment, context: &str) -> Vec<u8> {
-    use crate::sign::commitment::Digestable;
-
-    struct Sink<'a>(&'a mut Vec<u8>);
-    impl digest::Update for Sink<'_> {
-        fn update(&mut self, data: &[u8]) {
-            self.0.extend_from_slice(data);
-        }
-    }
-
-    let mut msg = Vec::with_capacity(REQUEST_AUTH_TAG.len() + 56 + context.len());
-    msg.extend_from_slice(REQUEST_AUTH_TAG);
-    commitment.update(&mut Sink(&mut msg));
-    msg.extend_from_slice(context.as_bytes());
-    msg
-}
-
-pub fn sign_request(
-    key: &AnySigningKey,
+/// The message a request signature commits to, bound to the server identity
+/// (hostname/IP/domain). Signed with pure Ed25519, so any WebCrypto client can produce it.
+fn request_signing_message(
     commitment: &RequestCommitment,
     context: &str,
-) -> Result<AnySignature, Error> {
-    use ed25519_dalek::Signer;
+) -> Result<Vec<u8>, Error> {
+    crate::sign::signing_message(REQUEST_AUTH_TAG, commitment, context)
+}
 
-    let msg = request_signing_message(commitment, context);
-    match key {
-        AnySigningKey::Ed25519(key) => Ok(AnySignature::Ed25519(key.sign(&msg))),
-    }
+/// The v1 layout, verified for clients that predate v2: the tag, the commitment, then the context.
+fn request_signing_message_v1(commitment: &RequestCommitment, context: &str) -> Vec<u8> {
+    let mut msg = REQUEST_AUTH_TAG_V1.to_vec();
+    crate::sign::append_commitment(&mut msg, commitment);
+    msg.extend_from_slice(context.as_bytes());
+    msg
 }
 
 pub fn verify_request(
@@ -623,12 +599,19 @@ pub fn verify_request(
     context: &str,
     signature: &AnySignature,
 ) -> Result<(), Error> {
-    let msg = request_signing_message(commitment, context);
     match (key, signature) {
         (AnyVerifyingKey::Ed25519(key), AnySignature::Ed25519(signature)) => {
-            key.verify_strict(&msg, signature)?;
-            Ok(())
+            match request_signing_message(commitment, context) {
+                Ok(msg) if key.verify_strict(&msg, signature).is_ok() => Ok(()),
+                _ => Ok(
+                    key.verify_strict(&request_signing_message_v1(commitment, context), signature)?
+                ),
+            }
         }
+        (_, AnySignature::Ed25519ph(_)) => Err(Error::new(
+            eyre!("{}", t!("sign.unknown-signature-algorithm")),
+            ErrorKind::InvalidSignature,
+        )),
     }
 }
 
@@ -693,24 +676,16 @@ pub async fn call_remote<Ctx: SigningContext + AsRef<Client>>(
     method: &str,
     params: Value,
 ) -> Result<Value, RpcError> {
-    call_remote_with_client(
-        ctx,
-        ctx.as_ref().clone(),
-        url,
-        headers,
-        sig_context,
-        method,
-        params,
-    )
-    .await
+    let signer = sig_context.and_then(|c| Some((ctx.signing_key().ok()?, c)));
+    call_remote_with_client(signer, ctx.as_ref().clone(), url, headers, method, params).await
 }
 
-pub(crate) async fn call_remote_with_client<Ctx: SigningContext>(
-    ctx: &Ctx,
+/// Signs the request when given a signer and the server identity to bind it to.
+pub(crate) async fn call_remote_with_client(
+    signer: Option<(Signer, &str)>,
     client: Client,
     url: Url,
     headers: HeaderMap,
-    sig_context: Option<&str>,
     method: &str,
     params: Value,
 ) -> Result<Value, RpcError> {
@@ -731,10 +706,12 @@ pub(crate) async fn call_remote_with_client<Ctx: SigningContext>(
         .header(ACCEPT, "application/json")
         .header(CONTENT_LENGTH, body.len())
         .headers(headers);
-    if let (Some(sig_ctx), Ok(key)) = (sig_context, ctx.signing_key()) {
+    if let Some((key, sig_ctx)) = signer {
         req = req.header(
             AUTH_SIG_HEADER,
-            SignatureHeader::sign(&key, &body, sig_ctx)?.to_header(),
+            SignatureHeader::sign(&key, &body, sig_ctx)
+                .await?
+                .to_header(),
         );
     }
     let res = req.body(body).send().await?;
@@ -776,33 +753,36 @@ mod tests {
 
     use super::*;
 
-    /// Generated with the TypeScript client's message layout
-    /// (`lib/auth/signature.ts`) for secret key 0102…1f20, context
-    /// "start-9.local", and the JSON body below. Guards the byte-level
-    /// contract between the browser signer and this verifier.
-    const JS_PRODUCED_HEADER: &str = "timestamp=1784746349&nonce=5184603501117103523&size=59&blake3=95o3MZRDgMasjyEKb6h2qMb1JFOs45lZdiY2qeXDRQY&signer=MCowBQYDK2VwAyEAebVWLo_mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ&signature=MEkwBQYDK2VwBEA0QgkL7GFycl72l-Bt076252XjpFG7aLngdxeIs-hNXpCkcJUtq9Xsfm_YV68U0JtK2qLMG2KPSfAVTcg8ntMH";
+    /// Produced by the TypeScript client (`lib/auth/signature.ts`) for secret
+    /// key 0102…1f20, context "start-9.local", and the JSON body below. Guards
+    /// the byte-level contract between the browser signer and this verifier.
+    const JS_PRODUCED_HEADER: &str = "commitment=request&timestamp=1792644825&nonce=18095015305127205807&size=59&blake3=95o3MZRDgMasjyEKb6h2qMb1JFOs45lZdiY2qeXDRQY&signer=MCowBQYDK2VwAyEAebVWLo_mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ&signature=MEkwBQYDK2VwBEBBctoB4q6Ez-Iuc8w7CBw6gz5ysJYD6F2fpz7Cb7A9mX96rUFD-IPWzjs3mt-Y6oBqDfYVVC-cVXbkU9UTGIsC";
+    /// The same inputs signed by the v1 client.
+    const JS_PRODUCED_HEADER_V1: &str = "timestamp=1784746349&nonce=5184603501117103523&size=59&blake3=95o3MZRDgMasjyEKb6h2qMb1JFOs45lZdiY2qeXDRQY&signer=MCowBQYDK2VwAyEAebVWLo_mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ&signature=MEkwBQYDK2VwBEA0QgkL7GFycl72l-Bt076252XjpFG7aLngdxeIs-hNXpCkcJUtq9Xsfm_YV68U0JtK2qLMG2KPSfAVTcg8ntMH";
     const BODY: &[u8] = b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"server.echo\",\"params\":{}}";
 
     #[test]
-    fn verifies_js_produced_signature_header() {
-        let header = SignatureHeader::from_header(&HeaderValue::from_static(JS_PRODUCED_HEADER))
-            .expect("header parses");
-        assert_eq!(header.commitment.size, BODY.len() as u64);
-        assert_eq!(header.commitment.blake3.0, *blake3::hash(BODY).as_bytes());
-        verify_request(
-            &header.signer,
-            &header.commitment,
-            "start-9.local",
-            &header.signature,
-        )
-        .expect("signature verifies with the signing context");
-        verify_request(
-            &header.signer,
-            &header.commitment,
-            "other-host.local",
-            &header.signature,
-        )
-        .expect_err("signature does not verify under a different context");
+    fn verifies_js_produced_signature_headers() {
+        for raw in [JS_PRODUCED_HEADER, JS_PRODUCED_HEADER_V1] {
+            let header = SignatureHeader::from_header(&HeaderValue::from_static(raw))
+                .expect("header parses");
+            assert_eq!(header.commitment.size, BODY.len() as u64);
+            assert_eq!(header.commitment.blake3.0, *blake3::hash(BODY).as_bytes());
+            verify_request(
+                &header.signer,
+                &header.commitment,
+                "start-9.local",
+                &header.signature,
+            )
+            .expect("signature verifies with the signing context");
+            verify_request(
+                &header.signer,
+                &header.commitment,
+                "other-host.local",
+                &header.signature,
+            )
+            .expect_err("signature does not verify under a different context");
+        }
     }
 
     #[test]
@@ -844,15 +824,21 @@ mod tests {
         assert_eq!(loopback_identity(&request), None);
     }
 
-    #[test]
-    fn login_address_is_the_verified_configured_identity() {
-        let key = AnySigningKey::Ed25519(ed25519_dalek::SigningKey::from_bytes(&[7; 32]));
-        let header = SignatureHeader::sign(&key, BODY, "server.example").unwrap();
+    #[tokio::test]
+    async fn login_address_is_the_verified_configured_identity() {
+        let key = Signer::Key(AnySigningKey::Ed25519(
+            ed25519_dalek::SigningKey::from_bytes(&[7; 32]),
+        ));
+        let header = SignatureHeader::sign(&key, BODY, "server.example")
+            .await
+            .unwrap();
         assert_eq!(
             verified_address(&header, ["other.example", "server.example"]).as_deref(),
             Some("server.example")
         );
-        let unconfigured = SignatureHeader::sign(&key, BODY, "attacker.example").unwrap();
+        let unconfigured = SignatureHeader::sign(&key, BODY, "attacker.example")
+            .await
+            .unwrap();
         assert_eq!(
             verified_address(&unconfigured, ["other.example", "server.example"]),
             None
@@ -1103,10 +1089,12 @@ mod tests {
         );
     }
 
-    #[test]
-    fn signed_non_login_requests_reject_identities_from_other_ingress_scopes() {
+    #[tokio::test]
+    async fn signed_non_login_requests_reject_identities_from_other_ingress_scopes() {
         let binding = ingress_binding();
-        let key = AnySigningKey::Ed25519(ed25519_dalek::SigningKey::from_bytes(&[7; 32]));
+        let key = Signer::Key(AnySigningKey::Ed25519(
+            ed25519_dalek::SigningKey::from_bytes(&[7; 32]),
+        ));
         for (hostname, origin, accepted) in [
             ("public.example", ingress("eth0", true), true),
             ("public.example", ingress("eth1", true), false),
@@ -1116,7 +1104,7 @@ mod tests {
             ("127.0.0.1", ingress("eth0", true), false),
             ("service.onion", ingress("eth0", true), false),
         ] {
-            let header = SignatureHeader::sign(&key, BODY, hostname).unwrap();
+            let header = SignatureHeader::sign(&key, BODY, hostname).await.unwrap();
             assert_eq!(
                 verified_address(&header, startos_signing_identities(Some(&binding), &origin))
                     .is_some(),
@@ -1127,9 +1115,19 @@ mod tests {
     }
 
     #[test]
-    fn compact_header_round_trip() {
-        let key = AnySigningKey::Ed25519(ed25519_dalek::SigningKey::from_bytes(&[7; 32]));
-        let header = SignatureHeader::sign(&key, BODY, "start-9.local").expect("signs");
+    fn rejects_unknown_commitment_type() {
+        let header = JS_PRODUCED_HEADER.replacen("commitment=request", "commitment=bogus", 1);
+        assert!(SignatureHeader::from_header(&HeaderValue::from_str(&header).unwrap()).is_err());
+    }
+
+    #[tokio::test]
+    async fn compact_header_round_trip() {
+        let key = Signer::Key(AnySigningKey::Ed25519(
+            ed25519_dalek::SigningKey::from_bytes(&[7; 32]),
+        ));
+        let header = SignatureHeader::sign(&key, BODY, "start-9.local")
+            .await
+            .expect("signs");
         let value = header.to_header();
         assert!(
             !value.to_str().unwrap().contains("BEGIN"),
@@ -1143,5 +1141,18 @@ mod tests {
             &parsed.signature,
         )
         .expect("compact round trip verifies");
+        let (AnyVerifyingKey::Ed25519(vk), AnySignature::Ed25519(sig)) =
+            (&parsed.signer, &parsed.signature)
+        else {
+            panic!("request signatures are pure Ed25519");
+        };
+        assert!(
+            vk.verify_strict(
+                &request_signing_message_v1(&parsed.commitment, "start-9.local"),
+                sig
+            )
+            .is_err(),
+            "clients sign the v2 layout"
+        );
     }
 }

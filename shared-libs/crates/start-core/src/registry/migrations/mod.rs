@@ -5,6 +5,8 @@ use crate::registry::RegistryDatabase;
 
 mod m_00_package_signer_scope;
 mod m_01_registry_asset_array;
+mod m_02_ed25519ph_signature_label;
+mod m_03_commitment_type_tags;
 
 pub trait RegistryMigration {
     fn name(&self) -> &'static str {
@@ -17,6 +19,8 @@ pub trait RegistryMigration {
 pub const MIGRATIONS: &[&dyn RegistryMigration] = &[
     &m_00_package_signer_scope::PackageSignerScopeMigration,
     &m_01_registry_asset_array::RegistryAssetArray,
+    &m_02_ed25519ph_signature_label::Ed25519phSignatureLabel,
+    &m_03_commitment_type_tags::CommitmentTypeTags,
 ];
 
 #[instrument(skip_all)]

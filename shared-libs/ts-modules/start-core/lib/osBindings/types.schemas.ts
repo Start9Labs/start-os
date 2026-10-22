@@ -344,12 +344,22 @@ export const BasicCredential: z.ZodObject<{
 }).meta({
   id: 'BasicCredential',
 })
-export const Blake3Commitment: z.ZodObject<{
-  hash: typeof literal_0
-  size: z.ZodInt
-}> = /* @__PURE__ */ object({ hash: literal_0, size: z.int() }).meta({
-  id: 'Blake3Commitment',
-})
+export const Blake3Commitment: z.ZodIntersection<
+  z.ZodObject<{
+    type: z.ZodCodec<
+      z.ZodOptional<z.ZodLiteral<'blake3'>>,
+      z.ZodLiteral<'blake3'>
+    >
+  }>,
+  z.ZodObject<{ hash: typeof literal_0; size: z.ZodInt }>
+> = /* @__PURE__ */ z
+  .intersection(
+    object({ type: wire(z.literal('blake3').optional(), z.literal('blake3')) }),
+    object({ hash: literal_0, size: z.int() }),
+  )
+  .meta({
+    id: 'Blake3Commitment',
+  })
 export const BlockDev: z.ZodObject<{ logicalname: z.ZodString }> =
   /* @__PURE__ */ object({ logicalname: z.string() }).meta({
     id: 'BlockDev',
@@ -924,15 +934,27 @@ export const MaybeUtf8String: typeof literal_4 = /* @__PURE__ */ literal_4.meta(
 export const MebiBytes: typeof literal_10 = /* @__PURE__ */ literal_10.meta({
   id: 'MebiBytes',
 })
-export const MerkleArchiveCommitment: z.ZodObject<{
-  rootSighash: typeof literal_0
-  rootMaxsize: z.ZodInt
-}> = /* @__PURE__ */ object({
-  rootSighash: literal_0,
-  rootMaxsize: z.int(),
-}).meta({
-  id: 'MerkleArchiveCommitment',
-})
+export const MerkleArchiveCommitment: z.ZodIntersection<
+  z.ZodObject<{
+    type: z.ZodCodec<
+      z.ZodOptional<z.ZodLiteral<'merkle-archive'>>,
+      z.ZodLiteral<'merkle-archive'>
+    >
+  }>,
+  z.ZodObject<{ rootSighash: typeof literal_0; rootMaxsize: z.ZodInt }>
+> = /* @__PURE__ */ z
+  .intersection(
+    object({
+      type: wire(
+        z.literal('merkle-archive').optional(),
+        z.literal('merkle-archive'),
+      ),
+    }),
+    object({ rootSighash: literal_0, rootMaxsize: z.int() }),
+  )
+  .meta({
+    id: 'MerkleArchiveCommitment',
+  })
 export const ModifyNotificationBeforeParams: z.ZodObject<{ before: z.ZodInt }> =
   /* @__PURE__ */ object({ before: z.int() }).meta({
     id: 'ModifyNotificationBeforeParams',
@@ -1234,19 +1256,34 @@ export const RemoveVersionParams: z.ZodObject<{ version: z.ZodString }> =
 export const ReplayId: typeof literal_0 = /* @__PURE__ */ literal_0.meta({
   id: 'ReplayId',
 })
-export const RequestCommitment: z.ZodObject<{
-  timestamp: z.ZodInt
-  nonce: z.ZodInt
-  size: z.ZodInt
-  blake3: typeof literal_0
-}> = /* @__PURE__ */ object({
-  timestamp: z.int(),
-  nonce: z.int(),
-  size: z.int(),
-  blake3: literal_0,
-}).meta({
-  id: 'RequestCommitment',
-})
+export const RequestCommitment: z.ZodIntersection<
+  z.ZodObject<{
+    type: z.ZodCodec<
+      z.ZodOptional<z.ZodLiteral<'request'>>,
+      z.ZodLiteral<'request'>
+    >
+  }>,
+  z.ZodObject<{
+    timestamp: z.ZodInt
+    nonce: z.ZodInt
+    size: z.ZodInt
+    blake3: typeof literal_0
+  }>
+> = /* @__PURE__ */ z
+  .intersection(
+    object({
+      type: wire(z.literal('request').optional(), z.literal('request')),
+    }),
+    object({
+      timestamp: z.int(),
+      nonce: z.int(),
+      size: z.int(),
+      blake3: literal_0,
+    }),
+  )
+  .meta({
+    id: 'RequestCommitment',
+  })
 export const RestartReason: z.ZodEnum<{
   mdns: 'mdns'
   language: 'language'
