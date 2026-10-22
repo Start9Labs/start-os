@@ -118,6 +118,7 @@ CONFIG_PACKAGE_kmod-mt76-core=y
 CONFIG_PACKAGE_kmod-mt7915-firmware=y
 CONFIG_PACKAGE_kmod-mt7915e=y
 CONFIG_PACKAGE_kmod-mt7916-firmware=y
+CONFIG_PACKAGE_kmod-r8169=y
 # CONFIG_PACKAGE_kmod-rtl8852bs is not set
 # CONFIG_PACKAGE_kmod-nf-flow is not set
 # CONFIG_PACKAGE_kmod-nf-ipt is not set
