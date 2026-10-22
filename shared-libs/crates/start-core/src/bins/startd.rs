@@ -18,6 +18,7 @@ use crate::net::web_server::{Acceptor, WebServer};
 use crate::prelude::*;
 use crate::shutdown::Shutdown;
 use crate::system::launch_metrics_task;
+use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::append_file;
 use crate::util::logger::LOGGER;
 
@@ -74,8 +75,8 @@ async fn inner_main(
 
         let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 
-        let sig_handler_ctx = rpc_ctx.clone();
-        let sig_handler = tokio::spawn(async move {
+        let shutdown_send = rpc_ctx.shutdown.clone();
+        let sig_handler = NonDetachingJoinHandle::from(tokio::spawn(async move {
             use tokio::signal::unix::SignalKind;
             futures::future::select_all(
                 [
@@ -95,12 +96,11 @@ async fn inner_main(
                 }),
             )
             .await;
-            sig_handler_ctx
-                .shutdown
+            shutdown_send
                 .send(None)
                 .map_err(|_| ())
                 .expect("send shutdown signal");
-        });
+        }));
 
         let metrics_ctx = rpc_ctx.clone();
         let metrics_task = tokio::spawn(async move {
@@ -125,7 +125,7 @@ async fn inner_main(
             .await
             .with_kind(crate::ErrorKind::Unknown)?;
 
-        sig_handler.abort();
+        drop(sig_handler);
 
         Ok::<_, Error>((rpc_ctx, shutdown))
     }
