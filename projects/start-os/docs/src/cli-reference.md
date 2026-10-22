@@ -17,6 +17,7 @@ These apply to all subcommands.
 - `-t, --tunnel <URL>` — Tunnel server address
 - `-p, --proxy <URL>` — HTTP/SOCKS proxy
 - `--id-key-path <PATH>` — Identity signing key path (`--developer-key-path` is accepted as an alias)
+- `--id-key-gpg <KEY>` — Sign through gpg-agent with this GnuPG key (fingerprint, key ID, or user ID) instead of the identity key file
 
 ## Shell Completion
 
@@ -250,9 +251,7 @@ Install a package from the registry or sideload a local `.s9pk` file.
 
 ### `start-cli package start <ID>`
 
-Start a service. Blocked if the service has an unresolved critical task, unless `--force` is passed.
-
-- `--force` — Start even if the service has an unresolved critical task
+Request that a service run. If active critical tasks block execution, the CLI warns and records running intent. The service starts automatically when its blocking tasks clear.
 
 ### `start-cli package stop <ID>`
 

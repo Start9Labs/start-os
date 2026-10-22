@@ -22,6 +22,8 @@ fn serde_name(v: &impl Serialize) -> String {
 
 pub const WAN_INTERFACE: &str = "wan";
 pub const WAN6_INTERFACE: &str = "wan6";
+/// netifd alias for the `wan` interface's layer-3 device.
+pub const WAN6_DEVICE: &str = "@wan";
 const DDNS_SECTION: &str = "wan";
 
 /// The `auto` option of a network interface, written without touching its other options.
@@ -406,6 +408,7 @@ pub async fn ipv4_set<C: CtrlContext>(
                             iface.gateway = None;
                             iface.username = None;
                             iface.password = None;
+                            iface.ipv6 = None;
                         }
                         WanIpv4Mode::Static => {
                             iface.proto = InterfaceProto::STATIC;
@@ -414,6 +417,7 @@ pub async fn ipv4_set<C: CtrlContext>(
                             iface.gateway = req.gateway.clone();
                             iface.username = None;
                             iface.password = None;
+                            iface.ipv6 = None;
                             // If no custom DNS is configured, use the gateway as DNS
                             // so dnsmasq has an upstream to forward to
                             if iface.peerdns.as_deref() != Some("0") {
@@ -433,6 +437,7 @@ pub async fn ipv4_set<C: CtrlContext>(
                             iface.ipaddr = None;
                             iface.netmask = None;
                             iface.gateway = None;
+                            iface.ipv6 = Some("1".to_string());
                         }
                     }
                     section.set(&iface)?;
@@ -486,7 +491,7 @@ pub async fn ipv4_set<C: CtrlContext>(
 
 fn default_wan6() -> NetworkInterface {
     NetworkInterface {
-        device: "@wan".to_string(),
+        device: WAN6_DEVICE.to_string(),
         proto: InterfaceProto::DHCPV6,
         reqaddress: Some("try".to_string()),
         reqprefix: Some("auto".to_string()),
@@ -652,7 +657,7 @@ pub async fn ipv6_set<C: CtrlContext>(
                     ..default_wan6()
                 },
                 WanIpv6Mode::Dhcpv6 => NetworkInterface {
-                    device: "@wan".to_string(),
+                    device: WAN6_DEVICE.to_string(),
                     proto: InterfaceProto::DHCPV6,
                     reqaddress: Some("force".to_string()),
                     reqprefix: Some(reqprefix.unwrap_or_else(|| "auto".to_string())),
@@ -667,7 +672,7 @@ pub async fn ipv6_set<C: CtrlContext>(
                     // Parse lan_prefix "addr/len" into ip6prefix for odhcpd distribution
                     let ip6prefix = req.lan_prefix.clone();
                     NetworkInterface {
-                        device: "@wan".to_string(),
+                        device: WAN6_DEVICE.to_string(),
                         proto: InterfaceProto::STATIC,
                         ip6addr,
                         ip6gw: req.gateway.clone(),
@@ -676,7 +681,7 @@ pub async fn ipv6_set<C: CtrlContext>(
                     }
                 }
                 WanIpv6Mode::SixRd => NetworkInterface {
-                    device: "@wan".to_string(),
+                    device: WAN6_DEVICE.to_string(),
                     proto: InterfaceProto::SIXRD,
                     peeraddr: req.border_relay.clone(),
                     ip6prefix: req.ip6prefix.clone(),
@@ -1342,6 +1347,50 @@ config service 'wan'
         let res = ipv4_get(ctx).await.unwrap();
         assert_eq!(res.mode, WanIpv4Mode::Pppoe);
         assert_eq!(res.username.as_deref(), Some("user@isp"));
+        let raw = std::fs::read_to_string(dir.path().join("network")).unwrap();
+        assert!(raw.contains("option ipv6 '1'"));
+    }
+
+    #[tokio::test]
+    async fn ipv4_set_dhcp_clears_pppoe_ipv6() {
+        let dir = tempfile::tempdir().unwrap();
+        setup_network(dir.path());
+        let ctx = TestContext(dir.path().to_path_buf());
+
+        ipv4_set(
+            ctx.clone(),
+            DeserializeStdin(WanIpv4SetRequest {
+                mode: WanIpv4Mode::Pppoe,
+                address: None,
+                netmask: None,
+                gateway: None,
+                username: Some("user@isp".to_string()),
+                password: Some("secret".to_string()),
+                device: None,
+            }),
+        )
+        .await
+        .unwrap();
+        ipv4_set(
+            ctx.clone(),
+            DeserializeStdin(WanIpv4SetRequest {
+                mode: WanIpv4Mode::Dhcp,
+                address: None,
+                netmask: None,
+                gateway: None,
+                username: None,
+                password: None,
+                device: None,
+            }),
+        )
+        .await
+        .unwrap();
+
+        let res = ipv4_get(ctx).await.unwrap();
+        assert_eq!(res.mode, WanIpv4Mode::Dhcp);
+        let raw = std::fs::read_to_string(dir.path().join("network")).unwrap();
+        assert!(!raw.contains("option ipv6"));
+        assert!(!raw.contains("option username"));
     }
 
     // ── IPv6 ──

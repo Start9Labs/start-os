@@ -43,10 +43,6 @@ unstable = ["backtrace-on-stack-overflow"]
 
 [dependencies]
 aes = "0.9.1"
-async-acme = { version = "0.6.0", git = "https://github.com/Start9Labs/async-acme.git", rev = "45c8a56379c5f8afb6b9dd6511e0c7e1ce70ccf5", features = [
-  "use_rustls",
-  "use_tokio",
-] }
 async-compression = { version = "0.4.32", features = [
   "brotli",
   "gzip",
@@ -125,6 +121,9 @@ include_dir = { version = "0.7.3", features = ["metadata"] }
 indexmap = { version = "2.0.2", features = ["serde"] }
 indicatif = { version = "0.18.3", features = ["tokio"] }
 inotify = "0.11.0"
+instant-acme = { git = "https://github.com/Start9Labs/instant-acme.git", rev = "f5fea9642366ba3b495ee9be2cf653b9812368d7", default-features = false, features = [
+  "ring",
+] }
 integer-encoding = { version = "4.0.0", features = ["tokio_async"] }
 ipnet = { version = "2.8.0", features = ["serde"] }
 isocountry = "0.3.2"
@@ -185,10 +184,15 @@ proptest-derive = "0.7.0"
 qrcode = "0.14.1"
 r3bl_tui = "0.7.6"
 rand = "0.10.1"
+rcgen = { version = "0.14", default-features = false, features = [
+  "pem",
+  "ring",
+] }
 regex = "1.10.2"
 reqwest = { version = "0.12.25", features = [
   "http2",
   "json",
+  "native-tls",
   "socks",
   "stream",
 ] }

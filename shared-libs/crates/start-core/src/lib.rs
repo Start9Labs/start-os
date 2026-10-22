@@ -96,7 +96,7 @@ use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
     CallRemoteHandler, Context, Empty, HandlerExt, ParentHandler, from_fn, from_fn_async,
-    from_fn_async_local, from_fn_blocking,
+    from_fn_async_local,
 };
 use serde::{Deserialize, Serialize};
 
@@ -104,7 +104,6 @@ use crate::context::{CliContext, DiagnosticContext, InitContext, RpcContext};
 use crate::disk::fsck::RequiresReboot;
 use crate::registry::context::{RegistryContext, RegistryUrlParams};
 use crate::system::kiosk;
-use crate::tunnel::context::TunnelUrlParams;
 use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
 
 #[derive(Deserialize, Serialize, Parser, visit_rs::VisitFields)]
@@ -214,11 +213,6 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "tunnel",
-            CallRemoteHandler::<RpcContext, _, _, TunnelUrlParams>::new(tunnel::api::tunnel_api())
-                .no_cli(),
-        )
-        .subcommand(
-            "tunnel",
             tunnel::api::tunnel_api::<CliContext>().with_about("about.commands-tunnel"),
         )
         .subcommand("s9pk", s9pk::rpc::s9pk().with_about("about.commands-s9pk"))
@@ -234,7 +228,7 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "pubkey",
-            from_fn_blocking(developer::pubkey).with_about("about.get-id-pubkey"),
+            from_fn_async(developer::pubkey).with_about("about.get-id-pubkey"),
         )
         .subcommand(
             "completions",
@@ -391,6 +385,10 @@ pub fn server<C: Context>() -> ParentHandler<C> {
                 .with_about("about.check-update-startos"),
         )
         .subcommand(
+            "update-signers",
+            update::signers::api::<C>().with_about("about.commands-os-update-signers"),
+        )
+        .subcommand(
             "update-firmware",
             from_fn_async(|_: RpcContext| async {
                 if let Some(firmware) = firmware::check_for_firmware_update().await? {
@@ -529,9 +527,13 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             "start",
             from_fn_async(control::start)
                 .with_metadata("sync_db", Value::Bool(true))
+                .no_cli(),
+        )
+        .subcommand(
+            "start",
+            from_fn_async(control::cli_start)
                 .no_display()
-                .with_about("about.start-service")
-                .with_call_remote::<CliContext>(),
+                .with_about("about.start-service"),
         )
         .subcommand(
             "stop",
