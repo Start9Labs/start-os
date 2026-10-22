@@ -1273,8 +1273,8 @@ enum OutboundVpnStatus {
     /// Nothing has sent through the tunnel since its session lapsed.
     Idle,
     /// Sends go unanswered: the peer never answered a second handshake
-    /// initiation, keepalives go unanswered, or the router sent after the session
-    /// lapsed within the last 120 seconds. Also an enabled tunnel with no peer endpoint.
+    /// initiation, or the router sent after the session lapsed within the last
+    /// 120 seconds. Also an enabled tunnel with no peer endpoint.
     NotResponding,
 }
 // Response: Vec<OutboundVpn>
