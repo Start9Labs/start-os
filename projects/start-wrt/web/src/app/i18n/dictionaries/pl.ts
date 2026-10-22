@@ -484,7 +484,6 @@ export default {
   505: 'Maksymalna wartość to {max}',
   506: 'Twój prefiks WAN to /{wanPrefix}. Wprowadź wartość większą niż {wanPrefix} i mniejszą niż 128.',
   507: 'Wprowadź wartość z zakresu od {min} do {max}',
-  508: 'Klient',
   509: 'Nowy adres IP zacznie obowiązywać przy następnym żądaniu adresu przez to urządzenie od routera — router nie może go wymusić na podłączonym urządzeniu. Najszybszym sposobem na jego zastosowanie jest rozłączenie i ponowne podłączenie urządzenia (Wi-Fi lub Ethernet) albo jego ponowne uruchomienie; zwykle to działa, ale natychmiastowy skutek nie jest gwarantowany. W przeciwnym razie urządzenie samo pobierze nowy adres w ciągu maksymalnie 12 godzin.',
   510: 'Rozumiem',
   511: 'Próba połączenia z routerem',
@@ -554,4 +553,6 @@ export default {
   582: 'Serwery, z którymi profile korzystające z tej sieci VPN bez własnego DNS łączą się przez tunel. Oddziel przecinkami.',
   583: 'Wprowadź adresy IP oddzielone przecinkami',
   580: 'System (poza VPN)',
+  585: 'Tunel {vpn}',
+  586: 'Twój ruch',
 } satisfies i18n
