@@ -47,7 +47,8 @@ pub async fn add_package(
         signature,
     }: AddPackageParams,
 ) -> Result<(), Error> {
-    uploader.verify_commitment(&commitment, SIG_CONTEXT, &signature)?;
+    let signature =
+        crate::sign::compat::verify_commitment(&uploader, &commitment, SIG_CONTEXT, &signature)?;
     let peek = ctx.db.peek().await;
     let uploader_guid = peek.as_index().as_signers().get_signer(&uploader)?;
 
@@ -361,7 +362,8 @@ pub async fn add_mirror(
         signature,
     }: AddMirrorParams,
 ) -> Result<(), Error> {
-    uploader.verify_commitment(&commitment, SIG_CONTEXT, &signature)?;
+    let signature =
+        crate::sign::compat::verify_commitment(&uploader, &commitment, SIG_CONTEXT, &signature)?;
     let peek = ctx.db.peek().await;
     let uploader_guid = peek.as_index().as_signers().get_signer(&uploader)?;
 
