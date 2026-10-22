@@ -26,7 +26,7 @@ use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle, ProgressTrackerWriter};
 use crate::s9pk::S9pk;
 use crate::s9pk::manifest::{Manifest, PackageId};
-use crate::s9pk::merkle_archive::source::FileSource;
+use crate::s9pk::merkle_archive::source::{DynFileSource, FileSource};
 use crate::service::rpc::{ExitParams, InitKind};
 use crate::service::{LoadDisposition, Service, ServiceRef, get_data_version};
 use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
@@ -257,6 +257,8 @@ impl ServiceMap {
             crate::volume::InstallBackup::of(&id).begin().await?;
         }
 
+        let installing_s9pk = InstallingS9pkGuard::new(&ctx, &id, s9pk.clone().into_dyn());
+
         let (cancel_send, cancel_recv) = oneshot::channel();
         ctx.cancellable_installs
             .mutate(|c| c.insert(id.clone(), cancel_send));
@@ -436,6 +438,7 @@ impl ServiceMap {
                     )
                     .await?;
                     *service = Some(new_service.into());
+                    drop(installing_s9pk);
 
                     if let Some(cleanup) = prev {
                         cleanup.await?;
@@ -533,6 +536,25 @@ impl ServiceMap {
             errors.handle(res);
         }
         errors.into_result()
+    }
+}
+
+struct InstallingS9pkGuard {
+    ctx: RpcContext,
+    id: PackageId,
+}
+impl InstallingS9pkGuard {
+    fn new(ctx: &RpcContext, id: &PackageId, s9pk: S9pk<DynFileSource>) -> Self {
+        ctx.installing_s9pks.mutate(|s| s.insert(id.clone(), s9pk));
+        Self {
+            ctx: ctx.clone(),
+            id: id.clone(),
+        }
+    }
+}
+impl Drop for InstallingS9pkGuard {
+    fn drop(&mut self) {
+        self.ctx.installing_s9pks.mutate(|s| s.remove(&self.id));
     }
 }
 

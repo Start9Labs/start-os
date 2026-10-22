@@ -42,18 +42,14 @@ export class PackageIconService {
         )
     }
 
-    const { id, version } = getManifest(pkg)
-
-    if (isInstalling(pkg) || isRestoring(pkg)) {
-      return pkg.registry
-        ? this.getRegistry$(pkg.registry, id, version, dependency)
-        : of(FALLBACK_ICON)
-    }
-
+    const { id } = getManifest(pkg)
     const path = dependency ? `dependencies/${dependency}/icon` : 'icon'
+    const source =
+      isInstalling(pkg) || isRestoring(pkg) ? 'installing' : 'installed'
+
     return this.load(
-      `${pkg.s9pk}/${path}`,
-      `/s9pk/installed/${id}.s9pk/${path}`,
+      `${source}:${pkg.s9pk}/${path}`,
+      `/s9pk/${source}/${id}.s9pk/${path}`,
     )
   }
 
@@ -65,10 +61,7 @@ export class PackageIconService {
     }
 
     const icon$ = defer(() => this.api.getStaticObjectUrl(url)).pipe(
-      catchError(() => {
-        this.cache.delete(key)
-        return of(FALLBACK_ICON)
-      }),
+      catchError(() => of(FALLBACK_ICON)),
       shareReplay(1),
     )
     this.cache.set(key, icon$)
