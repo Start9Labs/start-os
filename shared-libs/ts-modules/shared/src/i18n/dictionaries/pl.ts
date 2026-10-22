@@ -837,7 +837,6 @@ export default {
   950: 'Używaj DNS bramy',
   951: 'Zapasowy',
   952: 'Ustawienia ruchu wychodzącego są niedostępne, gdy ta usługa jest nieaktywna.',
-  953: 'Niebezpieczeństwo: niezaufana aktualizacja systemu',
-  954: 'Ta aktualizacja nie wymienia żadnego zaufanego sygnatariusza Start9. Złośliwa aktualizacja systemu może przejąć pełną kontrolę nad Twoim serwerem, wykraść klucze prywatne i hasła oraz trwale zniszczyć Twoje dane. Kontynuuj tylko wtedy, gdy niezależnie potwierdziłeś zaufanie do sygnatariusza.',
-  955: 'Zainstaluj na własne ryzyko',
+  953: 'Aktualizacja systemu zablokowana',
+  954: 'Ta aktualizacja systemu nie wymienia żadnego zaufanego sygnatariusza. Instalacja z poziomu interfejsu jest zablokowana. Złośliwa aktualizacja mogłaby przejąć pełną kontrolę nad Twoim serwerem, wykraść klucze prywatne i hasła lub trwale zniszczyć Twoje dane.',
 } satisfies i18n

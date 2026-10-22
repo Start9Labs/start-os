@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
-import { createPublicKey, generateKeyPairSync } from 'node:crypto'
+import { generateKeyPairSync } from 'node:crypto'
 import { readFileSync, existsSync } from 'node:fs'
 import { registerHooks } from 'node:module'
 import { resolve } from 'node:path'
@@ -138,7 +137,7 @@ const { TaskService, DialogService, i18nPipe, i18nService } =
 const { CONTEXT } = await import('@taiga-ui/polymorpheus')
 const { WA_WINDOW } = await import('@ng-web-apis/common')
 const { ConfigService } = await import('src/app/services/config.service')
-const { OS_UPDATE_SIGNERS, trustedOsUpdateSigners } =
+const { trustedOsUpdateSigners } =
   await import('src/app/utils/os-update-signers')
 const { default: General } =
   await import('src/app/routes/portal/routes/system/routes/general/general.component')
@@ -153,10 +152,16 @@ function deferred() {
   })
   return { promise, resolve, reject }
 }
-const untrustedSigner = generateKeyPairSync('ed25519').publicKey.export({
-  type: 'spki',
-  format: 'pem',
-})
+const makeSigner = () =>
+  generateKeyPairSync('ed25519').publicKey.export({
+    type: 'spki',
+    format: 'pem',
+  })
+const OS_UPDATE_SIGNERS = Array.from({ length: 3 }, makeSigner)
+const untrustedSigner = makeSigner()
+const trustedSigners = Object.fromEntries(
+  OS_UPDATE_SIGNERS.map((key, i) => [key, { label: `Signer ${i}` }]),
+)
 const squashfs = {
   x86_64: { signatures: { [OS_UPDATE_SIGNERS[0]]: 'signature' } },
 }
@@ -171,7 +176,12 @@ const candidates = [
   { version: '0.4.0.3', notes: 'newer', squashfs },
 ]
 const state = version => ({
-  serverInfo: { id: 'server-id', version, statusInfo: {} },
+  serverInfo: {
+    id: 'server-id',
+    version,
+    statusInfo: {},
+    trustedOsUpdateSigners: trustedSigners,
+  },
   ui: { startosRegistry: 'https://registry.test', snakeHighScore: 0 },
 })
 const tick = () => new Promise(resolve => setImmediate(resolve))
@@ -301,6 +311,20 @@ function fixture(t, cachedVersion) {
     make: Class => runInInjectionContext(injector, () => new Class()),
     live(version) {
       source.next([{ id: ++revision, value: state(version) }])
+    },
+    trust(signers) {
+      source.next([
+        {
+          id: ++revision,
+          patch: [
+            {
+              op: 'replace',
+              path: '/serverInfo/trustedOsUpdateSigners',
+              value: signers,
+            },
+          ],
+        },
+      ])
     },
     version(version) {
       source.next([
@@ -469,9 +493,9 @@ test('a candidate disappearing after the modal opens prevents submission', async
 })
 
 for (const [name, key] of [
-  ['drbonez', OS_UPDATE_SIGNERS[0]],
-  ['matthill', OS_UPDATE_SIGNERS[1]],
-  ['Start9', OS_UPDATE_SIGNERS[2]],
+  ['configured signer 1', OS_UPDATE_SIGNERS[0]],
+  ['configured signer 2', OS_UPDATE_SIGNERS[1]],
+  ['configured signer 3', OS_UPDATE_SIGNERS[2]],
 ]) {
   test(`${name} listed as a signer skips the warning without verifying in the UI`, async t => {
     const f = fixture(t, '0.4.0.2')
@@ -497,119 +521,90 @@ for (const [name, key] of [
   })
 }
 
-test('the trusted list contains the requested maintainer keys and the Start9 OpenPGP primary key', () => {
-  for (const body of [
-    'MCowBQYDK2VwAyEAgpcI3hOExv1njCt+zJoYBartdyk4SKiqSIy3+9tcpOI=',
-    'MCowBQYDK2VwAyEAfeubYt/ozIfZspUZdmu2Fa6sK2psMnHVGxuVolo8u40=',
-  ]) {
-    assert.equal(
-      trustedOsUpdateSigners([
-        `-----BEGIN PUBLIC KEY-----\n${body}\n-----END PUBLIC KEY-----`,
-      ]).length,
-      1,
-    )
-  }
-  const records = execFileSync(
-    'gpg',
-    [
-      '--batch',
-      '--no-options',
-      '--with-colons',
-      '--with-key-data',
-      '--show-keys',
-      resolve(root, 'apt/start9.gpg'),
-    ],
-    { encoding: 'utf8' },
-  ).split('\n')
-  assert.equal(
-    records.find(line => line.startsWith('pub:')).split(':')[3],
-    '22',
-  )
-  const point = records.find(line => line.startsWith('pkd:1:')).split(':')[3]
-  assert.equal(point.slice(0, 2), '40')
-  const key = createPublicKey({
-    format: 'jwk',
-    key: {
-      kty: 'OKP',
-      crv: 'Ed25519',
-      x: Buffer.from(point.slice(2), 'hex').toString('base64url'),
+test('live trust-list changes remove default trust and allow a custom signer', async t => {
+  const f = fixture(t, '0.4.0.2')
+  await f.load()
+  f.trust({})
+  await f.make(SystemUpdateModal).update()
+  await tick()
+  assert.equal(f.alerts.length, 1)
+  assert.equal(f.confirmations.length, 0)
+  assert.deepEqual(f.submissions, [])
+  await Promise.all(f.tasks)
+
+  f.trust({ [untrustedSigner]: { label: 'My custom release signer' } })
+  await f.load({
+    '0.4.0.4': {
+      releaseNotes: '',
+      squashfs: { x86_64: { signatures: { [untrustedSigner]: 'signature' } } },
     },
-  }).export({ format: 'pem', type: 'spki' })
-  assert.deepEqual(trustedOsUpdateSigners([key]), [key])
-  assert.equal(OS_UPDATE_SIGNERS.length, 3)
-  assert.deepEqual(
-    trustedOsUpdateSigners([
-      '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAqPjOeMD2CB3UEASoICgfJlfrO5ygjOSBCCNRyDBs75A=\n-----END PUBLIC KEY-----\n',
-      '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEASv7fB+rs6FRL+pk7KXaoXONNn26dRkwMB9LXUqmXXLM=\n-----END PUBLIC KEY-----\n',
-    ]),
-    [],
-  )
+  })
+  await f.make(SystemUpdateModal).update()
+  await Promise.all(f.tasks)
+  assert.equal(f.alerts.length, 1)
+  assert.equal(f.confirmations.length, 0)
+  assert.deepEqual(f.submissions[0].acceptSigners, {
+    any: [{ signer: untrustedSigner }],
+  })
 })
 
 test('trusted signer matching ignores PEM whitespace but rejects unrelated keys and unsigned metadata', () => {
   const key = OS_UPDATE_SIGNERS[0].replace(/\n/g, '\r\n')
-  assert.deepEqual(trustedOsUpdateSigners([key]), [key])
-  assert.deepEqual(trustedOsUpdateSigners(['unrelated key']), [])
-  assert.deepEqual(trustedOsUpdateSigners([]), [])
+  assert.deepEqual(trustedOsUpdateSigners([key], trustedSigners), [key])
+  assert.deepEqual(
+    trustedOsUpdateSigners(['unrelated key'], trustedSigners),
+    [],
+  )
+  assert.deepEqual(trustedOsUpdateSigners([], trustedSigners), [])
+  assert.deepEqual(trustedOsUpdateSigners([key], {}), [])
 })
 
-for (const decision of [true, false, undefined]) {
-  test(`an untrusted update warns before submission; confirmation = ${decision}`, async t => {
-    const f = fixture(t, '0.4.0.2')
-    await f.load({
-      '0.4.0.4': {
-        releaseNotes: '',
-        squashfs: {
-          x86_64: { signatures: { [untrustedSigner]: 'signature' } },
-          aarch64: { signatures: { [OS_UPDATE_SIGNERS[0]]: 'signature' } },
-        },
-        iso: squashfs,
-        authorized: ['drbonez'],
+test('an untrusted update is blocked even when another platform or asset lists a trusted signer', async t => {
+  const f = fixture(t, '0.4.0.2')
+  await f.load({
+    '0.4.0.4': {
+      releaseNotes: '',
+      squashfs: {
+        x86_64: { signatures: { [untrustedSigner]: 'signature' } },
+        aarch64: { signatures: { [OS_UPDATE_SIGNERS[0]]: 'signature' } },
       },
-    })
-    await f.make(SystemUpdateModal).update()
-    await tick()
-    assert.equal(f.confirmations.length, 1)
-    assert.deepEqual(f.submissions, [])
-    assert.equal(f.completed, 0)
-    const { response, options } = f.confirmations[0]
-    assert.equal(options.label, 'Danger: untrusted OS update')
-    if (decision !== undefined) response.next(decision)
-    response.complete()
-    await Promise.all(f.tasks)
-    assert.equal(f.submissions.length, decision ? 1 : 0)
-    if (decision) {
-      assert.deepEqual(f.submissions[0].acceptSigners, {
-        any: [{ signer: untrustedSigner }],
-      })
-    }
-    assert.equal(f.completed, decision ? 1 : 0)
+      iso: squashfs,
+      authorized: ['drbonez'],
+    },
   })
-}
+  await f.make(SystemUpdateModal).update()
+  await tick()
+  assert.equal(f.alerts.length, 1)
+  assert.equal(f.confirmations.length, 0)
+  assert.deepEqual(f.submissions, [])
+  assert.equal(f.completed, 0)
+  await Promise.all(f.tasks)
+  assert.deepEqual(f.submissions, [])
+})
 
 for (const assets of [{ x86_64: { signatures: {} } }, {}]) {
-  test(`missing signatures or platform metadata warns before submission: ${JSON.stringify(assets)}`, async t => {
+  test(`missing signatures or platform metadata blocks submission: ${JSON.stringify(assets)}`, async t => {
     const f = fixture(t, '0.4.0.2')
     await f.load({ '0.4.0.4': { releaseNotes: '', squashfs: assets } })
     await f.make(SystemUpdateModal).update()
     await tick()
-    assert.equal(f.confirmations.length, 1)
+    assert.equal(f.alerts.length, 1)
+    assert.equal(f.confirmations.length, 0)
     assert.deepEqual(f.submissions, [])
-    f.confirmations[0].response.next(false)
-    f.confirmations[0].response.complete()
     await Promise.all(f.tasks)
   })
 }
 
-test('a candidate disappearing during confirmation prevents submission', async t => {
+test('trust removed during device lookup blocks submission', async t => {
   const f = fixture(t, '0.4.0.2')
-  await f.load({ '0.4.0.4': { releaseNotes: '', squashfs: {} } })
+  await f.load()
+  const device = deferred()
+  f.api.rpc.server.deviceInfo = () => device.promise
   await f.make(SystemUpdateModal).update()
-  await tick()
-  f.version('0.4.0.4')
-  f.confirmations[0].response.next(true)
-  f.confirmations[0].response.complete()
+  f.trust({})
+  device.resolve({ os: { platform: 'x86_64' } })
   await Promise.all(f.tasks)
+  assert.equal(f.alerts.length, 1)
   assert.deepEqual(f.submissions, [])
   assert.equal(f.completed, 0)
 })

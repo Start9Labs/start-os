@@ -11,7 +11,7 @@ import { TuiButton, TuiDialogContext, TuiScrollbar } from '@taiga-ui/core'
 import { NgDompurifyPipe } from '@taiga-ui/dompurify'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
-import { defaultIfEmpty, firstValueFrom } from 'rxjs'
+import { firstValueFrom } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { OSService } from 'src/app/services/os.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -75,32 +75,27 @@ export class SystemUpdateModal {
       const signers = Object.keys(
         latest.squashfs[os.platform]?.signatures ?? {},
       )
-      const trusted = trustedOsUpdateSigners(signers)
-      if (!trusted.length) {
-        const confirmed = await firstValueFrom(
-          this.dialogs
-            .openConfirm({
-              label: 'Danger: untrusted OS update',
-              data: {
-                content:
-                  'No trusted Start9 signer is listed for this update. A malicious OS update can take complete control of your server, steal private keys and passwords, and permanently destroy your data. Continue only if you independently trust the signer.',
-                yes: 'Install at my own risk',
-                no: 'Cancel',
-                appearance: ['negative', 'secondary'],
-              },
-            })
-            .pipe(defaultIfEmpty(false)),
-        )
-        if (!confirmed) return
-      }
+      const trustedSigners = await firstValueFrom(
+        this.patch.watch$('serverInfo', 'trustedOsUpdateSigners'),
+      )
+      const trusted = trustedOsUpdateSigners(signers, trustedSigners)
       if (this.os.updateCandidates()[0]?.version !== latest.version) return
+      if (!trusted.length) {
+        this.dialogs
+          .openAlert(
+            'No trusted signer is listed for this OS update. Installing it from the UI is blocked. A malicious OS update could take full control of your server, steal private keys and passwords, or permanently destroy your data.',
+            { label: 'OS update blocked' },
+          )
+          .subscribe()
+        return
+      }
 
       await this.embassyApi.rpc.server.update({
         targetVersion: `=${latest.version}`,
         registry: startosRegistry,
         progress: false,
         acceptSigners: {
-          any: (trusted.length ? trusted : signers).map(signer => ({ signer })),
+          any: trusted.map(signer => ({ signer })),
         },
       })
       this.context.$implicit.complete()

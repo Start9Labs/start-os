@@ -838,7 +838,6 @@ export const ENGLISH: Record<string, number> = {
   'Use Gateway DNS': 950,
   'Fallback': 951,
   'Outbound settings are unavailable while this service is inactive.': 952,
-  'Danger: untrusted OS update': 953,
-  'No trusted Start9 signer is listed for this update. A malicious OS update can take complete control of your server, steal private keys and passwords, and permanently destroy your data. Continue only if you independently trust the signer.': 954,
-  'Install at my own risk': 955,
+  'OS update blocked': 953,
+  'No trusted signer is listed for this OS update. Installing it from the UI is blocked. A malicious OS update could take full control of your server, steal private keys and passwords, or permanently destroy your data.': 954,
 }

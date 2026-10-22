@@ -20,9 +20,10 @@ use crate::context::{CliContext, DiagnosticContext};
 use crate::middleware::auth::signature;
 use crate::prelude::*;
 use crate::progress::{FullProgress, FullProgressTracker, PhasedProgressBar, ProgressUnits};
-use crate::registry::os::SIG_CONTEXT;
+use crate::registry::asset::RegistryAsset;
 use crate::registry::os::index::OsVersionInfo;
 use crate::rpc_continuations::{Guid, RpcContinuation};
+use crate::sign::commitment::blake3::Blake3Commitment;
 use crate::update::{UpdateProgressHandles, UpdateSystemParams, UpdateSystemRes, do_update};
 use crate::version::{Current, VersionT};
 
@@ -100,7 +101,7 @@ async fn run_update(
             ErrorKind::Registry,
         ));
     }
-    asset.validate(SIG_CONTEXT, asset.all_signers())?;
+    validate_signatures(&asset)?;
 
     let tracker = FullProgressTracker::new();
     let prune_phase = tracker.add_phase("Pruning Old OS Images".into(), Some(2));
@@ -161,6 +162,10 @@ async fn run_update(
         target: Some(target_version),
         progress,
     })
+}
+
+pub(super) fn validate_signatures(asset: &RegistryAsset<Blake3Commitment>) -> Result<(), Error> {
+    super::validate_update_signatures(asset, Some(super::signers::initial_signer_policy()))
 }
 
 async fn stream_progress(

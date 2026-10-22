@@ -837,7 +837,6 @@ export default {
   950: 'Usar DNS de la puerta de enlace',
   951: 'Respaldo',
   952: 'La configuración del tráfico saliente no está disponible mientras este servicio esté inactivo.',
-  953: 'Peligro: actualización del sistema operativo no confiable',
-  954: 'Esta actualización no incluye ningún firmante de Start9 de confianza. Una actualización maliciosa del sistema operativo puede tomar el control total de tu servidor, robar claves privadas y contraseñas y destruir tus datos permanentemente. Continúa solo si confías en el firmante por medios independientes.',
-  955: 'Instalar bajo mi responsabilidad',
+  953: 'Actualización del sistema operativo bloqueada',
+  954: 'Esta actualización del sistema operativo no incluye ningún firmante de confianza. Su instalación desde la interfaz está bloqueada. Una actualización maliciosa podría tomar el control total de tu servidor, robar claves privadas y contraseñas o destruir tus datos permanentemente.',
 } satisfies i18n

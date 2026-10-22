@@ -1207,25 +1207,15 @@ export const TrustedCa: z.ZodObject<{
 }).meta({
   id: 'TrustedCa',
 })
+export const TrustedOsUpdateSigner: z.ZodObject<{ label: z.ZodString }> =
+  /* @__PURE__ */ object({ label: z.string() }).meta({
+    id: 'TrustedOsUpdateSigner',
+  })
 export const UiParams: z.ZodObject<{
   pointer: z.ZodString
   value: z.ZodUnknown
 }> = /* @__PURE__ */ object({ pointer: z.string(), value: z.unknown() }).meta({
   id: 'UiParams',
-})
-export const UpdateSystemParams: z.ZodObject<{
-  registry: z.ZodString
-  targetVersion: z.ZodCodec<
-    z.ZodOptional<z.ZodNullable<z.ZodString>>,
-    z.ZodNullable<z.ZodString>
-  >
-  progress: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
-}> = /* @__PURE__ */ object({
-  registry: z.string(),
-  targetVersion: wire(z.string().nullable().optional(), z.string().nullable()),
-  progress: wire(z.boolean().optional(), z.boolean()),
-}).meta({
-  id: 'UpdateSystemParams',
 })
 
 /**
@@ -1295,6 +1285,29 @@ export const WifiSsidParams: z.ZodObject<{ ssid: z.ZodString }> =
 export const ZramParams: z.ZodObject<{ enable: z.ZodBoolean }> =
   /* @__PURE__ */ object({ enable: z.boolean() }).meta({
     id: 'ZramParams',
+  })
+export const AcceptSigners: z.ZodUnion<
+  readonly [
+    z.ZodObject<{ signer: typeof AnyVerifyingKey }>,
+    z.ZodObject<{ any: z.ZodArray<typeof AcceptSigners> }>,
+    z.ZodObject<{ all: z.ZodArray<typeof AcceptSigners> }>,
+  ]
+> = /* @__PURE__ */ z
+  .union([
+    object({ signer: AnyVerifyingKey }),
+    object({
+      get any(): z.ZodArray<typeof AcceptSigners> {
+        return z.array(AcceptSigners)
+      },
+    }),
+    object({
+      get all(): z.ZodArray<typeof AcceptSigners> {
+        return z.array(AcceptSigners)
+      },
+    }),
+  ])
+  .meta({
+    id: 'AcceptSigners',
   })
 export const ActionInput: z.ZodObject<{
   eventId: z.ZodCodec<z.ZodOptional<typeof Guid>, typeof Guid>
@@ -2384,6 +2397,11 @@ export const OsInfo: z.ZodObject<{
 }).meta({
   id: 'OsInfo',
 })
+export const OsUpdateSignerKeyParams: z.ZodObject<{
+  key: typeof AnyVerifyingKey
+}> = /* @__PURE__ */ object({ key: AnyVerifyingKey }).meta({
+  id: 'OsUpdateSignerKeyParams',
+})
 export const OsVersionInfo: z.ZodObject<{
   headline: z.ZodString
   releaseNotes: z.ZodString
@@ -2696,6 +2714,12 @@ export const SetIconParams: z.ZodObject<{
   icon: z.ZodNullable<typeof DataUrl>
 }> = /* @__PURE__ */ object({ icon: DataUrl.nullable() }).meta({
   id: 'SetIconParams',
+})
+export const SetOsUpdateSignerParams: z.ZodObject<{
+  key: typeof AnyVerifyingKey
+  label: z.ZodString
+}> = /* @__PURE__ */ object({ key: AnyVerifyingKey, label: z.string() }).meta({
+  id: 'SetOsUpdateSignerParams',
 })
 export const SetOutboundGatewayParams: z.ZodObject<{
   package: typeof PackageId
@@ -3481,6 +3505,37 @@ export const SessionList: z.ZodObject<{
   sessions: AuthKeys,
 }).meta({
   id: 'SessionList',
+})
+export const UpdateSystemParams: z.ZodObject<{
+  registry: z.ZodString
+  /**
+   * Additional signer requirements checked before starting the update.
+   */
+  acceptSigners: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<typeof AcceptSigners>>,
+    z.ZodNullable<typeof AcceptSigners>
+  >
+  targetVersion: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodString>>,
+    z.ZodNullable<z.ZodString>
+  >
+  progress: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
+}> = /* @__PURE__ */ object({
+  registry: z.string(),
+  /**
+   * Additional signer requirements checked before starting the update.
+   */
+  acceptSigners: wire(
+    AcceptSigners.nullable().optional(),
+    AcceptSigners.nullable(),
+  ).meta({
+    description:
+      'Additional signer requirements checked before starting the update.',
+  }),
+  targetVersion: wire(z.string().nullable().optional(), z.string().nullable()),
+  progress: wire(z.boolean().optional(), z.boolean()),
+}).meta({
+  id: 'UpdateSystemParams',
 })
 export const WifiListInfo: z.ZodObject<{
   ssids: z.ZodRecord<z.ZodString, typeof SignalStrength>
@@ -5910,6 +5965,56 @@ export const Api = {
         'update-firmware': {
           _PARAMS: /* @__PURE__ */ empty,
           _RETURN: /* @__PURE__ */ RequiresReboot,
+        },
+        'update-signers': {
+          _PARAMS: /* @__PURE__ */ empty,
+          _CHILDREN: {
+            add: {
+              _PARAMS: /* @__PURE__ */ SetOsUpdateSignerParams,
+              _RETURN: /* @__PURE__ */ z.null(),
+            },
+            get: {
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(
+                  object({
+                    format: wire(
+                      IoFormat.nullable().optional(),
+                      IoFormat.nullable(),
+                    ),
+                  }),
+                  empty,
+                ),
+                OsUpdateSignerKeyParams,
+              ),
+              _RETURN: /* @__PURE__ */ TrustedOsUpdateSigner,
+            },
+            list: {
+              _PARAMS: /* @__PURE__ */ z.intersection(
+                z.intersection(
+                  object({
+                    format: wire(
+                      IoFormat.nullable().optional(),
+                      IoFormat.nullable(),
+                    ),
+                  }),
+                  empty,
+                ),
+                empty,
+              ),
+              _RETURN: /* @__PURE__ */ z.record(
+                z.string(),
+                TrustedOsUpdateSigner,
+              ),
+            },
+            remove: {
+              _PARAMS: /* @__PURE__ */ OsUpdateSignerKeyParams,
+              _RETURN: /* @__PURE__ */ z.null(),
+            },
+            update: {
+              _PARAMS: /* @__PURE__ */ SetOsUpdateSignerParams,
+              _RETURN: /* @__PURE__ */ z.null(),
+            },
+          },
         },
       },
     },

@@ -4,7 +4,7 @@ use chrono::Utc;
 use ed25519_dalek::SigningKey;
 
 use super::*;
-use crate::sign::ed25519::Ed25519;
+use crate::sign::ed25519::Ed25519ph;
 use crate::sign::{AnySignature, AnyVerifyingKey, SignatureScheme};
 use crate::util::serde::Base64;
 
@@ -13,7 +13,7 @@ fn signed_asset(key: &SigningKey) -> RegistryAsset<Blake3Commitment> {
         hash: Base64([42; 32]),
         size: 123,
     };
-    let signature = Ed25519
+    let signature = Ed25519ph
         .sign_commitment(key, &commitment, SIG_CONTEXT)
         .unwrap();
     RegistryAsset {
@@ -22,7 +22,7 @@ fn signed_asset(key: &SigningKey) -> RegistryAsset<Blake3Commitment> {
         commitment,
         signatures: HashMap::from([(
             AnyVerifyingKey::Ed25519(key.verifying_key()),
-            AnySignature::Ed25519(signature),
+            AnySignature::Ed25519ph(signature),
         )]),
     }
 }
@@ -58,7 +58,7 @@ fn update_keeps_verifying_every_signature_and_rejecting_unsigned_assets() {
 
     asset.signatures.insert(
         AnyVerifyingKey::Ed25519(other.verifying_key()),
-        AnySignature::Ed25519(ed25519_dalek::Signature::from_bytes(&[0; 64])),
+        AnySignature::Ed25519ph(ed25519_dalek::Signature::from_bytes(&[0; 64])),
     );
     assert!(validate_update_signatures(&asset, require(&trusted)).is_err());
     assert!(validate_update_signatures(&asset, None).is_err());
@@ -66,6 +66,16 @@ fn update_keeps_verifying_every_signature_and_rejecting_unsigned_assets() {
     asset.signatures.clear();
     assert!(validate_update_signatures(&asset, require(&trusted)).is_err());
     assert!(validate_update_signatures(&asset, None).is_err());
+}
+
+#[test]
+fn diagnostic_updates_reject_other_signers_and_unsigned_assets() {
+    let key = SigningKey::from_bytes(&[2; 32]);
+    let mut asset = signed_asset(&key);
+    assert!(validate_update_signatures(&asset, None).is_ok());
+    assert!(super::diagnostic::validate_signatures(&asset).is_err());
+    asset.signatures.clear();
+    assert!(super::diagnostic::validate_signatures(&asset).is_err());
 }
 
 #[test]

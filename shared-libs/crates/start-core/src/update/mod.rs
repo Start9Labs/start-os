@@ -17,6 +17,7 @@ use tokio::process::Command;
 use tracing::instrument;
 
 pub mod diagnostic;
+pub mod signers;
 
 #[cfg(test)]
 mod signature_tests;
