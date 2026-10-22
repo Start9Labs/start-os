@@ -573,7 +573,7 @@ for (const decision of [true, false, undefined]) {
     assert.deepEqual(f.submissions, [])
     assert.equal(f.completed, 0)
     const { response, options } = f.confirmations[0]
-    assert.equal(options.label, 'Untrusted OS update')
+    assert.equal(options.label, 'Danger: untrusted OS update')
     if (decision !== undefined) response.next(decision)
     response.complete()
     await Promise.all(f.tasks)

@@ -80,12 +80,13 @@ export class SystemUpdateModal {
         const confirmed = await firstValueFrom(
           this.dialogs
             .openConfirm({
-              label: 'Untrusted OS update',
+              label: 'Danger: untrusted OS update',
               data: {
                 content:
-                  'This update does not list a trusted Start9 signer. Installing untrusted software can compromise your server and its data. Continue anyway?',
-                yes: 'Continue anyway',
+                  'No trusted Start9 signer is listed for this update. A malicious OS update can take complete control of your server, steal private keys and passwords, and permanently destroy your data. Continue only if you independently trust the signer.',
+                yes: 'Install at my own risk',
                 no: 'Cancel',
+                appearance: ['negative', 'secondary'],
               },
             })
             .pipe(defaultIfEmpty(false)),
