@@ -120,7 +120,6 @@ imbl-value = { path = "../imbl-value" }
 include_dir = { version = "0.7.3", features = ["metadata"] }
 indexmap = { version = "2.0.2", features = ["serde"] }
 indicatif = { version = "0.18.3", features = ["tokio"] }
-inotify = "0.11.0"
 instant-acme = { git = "https://github.com/Start9Labs/instant-acme.git", rev = "f5fea9642366ba3b495ee9be2cf653b9812368d7", default-features = false, features = [
   "ring",
 ] }

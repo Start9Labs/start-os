@@ -15,7 +15,6 @@ use bytes::{Buf, BytesMut};
 use clap::builder::ValueParserFactory;
 use futures::future::{BoxFuture, Fuse};
 use futures::{FutureExt, Stream, TryStreamExt};
-use inotify::{EventMask, EventStream, Inotify, WatchMask};
 use nix::unistd::{Gid, Uid, fchown};
 use serde::{Deserialize, Serialize};
 use tokio::fs::{File, OpenOptions};
@@ -1696,71 +1695,6 @@ impl ValueParserFactory for TermSize {
 
 pub trait ReadWriter: AsyncRead + AsyncWrite {}
 impl<T: AsyncRead + AsyncWrite> ReadWriter for T {}
-
-#[instrument(skip_all)]
-fn wait_for_created<'a>(
-    stream: &'a mut EventStream<[u8; 1024]>,
-    path: &'a Path,
-) -> BoxFuture<'a, Result<(), Error>> {
-    async {
-        let parent_path = path.parent().unwrap_or("/".as_ref());
-        let parent;
-        loop {
-            match stream.watches().add(parent_path, WatchMask::CREATE) {
-                Ok(desc) => {
-                    parent = desc;
-                    break;
-                }
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                    wait_for_created(stream, parent_path).await?;
-                }
-                Err(e) => Err(e)?,
-            }
-        }
-        while let Some(e) = stream.try_next().await? {
-            if e.mask & EventMask::CREATE != EventMask::empty()
-                && e.name.as_deref() == path.file_name()
-            {
-                break;
-            }
-        }
-        stream.watches().remove(parent)?;
-        Ok(())
-    }
-    .boxed()
-}
-
-#[instrument(skip_all)]
-pub fn file_string_stream(
-    path: impl Into<PathBuf>,
-) -> impl Stream<Item = Result<Option<String>, Error>> {
-    let path = path.into();
-    async_stream::try_stream! {
-        let mut stream = Inotify::init()?.into_event_stream([0; 1024])?;
-        loop {
-            loop {
-                match stream.watches().add(
-                    &path,
-                    WatchMask::MODIFY | WatchMask::CLOSE_WRITE | WatchMask::MOVE_SELF | WatchMask::MOVED_TO | WatchMask::DELETE_SELF,
-                ) {
-                    Ok(_) => break,
-                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                        yield None;
-                        wait_for_created(&mut stream, &path).await?;
-                    }
-                    Err(e) => Err(e)?,
-                }
-            }
-            yield maybe_read_file_to_string(&path).await?;
-            while let Some(e) = stream.try_next().await? {
-                if e.mask & EventMask::DELETE_SELF != EventMask::empty() {
-                    break;
-                }
-                yield maybe_read_file_to_string(&path).await?;
-            }
-        }
-    }
-}
 
 #[pin_project::pin_project]
 pub struct ByteReplacementReader<R> {
