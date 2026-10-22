@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::process::Stdio;
 
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -99,6 +100,120 @@ async fn handle_ws(mut ws: WebSocket) {
     }
 }
 
+/// The file logd's follower appends to; it renames a full file to `.old`.
+const HISTORY_FILES: [&str; 2] = ["etc/log/messages.old", "etc/log/messages"];
+
+/// The persistent log under a filesystem root, oldest line first.
+///
+/// Empty when neither file exists.
+pub async fn read_history(root: &Path) -> Result<Vec<u8>, Error> {
+    Ok(read_history_files(root).await?.concat())
+}
+
+async fn read_history_files(root: &Path) -> Result<[Vec<u8>; 2], Error> {
+    let mut files = [Vec::new(), Vec::new()];
+    for (file, path) in files.iter_mut().zip(HISTORY_FILES) {
+        match tokio::fs::read(root.join(path)).await {
+            Ok(bytes) => *file = bytes,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => return Err(e.into()),
+        }
+    }
+    Ok(files)
+}
+
+/// The persistent log as it stood before a backup was restored over it.
+pub struct HistorySnapshot([Vec<u8>; 2]);
+
+pub async fn snapshot_history(root: &Path) -> Result<HistorySnapshot, Error> {
+    read_history_files(root).await.map(HistorySnapshot)
+}
+
+/// Keeps the router's own log after a restore, preceded by whatever older
+/// history the backup carried.
+///
+/// Takes the backup's `tar -t` listing.
+pub async fn merge_restored_history(
+    root: &Path,
+    before: HistorySnapshot,
+    archive_listing: &str,
+) -> Result<(), Error> {
+    let restored_files = HISTORY_FILES.map(|file| {
+        archive_listing
+            .lines()
+            .any(|entry| entry.trim_start_matches("./").trim_start_matches('/') == file)
+    });
+    if !restored_files.contains(&true) {
+        return Ok(());
+    }
+    let mut restored = read_history_files(root).await?;
+    for (file, was_restored) in restored.iter_mut().zip(restored_files) {
+        if !was_restored {
+            file.clear();
+        }
+    }
+    let restored = restored.concat();
+    let [old, current] = before.0;
+    let own = [old.as_slice(), current.as_slice()].concat();
+    let rotated = [restored_prefix(&restored, &own), old.as_slice()].concat();
+    for (path, contents) in HISTORY_FILES.into_iter().zip([rotated, current]) {
+        write_history_file(&root.join(path), &contents).await?;
+    }
+    Ok(())
+}
+
+/// Lines of a restored log that precede everything in the router's own.
+///
+/// The router's first line marks where the overlap begins. A restored log
+/// whose last line the router still holds adds nothing.
+fn restored_prefix<'a>(restored: &'a [u8], current: &[u8]) -> &'a [u8] {
+    let current = lines(current);
+    let Some((_, first)) = current.first() else {
+        return restored;
+    };
+    let restored_lines = lines(restored);
+    if let Some((start, _)) = restored_lines.iter().find(|(_, line)| line == first) {
+        return &restored[..*start];
+    }
+    match restored_lines.last() {
+        Some((_, last)) if current.iter().any(|(_, line)| line == last) => &[],
+        _ => restored,
+    }
+}
+
+/// Non-empty lines without their newline, each with its byte offset.
+fn lines(log: &[u8]) -> Vec<(usize, &[u8])> {
+    let mut offset = 0;
+    log.split_inclusive(|b| *b == b'\n')
+        .map(|line| {
+            let start = offset;
+            offset += line.len();
+            (start, line.strip_suffix(b"\n").unwrap_or(line))
+        })
+        .filter(|(_, line)| !line.is_empty())
+        .collect()
+}
+
+async fn write_history_file(path: &Path, contents: &[u8]) -> Result<(), Error> {
+    use std::os::unix::fs::PermissionsExt;
+
+    if contents.is_empty() {
+        return match tokio::fs::remove_file(path).await {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.into()),
+            _ => Ok(()),
+        };
+    }
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
+    let mut tmp = path.as_os_str().to_owned();
+    tmp.push(".tmp");
+    tokio::fs::write(&tmp, contents).await?;
+    tokio::fs::set_permissions(&tmp, std::fs::Permissions::from_mode(0o600)).await?;
+    tokio::fs::rename(&tmp, path).await?;
+    Ok(())
+}
+
 pub async fn get_logs(_ctx: ServerContext) -> Result<LogsResponse, Error> {
     let output = Command::new("logread")
         .invoke(ErrorKind::Filesystem.into())
@@ -150,5 +265,91 @@ mod tests {
     #[test]
     fn test_parse_no_year() {
         assert!(parse_logread_line("Thu Mar  3 12:34:56 abcd rest of message").is_none());
+    }
+
+    #[test]
+    fn restored_prefix_keeps_only_older_lines() {
+        let backup = b"a\nb\nc\n";
+        assert_eq!(restored_prefix(backup, b"b\nc\nd\n"), b"a\n");
+        assert_eq!(restored_prefix(backup, b"x\nb\nc\nd\n"), b"");
+        assert_eq!(restored_prefix(backup, b"y\nz\n"), backup);
+        assert_eq!(restored_prefix(backup, b""), backup);
+        assert_eq!(restored_prefix(b"", b"y\n"), b"");
+    }
+
+    fn history_root(old: Option<&str>, current: Option<&str>) -> tempfile::TempDir {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(dir.path().join("etc/log")).unwrap();
+        for (path, text) in HISTORY_FILES.into_iter().zip([old, current]) {
+            if let Some(text) = text {
+                std::fs::write(dir.path().join(path), text).unwrap();
+            }
+        }
+        dir
+    }
+
+    fn history_file(dir: &tempfile::TempDir, path: &str) -> Option<String> {
+        std::fs::read_to_string(dir.path().join(path)).ok()
+    }
+
+    const LISTING: &str = "etc/config/system\netc/log/messages.old\netc/log/messages\n";
+
+    #[tokio::test]
+    async fn restore_onto_another_router_puts_the_backup_first() {
+        let dir = history_root(None, Some("boot\n"));
+        let before = snapshot_history(dir.path()).await.unwrap();
+        std::fs::write(dir.path().join(HISTORY_FILES[0]), "a\n").unwrap();
+        std::fs::write(dir.path().join(HISTORY_FILES[1]), "b\n").unwrap();
+        merge_restored_history(dir.path(), before, LISTING)
+            .await
+            .unwrap();
+        assert_eq!(
+            history_file(&dir, HISTORY_FILES[0]).as_deref(),
+            Some("a\nb\n")
+        );
+        assert_eq!(
+            history_file(&dir, HISTORY_FILES[1]).as_deref(),
+            Some("boot\n")
+        );
+        assert_eq!(read_history(dir.path()).await.unwrap(), b"a\nb\nboot\n");
+    }
+
+    #[tokio::test]
+    async fn restore_of_an_unrotated_backup_keeps_the_routers_rotated_log() {
+        let dir = history_root(Some("b\nc\n"), Some("d\n"));
+        let before = snapshot_history(dir.path()).await.unwrap();
+        std::fs::write(dir.path().join(HISTORY_FILES[1]), "a\n").unwrap();
+        merge_restored_history(dir.path(), before, "etc/log/messages\n")
+            .await
+            .unwrap();
+        assert_eq!(read_history(dir.path()).await.unwrap(), b"a\nb\nc\nd\n");
+        assert_eq!(history_file(&dir, HISTORY_FILES[1]).as_deref(), Some("d\n"));
+    }
+
+    #[tokio::test]
+    async fn restore_onto_the_same_router_keeps_its_log() {
+        let dir = history_root(Some("b\nc\n"), Some("d\ne\n"));
+        let before = snapshot_history(dir.path()).await.unwrap();
+        std::fs::write(dir.path().join(HISTORY_FILES[0]), "a\nb\n").unwrap();
+        std::fs::write(dir.path().join(HISTORY_FILES[1]), "c\n").unwrap();
+        merge_restored_history(dir.path(), before, LISTING)
+            .await
+            .unwrap();
+        assert_eq!(read_history(dir.path()).await.unwrap(), b"a\nb\nc\nd\ne\n");
+        assert_eq!(
+            history_file(&dir, HISTORY_FILES[1]).as_deref(),
+            Some("d\ne\n")
+        );
+    }
+
+    #[tokio::test]
+    async fn restore_without_logs_leaves_the_log_alone() {
+        let dir = history_root(None, Some("b\n"));
+        let before = snapshot_history(dir.path()).await.unwrap();
+        merge_restored_history(dir.path(), before, "etc/config/system\n")
+            .await
+            .unwrap();
+        assert_eq!(read_history(dir.path()).await.unwrap(), b"b\n");
+        assert_eq!(history_file(&dir, HISTORY_FILES[0]), None);
     }
 }

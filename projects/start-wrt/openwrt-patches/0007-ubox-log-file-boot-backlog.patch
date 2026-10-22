@@ -1,0 +1,20 @@
+Subject: ubox: write the boot's backlog to the persistent log file
+
+The logfile follower asks logd for no backlog, so the persistent log
+file starts each boot at the moment the follower attached and misses
+the kernel and early-init lines before it. At boot, ask for the whole
+ring buffer, which then holds this boot alone.
+
+Start9 downstream patch (start-technologies projects/start-wrt).
+Applies to: openwrt v25.12.6
+
+--- a/package/system/ubox/files/log.init
++++ b/package/system/ubox/files/log.init
+@@ -64,6 +64,7 @@
+ 	procd_open_instance logfile
+ 	procd_set_param command "$PROG" -f -F "$log_file" -p "$pid_file"
+ 	[ -n "${log_size}" ] && procd_append_param command -S "$log_size"
++	[ "$_BOOT" = "1" ] && procd_append_param command -l 1000000
+ 	procd_close_instance
+ }
+ 

@@ -2125,7 +2125,7 @@ export class MockApiService extends ApiService {
     await pauseFor(500)
     return {
       guid: 'mock-diag-guid',
-      filename: 'diagnostics-startwrt-2026-03-19.log',
+      filename: 'diagnostics-startwrt-2026-03-19.log.gz',
     }
   }
 

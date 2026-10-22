@@ -34,7 +34,7 @@ The router will apply the configuration and restart.
 
 | Included                              | Not Included |
 | ------------------------------------- | ------------ |
-| Security Profiles                     | System logs  |
+| Security Profiles                     | Activity log |
 | Wi-Fi passwords                       |              |
 | Published Ports                       |              |
 | Ethernet port assignments             |              |
@@ -48,3 +48,4 @@ The router will apply the configuration and restart.
 | Reserved IPv4 addresses               |              |
 | Automatic port forwarding permissions |              |
 | Data usage history                    |              |
+| System logs                           |              |

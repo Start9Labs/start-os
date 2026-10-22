@@ -153,6 +153,8 @@ pub enum RpcContinuation {
 
 pub const DEFAULT_TTL: Duration = Duration::from_secs(60);
 
+pub const MAX_UPLOAD_BYTES: usize = 64 * 1024 * 1024;
+
 impl RpcContinuation {
     /// Create a REST continuation.
     pub fn rest<F, Fut>(handler: F, timeout: Duration) -> Self

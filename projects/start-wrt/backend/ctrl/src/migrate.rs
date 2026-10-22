@@ -7,7 +7,7 @@
 use std::path::{Path, PathBuf};
 
 use uciedit::openwrt::{InterfaceProto, NetworkInterface};
-use uciedit::{dump_all, parse_all, Arena};
+use uciedit::{dump_all, parse_all, Arena, TypedSection};
 
 use crate::prelude::*;
 use crate::wan::WAN_INTERFACE;
@@ -26,6 +26,7 @@ const MIGRATIONS: &[Migration] = &[
     Migration::StripUnreferencedWanZoneVpns,
     Migration::PppoeWanIpv6,
     Migration::StoreLanAccessMode,
+    Migration::ExpandLogRetention,
 ];
 
 #[derive(Clone, Copy, Debug)]
@@ -40,6 +41,8 @@ enum Migration {
     PppoeWanIpv6,
     /// Earlier releases kept a profile's LAN Access only as its forwardings.
     StoreLanAccessMode,
+    /// Earlier images capped the persistent log at 512 KiB.
+    ExpandLogRetention,
 }
 
 impl Migration {
@@ -49,6 +52,7 @@ impl Migration {
             Migration::StripUnreferencedWanZoneVpns => strip_unreferenced_wan_zone_vpns(root).await,
             Migration::PppoeWanIpv6 => pppoe_wan_ipv6(root).await,
             Migration::StoreLanAccessMode => store_lan_access_mode(root).await,
+            Migration::ExpandLogRetention => expand_log_retention(root).await,
         }
     }
 }
@@ -190,9 +194,45 @@ async fn store_lan_access_mode(root: &Path) -> Result<(), Error> {
     Ok(())
 }
 
+#[derive(Debug, TypedSection, Default)]
+#[uci(ty = "system")]
+struct SystemLog {
+    log_size: Option<String>,
+    log_buffer_size: Option<String>,
+}
+
+/// A size other than the shipped one is a later choice and stays.
+async fn expand_log_retention(root: &Path) -> Result<(), Error> {
+    let arena = Arena::new();
+    let mut cfgs = parse_all(uci_root(root), &arena, &["system"]).await?;
+    let mut changed = false;
+    for section in &mut cfgs["system"].sections {
+        if let Some(mut log) = section.get_typed::<SystemLog>()? {
+            if log.log_size.as_deref() == Some("512") && log.log_buffer_size.is_none() {
+                log.log_size = Some("32768".to_string());
+                log.log_buffer_size = Some("512".to_string());
+                section.set(&log)?;
+                changed = true;
+            }
+            break;
+        }
+    }
+    if changed {
+        dump_all(uci_root(root), cfgs).await?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const SHIPPED_SYSTEM: &str = "\
+config system
+\toption hostname 'router'
+\toption log_size '512'
+\toption log_file '/etc/log/messages'
+";
 
     const PPPOE_WAN: &str = "\
 config interface 'wan'
@@ -320,6 +360,7 @@ config forwarding
             &format!("config zone 'wan'\n\toption name 'wan'\n\toption input 'REJECT'\n\toption output 'ACCEPT'\n\toption forward 'REJECT'\n\tlist network 'wan'\n\tlist network 'wg_old'\n{LEGACY_PROFILE_ZONES}"),
         );
         write(&dir, "etc/config/startwrt", LEGACY_PROFILES);
+        write(&dir, "etc/config/system", SHIPPED_SYSTEM);
         for migration in MIGRATIONS {
             migration.apply(dir.path()).await.unwrap();
         }
@@ -327,6 +368,7 @@ config forwarding
             read(&dir, "etc/config/network"),
             read(&dir, "etc/config/firewall"),
             read(&dir, "etc/config/startwrt"),
+            read(&dir, "etc/config/system"),
         ];
         for migration in MIGRATIONS {
             migration.apply(dir.path()).await.unwrap();
@@ -334,6 +376,7 @@ config forwarding
         assert_eq!(read(&dir, "etc/config/network"), migrated[0]);
         assert_eq!(read(&dir, "etc/config/firewall"), migrated[1]);
         assert_eq!(read(&dir, "etc/config/startwrt"), migrated[2]);
+        assert_eq!(read(&dir, "etc/config/system"), migrated[3]);
         assert_eq!(wan_ipv6(&dir).as_deref(), Some("1"));
         assert!(migrated[1].contains("option dest 'vlan_guest'"));
         assert!(migrated[2].contains("option lan_access 'all'"));
@@ -401,6 +444,31 @@ config forwarding
             run(dir.path()).await.unwrap();
             assert_eq!(wan_ipv6(&dir).as_deref(), expected, "{network}");
             assert_eq!(record(&dir), current());
+        }
+    }
+
+    #[tokio::test]
+    async fn log_retention_expands_only_the_shipped_size() {
+        let dir = router(None, true);
+        write(&dir, "etc/config/system", SHIPPED_SYSTEM);
+        expand_log_retention(dir.path()).await.unwrap();
+        let system = read(&dir, "etc/config/system");
+        assert!(system.contains("option log_size '32768'"), "{system}");
+        assert!(system.contains("option log_buffer_size '512'"), "{system}");
+        assert!(system.contains("option hostname 'router'"), "{system}");
+        assert!(
+            system.contains("option log_file '/etc/log/messages'"),
+            "{system}"
+        );
+
+        for custom in [
+            SHIPPED_SYSTEM.replace("'512'", "'2048'"),
+            format!("{SHIPPED_SYSTEM}\toption log_buffer_size '128'\n"),
+        ] {
+            let dir = router(None, true);
+            write(&dir, "etc/config/system", &custom);
+            expand_log_retention(dir.path()).await.unwrap();
+            assert_eq!(read(&dir, "etc/config/system"), custom);
         }
     }
 

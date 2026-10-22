@@ -13,7 +13,7 @@ use crate::{CliContext, ServerContext};
 const ACTIVITY_DIR: &str = "/etc/startwrt";
 #[cfg(not(test))]
 const ACTIVITY_DB: &str = "/etc/startwrt/activity.db";
-const MAX_ENTRIES: usize = 500;
+pub(crate) const MAX_ENTRIES: usize = 500;
 
 const ACTIVITY_SCHEMA: &str = "CREATE TABLE IF NOT EXISTS activity (
     id INTEGER PRIMARY KEY,
@@ -219,7 +219,7 @@ fn capitalize_action_summary(action: &str, subject: &str) -> String {
 // ── RPC Handlers ────────────────────────────────────────────────
 
 #[instrument(skip_all)]
-async fn list(
+pub(crate) async fn list(
     _ctx: ServerContext,
     params: ActivityListParams,
 ) -> Result<ActivityListResponse, Error> {
