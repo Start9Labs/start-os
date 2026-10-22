@@ -16,6 +16,7 @@ use crate::context::RpcContext;
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
 use crate::registry::os::index::OsVersionInfoMap;
+use crate::registry::os::version::GetOsVersionParams;
 use crate::registry::package::get::{
     GetPackageParams, GetPackageResponse, GetPackageResponseFull, PackageDetailLevel,
 };
@@ -126,11 +127,6 @@ impl DeviceInfo {
             "os.version.get" => self.filter_os_version(ModelExt::value_as_mut(res)),
             _ => Ok(()),
         }
-    }
-
-    /// Whether this client reads `id-Ed25519` registry signatures as Ed25519ph.
-    pub fn reads_legacy_signatures(&self, startwrt: bool) -> Result<bool, Error> {
-        Ok(startwrt || self.os.version <= "0.4.0.3".parse::<Version>()?)
     }
 
     /// Strips package icons from a `package.get` response for clients that load them from `/icons/`.
@@ -277,6 +273,36 @@ impl DeviceInfoMiddleware {
             legacy_signatures: false,
         }
     }
+
+    fn prepare_request(
+        &mut self,
+        startwrt: bool,
+        metadata: Metadata,
+        request: &mut RpcRequest,
+    ) -> Result<(), Error> {
+        self.legacy_signatures = startwrt;
+        if let Some(header) = &self.device_info_header {
+            if metadata.get_device_info {
+                let device_info = DeviceInfo::from_header_value(header)?;
+                request.params["__DeviceInfo_device_info"] = to_value(&device_info)?;
+                self.legacy_signatures |= reads_legacy_signatures(&device_info.os.version)?;
+                self.device_info = Some(device_info);
+                self.req = Some(request.clone());
+            } else if let Ok(device_info) = DeviceInfo::from_header_value(header) {
+                self.legacy_signatures |= reads_legacy_signatures(&device_info.os.version)?;
+            }
+        } else if request.method.as_str() == "os.version.get" {
+            let params: GetOsVersionParams = from_value(request.params.clone())?;
+            if let Some(version) = params.source_version {
+                self.legacy_signatures |= reads_legacy_signatures(&version)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+fn reads_legacy_signatures(version: &Version) -> Result<bool, Error> {
+    Ok(version <= &"0.4.0.3".parse::<Version>()?)
 }
 
 impl Middleware<RegistryContext> for DeviceInfoMiddleware {
@@ -295,24 +321,8 @@ impl Middleware<RegistryContext> for DeviceInfoMiddleware {
         metadata: Self::Metadata,
         request: &mut RpcRequest,
     ) -> Result<(), RpcResponse> {
-        async move {
-            let Some(header) = &self.device_info_header else {
-                return Ok(());
-            };
-            if metadata.get_device_info {
-                let device_info = DeviceInfo::from_header_value(header)?;
-                request.params["__DeviceInfo_device_info"] = to_value(&device_info)?;
-                self.legacy_signatures = device_info.reads_legacy_signatures(ctx.startwrt)?;
-                self.device_info = Some(device_info);
-                self.req = Some(request.clone());
-            } else if let Ok(device_info) = DeviceInfo::from_header_value(header) {
-                self.legacy_signatures = device_info.reads_legacy_signatures(ctx.startwrt)?;
-            }
-
-            Ok::<_, Error>(())
-        }
-        .await
-        .map_err(|e| RpcResponse::from_result(Err(e)))
+        self.prepare_request(ctx.startwrt, metadata, request)
+            .map_err(|e| RpcResponse::from_result(Err(e)))
     }
     async fn process_rpc_response(
         &mut self,
@@ -340,6 +350,69 @@ mod tests {
     use imbl_value::json;
 
     use super::*;
+
+    fn request(method: &str, params: Value) -> RpcRequest {
+        from_value(json!({ "jsonrpc": "2.0", "id": 1, "method": method, "params": params }))
+            .unwrap()
+    }
+
+    #[test]
+    fn diagnostic_update_signatures_follow_source_version_without_device_info() {
+        for (version, legacy) in [("0.4.0.2", true), ("0.4.0.3", true), ("0.4.0.4", false)] {
+            let mut middleware = DeviceInfoMiddleware::new();
+            middleware
+                .prepare_request(
+                    false,
+                    Metadata {
+                        get_device_info: true,
+                    },
+                    &mut request("os.version.get", json!({ "sourceVersion": version })),
+                )
+                .unwrap();
+            assert_eq!(middleware.legacy_signatures, legacy, "{version}");
+        }
+    }
+
+    #[test]
+    fn headerless_registry_queries_keep_modern_labels_unless_startwrt() {
+        for startwrt in [false, true] {
+            for (method, params) in [
+                ("os.version.get", json!({})),
+                ("package.get", json!({ "sourceVersion": "0.4.0.2" })),
+            ] {
+                let mut middleware = DeviceInfoMiddleware::new();
+                middleware
+                    .prepare_request(
+                        startwrt,
+                        Metadata {
+                            get_device_info: true,
+                        },
+                        &mut request(method, params),
+                    )
+                    .unwrap();
+                assert_eq!(middleware.legacy_signatures, startwrt);
+            }
+        }
+    }
+
+    #[test]
+    fn device_info_version_takes_precedence_over_update_source() {
+        let mut middleware = DeviceInfoMiddleware::new();
+        middleware.device_info_header = Some(HeaderValue::from_static(
+            "os.version=0.4.0.4&os.compat=*&os.platform=x86_64",
+        ));
+        middleware
+            .prepare_request(
+                false,
+                Metadata {
+                    get_device_info: true,
+                },
+                &mut request("os.version.get", json!({ "sourceVersion": "0.4.0.2" })),
+            )
+            .unwrap();
+        assert!(!middleware.legacy_signatures);
+        assert!(middleware.device_info.is_some());
+    }
 
     fn omitted_for(os_version: &str, params: Value, mut res: Value) -> Value {
         DeviceInfo {
