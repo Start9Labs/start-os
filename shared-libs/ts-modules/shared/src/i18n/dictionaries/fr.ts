@@ -837,4 +837,7 @@ export default {
   950: 'Utiliser le DNS de la passerelle',
   951: 'Secours',
   952: 'Les paramètres du trafic sortant sont indisponibles tant que ce service est inactif.',
+  953: 'Mise à jour du système non fiable',
+  954: 'Cette mise à jour ne mentionne aucun signataire Start9 de confiance. Installer un logiciel non fiable peut compromettre votre serveur et ses données. Continuer malgré tout ?',
+  955: 'Continuer malgré tout',
 } satisfies i18n

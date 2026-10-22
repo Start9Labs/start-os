@@ -837,4 +837,7 @@ export default {
   950: 'Używaj DNS bramy',
   951: 'Zapasowy',
   952: 'Ustawienia ruchu wychodzącego są niedostępne, gdy ta usługa jest nieaktywna.',
+  953: 'Niezaufana aktualizacja systemu',
+  954: 'Ta aktualizacja nie wymienia żadnego zaufanego sygnatariusza Start9. Instalacja niezaufanego oprogramowania może narazić Twój serwer i jego dane na niebezpieczeństwo. Czy mimo to kontynuować?',
+  955: 'Kontynuuj mimo to',
 } satisfies i18n

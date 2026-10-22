@@ -1,0 +1,1 @@
+- Warn before starting a UI-initiated OS update when its registry metadata does not list drbonez, matthill, or the Start9 signing key as a signer.

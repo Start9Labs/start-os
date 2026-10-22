@@ -837,4 +837,7 @@ export default {
   950: 'Usar DNS de la puerta de enlace',
   951: 'Respaldo',
   952: 'La configuración del tráfico saliente no está disponible mientras este servicio esté inactivo.',
+  953: 'Actualización del sistema operativo no confiable',
+  954: 'Esta actualización no incluye ningún firmante de Start9 de confianza. Instalar software no confiable puede comprometer tu servidor y sus datos. ¿Continuar de todos modos?',
+  955: 'Continuar de todos modos',
 } satisfies i18n

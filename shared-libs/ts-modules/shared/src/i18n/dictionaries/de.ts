@@ -837,4 +837,7 @@ export default {
   950: 'Gateway-DNS verwenden',
   951: 'Ersatz',
   952: 'Ausgehende Verbindungen können nicht konfiguriert werden, solange dieser Dienst inaktiv ist.',
+  953: 'Nicht vertrauenswürdiges Betriebssystem-Update',
+  954: 'Für dieses Update ist kein vertrauenswürdiger Start9-Unterzeichner aufgeführt. Die Installation nicht vertrauenswürdiger Software kann Ihren Server und seine Daten gefährden. Trotzdem fortfahren?',
+  955: 'Trotzdem fortfahren',
 } satisfies i18n

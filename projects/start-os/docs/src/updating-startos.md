@@ -9,7 +9,7 @@
 
 1. Go to `System -> General -> Software Update`.
 
-1. Read the release notes and click "Begin Update".
+1. Read the release notes and click "Begin Update". If the registry does not list drbonez, matthill, or the Start9 signing key as a signer for your server's update image, a warning asks you to cancel or continue anyway.
 
    > [!WARNING]
    > Ensure you have a stable Internet connection before beginning an OS update, and do not unplug your server while StartOS is downloading.
