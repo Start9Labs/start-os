@@ -189,7 +189,6 @@ pub struct WgPeerStats {
     pub latest_handshake: u64,
     pub rx_bytes: u64,
     pub tx_bytes: u64,
-    pub persistent_keepalive: bool,
 }
 
 /// Peers of a `wg show <interface> dump`, skipping its interface line.
@@ -210,7 +209,6 @@ pub fn parse_dump(output: &str) -> Vec<WgPeerStats> {
                 latest_handshake: fields[4].parse().unwrap_or(0),
                 rx_bytes: fields[5].parse().unwrap_or(0),
                 tx_bytes: fields[6].parse().unwrap_or(0),
-                persistent_keepalive: fields[7] != "off",
             })
         })
         .collect()
@@ -246,7 +244,6 @@ mod tests {
                     latest_handshake: 1_700_000_000,
                     rx_bytes: 92,
                     tx_bytes: 1480,
-                    persistent_keepalive: true,
                 },
                 WgPeerStats {
                     public_key: "peerB".into(),
@@ -254,7 +251,6 @@ mod tests {
                     latest_handshake: 0,
                     rx_bytes: 0,
                     tx_bytes: 0,
-                    persistent_keepalive: false,
                 },
             ]
         );

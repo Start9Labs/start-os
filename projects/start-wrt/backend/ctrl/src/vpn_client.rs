@@ -811,7 +811,6 @@ pub async fn list(_ctx: ServerContext) -> Result<Vec<OutboundVpn>, Error> {
 /// How long a send seen after the session lapsed counts as an unanswered handshake.
 const ATTEMPT_WINDOW_SECS: u64 = 120;
 
-/// A tunnel's transmit counter as sampled by an earlier `list`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct TxSample {
     tx_bytes: u64,
@@ -822,13 +821,11 @@ struct TxSample {
 static TX_SAMPLES: std::sync::Mutex<std::collections::BTreeMap<String, TxSample>> =
     std::sync::Mutex::new(std::collections::BTreeMap::new());
 
-/// One tunnel's peers combined.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct TunnelStats {
     latest_handshake: u64,
     rx_bytes: u64,
     tx_bytes: u64,
-    keepalive: bool,
 }
 
 impl TunnelStats {
@@ -841,19 +838,16 @@ impl TunnelStats {
                 latest_handshake: 0,
                 rx_bytes: 0,
                 tx_bytes: 0,
-                keepalive: false,
             },
             |acc, p| TunnelStats {
                 latest_handshake: acc.latest_handshake.max(p.latest_handshake),
                 rx_bytes: acc.rx_bytes + p.rx_bytes,
                 tx_bytes: acc.tx_bytes + p.tx_bytes,
-                keepalive: acc.keepalive || p.persistent_keepalive,
             },
         ))
     }
 }
 
-/// Classifies an enabled tunnel against its previous sample.
 fn tunnel_status(
     stats: Option<&TunnelStats>,
     prev: Option<TxSample>,
@@ -870,9 +864,7 @@ fn tunnel_status(
     };
     let status = if now < lapsed_at {
         OutboundVpnStatus::Connected
-    } else if (stats.rx_bytes == 0 && stats.tx_bytes > crate::wg::HANDSHAKE_INITIATION_BYTES)
-        || (stats.keepalive && stats.rx_bytes > 0)
-    {
+    } else if stats.rx_bytes == 0 && stats.tx_bytes > crate::wg::HANDSHAKE_INITIATION_BYTES {
         OutboundVpnStatus::NotResponding
     } else if attempt_at.is_some_and(|t| now.saturating_sub(t) < ATTEMPT_WINDOW_SECS) {
         OutboundVpnStatus::NotResponding
@@ -2310,7 +2302,6 @@ mod tests {
             latest_handshake,
             rx_bytes,
             tx_bytes,
-            keepalive: false,
         }
     }
 
@@ -2358,10 +2349,28 @@ mod tests {
     }
 
     #[test]
-    fn lapsed_keepalive_tunnel_is_not_responding() {
-        let mut s = stats(NOW - 600, 5000, 9000);
-        s.keepalive = true;
-        let (status, _) = tunnel_status(Some(&s), None, NOW);
+    fn quiet_tunnel_with_a_long_keepalive_interval_is_idle() {
+        let handshake = NOW - 300;
+        let dump = format!(
+            "priv\tpub\t60616\toff\n\
+             peer\t(none)\t192.0.2.1:51820\t0.0.0.0/0\t{handshake}\t92\t180\t600\n"
+        );
+        let peers = crate::wg::parse_dump(&dump);
+        let s = TunnelStats::from_peers(&peers).unwrap();
+        let (status, _) = tunnel_status(Some(&s), Some(sample(180, NOW - 5)), NOW);
+        assert_eq!(status, OutboundVpnStatus::Idle);
+    }
+
+    #[test]
+    fn keepalive_retries_after_the_session_lapsed_are_not_responding() {
+        let handshake = NOW - 600;
+        let dump = format!(
+            "priv\tpub\t60616\toff\n\
+             peer\t(none)\t192.0.2.1:51820\t0.0.0.0/0\t{handshake}\t5000\t9000\t25\n"
+        );
+        let peers = crate::wg::parse_dump(&dump);
+        let s = TunnelStats::from_peers(&peers).unwrap();
+        let (status, _) = tunnel_status(Some(&s), Some(sample(8000, NOW - 5)), NOW);
         assert_eq!(status, OutboundVpnStatus::NotResponding);
     }
 
@@ -2423,7 +2432,6 @@ mod tests {
             latest_handshake: 0,
             rx_bytes: 0,
             tx_bytes: 0,
-            persistent_keepalive: false,
         };
         assert_eq!(TunnelStats::from_peers(&[peer]), None);
         assert_eq!(TunnelStats::from_peers(&[]), None);
