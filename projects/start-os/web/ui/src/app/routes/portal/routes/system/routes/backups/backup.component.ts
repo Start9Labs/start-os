@@ -1,4 +1,3 @@
-import { AsyncPipe } from '@angular/common'
 import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
@@ -15,7 +14,7 @@ import { TuiBlock } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { filter, map, switchMap, take } from 'rxjs'
-import { PkgIconPipe } from 'src/app/routes/portal/pipes/pkg-icon'
+import { PkgIconDirective } from 'src/app/routes/portal/components/pkg-icon'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
@@ -51,7 +50,7 @@ interface Package {
       @if (pkgs(); as pkgs) {
         @for (pkg of pkgs; track pkg.id) {
           <label tuiBlock="m">
-            <img alt="" [src]="pkg.id | pkgIcon | async" />
+            <img [pkgIcon]="pkg.id" />
             <span tuiTitle>{{ pkg.title }}</span>
             <input
               type="checkbox"
@@ -113,8 +112,7 @@ interface Package {
     TuiCheckbox,
     TuiTitle,
     i18nPipe,
-    AsyncPipe,
-    PkgIconPipe,
+    PkgIconDirective,
   ],
 })
 export class BackupsBackupComponent {

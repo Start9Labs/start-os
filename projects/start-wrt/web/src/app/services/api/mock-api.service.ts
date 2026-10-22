@@ -837,18 +837,33 @@ export class MockApiService extends ApiService {
       dns_source: this.mockDnsSource(params.outbound, params.dns_override),
     }
 
-    this.mockProfiles = [...this.mockProfiles, newProfile]
+    const newId = {
+      fullname: newProfile.fullname,
+      interface: newProfile.interface,
+      vlan_tag: newProfile.vlan_tag,
+    }
+    this.mockProfiles = [
+      ...this.mockProfiles.map(p =>
+        p.access_to_new_profiles &&
+        typeof p.lan_access === 'object' &&
+        'other_profiles' in p.lan_access
+          ? {
+              ...p,
+              lan_access: {
+                other_profiles: [...p.lan_access.other_profiles, newId],
+              },
+            }
+          : p,
+      ),
+      newProfile,
+    ]
     this.logActivity(
       'profile',
       'created',
       `Created profile '${newProfile.fullname}'`,
     )
 
-    return {
-      fullname: newProfile.fullname,
-      interface: newProfile.interface,
-      vlan_tag: newProfile.vlan_tag,
-    }
+    return newId
   }
 
   private mockDnsSource(
@@ -1021,9 +1036,10 @@ export class MockApiService extends ApiService {
           )
           return {
             ...p,
-            lan_access: filtered.length
-              ? { other_profiles: filtered }
-              : 'SAME_PROFILE',
+            lan_access:
+              filtered.length || p.access_to_new_profiles
+                ? { other_profiles: filtered }
+                : 'SAME_PROFILE',
           }
         }
         return p
@@ -1325,7 +1341,7 @@ export class MockApiService extends ApiService {
     dhcpv6: true,
     prefix: 64,
     ip6addr: 'fd00::1',
-    wan_prefix: 48,
+    delegated_prefix: 56,
   }
 
   async lanIpv6Get(): Promise<LanIpv6Response> {
@@ -1339,7 +1355,7 @@ export class MockApiService extends ApiService {
       ...this.mockLanIpv6,
       slaac: params.slaac,
       dhcpv6: params.dhcpv6,
-      prefix: params.prefix,
+      prefix: params.prefix ?? this.mockLanIpv6.prefix,
     }
     this.logActivity(
       'lan',

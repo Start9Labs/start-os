@@ -1,4 +1,3 @@
-import { AsyncPipe } from '@angular/common'
 import {
   Component,
   computed,
@@ -41,7 +40,7 @@ import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom } from 'rxjs'
 
-import { PkgIconPipe } from 'src/app/routes/portal/pipes/pkg-icon'
+import { PkgIconDirective } from 'src/app/routes/portal/components/pkg-icon'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
@@ -325,7 +324,7 @@ class AutomaticEditor
                       @if (service.system) {
                         <tui-icon icon="@tui.settings" />
                       } @else {
-                        <img alt="" [src]="service.id | pkgIcon | async" />
+                        <img [pkgIcon]="service.id" />
                       }
                       <span tuiTitle>
                         <b>{{ service.title }}</b>
@@ -822,8 +821,7 @@ class AutomaticEditor
   `,
   host: { class: 'g-wrap-content' },
   imports: [
-    AsyncPipe,
-    PkgIconPipe,
+    PkgIconDirective,
     FormsModule,
     ReactiveFormsModule,
     RouterLink,

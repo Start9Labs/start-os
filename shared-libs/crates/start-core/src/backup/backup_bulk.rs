@@ -499,12 +499,20 @@ async fn perform_backup(
     backup_guard.unencrypted_metadata.timestamp = timestamp.clone();
     backup_guard.metadata.version = crate::version::Current::default().semver().into();
     backup_guard.metadata.timestamp = Some(timestamp);
+    let package_timestamps: BTreeMap<_, _> = backup_report
+        .iter()
+        .filter(|(_, report)| report.error.is_none())
+        .filter_map(|(id, _)| Some((id.clone(), package_backups.get(id)?.timestamp)))
+        .collect();
     backup_guard.metadata.package_backups = package_backups;
 
     backup_guard.save_and_unmount().await?;
 
     ctx.db
         .mutate(|v| {
+            for (id, timestamp) in &package_timestamps {
+                super::record_package_backup(v, id, *timestamp)?;
+            }
             v.as_public_mut()
                 .as_server_info_mut()
                 .as_last_backup_mut()

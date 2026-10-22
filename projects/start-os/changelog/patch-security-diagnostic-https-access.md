@@ -1,0 +1,1 @@
+- Keep diagnostic mode off public HTTPS domains after a server error.

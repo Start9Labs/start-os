@@ -1,4 +1,3 @@
-import { AsyncPipe } from '@angular/common'
 import { DatePipe } from '@angular/common'
 import {
   afterNextRender,
@@ -63,7 +62,7 @@ import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { filter, firstValueFrom, from, map, race } from 'rxjs'
 
-import { PkgIconPipe } from 'src/app/routes/portal/pipes/pkg-icon'
+import { PkgIconDirective } from 'src/app/routes/portal/components/pkg-icon'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
@@ -536,7 +535,7 @@ class JobEditor
                         @if (pkg.id === systemPackageId) {
                           <tui-icon icon="@tui.settings" />
                         } @else {
-                          <img alt="" [src]="pkg.id | pkgIcon | async" />
+                          <img [pkgIcon]="pkg.id" />
                         }
                         <span tuiTitle>
                           <b>{{ pkg.name }}</b>
@@ -1290,8 +1289,7 @@ class JobEditor
     '(window:beforeunload)': 'confirmBrowserExit($event)',
   },
   imports: [
-    AsyncPipe,
-    PkgIconPipe,
+    PkgIconDirective,
     BackupJobName,
     DatePipe,
     FormsModule,

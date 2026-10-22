@@ -57,6 +57,17 @@ pub struct PackageBackupOutput {
 rpc_toolkit::reflect_ts!(PackageBackupOutput);
 rpc_toolkit::ts_export!(PackageBackupOutput, namespaces = [""]);
 
+fn record_package_backup(
+    db: &mut crate::db::model::DatabaseModel,
+    id: &PackageId,
+    timestamp: chrono::DateTime<chrono::Utc>,
+) -> Result<(), Error> {
+    if let Some(package) = db.as_public_mut().as_package_data_mut().as_idx_mut(id) {
+        package.as_last_backup_mut().ser(&Some(timestamp))?;
+    }
+    Ok(())
+}
+
 pub(crate) fn try_backup_coordinator(
     coordinator: std::sync::Arc<tokio::sync::Mutex<()>>,
 ) -> Result<tokio::sync::OwnedMutexGuard<()>, Error> {

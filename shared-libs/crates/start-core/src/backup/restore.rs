@@ -167,15 +167,10 @@ mod cli_tests {
     }
 }
 
-pub async fn restore_selection_rpc(
-    ctx: RpcContext,
-    RestoreSelectionParams {
-        target_id,
-        manual_ids,
-        snapshots,
-        server_id,
-        password,
-    }: RestoreSelectionParams,
+fn validate_restore_selection(
+    manual_ids: &[PackageId],
+    snapshots: &BTreeMap<PackageId, ServiceSnapshotId>,
+    package_data: &Model<crate::db::model::package::AllPackageData>,
 ) -> Result<(), Error> {
     if manual_ids.iter().any(|id| snapshots.contains_key(id)) {
         return Err(Error::new(
@@ -189,6 +184,34 @@ pub async fn restore_selection_rpc(
             ErrorKind::InvalidRequest,
         ));
     }
+
+    if let Some(id) = manual_ids
+        .iter()
+        .chain(snapshots.keys())
+        .find(|id| package_data.as_idx(*id).is_some())
+    {
+        return Err(Error::new(
+            eyre!("{}", t!("backup.restore.package-installed", id = id)),
+            ErrorKind::InvalidRequest,
+        ));
+    }
+
+    Ok(())
+}
+
+pub async fn restore_selection_rpc(
+    ctx: RpcContext,
+    RestoreSelectionParams {
+        target_id,
+        manual_ids,
+        snapshots,
+        server_id,
+        password,
+    }: RestoreSelectionParams,
+) -> Result<(), Error> {
+    let db = ctx.db.peek().await;
+    validate_restore_selection(&manual_ids, &snapshots, db.as_public().as_package_data())?;
+    drop(db);
 
     let operation_coordinator =
         crate::backup::try_backup_coordinator(ctx.backup_coordinator.clone())?;
@@ -634,6 +657,38 @@ mod scheduled_recovery_tests {
     }
 
     #[test]
+    fn restore_selection_rejects_existing_services_from_every_source() {
+        let packages = Model::from(to_value(&serde_json::json!({ "bitcoind": {} })).unwrap());
+        let existing: PackageId = "bitcoind".parse().unwrap();
+        for (manual, snapshots) in [
+            (vec![existing.clone()], BTreeMap::new()),
+            (
+                Vec::new(),
+                BTreeMap::from([(existing.clone(), ServiceSnapshotId::new())]),
+            ),
+            (
+                vec!["lnd".parse().unwrap()],
+                BTreeMap::from([(existing.clone(), ServiceSnapshotId::new())]),
+            ),
+        ] {
+            assert!(validate_restore_selection(&manual, &snapshots, &packages).is_err());
+        }
+    }
+
+    #[test]
+    fn restore_selection_accepts_uninstalled_services_from_both_sources() {
+        let packages = Model::from(to_value(&serde_json::json!({ "existing": {} })).unwrap());
+        assert!(
+            validate_restore_selection(
+                &["lnd".parse().unwrap()],
+                &BTreeMap::from([("bitcoind".parse().unwrap(), ServiceSnapshotId::new())]),
+                &packages,
+            )
+            .is_ok()
+        );
+    }
+
+    #[test]
     fn restore_selection_requires_a_checkpoint_owned_by_the_source_service() {
         let package_id: PackageId = "bitcoind".parse().unwrap();
         let checkpoint = snapshot(&package_id, 1);
@@ -753,10 +808,11 @@ async fn initialize_recovered_server(
 
     let config = ctx.config.peek(|c| c.clone());
 
-    let init_result = init(&ctx.webserver, &config, init_phases).await?;
+    let init_result = init(&ctx.webserver, ctx.dns.clone(), &config, init_phases).await?;
 
     let rpc_ctx = RpcContext::init(
         &ctx.webserver,
+        ctx.dns.clone(),
         &config,
         disk_guid.clone(),
         Some(init_result),

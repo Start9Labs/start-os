@@ -557,6 +557,7 @@ async fn run_job_inner(
             }
             persisted_job.status.last_result = Some(run.state);
             state.as_jobs_mut().insert(&job.id, &persisted_job)?;
+            record_completed_checkpoints(db, &run.services)?;
             prune_completed_history(db)?;
             Ok(())
         })
@@ -679,6 +680,20 @@ async fn promote_staging(
         Err(error) => failed_report(started, error),
     };
     Ok((Arc::new(owned), report))
+}
+
+fn record_completed_checkpoints(
+    db: &mut crate::db::model::DatabaseModel,
+    services: &BTreeMap<PackageId, PackageBackupReport>,
+) -> Result<(), Error> {
+    for (id, report) in services {
+        if report.error.is_none() {
+            if let Some(timestamp) = report.measured_at {
+                crate::backup::record_package_backup(db, id, timestamp)?;
+            }
+        }
+    }
+    Ok(())
 }
 
 pub(super) fn notify_run_failure(
@@ -1120,6 +1135,63 @@ fn target_read_failure(error: &Error, job: &str, target: &str) -> (BackupJobPaus
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn completed_checkpoints_update_only_successful_installed_services() {
+        use super::*;
+        let old = chrono::DateTime::<Utc>::from_timestamp(1, 0).unwrap();
+        let now = chrono::DateTime::<Utc>::from_timestamp(2, 0).unwrap();
+        let mut db = crate::db::model::DatabaseModel::from(
+            to_value(&serde_json::json!({
+                "public": { "packageData": {
+                    "success": { "lastBackup": old },
+                    "failure": { "lastBackup": old },
+                    "unmeasured": { "lastBackup": old }
+                } }
+            }))
+            .unwrap(),
+        );
+        let report = PackageBackupReport {
+            error: None,
+            duration_ms: 1,
+            logical_size: Some(1),
+            physical_size: Some(1),
+            changed_bytes: None,
+            measured_at: Some(now),
+        };
+        let reports = BTreeMap::from([
+            ("success".parse().unwrap(), report.clone()),
+            ("removed".parse().unwrap(), report.clone()),
+            (
+                "failure".parse().unwrap(),
+                PackageBackupReport {
+                    error: Some("failed".to_owned()),
+                    ..report.clone()
+                },
+            ),
+            (
+                "unmeasured".parse().unwrap(),
+                PackageBackupReport {
+                    measured_at: None,
+                    ..report
+                },
+            ),
+        ]);
+        record_completed_checkpoints(&mut db, &reports).unwrap();
+        let packages = db.as_public().as_package_data();
+        for (id, expected) in [("success", now), ("failure", old), ("unmeasured", old)] {
+            assert_eq!(
+                packages
+                    .as_idx(&id.parse().unwrap())
+                    .unwrap()
+                    .as_last_backup()
+                    .de()
+                    .unwrap(),
+                Some(expected)
+            );
+        }
+        assert!(packages.as_idx(&"removed".parse().unwrap()).is_none());
+    }
+
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     use super::*;
