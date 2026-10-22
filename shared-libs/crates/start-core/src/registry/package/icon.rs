@@ -41,7 +41,7 @@ pub async fn icon(
     match icon {
         Ok(Some(icon)) => Response::builder()
             .header(CONTENT_TYPE, &*icon.mime)
-            .header(CACHE_CONTROL, "public, max-age=3600")
+            .header(CACHE_CONTROL, "public, max-age=604800")
             .body(Body::from(icon.data.into_owned()))
             .unwrap(),
         Ok(None) => not_found(),

@@ -1,4 +1,4 @@
-export const FALLBACK_ICON = 'assets/img/service-icons/fallback.png'
+export { FALLBACK_ICON } from '@start9labs/shared'
 
 export function registryIconUrl(
   registry: string,

@@ -47,9 +47,13 @@ export class PackageIconService {
     const source =
       isInstalling(pkg) || isRestoring(pkg) ? 'installing' : 'installed'
 
+    const url = `/s9pk/${source}/${id}.s9pk/${path}`
+
     return this.load(
       `${source}:${pkg.s9pk}/${path}`,
-      `/s9pk/${source}/${id}.s9pk/${path}`,
+      source === 'installed'
+        ? `${url}?v=${encodeURIComponent(pkg.s9pk.split('/').pop()!)}`
+        : url,
     )
   }
 

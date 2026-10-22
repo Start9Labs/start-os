@@ -50,15 +50,15 @@ npm run start:ui
 
 ### Proxying to a live server
 
-1. In `config.json`, set "useMocks" to `false`
+1. In `config.json`, set "useMocks" to `false`, and set `ui.api.signAs` to the server's hostname or IP (e.g. `"demo.local"`). Requests are signed for the server they address, and the server rejects a signature for `localhost` from another machine.
 
-2. Copy and configure the proxy config:
+2. Copy the proxy config to the repo root:
 
 ```sh
-cp proxy.conf-sample.json proxy.conf.json
+cp shared-libs/ts-modules/proxy.conf-sample.json proxy.conf.json
 ```
 
-3. Replace every instance of `<CHANGEME>` with the hostname of your remote server
+3. Replace every instance of `<CHANGE_ME>` with the same hostname or IP
 
 4. Start the proxy dev server:
 
