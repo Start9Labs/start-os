@@ -102,7 +102,8 @@ mod tests {
     use super::*;
     use crate::auth::{AuthKeys, CreateTokenParams, Sessions, create_token, revoke_tokens};
     use crate::middleware::auth::signature::{
-        AUTH_SIG_HEADER, NonceCache, SignatureAuthContext, SignatureHeader, check_enrolled,
+        AUTH_SIG_HEADER, LoginMetadata, NonceCache, SignatureAuthContext, SignatureHeader,
+        check_enrolled,
     };
     use crate::middleware::auth::{Auth, DbContext};
     use crate::rpc_continuations::OpenAuthedContinuations;
@@ -131,7 +132,7 @@ mod tests {
         }
     }
     impl SignatureAuthContext for TestCtx {
-        type AdditionalMetadata = Value;
+        type AdditionalMetadata = LoginMetadata;
         type CheckPubkeyRes = ();
         fn mutate_nonce_cache<F: FnOnce(&mut NonceCache) -> T, T>(&self, f: F) -> T {
             self.0.nonces.mutate(f)
@@ -153,6 +154,7 @@ mod tests {
         }
         async fn sig_context(
             &self,
+            _: &http::Extensions,
         ) -> impl IntoIterator<Item = Result<impl AsRef<str> + Send, Error>> + Send {
             [Ok::<_, Error>("localhost")]
         }
@@ -160,7 +162,7 @@ mod tests {
             &self,
             db: &Model<TestDb>,
             pubkey: Option<&AnyVerifyingKey>,
-            _: Value,
+            _: LoginMetadata,
         ) -> Result<(), Error> {
             check_enrolled(pubkey, false, |id| {
                 Ok(db.as_sessions().as_pubkeys().as_idx(id).is_some())
@@ -259,7 +261,8 @@ mod tests {
             .await
             .result
             .unwrap();
-        let signature = SignatureHeader::sign(&key, WHOAMI_REQUEST.as_bytes(), "localhost")
+        let signature = SignatureHeader::sign(&key.into(), WHOAMI_REQUEST.as_bytes(), "localhost")
+            .await
             .unwrap()
             .to_header();
         let mut headers = http::HeaderMap::new();

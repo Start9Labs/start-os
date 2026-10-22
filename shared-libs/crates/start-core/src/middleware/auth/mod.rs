@@ -14,6 +14,7 @@ use crate::util::serde::const_true;
 
 pub mod bearer;
 pub mod local;
+mod login_rate_limit;
 pub mod signature;
 
 pub trait DbContext: Context {

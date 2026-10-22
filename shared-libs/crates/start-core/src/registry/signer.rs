@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::prelude::*;
-use crate::sign::commitment::Digestable;
-use crate::sign::{AnySignature, AnyVerifyingKey, SignatureScheme};
+use crate::sign::commitment::SignedCommitment;
+use crate::sign::{AnySignature, AnyVerifyingKey};
 use crate::util::FromStrParser;
 
 #[derive(Debug, Deserialize, Serialize, HasModel, VisitFields)]
@@ -105,7 +105,7 @@ impl AcceptSigners {
     pub fn process_signature(
         &mut self,
         signer: &AnyVerifyingKey,
-        commitment: &impl Digestable,
+        commitment: &impl SignedCommitment,
         context: &str,
         signature: &AnySignature,
     ) -> Result<(), Error> {
@@ -114,9 +114,9 @@ impl AcceptSigners {
             Self::Accepted => Self::Accepted,
             Self::Signer(s) => {
                 if &s == signer {
-                    res = signer
-                        .scheme()
-                        .verify_commitment(signer, commitment, context, signature);
+                    res = crate::sign::compat::verify_commitment(
+                        signer, commitment, context, signature,
+                    );
                     Self::Accepted
                 } else {
                     Self::Signer(s)
