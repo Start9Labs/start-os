@@ -229,6 +229,12 @@ impl ServiceMap {
         }
         let developer_key = s9pk.as_archive().signer();
         let mut service = self.get_mut(&id).await;
+        if recovery_source.is_some() && service.is_some() {
+            return Err(Error::new(
+                eyre!("{}", t!("backup.restore.package-installed", id = &*id)),
+                ErrorKind::InvalidRequest,
+            ));
+        }
         // Fail before the download and before the service is quiesced.
         if recovery_source.is_none() {
             if let Some(prev) = &*service {
@@ -390,11 +396,6 @@ impl ServiceMap {
                     let s9pk = S9pk::open(&installed_path, Some(&id)).await?;
                     let mut data_version = get_data_version(&id).await?;
                     let prev = if let Some(service) = service.take() {
-                        ensure_code!(
-                            recovery_source.is_none(),
-                            ErrorKind::InvalidRequest,
-                            "cannot restore over existing package"
-                        );
                         // Snapshot the quiesced tree: the rollback point should be the state
                         // the user had when they pressed update.
                         service.quiesce().await?;
