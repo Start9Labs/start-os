@@ -121,7 +121,7 @@ include_dir = { version = "0.7.3", features = ["metadata"] }
 indexmap = { version = "2.0.2", features = ["serde"] }
 indicatif = { version = "0.18.3", features = ["tokio"] }
 inotify = "0.11.0"
-instant-acme = { git = "https://github.com/Start9Labs/instant-acme.git", rev = "d332284dd6e40cabe8b7d65cb81a2f23d82f5c0f", default-features = false, features = [
+instant-acme = { git = "https://github.com/Start9Labs/instant-acme.git", rev = "f5fea9642366ba3b495ee9be2cf653b9812368d7", default-features = false, features = [
   "ring",
 ] }
 integer-encoding = { version = "4.0.0", features = ["tokio_async"] }

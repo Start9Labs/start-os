@@ -3845,7 +3845,7 @@ dependencies = [
 [[package]]
 name = "instant-acme"
 version = "0.9.0"
-source = "git+https://github.com/Start9Labs/instant-acme.git?rev=d332284dd6e40cabe8b7d65cb81a2f23d82f5c0f#d332284dd6e40cabe8b7d65cb81a2f23d82f5c0f"
+source = "git+https://github.com/Start9Labs/instant-acme.git?rev=f5fea9642366ba3b495ee9be2cf653b9812368d7#f5fea9642366ba3b495ee9be2cf653b9812368d7"
 dependencies = [
  "async-trait",
  "base64 0.23.1",
