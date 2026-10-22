@@ -13,13 +13,13 @@ lists every exception repo-wide. The full text is in [`COPYING`](COPYING).
 
 Most of it comes from SpaceMiT's OpenWrt BSP and from OpenWrt itself:
 
-| Files                                                                                                                 | Copyright                                      |
-| --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `target/linux/spacemit/`, `package/boot/{opensbi,uboot}-spacemit/` — target and boot-package makefiles, image scripts | SpaceMiT Ltd.                                  |
-| `target/linux/spacemit/*/base-files/etc/board.d/*`, `.../lib/preinit/79_move_config`                                  | OpenWrt.org                                    |
-| `target/linux/spacemit/patches-6.18/*`                                                                                | The respective Linux kernel contributors       |
-| `package/kernel/mac80211/patches/`, `package/boot/uboot-spacemit/patches/`                                            | The respective OpenWrt and U-Boot contributors |
-| `package/firmware/wireless-regdb/patches/`                                                                            | The wireless-regdb contributors (ISC)          |
+| Files                                                                                                                 | Copyright                                                  |
+| --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `target/linux/spacemit/`, `package/boot/{opensbi,uboot}-spacemit/` — target and boot-package makefiles, image scripts | SpaceMiT Ltd.                                              |
+| `target/linux/spacemit/*/base-files/etc/board.d/*`, `.../lib/preinit/79_move_config`                                  | OpenWrt.org                                                |
+| `target/linux/spacemit/patches-6.18/*`                                                                                | SpaceMiT Ltd. and the respective Linux kernel contributors |
+| `package/kernel/mac80211/patches/`, `package/boot/uboot-spacemit/patches/`                                            | The respective OpenWrt and U-Boot contributors             |
+| `package/firmware/wireless-regdb/patches/`                                                                            | The wireless-regdb contributors (ISC)                      |
 
 Sixteen files carry an explicit `SPDX-License-Identifier: GPL-2.0-only` header,
 most of them naming a copyright holder. The `.patch` files are diffs against

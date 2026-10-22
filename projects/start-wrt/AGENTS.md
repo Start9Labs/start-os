@@ -367,3 +367,29 @@ each patch's `Applies to:` header line to the new version. The overlay needs
 attention only if upstream grew a conflicting path (the spacemit target dir is ours alone, so
 this is rare). Commit the pin bump + feed pins + refreshed patches + a changelog fragment as one
 ordinary PR.
+
+**Bumping the kernel.** The K1 kernel is a mainline stable release plus the SpaceMiT vendor
+delta, the way every OpenWrt target pins its kernel. The delta comes from
+[jmontleon/kernel-ark](https://gitlab.com/jmontleon/kernel-ark), whose
+`fedora-6.18.<n>-riscv-k1.*` branches carry the K1 work rebased onto each 6.18 stable release.
+[`openwrt-overlay/target/linux/generic/kernel-6.18`](openwrt-overlay/target/linux/generic/kernel-6.18)
+names the release (`LINUX_VERSION-6.18`) and the sha256 of its kernel.org tarball
+(`LINUX_KERNEL_HASH-6.18.<n>`).
+[`build/gen-kernel-patch.sh`](build/gen-kernel-patch.sh) pins the vendor tree by commit
+(`VENDOR_URL`, `VENDOR_REF`) and generates
+`openwrt-overlay/target/linux/spacemit/patches-6.18/0000-spacemit-k1-vendor-kernel.patch`
+from it. It reverts the Fedora packaging and patches in its `FEDORA` list to mainline and leaves
+out the vendor drivers in its `EXCLUDE` list. Never edit that patch by hand.
+To move the kernel:
+
+1. Set `VENDOR_REF` to the new vendor commit, never a branch name: its branches are republished.
+   Set `LINUX_VERSION-6.18` to the `SUBLEVEL` in that commit's top-level `Makefile`, and rename
+   the hash line to match.
+2. Take the tarball's sha256 from kernel.org's signed `sha256sums.asc`
+   (`https://cdn.kernel.org/pub/linux/kernel/v6.x/`), check its signature, and record it.
+3. Run `projects/start-wrt/build/gen-kernel-patch.sh`. It fails if the vendor tree is a
+   different sublevel, still references an excluded driver, or adds Red Hat lines outside
+   `FEDORA`. It lists every path new to the patch; add any that carries only Fedora changes to
+   `FEDORA` and rerun.
+4. Rebuild the image and bench it. Commit the version, hash, regenerated patch, and a changelog
+   fragment together.
