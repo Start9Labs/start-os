@@ -576,16 +576,13 @@ impl SignatureHeader {
 const REQUEST_AUTH_TAG: &[u8] = b"Start-Auth-Sig v2\0";
 const REQUEST_AUTH_TAG_V1: &[u8] = b"Start-Auth-Sig v1\0";
 
-/// The message a request signature commits to: the protocol tag, the server
-/// identity (hostname/IP/domain) prefixed with its length, then the
-/// commitment. Signed with pure Ed25519, so any WebCrypto client can produce it.
+/// The message a request signature commits to, bound to the server identity
+/// (hostname/IP/domain). Signed with pure Ed25519, so any WebCrypto client can produce it.
 fn request_signing_message(
     commitment: &RequestCommitment,
     context: &str,
 ) -> Result<Vec<u8>, Error> {
-    let mut msg = crate::sign::framed_signing_message(REQUEST_AUTH_TAG, context)?;
-    crate::sign::append_commitment(&mut msg, commitment);
-    Ok(msg)
+    crate::sign::signing_message(REQUEST_AUTH_TAG, commitment, context)
 }
 
 /// The v1 layout, verified for clients that predate v2: the tag, the commitment, then the context.
@@ -759,7 +756,7 @@ mod tests {
     /// Produced by the TypeScript client (`lib/auth/signature.ts`) for secret
     /// key 0102…1f20, context "start-9.local", and the JSON body below. Guards
     /// the byte-level contract between the browser signer and this verifier.
-    const JS_PRODUCED_HEADER: &str = "timestamp=1792637112&nonce=10807800483433088304&size=59&blake3=95o3MZRDgMasjyEKb6h2qMb1JFOs45lZdiY2qeXDRQY&signer=MCowBQYDK2VwAyEAebVWLo_mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ&signature=MEkwBQYDK2VwBEBIovvU67UlXP-Q3a6m3YwLuR2Ru96YHT0uI7k3gVET3ZNhv-JXW2jxaiMmcTiXCpR-QTgOrMMHtSz1cTnPM8EI";
+    const JS_PRODUCED_HEADER: &str = "commitment=request&timestamp=1792644825&nonce=18095015305127205807&size=59&blake3=95o3MZRDgMasjyEKb6h2qMb1JFOs45lZdiY2qeXDRQY&signer=MCowBQYDK2VwAyEAebVWLo_mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ&signature=MEkwBQYDK2VwBEBBctoB4q6Ez-Iuc8w7CBw6gz5ysJYD6F2fpz7Cb7A9mX96rUFD-IPWzjs3mt-Y6oBqDfYVVC-cVXbkU9UTGIsC";
     /// The same inputs signed by the v1 client.
     const JS_PRODUCED_HEADER_V1: &str = "timestamp=1784746349&nonce=5184603501117103523&size=59&blake3=95o3MZRDgMasjyEKb6h2qMb1JFOs45lZdiY2qeXDRQY&signer=MCowBQYDK2VwAyEAebVWLo_mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ&signature=MEkwBQYDK2VwBEA0QgkL7GFycl72l-Bt076252XjpFG7aLngdxeIs-hNXpCkcJUtq9Xsfm_YV68U0JtK2qLMG2KPSfAVTcg8ntMH";
     const BODY: &[u8] = b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"server.echo\",\"params\":{}}";
@@ -1115,6 +1112,12 @@ mod tests {
                 "{hostname} via {origin:?}"
             );
         }
+    }
+
+    #[test]
+    fn rejects_unknown_commitment_type() {
+        let header = JS_PRODUCED_HEADER.replacen("commitment=request", "commitment=bogus", 1);
+        assert!(SignatureHeader::from_header(&HeaderValue::from_str(&header).unwrap()).is_err());
     }
 
     #[tokio::test]

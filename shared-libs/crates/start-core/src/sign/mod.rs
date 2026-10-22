@@ -22,18 +22,25 @@ pub mod gpg_agent;
 /// Protocol tag prefixed to pure-Ed25519 commitment signing messages.
 const COMMITMENT_SIG_TAG: &[u8] = b"Start-Commitment-Sig v1\0";
 
-/// The tag, then the context prefixed with its length as one byte.
-pub(crate) fn framed_signing_message(tag: &[u8], context: &str) -> Result<Vec<u8>, Error> {
+/// The tag, the context prefixed with its length as one byte, the commitment type, then the
+/// commitment.
+pub(crate) fn signing_message<C: SignedCommitment>(
+    tag: &[u8],
+    commitment: &C,
+    context: &str,
+) -> Result<Vec<u8>, Error> {
     let context_len = u8::try_from(context.len()).map_err(|_| {
         Error::new(
             eyre!("{}", t!("sign.context-too-long")),
             ErrorKind::InvalidRequest,
         )
     })?;
-    let mut msg = Vec::with_capacity(tag.len() + 1 + context.len() + 64);
+    let mut msg = Vec::with_capacity(tag.len() + 2 + context.len() + 64);
     msg.extend_from_slice(tag);
     msg.push(context_len);
     msg.extend_from_slice(context.as_bytes());
+    msg.push(C::TYPE_ID);
+    append_commitment(&mut msg, commitment);
     Ok(msg)
 }
 
@@ -46,17 +53,6 @@ pub(crate) fn append_commitment(msg: &mut Vec<u8>, commitment: &impl Digestable)
         }
     }
     commitment.update(&mut Sink(msg));
-}
-
-/// The framed context, the commitment type, then the commitment.
-fn commitment_signing_message<C: SignedCommitment>(
-    commitment: &C,
-    context: &str,
-) -> Result<Vec<u8>, Error> {
-    let mut msg = framed_signing_message(COMMITMENT_SIG_TAG, context)?;
-    msg.push(C::TYPE_ID);
-    append_commitment(&mut msg, commitment);
-    Ok(msg)
 }
 
 pub trait SignatureScheme {
@@ -192,7 +188,10 @@ impl AnyVerifyingKey {
                 Ed25519ph.verify_commitment(k, commitment, context, s)
             }
             (Self::Ed25519(k), AnySignature::Ed25519(s)) => {
-                k.verify_strict(&commitment_signing_message(commitment, context)?, s)?;
+                k.verify_strict(
+                    &signing_message(COMMITMENT_SIG_TAG, commitment, context)?,
+                    s,
+                )?;
                 Ok(())
             }
         }
@@ -439,7 +438,7 @@ impl Signer {
                 Ed25519ph.sign_commitment(k, commitment, context)?,
             )),
             Self::GpgAgent(a) => Ok(AnySignature::Ed25519(
-                a.sign(&commitment_signing_message(commitment, context)?)
+                a.sign(&signing_message(COMMITMENT_SIG_TAG, commitment, context)?)
                     .await?,
             )),
         }
@@ -515,7 +514,7 @@ mod tests {
             root_maxsize: 11,
         };
         let sig = AnySignature::Ed25519(
-            key.sign(&commitment_signing_message(&blake3, "startos").unwrap()),
+            key.sign(&signing_message(COMMITMENT_SIG_TAG, &blake3, "startos").unwrap()),
         );
         let vk = AnyVerifyingKey::Ed25519(key.verifying_key());
         vk.verify_commitment(&blake3, "startos", &sig).unwrap();

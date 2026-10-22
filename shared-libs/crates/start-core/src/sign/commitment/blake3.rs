@@ -12,8 +12,9 @@ use crate::util::io::{ParallelBlake3Writer, TrackingIO};
 use crate::util::serde::Base64;
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel, PartialEq, Eq, VisitFields)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", tag = "type", rename = "blake3")]
 #[model = "Model<Self>"]
+#[visit(ts(rename = "Blake3Commitment"))]
 pub struct Blake3Commitment {
     pub hash: Base64<[u8; 32]>,
     pub size: u64,
@@ -23,6 +24,7 @@ rpc_toolkit::reflect_ts!(Blake3Commitment);
 rpc_toolkit::ts_export!(Blake3Commitment, namespaces = [""]);
 impl SignedCommitment for Blake3Commitment {
     const TYPE_ID: u8 = 1;
+    const TYPE_NAME: &'static str = "blake3";
 }
 impl Digestable for Blake3Commitment {
     fn update<D: Update>(&self, digest: &mut D) {

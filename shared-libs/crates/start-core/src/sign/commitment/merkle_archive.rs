@@ -11,8 +11,9 @@ use crate::util::io::TrackingIO;
 use crate::util::serde::Base64;
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, HasModel, VisitFields, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", tag = "type", rename = "merkle-archive")]
 #[model = "Model<Self>"]
+#[visit(ts(rename = "MerkleArchiveCommitment"))]
 pub struct MerkleArchiveCommitment {
     pub root_sighash: Base64<[u8; 32]>,
     pub root_maxsize: u64,
@@ -51,6 +52,7 @@ impl MerkleArchiveCommitment {
 }
 impl SignedCommitment for MerkleArchiveCommitment {
     const TYPE_ID: u8 = 2;
+    const TYPE_NAME: &'static str = "merkle-archive";
 }
 impl Digestable for MerkleArchiveCommitment {
     fn update<D: Update>(&self, digest: &mut D) {

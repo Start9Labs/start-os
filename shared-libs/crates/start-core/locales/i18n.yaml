@@ -2616,6 +2616,14 @@ registry.package.signer.not-authorized:
   fr_FR: "Le signataire %{signer} n'est pas autorisé à signer pour %{id}"
   pl_PL: "Sygnatariusz %{signer} nie jest autoryzowany do podpisywania %{id}"
 
+# sign/commitment/request.rs
+sign.commitment.request.unsupported-type:
+  en_US: "Unsupported request commitment type %{ty}"
+  de_DE: "Nicht unterstützter Anfrage-Commitment-Typ %{ty}"
+  es_ES: "Tipo de compromiso de solicitud no admitido %{ty}"
+  fr_FR: "Type d'engagement de requête non pris en charge %{ty}"
+  pl_PL: "Nieobsługiwany typ zobowiązania żądania %{ty}"
+
 # sign/mod.rs
 sign.context-too-long:
   en_US: "Signing context is longer than 255 bytes"
