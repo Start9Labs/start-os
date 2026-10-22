@@ -1,6 +1,6 @@
 export const OS_UPDATE_SIGNERS = [
   `-----BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEAqPjOeMD2CB3UEASoICgfJlfrO5ygjOSBCCNRyDBs75A=
+MCowBQYDK2VwAyEAgpcI3hOExv1njCt+zJoYBartdyk4SKiqSIy3+9tcpOI=
 -----END PUBLIC KEY-----
 `,
   `-----BEGIN PUBLIC KEY-----

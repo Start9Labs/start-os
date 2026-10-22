@@ -499,7 +499,7 @@ for (const [name, key] of [
 
 test('the trusted list contains the requested maintainer keys and the Start9 OpenPGP primary key', () => {
   for (const body of [
-    'MCowBQYDK2VwAyEAqPjOeMD2CB3UEASoICgfJlfrO5ygjOSBCCNRyDBs75A=',
+    'MCowBQYDK2VwAyEAgpcI3hOExv1njCt+zJoYBartdyk4SKiqSIy3+9tcpOI=',
     'MCowBQYDK2VwAyEASv7fB+rs6FRL+pk7KXaoXONNn26dRkwMB9LXUqmXXLM=',
   ]) {
     assert.equal(
@@ -537,6 +537,12 @@ test('the trusted list contains the requested maintainer keys and the Start9 Ope
   }).export({ format: 'pem', type: 'spki' })
   assert.deepEqual(trustedOsUpdateSigners([key]), [key])
   assert.equal(OS_UPDATE_SIGNERS.length, 3)
+  assert.deepEqual(
+    trustedOsUpdateSigners([
+      '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAqPjOeMD2CB3UEASoICgfJlfrO5ygjOSBCCNRyDBs75A=\n-----END PUBLIC KEY-----\n',
+    ]),
+    [],
+  )
 })
 
 test('trusted signer matching ignores PEM whitespace but rejects unrelated keys and unsigned metadata', () => {
