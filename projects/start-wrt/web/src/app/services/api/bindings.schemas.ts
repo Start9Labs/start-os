@@ -570,7 +570,8 @@ export const LanIpv6Response: z.ZodObject<{
   slaac: z.ZodBoolean
   dhcpv6: z.ZodBoolean
   /**
-   * Prefix delegation length, e.g. 64
+   * LAN prefix length in effect: the configured length, lengthened to the
+   * delegated prefix when shorter.
    */
   prefix: z.ZodInt
   /**
@@ -581,17 +582,22 @@ export const LanIpv6Response: z.ZodObject<{
     z.ZodNullable<z.ZodString>
   >
   /**
-   * WAN prefix length (read-only context for the UI)
+   * Length of the global prefix the ISP delegated; null without one.
    */
-  wan_prefix: z.ZodInt
+  delegated_prefix: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodInt>>,
+    z.ZodNullable<z.ZodInt>
+  >
 }> = /* @__PURE__ */ object({
   slaac: z.boolean(),
   dhcpv6: z.boolean(),
   /**
-   * Prefix delegation length, e.g. 64
+   * LAN prefix length in effect: the configured length, lengthened to the
+   * delegated prefix when shorter.
    */
   prefix: z.int().meta({
-    description: 'Prefix delegation length, e.g. 64',
+    description:
+      'LAN prefix length in effect: the configured length, lengthened to the\ndelegated prefix when shorter.',
   }),
   /**
    * Current IPv6 address (if assigned)
@@ -600,10 +606,14 @@ export const LanIpv6Response: z.ZodObject<{
     description: 'Current IPv6 address (if assigned)',
   }),
   /**
-   * WAN prefix length (read-only context for the UI)
+   * Length of the global prefix the ISP delegated; null without one.
    */
-  wan_prefix: z.int().meta({
-    description: 'WAN prefix length (read-only context for the UI)',
+  delegated_prefix: wire(
+    z.int().nullable().optional(),
+    z.int().nullable(),
+  ).meta({
+    description:
+      'Length of the global prefix the ISP delegated; null without one.',
   }),
 }).meta({
   id: 'LanIpv6Response',
@@ -611,11 +621,22 @@ export const LanIpv6Response: z.ZodObject<{
 export const LanIpv6SetRequest: z.ZodObject<{
   slaac: z.ZodBoolean
   dhcpv6: z.ZodBoolean
-  prefix: z.ZodInt
+  /**
+   * Absent keeps the configured prefix length.
+   */
+  prefix: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodInt>>,
+    z.ZodNullable<z.ZodInt>
+  >
 }> = /* @__PURE__ */ object({
   slaac: z.boolean(),
   dhcpv6: z.boolean(),
-  prefix: z.int(),
+  /**
+   * Absent keeps the configured prefix length.
+   */
+  prefix: wire(z.int().nullable().optional(), z.int().nullable()).meta({
+    description: 'Absent keeps the configured prefix length.',
+  }),
 }).meta({
   id: 'LanIpv6SetRequest',
 })
