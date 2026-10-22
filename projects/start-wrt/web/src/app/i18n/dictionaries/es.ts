@@ -484,7 +484,6 @@ export default {
   505: 'El valor máximo es {max}',
   506: 'Tu prefijo WAN es /{wanPrefix}. Introduce un valor mayor que {wanPrefix} y menor que 128.',
   507: 'Introduce un valor entre {min} y {max}',
-  508: 'Cliente',
   509: 'La nueva dirección IP se aplicará la próxima vez que este dispositivo solicite una al router; el router no puede enviársela a un dispositivo conectado. La forma más rápida de aplicarla es desconectar y volver a conectar el dispositivo (Wi-Fi o Ethernet) o reiniciarlo; esto suele funcionar, pero no se garantiza que surta efecto de inmediato. De lo contrario, el dispositivo adoptará la nueva dirección por sí solo en un plazo de hasta 12 horas.',
   510: 'Entendido',
   511: 'Intentando contactar con el router',
@@ -554,4 +553,6 @@ export default {
   582: 'Resolutores a los que acceden a través del túnel los perfiles que usan esta VPN sin DNS propio. Sepárelos con comas.',
   583: 'Introduzca direcciones IP separadas por comas',
   580: 'Sistema (fuera de la VPN)',
+  585: 'Túnel de {vpn}',
+  586: 'Tu tráfico',
 } satisfies i18n
