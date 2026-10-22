@@ -1,1 +1,0 @@
-- Services show their own icon while installing or restoring, including sideloaded services and services from registries that do not serve icons separately.
