@@ -5,6 +5,7 @@ use rcgen::{
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
+use tokio::sync::oneshot;
 use tokio_rustls::TlsAcceptor;
 use tokio_rustls::rustls::pki_types::PrivatePkcs8KeyDer;
 use tokio_rustls::rustls::{CertificateError, Error as TlsError, ServerConfig};
@@ -388,6 +389,48 @@ async fn reqwest_discovers_syncs_and_rejects_revocation_on_existing_client() {
     worker.abort();
     http_task.abort();
     tls_task.abort();
+}
+
+#[tokio::test]
+async fn reqwest_negotiates_http2() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!(
+        "https://localhost:{}",
+        listener.local_addr().unwrap().port()
+    );
+    let ca = authority("root", &[], 1);
+    let peer = leaf(&[], 42);
+    let mut config = ServerConfig::builder_with_provider(provider())
+        .with_safe_default_protocol_versions()
+        .unwrap()
+        .with_no_client_auth()
+        .with_single_cert(
+            vec![CertificateDer::from(
+                peer.serialize_der_with_signer(&ca).unwrap(),
+            )],
+            PrivatePkcs8KeyDer::from(peer.serialize_private_key_der()).into(),
+        )
+        .unwrap();
+    config.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
+    let acceptor = TlsAcceptor::from(Arc::new(config));
+    let (negotiated, received) = oneshot::channel();
+    let server = tokio::spawn(async move {
+        let (stream, _) = listener.accept().await.unwrap();
+        let stream = acceptor.accept(stream).await.unwrap();
+        let _ = negotiated.send(stream.get_ref().1.alpn_protocol().map(<[u8]>::to_vec));
+    });
+    let client = Client::builder()
+        .use_preconfigured_tls(
+            CrlCache::empty()
+                .client_config(vec![CertificateDer::from(ca.serialize_der().unwrap())])
+                .unwrap(),
+        )
+        .no_proxy()
+        .build()
+        .unwrap();
+    let _ = client.get(&url).send().await;
+    assert_eq!(received.await.unwrap().as_deref(), Some(&b"h2"[..]));
+    server.abort();
 }
 
 #[tokio::test]
