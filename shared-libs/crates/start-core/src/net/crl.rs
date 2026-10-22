@@ -160,6 +160,8 @@ impl CrlCache {
             .with_no_client_auth();
         // Resumed sessions skip certificate verification against subsequently learned CRLs.
         config.resumption = tokio_rustls::rustls::client::Resumption::disabled();
+        // reqwest leaves ALPN unset on a preconfigured rustls config.
+        config.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec()];
         Ok(config)
     }
 
