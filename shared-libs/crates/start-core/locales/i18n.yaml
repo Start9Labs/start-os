@@ -21,6 +21,13 @@ acme.order-failed-title:
   fr_FR: "Impossible d'obtenir un certificat pour %{domain}"
   pl_PL: "Nie udało się uzyskać certyfikatu dla %{domain}"
 
+acme.order-invalid:
+  en_US: "The certificate authority rejected the order"
+  de_DE: "Die Zertifizierungsstelle hat den Auftrag abgelehnt"
+  es_ES: "La autoridad de certificación rechazó la solicitud"
+  fr_FR: "L'autorité de certification a rejeté la demande"
+  pl_PL: "Urząd certyfikacji odrzucił zamówienie"
+
 acme.order-timed-out:
   en_US: "The certificate authority did not answer in time"
   de_DE: "Die Zertifizierungsstelle hat nicht rechtzeitig geantwortet"
