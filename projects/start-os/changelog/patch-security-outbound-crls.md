@@ -1,0 +1,1 @@
+- StartOS automatically syncs certificate revocation lists for its main registry and download client and rejects known revoked certificates on new TLS handshakes. Signed cached lists remain effective after expiry or a failed refresh.

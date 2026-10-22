@@ -1,6 +1,7 @@
 use rpc_toolkit::{Context, HandlerExt, ParentHandler};
 
 pub mod acme;
+pub(crate) mod crl;
 pub mod dns;
 pub mod dns_update;
 pub mod domain_redirect;
