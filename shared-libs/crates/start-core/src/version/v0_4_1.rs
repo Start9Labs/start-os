@@ -52,6 +52,46 @@ mod test {
     use imbl_value::json;
 
     use super::*;
+    use crate::update::signers::initial_signers;
+    use crate::version::Upgrade;
+
+    #[tokio::test]
+    async fn upgrade_from_0_4_0_3_reruns_its_stale_migration() {
+        let initial = to_value(&initial_signers()).unwrap();
+        let mut custom = initial_signers();
+        custom.pop_first();
+        custom.values_mut().next().unwrap().label = "Owner-managed".to_owned();
+        let custom = to_value(&custom).unwrap();
+        for (revision, saved, expected) in [
+            (2, None, initial),
+            (3, Some(json!({})), json!({})),
+            (3, Some(custom.clone()), custom),
+        ] {
+            let previous = v0_4_0_3::Version;
+            let mut db = json!({
+                "private": { "sessionPubkeys": {} },
+                "public": { "serverInfo": {
+                    "version": previous.semver(),
+                    "packageVersionCompat": "*",
+                    "latestMigrationRevision": revision,
+                    "postInitMigrationTodos": {},
+                } },
+            });
+            if let Some(saved) = saved {
+                db["public"]["serverInfo"]["trustedOsUpdateSigners"] = saved;
+            }
+            Upgrade::load(&previous, &Version, revision)
+                .await
+                .unwrap()
+                .apply(&previous, &Version, &mut db)
+                .unwrap();
+            assert_eq!(
+                db["public"]["serverInfo"]["trustedOsUpdateSigners"],
+                expected,
+            );
+            assert_eq!(db["public"]["serverInfo"]["version"], json!("0.4.1"));
+        }
+    }
 
     #[test]
     fn sessions_split_by_credential_and_roll_back() {
