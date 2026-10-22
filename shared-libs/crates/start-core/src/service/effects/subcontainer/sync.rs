@@ -196,7 +196,7 @@ pub struct ExecParams {
     command: Vec<OsString>,
 }
 impl ExecParams {
-    fn exec(&self, parent_death_signal: Option<c_int>) -> Result<(), Error> {
+    fn exec(&self) -> Result<(), Error> {
         let ExecParams {
             env,
             env_file,
@@ -319,10 +319,8 @@ impl ExecParams {
                 // setuid clears dumpability and changes /proc/self/fd ownership.
                 libc::prctl(libc::PR_SET_DUMPABLE, 1, 0, 0, 0);
                 // Credential changes clear the parent-death signal.
-                if let Some(signal) = parent_death_signal {
-                    if libc::prctl(libc::PR_SET_PDEATHSIG, signal) < 0 {
-                        return Err(std::io::Error::last_os_error());
-                    }
+                if libc::prctl(libc::PR_SET_PDEATHSIG, SIGKILL) < 0 {
+                    return Err(std::io::Error::last_os_error());
                 }
                 Ok(())
             });
@@ -836,7 +834,7 @@ pub fn launch_init(_: ContainerCliContext, params: ExecParams) -> Result<(), Err
         }
         std::process::exit(0)
     } else {
-        params.exec(None)
+        params.exec()
     }
 }
 
@@ -1076,7 +1074,7 @@ pub fn exec(
 }
 
 pub fn exec_command(_: ContainerCliContext, params: ExecParams) -> Result<(), Error> {
-    params.exec(Some(SIGKILL))
+    params.exec()
 }
 
 /// Wrap a child process so that its stdout/stderr are always pipes, even when

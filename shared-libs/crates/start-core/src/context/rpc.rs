@@ -191,6 +191,7 @@ impl RpcContext {
     #[instrument(skip_all)]
     pub async fn init(
         webserver: &WebServerAcceptorSetter<WildcardListener>,
+        dns: Arc<crate::net::dns::DnsController>,
         config: &ServerConfig,
         disk_guid: InternedString,
         init_result: Option<InitResult>,
@@ -226,6 +227,8 @@ impl RpcContext {
             let net_ctrl = Arc::new(
                 NetController::init(
                     db.clone(),
+                    dns,
+                    webserver,
                     socks_proxy,
                     config
                         .max_proxy_conns_per_target
@@ -233,7 +236,6 @@ impl RpcContext {
                 )
                 .await?,
             );
-            webserver.send_modify(|wl| wl.set_ip_info(net_ctrl.net_iface.watcher.subscribe()));
             let os_net_service = net_ctrl.os_bindings().await?;
             (net_ctrl, os_net_service)
         };
