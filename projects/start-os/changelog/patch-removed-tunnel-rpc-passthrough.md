@@ -1,0 +1,1 @@
+- **The `tunnel.*` RPC passthrough is removed.** It forwarded StartTunnel API calls signed with the server's key.

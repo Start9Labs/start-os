@@ -194,7 +194,7 @@ impl PackageVersionInfo {
                     commitment: s9pk.as_archive().commitment().await?,
                     signatures: [(
                         AnyVerifyingKey::Ed25519(s9pk.as_archive().signer()),
-                        AnySignature::Ed25519(s9pk.as_archive().signature().await?),
+                        AnySignature::Ed25519ph(s9pk.as_archive().signature().await?),
                     )]
                     .into_iter()
                     .collect(),

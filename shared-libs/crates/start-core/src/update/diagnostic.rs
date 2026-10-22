@@ -17,31 +17,14 @@ use tracing::instrument;
 
 use crate::PLATFORM;
 use crate::context::{CliContext, DiagnosticContext};
-use crate::middleware::auth::signature::{self, SigningContext};
+use crate::middleware::auth::signature;
 use crate::prelude::*;
 use crate::progress::{FullProgress, FullProgressTracker, PhasedProgressBar, ProgressUnits};
 use crate::registry::os::SIG_CONTEXT;
 use crate::registry::os::index::OsVersionInfo;
 use crate::rpc_continuations::{Guid, RpcContinuation};
-use crate::sign::AnySigningKey;
 use crate::update::{UpdateProgressHandles, UpdateSystemParams, UpdateSystemRes, do_update};
 use crate::version::{Current, VersionT};
-
-/// `SigningContext` for unauthenticated registry calls in diagnostic mode.
-struct UnsignedRegistry(Client);
-impl AsRef<Client> for UnsignedRegistry {
-    fn as_ref(&self) -> &Client {
-        &self.0
-    }
-}
-impl SigningContext for UnsignedRegistry {
-    fn signing_key(&self) -> Result<AnySigningKey, Error> {
-        Err(Error::new(
-            eyre!("diagnostic mode has no signing key"),
-            ErrorKind::Authorization,
-        ))
-    }
-}
 
 #[derive(Deserialize, Serialize, Parser, VisitFields)]
 #[group(skip)]
@@ -245,13 +228,11 @@ async fn get_versions(
         .map_err(|_| Error::new(eyre!("cannot extend URL path"), ErrorKind::ParseUrl))?
         .push("rpc")
         .push("v0");
-    let sig_context = registry.host_str().map(|s| s.to_string());
-    let ctx = UnsignedRegistry(client.clone());
-    let res = signature::call_remote(
-        &ctx,
+    let res = signature::call_remote_with_client(
+        None,
+        client.clone(),
         registry,
         HeaderMap::new(),
-        sig_context.as_deref(),
         "os.version.get",
         json!({
             "sourceVersion": source,
