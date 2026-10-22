@@ -390,6 +390,10 @@ pub fn server<C: Context>() -> ParentHandler<C> {
                 .with_about("about.check-update-startos"),
         )
         .subcommand(
+            "update-signers",
+            update::signers::api::<C>().with_about("about.commands-os-update-signers"),
+        )
+        .subcommand(
             "update-firmware",
             from_fn_async(|_: RpcContext| async {
                 if let Some(firmware) = firmware::check_for_firmware_update().await? {
