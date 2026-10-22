@@ -838,7 +838,9 @@ export const ENGLISH: Record<string, number> = {
   'Use Gateway DNS': 950,
   'Fallback': 951,
   'Outbound settings are unavailable while this service is inactive.': 952,
-  'Force stop': 953,
-  'Force stopping': 954,
-  'Force stopping may cause data loss or leave the service in a bad state. Are you sure you want to force stop?': 955,
+  'OS update blocked': 953,
+  'No trusted signer is listed for this OS update. Installing it from the UI is blocked. A malicious OS update could take full control of your server, steal private keys and passwords, or permanently destroy your data.': 954,
+  'Force stop': 955,
+  'Force stopping': 956,
+  'Force stopping may cause data loss or leave the service in a bad state. Are you sure you want to force stop?': 957,
 }

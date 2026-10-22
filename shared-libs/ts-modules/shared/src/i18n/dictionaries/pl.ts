@@ -837,7 +837,9 @@ export default {
   950: 'Używaj DNS bramy',
   951: 'Zapasowy',
   952: 'Ustawienia ruchu wychodzącego są niedostępne, gdy ta usługa jest nieaktywna.',
-  953: 'Wymuś zatrzymanie',
-  954: 'Wymuszanie zatrzymania',
-  955: 'Wymuszenie zatrzymania może spowodować utratę danych lub pozostawić serwis w nieprawidłowym stanie. Czy na pewno chcesz wymusić zatrzymanie?',
+  953: 'Aktualizacja systemu zablokowana',
+  954: 'Ta aktualizacja systemu nie wymienia żadnego zaufanego sygnatariusza. Instalacja z poziomu interfejsu jest zablokowana. Złośliwa aktualizacja mogłaby przejąć pełną kontrolę nad Twoim serwerem, wykraść klucze prywatne i hasła lub trwale zniszczyć Twoje dane.',
+  955: 'Wymuś zatrzymanie',
+  956: 'Wymuszanie zatrzymania',
+  957: 'Wymuszenie zatrzymania może spowodować utratę danych lub pozostawić serwis w nieprawidłowym stanie. Czy na pewno chcesz wymusić zatrzymanie?',
 } satisfies i18n

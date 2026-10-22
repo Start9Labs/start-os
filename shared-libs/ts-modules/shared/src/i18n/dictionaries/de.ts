@@ -837,7 +837,9 @@ export default {
   950: 'Gateway-DNS verwenden',
   951: 'Ersatz',
   952: 'Ausgehende Verbindungen können nicht konfiguriert werden, solange dieser Dienst inaktiv ist.',
-  953: 'Stopp erzwingen',
-  954: 'Stopp wird erzwungen',
-  955: 'Ein erzwungener Stopp kann zu Datenverlust führen oder den Dienst in einem fehlerhaften Zustand hinterlassen. Möchten Sie den Stopp wirklich erzwingen?',
+  953: 'Betriebssystem-Update gesperrt',
+  954: 'Für dieses Betriebssystem-Update ist kein vertrauenswürdiger Unterzeichner aufgeführt. Die Installation über die Benutzeroberfläche ist gesperrt. Ein bösartiges Update könnte die vollständige Kontrolle über Ihren Server übernehmen, private Schlüssel und Passwörter stehlen oder Ihre Daten dauerhaft zerstören.',
+  955: 'Stopp erzwingen',
+  956: 'Stopp wird erzwungen',
+  957: 'Ein erzwungener Stopp kann zu Datenverlust führen oder den Dienst in einem fehlerhaften Zustand hinterlassen. Möchten Sie den Stopp wirklich erzwingen?',
 } satisfies i18n

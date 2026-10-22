@@ -837,7 +837,9 @@ export default {
   950: 'Utiliser le DNS de la passerelle',
   951: 'Secours',
   952: 'Les paramètres du trafic sortant sont indisponibles tant que ce service est inactif.',
-  953: 'Forcer l’arrêt',
-  954: 'Arrêt forcé en cours',
-  955: 'Forcer l’arrêt peut entraîner une perte de données ou laisser le service dans un état défectueux. Voulez-vous vraiment forcer l’arrêt ?',
+  953: 'Mise à jour du système bloquée',
+  954: 'Cette mise à jour du système ne mentionne aucun signataire de confiance. Son installation depuis l’interface est bloquée. Une mise à jour malveillante pourrait prendre le contrôle total de votre serveur, voler vos clés privées et vos mots de passe ou détruire définitivement vos données.',
+  955: 'Forcer l’arrêt',
+  956: 'Arrêt forcé en cours',
+  957: 'Forcer l’arrêt peut entraîner une perte de données ou laisser le service dans un état défectueux. Voulez-vous vraiment forcer l’arrêt ?',
 } satisfies i18n

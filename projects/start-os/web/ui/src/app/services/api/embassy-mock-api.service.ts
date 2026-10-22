@@ -274,6 +274,15 @@ export class MockApiService extends ApiService {
         metrics: Mock.getMetrics(),
       }
     },
+    'server.device-info': async () => ({
+      os: {
+        version: mockPatchData.serverInfo.version,
+        compat: mockPatchData.serverInfo.packageVersionCompat,
+        platform: 'x86_64',
+        language: mockPatchData.serverInfo.language,
+      },
+      hardware: null,
+    }),
     'server.update': async params => {
       await pauseFor(2000)
       const initialProgress = {
