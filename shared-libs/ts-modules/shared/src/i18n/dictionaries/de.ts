@@ -633,8 +633,6 @@ export default {
   716: 'Weiter zur Einrichtung',
   717: 'Ausgehendes Gateway festlegen',
   718: 'Aktuell',
-  719: 'Systemstandard',
-  720: 'Ausgehendes Gateway',
   721: 'Gateway für ausgehenden Datenverkehr auswählen',
   722: 'Der Typ des Gateways',
   723: 'Nur ausgehend',
@@ -839,4 +837,5 @@ export default {
   952: 'Ausgehende Verbindungen können nicht konfiguriert werden, solange dieser Dienst inaktiv ist.',
   953: 'Betriebssystem-Update gesperrt',
   954: 'Für dieses Betriebssystem-Update ist kein vertrauenswürdiger Unterzeichner aufgeführt. Die Installation über die Benutzeroberfläche ist gesperrt. Ein bösartiges Update könnte die vollständige Kontrolle über Ihren Server übernehmen, private Schlüssel und Passwörter stehlen oder Ihre Daten dauerhaft zerstören.',
+  955: 'Systemgateway verwenden',
 } satisfies i18n
