@@ -1741,6 +1741,12 @@ backup.restore.package-error:
   es_ES: "Error al restaurar el paquete %{id}: %{error}"
   fr_FR: "Erreur lors de la restauration du paquet %{id} : %{error}"
   pl_PL: "Błąd przywracania pakietu %{id}: %{error}"
+backup.restore.package-installed:
+  en_US: "Cannot restore %{id}: it is already installed. Uninstall it first."
+  de_DE: "%{id} kann nicht wiederhergestellt werden: Es ist bereits installiert. Deinstalliere es zuerst."
+  es_ES: "No se puede restaurar %{id}: ya está instalado. Desinstálalo primero."
+  fr_FR: "Impossible de restaurer %{id} : il est déjà installé. Désinstallez-le d’abord."
+  pl_PL: "Nie można przywrócić %{id}: jest już zainstalowany. Najpierw go odinstaluj."
 
 # backup/target/cifs.rs
 backup.target.cifs.target-not-found:
