@@ -26,7 +26,7 @@ use crate::prelude::*;
 use crate::rpc_continuations::OpenAuthedContinuations;
 use crate::sign::commitment::Commitment;
 use crate::sign::commitment::request::RequestCommitment;
-use crate::sign::{AnySignature, AnySigningKey, AnyVerifyingKey, Signer};
+use crate::sign::{AnySignature, AnyVerifyingKey, Signer};
 use crate::util::serde::Base64;
 use crate::util::sync::SyncMutex;
 
@@ -752,6 +752,7 @@ mod tests {
     use http::HeaderValue;
 
     use super::*;
+    use crate::sign::AnySigningKey;
 
     /// Produced by the TypeScript client (`lib/auth/signature.ts`) for secret
     /// key 0102…1f20, context "start-9.local", and the JSON body below. Guards
