@@ -33,20 +33,16 @@ export class MarketplaceIconDirective extends IconDirective {
     ).pipe(
       switchMap(({ pkg, dependency, registry }) =>
         defer(() => {
-          const inline = dependency
+          const icon = dependency
             ? pkg.dependencyMetadata[dependency]?.icon
             : pkg.icon
 
-          if (inline || !registry) return of(inline || FALLBACK_ICON)
+          if (icon?.startsWith('data:')) return of(icon)
+          if (!icon || !registry) return of(FALLBACK_ICON)
 
           return this.marketplace
-            ? this.marketplace.fetchIcon$(
-                registry,
-                pkg.id,
-                pkg.version,
-                dependency,
-              )
-            : of(registryIconUrl(registry, pkg.id, pkg.version, dependency))
+            ? this.marketplace.fetchIcon$(registry, icon)
+            : of(registryIconUrl(registry, icon))
         }).pipe(
           catchError(() => of(FALLBACK_ICON)),
           startWith(null),

@@ -2579,6 +2579,13 @@ registry.package.remove-mirror.unauthorized:
   pl_PL: "Brak autoryzacji"
 
 # registry/package/index.rs
+registry.package.icon.invalid-name:
+  en_US: "invalid package icon name: %{name}"
+  de_DE: "Ungültiger Paketsymbolname: %{name}"
+  es_ES: "nombre de icono de paquete no válido: %{name}"
+  fr_FR: "nom d'icône de paquet invalide : %{name}"
+  pl_PL: "nieprawidłowa nazwa ikony pakietu: %{name}"
+
 registry.package.index.metadata-mismatch:
   en_US: "package metadata mismatch: remove the existing version first, then re-add"
   de_DE: "Paketmetadaten stimmen nicht überein: vorhandene Version zuerst entfernen, dann erneut hinzufügen"

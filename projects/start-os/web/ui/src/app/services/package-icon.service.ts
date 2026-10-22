@@ -19,14 +19,9 @@ export class PackageIconService {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly cache = new Map<string, Observable<string>>()
 
-  getRegistry$(
-    registry: string,
-    id: string,
-    version: string,
-    dependency?: string,
-  ): Observable<string> {
+  getRegistry$(registry: string, icon: string): Observable<string> {
     const url = `/registry/icons/${encodeURIComponent(
-      registryIconUrl(registry, id, version, dependency),
+      registryIconUrl(registry, icon),
     )}`
     return this.load(url, url)
   }
