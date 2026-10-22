@@ -31,7 +31,7 @@ how `startbox` dispatches to `startd`, `start-cli`, etc. The per-entrypoint logi
 - `src/context/` — Context types (RpcContext, CliContext, InitContext, DiagnosticContext)
 - `src/service/` — Service lifecycle management with actor pattern (`service_actor.rs`)
 - `src/db/model/` — Patch-DB models (`public.rs` synced to frontend, `private.rs` backend-only)
-- `src/net/` — Networking (DNS, ACME, WiFi, Tor, WireGuard, gateway/NAT)
+- `src/net/` — Networking (DNS, ACME, WiFi, Tor, WireGuard, gateway/NAT). `crl.rs` owns the main OS HTTP client's revocation cache and background refresh. Its rustls verifier uses system trust roots and consults cached CRLs on each full handshake; the `RpcContext` cron collection owns refresh-task lifetime.
 - `src/s9pk/` — S9PK package format (merkle archive)
 - `src/lxc/` — LXC container management for packages
 - `src/install/`, `src/update/` — Package install and OS/package update flows

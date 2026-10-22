@@ -132,18 +132,24 @@ pub struct RpcContext(Arc<RpcContextSeed>);
 pub struct ReloadableHttpClient {
     client: SyncRwLock<Client>,
     socks_proxy_url: String,
+    crls: Arc<crate::net::crl::CrlCache>,
 }
 impl ReloadableHttpClient {
-    fn new(socks_proxy_url: String) -> Result<Self, Error> {
-        let client = Self::build_for_proxy(&socks_proxy_url)?;
+    fn new(socks_proxy_url: String, crls: Arc<crate::net::crl::CrlCache>) -> Result<Self, Error> {
+        let client = Self::build_for_proxy(&socks_proxy_url, &crls)?;
         Ok(Self {
             client: SyncRwLock::new(client),
             socks_proxy_url,
+            crls,
         })
     }
 
-    fn build_for_proxy(socks_proxy_url: &str) -> Result<Client, Error> {
+    fn build_for_proxy(
+        socks_proxy_url: &str,
+        crls: &Arc<crate::net::crl::CrlCache>,
+    ) -> Result<Client, Error> {
         Client::builder()
+            .use_preconfigured_tls(crls.native_client_config()?)
             .proxy(Proxy::all(socks_proxy_url)?)
             .build()
             .with_kind(ErrorKind::ParseUrl)
@@ -154,7 +160,7 @@ impl ReloadableHttpClient {
     }
 
     pub fn reload(&self) -> Result<(), Error> {
-        let client = Self::build_for_proxy(&self.socks_proxy_url)?;
+        let client = Self::build_for_proxy(&self.socks_proxy_url, &self.crls)?;
         self.client.replace(client);
         Ok(())
     }
@@ -364,6 +370,13 @@ impl RpcContext {
         let socks_proxy_url = format!("socks5h://{socks_proxy}");
 
         let crons = SyncMutex::new(BTreeMap::new());
+        let crl_sync = crate::net::crl::CrlSync::new(
+            PathBuf::from(crate::MAIN_DATA).join("crls.json"),
+            &socks_proxy_url,
+        )
+        .await?;
+        let client = ReloadableHttpClient::new(socks_proxy_url, crl_sync.cache.clone())?;
+        crons.mutate(|c| c.insert(Guid::new(), tokio::spawn(crl_sync.run()).into()));
 
         if !db
             .peek()
@@ -438,7 +451,7 @@ impl RpcContext {
                     )
                 })?,
             ),
-            client: ReloadableHttpClient::new(socks_proxy_url)?,
+            client,
             start_time: Instant::now(),
             crons,
         });
@@ -687,6 +700,7 @@ mod tests {
         let http = ReloadableHttpClient {
             client: SyncRwLock::new(client_with_generation("old")),
             socks_proxy_url: proxy_url,
+            crls: crate::net::crl::CrlCache::empty(),
         };
         let old = http.get();
         http.reload().unwrap();
@@ -710,6 +724,7 @@ mod tests {
         let http = ReloadableHttpClient {
             client: SyncRwLock::new(client_with_generation("old")),
             socks_proxy_url: "http://[::1".to_owned(),
+            crls: crate::net::crl::CrlCache::empty(),
         };
 
         assert!(http.reload().is_err());

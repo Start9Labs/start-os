@@ -189,6 +189,8 @@ regex = "1.10.2"
 reqwest = { version = "0.12.25", features = [
   "http2",
   "json",
+  "native-tls",
+  "rustls-tls-no-provider",
   "socks",
   "stream",
 ] }
@@ -197,6 +199,7 @@ rpc-toolkit = { path = "../rpc-toolkit", features = ["cbor"] }
 rusqlite = { version = "0.34", features = ["bundled"] }
 rust-argon2 = "3.0.0"
 rust-i18n = "3.1.5"
+rustls-native-certs = "0.8.3"
 semver = { version = "1.0.20", features = ["serde"] }
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_cbor = { package = "ciborium", version = "0.2.1" }
@@ -235,6 +238,7 @@ url = { version = "2.4.1", features = ["serde"] }
 uuid = { version = "1.4.1", features = ["v4"] }
 visit-rs = { path = "../visit-rs" }
 x25519-dalek = { version = "3.0.0-rc.1", features = ["static_secrets"] }
+x509-parser = { version = "0.16.0", features = ["verify"] }
 xattr = "1.6.1"
 xmltree = "0.10"
 zbus = "5.1.1"
@@ -250,6 +254,7 @@ serde_toml = { package = "toml", version = "0.9" }
 
 [dev-dependencies]
 clap_mangen = "0.2.33"
+rcgen = "0.12.1"
 tempfile = "3.14.0"
 tokio = { version = "1.38.1", features = ["test-util"] }
 
