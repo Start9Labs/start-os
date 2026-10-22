@@ -837,4 +837,6 @@ export default {
   950: 'Utiliser le DNS de la passerelle',
   951: 'Secours',
   952: 'Les paramètres du trafic sortant sont indisponibles tant que ce service est inactif.',
+  953: 'Mise à jour du système bloquée',
+  954: 'Cette mise à jour du système ne mentionne aucun signataire de confiance. Son installation depuis l’interface est bloquée. Une mise à jour malveillante pourrait prendre le contrôle total de votre serveur, voler vos clés privées et vos mots de passe ou détruire définitivement vos données.',
 } satisfies i18n

@@ -5640,6 +5640,13 @@ about.commands-setup:
   fr_FR: "Commandes liées à la configuration initiale"
   pl_PL: "Polecenia związane z początkową konfiguracją"
 
+about.commands-os-update-signers:
+  en_US: "Manage trusted OS update signers"
+  de_DE: "Vertrauenswürdige Unterzeichner für Betriebssystem-Updates verwalten"
+  es_ES: "Administrar firmantes de confianza para actualizaciones del sistema"
+  fr_FR: "Gérer les signataires de confiance des mises à jour du système"
+  pl_PL: "Zarządzaj zaufanymi sygnatariuszami aktualizacji systemu"
+
 about.commands-ssh-keys:
   en_US: "Commands for interacting with ssh keys i.e. add, delete, list"
   de_DE: "Befehle zur Interaktion mit SSH-Schlüsseln, z.B. hinzufügen, löschen, auflisten"
@@ -6038,6 +6045,13 @@ about.get-device-info:
   es_ES: "Mostrar información del dispositivo"
   fr_FR: "Afficher les informations de l'appareil"
   pl_PL: "Wyświetl informacje o urządzeniu"
+
+about.get-os-update-signer:
+  en_US: "Get a trusted OS update signer's label"
+  de_DE: "Bezeichnung eines vertrauenswürdigen Update-Unterzeichners abrufen"
+  es_ES: "Obtener la etiqueta de un firmante de confianza de actualizaciones del sistema"
+  fr_FR: "Obtenir le libellé d’un signataire de confiance des mises à jour du système"
+  pl_PL: "Pobierz etykietę zaufanego sygnatariusza aktualizacji systemu"
 
 about.get-id-pubkey:
   en_US: "Get the identity public key"
@@ -7230,6 +7244,20 @@ tunnel.web.ui-port-reserved:
   es_ES: "Este rango incluye el puerto de la interfaz de administración habilitada; use nombres SNI para compartirlo, o desactive primero la interfaz o cambie su dirección."
   fr_FR: "Cette plage inclut le port de l'interface d'administration activée ; utilisez des noms SNI pour le partager, ou désactivez d'abord l'interface ou changez son adresse."
   pl_PL: "Ten zakres obejmuje port włączonego panelu administracyjnego; użyj nazw SNI, aby go współdzielić, albo najpierw wyłącz panel lub zmień jego adres."
+
+update.signers.already-exists:
+  en_US: "This public key is already a trusted OS update signer"
+  de_DE: "Dieser öffentliche Schlüssel ist bereits als Update-Unterzeichner vertrauenswürdig"
+  es_ES: "Esta clave pública ya es un firmante de confianza de actualizaciones del sistema"
+  fr_FR: "Cette clé publique est déjà un signataire de confiance des mises à jour du système"
+  pl_PL: "Ten klucz publiczny jest już zaufanym sygnatariuszem aktualizacji systemu"
+
+update.signers.not-found:
+  en_US: "Trusted OS update signer not found"
+  de_DE: "Vertrauenswürdiger Update-Unterzeichner nicht gefunden"
+  es_ES: "No se encontró el firmante de confianza de actualizaciones del sistema"
+  fr_FR: "Signataire de confiance des mises à jour du système introuvable"
+  pl_PL: "Nie znaleziono zaufanego sygnatariusza aktualizacji systemu"
 
 # volume.rs
 volume.restore-conflict:
