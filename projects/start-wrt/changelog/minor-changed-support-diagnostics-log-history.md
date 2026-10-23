@@ -6,3 +6,6 @@
 - **System logs are kept across later updates and included in backups.** Restoring a
   backup keeps the router's own log, preceded by any older history the
   backup carried.
+- **`/var` persists across reboots.** The system log lives at
+  `/var/log/messages` and the activity log under `/var/lib/startwrt/`, where
+  a standard Linux system keeps them.

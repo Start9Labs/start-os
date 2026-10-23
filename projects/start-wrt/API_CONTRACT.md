@@ -2022,7 +2022,7 @@ struct ActivityListResponse {
     entries: Vec<ActivityEntry>,
     total: usize,
 }
-// Backend: reads the SQLite activity log (/etc/startwrt/activity.db),
+// Backend: reads the SQLite activity log (/var/lib/startwrt/activity.db),
 // newest first
 ```
 
@@ -2095,8 +2095,8 @@ struct DiagnosticsCreateRes {
     filename: String,  // "diagnostics-startwrt-<YYYY-MM-DD>.log.gz"
 }
 // Backend: gzips a system summary (version, board, kernel, uptime, boot ID,
-// eMMC wear), the persistent system log (`/etc/log/messages.old` then
-// `/etc/log/messages`, or `logread` when neither exists) and the activity
+// eMMC wear), the persistent system log (`/var/log/messages.old` then
+// `/var/log/messages`, or `logread` when neither exists) and the activity
 // log, and registers a one-shot download continuation at /rest/rpc/{guid}
 ```
 

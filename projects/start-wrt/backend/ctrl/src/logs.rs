@@ -101,7 +101,11 @@ async fn handle_ws(mut ws: WebSocket) {
 }
 
 /// The file logd's follower appends to; it renames a full file to `.old`.
-const HISTORY_FILES: [&str; 2] = ["etc/log/messages.old", "etc/log/messages"];
+pub(crate) const HISTORY_FILES: [&str; 2] = ["var/log/messages.old", "var/log/messages"];
+
+/// Where images before 1.3.0 kept the same files. A backup made on one
+/// restores them here.
+pub(crate) const LEGACY_HISTORY_FILES: [&str; 2] = ["etc/log/messages.old", "etc/log/messages"];
 
 /// The persistent log under a filesystem root, oldest line first.
 ///
@@ -113,13 +117,17 @@ pub async fn read_history(root: &Path) -> Result<Vec<u8>, Error> {
 async fn read_history_files(root: &Path) -> Result<[Vec<u8>; 2], Error> {
     let mut files = [Vec::new(), Vec::new()];
     for (file, path) in files.iter_mut().zip(HISTORY_FILES) {
-        match tokio::fs::read(root.join(path)).await {
-            Ok(bytes) => *file = bytes,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => return Err(e.into()),
-        }
+        *file = read_or_empty(&root.join(path)).await?;
     }
     Ok(files)
+}
+
+async fn read_or_empty(path: &Path) -> Result<Vec<u8>, Error> {
+    match tokio::fs::read(path).await {
+        Ok(bytes) => Ok(bytes),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(e) => Err(e.into()),
+    }
 }
 
 /// The persistent log as it stood before a backup was restored over it.
@@ -138,19 +146,26 @@ pub async fn merge_restored_history(
     before: HistorySnapshot,
     archive_listing: &str,
 ) -> Result<(), Error> {
-    let restored_files = HISTORY_FILES.map(|file| {
+    let listed = |file: &str| {
         archive_listing
             .lines()
             .any(|entry| entry.trim_start_matches("./").trim_start_matches('/') == file)
-    });
-    if !restored_files.contains(&true) {
-        return Ok(());
+    };
+    let mut restored = [Vec::new(), Vec::new()];
+    let mut any_restored = false;
+    for ((file, path), legacy) in restored
+        .iter_mut()
+        .zip(HISTORY_FILES)
+        .zip(LEGACY_HISTORY_FILES)
+    {
+        let Some(path) = [path, legacy].into_iter().find(|path| listed(path)) else {
+            continue;
+        };
+        *file = read_or_empty(&root.join(path)).await?;
+        any_restored = true;
     }
-    let mut restored = read_history_files(root).await?;
-    for (file, was_restored) in restored.iter_mut().zip(restored_files) {
-        if !was_restored {
-            file.clear();
-        }
+    if !any_restored {
+        return Ok(());
     }
     let restored = restored.concat();
     let [old, current] = before.0;
@@ -159,6 +174,13 @@ pub async fn merge_restored_history(
     for (path, contents) in HISTORY_FILES.into_iter().zip([rotated, current]) {
         write_history_file(&root.join(path), &contents).await?;
     }
+    for path in LEGACY_HISTORY_FILES {
+        match tokio::fs::remove_file(root.join(path)).await {
+            Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(e.into()),
+            _ => {}
+        }
+    }
+    let _ = tokio::fs::remove_dir(root.join("etc/log")).await;
     Ok(())
 }
 
@@ -279,7 +301,7 @@ mod tests {
 
     fn history_root(old: Option<&str>, current: Option<&str>) -> tempfile::TempDir {
         let dir = tempfile::tempdir().unwrap();
-        std::fs::create_dir_all(dir.path().join("etc/log")).unwrap();
+        std::fs::create_dir_all(dir.path().join("var/log")).unwrap();
         for (path, text) in HISTORY_FILES.into_iter().zip([old, current]) {
             if let Some(text) = text {
                 std::fs::write(dir.path().join(path), text).unwrap();
@@ -292,7 +314,7 @@ mod tests {
         std::fs::read_to_string(dir.path().join(path)).ok()
     }
 
-    const LISTING: &str = "etc/config/system\netc/log/messages.old\netc/log/messages\n";
+    const LISTING: &str = "etc/config/system\nvar/log/messages.old\nvar/log/messages\n";
 
     #[tokio::test]
     async fn restore_onto_another_router_puts_the_backup_first() {
@@ -319,11 +341,33 @@ mod tests {
         let dir = history_root(Some("b\nc\n"), Some("d\n"));
         let before = snapshot_history(dir.path()).await.unwrap();
         std::fs::write(dir.path().join(HISTORY_FILES[1]), "a\n").unwrap();
-        merge_restored_history(dir.path(), before, "etc/log/messages\n")
+        merge_restored_history(dir.path(), before, "var/log/messages\n")
             .await
             .unwrap();
         assert_eq!(read_history(dir.path()).await.unwrap(), b"a\nb\nc\nd\n");
         assert_eq!(history_file(&dir, HISTORY_FILES[1]).as_deref(), Some("d\n"));
+    }
+
+    #[tokio::test]
+    async fn restore_of_a_pre_1_3_backup_merges_from_its_old_location() {
+        let dir = history_root(None, Some("boot\n"));
+        let before = snapshot_history(dir.path()).await.unwrap();
+        std::fs::create_dir_all(dir.path().join("etc/log")).unwrap();
+        std::fs::write(dir.path().join(LEGACY_HISTORY_FILES[0]), "a\n").unwrap();
+        std::fs::write(dir.path().join(LEGACY_HISTORY_FILES[1]), "b\n").unwrap();
+        merge_restored_history(
+            dir.path(),
+            before,
+            "etc/config/system\netc/log/messages.old\netc/log/messages\n",
+        )
+        .await
+        .unwrap();
+        assert_eq!(read_history(dir.path()).await.unwrap(), b"a\nb\nboot\n");
+        assert_eq!(
+            history_file(&dir, HISTORY_FILES[1]).as_deref(),
+            Some("boot\n")
+        );
+        assert!(!dir.path().join("etc/log").exists());
     }
 
     #[tokio::test]

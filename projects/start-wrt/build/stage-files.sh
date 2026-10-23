@@ -215,7 +215,7 @@ cat > "${FILES_DIR}/lib/upgrade/keep.d/startwrt" << 'KEEPEOF'
 # evidence the ipv6_tracker's election needs across reboots.
 /etc/startwrt/ipv6_neighbors.json
 # The persistent system log (system.log_file) and its rotated half.
-/etc/log/
+/var/log/
 KEEPEOF
 
 echo "==> Staging complete."
