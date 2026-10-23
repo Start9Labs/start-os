@@ -46,9 +46,7 @@ jobs:
       - uses: ./.github/actions/setup-build
         with:
           nodejs-version: '24.11.0'
-          setup-docker: 'false'
           setup-sccache: 'false'
-      - uses: docker/setup-buildx-action@v4
       - name: Read registry destination
         run: echo "IMAGE=$(<build/rust-builder/repository)" >> "$GITHUB_ENV"
       - uses: docker/build-push-action@v7
