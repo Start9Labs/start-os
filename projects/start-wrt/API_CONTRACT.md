@@ -59,7 +59,7 @@ Endpoints registered with `authenticated: false` metadata answer without either.
 
 ### `auth.login`
 
-The request must be signed by the key it enrolls.
+The request must be signed by the key it enrolls. A valid local auth token rejects the call as unnecessary; local callers already have access without enrolling a key.
 
 ```rust
 #[derive(Deserialize)]
