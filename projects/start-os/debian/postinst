@@ -177,6 +177,9 @@ $SYSTEMCTL mask suspend.target
 $SYSTEMCTL mask hibernate.target
 $SYSTEMCTL mask hybrid-sleep.target
 
+$SYSTEMCTL mask rpcbind.service
+$SYSTEMCTL mask rpcbind.socket
+
 if which gsettings > /dev/null; then
 	gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-timeout '0'
 	gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-battery-timeout '0'
