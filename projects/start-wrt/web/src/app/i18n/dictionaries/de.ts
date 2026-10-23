@@ -466,7 +466,7 @@ export default {
   487: 'Name ist zu lang (max. ~12 Zeichen)',
   488: 'Geben Sie eine gültige MAC-Adresse ein (z. B. AA:BB:CC:DD:EE:FF)',
   489: 'Ungültiges Präfixformat',
-  490: 'Der Wert muss kleiner als 128 sein.',
+  490: 'Geben Sie einen Wert von 48 bis 64 ein.',
   491: 'Das Gateway muss sich im selben Subnetz wie die WAN-IP befinden',
   492: 'Das Gateway muss sich von der WAN-IP unterscheiden',
   493: 'Die Endzeit muss nach der Startzeit liegen',
@@ -482,7 +482,7 @@ export default {
   503: 'Port wird bereits verwendet',
   504: 'Mindestwert ist {min}',
   505: 'Höchstwert ist {max}',
-  506: 'Ihr WAN-Präfix ist /{wanPrefix}. Geben Sie einen Wert größer als {wanPrefix} und kleiner als 128 ein.',
+  506: 'Ihr Anbieter hat ein /{delegatedPrefix}-Präfix delegiert. Geben Sie einen Wert von {delegatedPrefix} bis 64 ein.',
   507: 'Geben Sie einen Wert zwischen {min} und {max} ein',
   508: 'Client',
   509: 'Die neue IP-Adresse wird wirksam, sobald dieses Gerät das nächste Mal eine Adresse vom Router anfordert – der Router kann sie einem verbundenen Gerät nicht aufzwingen. Am schnellsten wird sie übernommen, wenn Sie das Gerät (WLAN oder Ethernet) trennen und neu verbinden oder neu starten; das funktioniert meist, eine sofortige Übernahme ist jedoch nicht garantiert. Andernfalls übernimmt das Gerät die neue Adresse von selbst innerhalb von bis zu 12 Stunden.',
@@ -554,4 +554,5 @@ export default {
   582: 'Resolver, die Profile mit diesem VPN ohne eigenes DNS durch den Tunnel erreichen. Durch Kommas trennen.',
   583: 'IP-Adressen durch Kommas getrennt eingeben',
   580: 'System (außerhalb des VPN)',
+  585: 'Delegiertes Präfix',
 } satisfies i18n

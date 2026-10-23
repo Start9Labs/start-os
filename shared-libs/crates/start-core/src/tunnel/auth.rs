@@ -58,6 +58,7 @@ impl SignatureAuthContext for TunnelContext {
     }
     async fn sig_context(
         &self,
+        _extensions: &http::Extensions,
     ) -> impl IntoIterator<Item = Result<impl AsRef<str> + Send, Error>> + Send {
         let peek = self.db().peek().await;
         peek.as_webserver()

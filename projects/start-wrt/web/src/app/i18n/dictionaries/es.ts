@@ -466,7 +466,7 @@ export default {
   487: 'La etiqueta es demasiado larga (máx. ~12 caracteres)',
   488: 'Introduce una dirección MAC válida (p. ej. AA:BB:CC:DD:EE:FF)',
   489: 'Formato de prefijo no válido',
-  490: 'El valor debe ser menor que 128.',
+  490: 'Introduce un valor entre 48 y 64.',
   491: 'La puerta de enlace debe estar en la misma subred que la IP WAN',
   492: 'La puerta de enlace debe ser diferente de la IP WAN',
   493: 'La hora de fin debe ser posterior a la de inicio',
@@ -482,7 +482,7 @@ export default {
   503: 'El puerto ya está en uso',
   504: 'El valor mínimo es {min}',
   505: 'El valor máximo es {max}',
-  506: 'Tu prefijo WAN es /{wanPrefix}. Introduce un valor mayor que {wanPrefix} y menor que 128.',
+  506: 'Tu proveedor delegó un prefijo /{delegatedPrefix}. Introduce un valor entre {delegatedPrefix} y 64.',
   507: 'Introduce un valor entre {min} y {max}',
   508: 'Cliente',
   509: 'La nueva dirección IP se aplicará la próxima vez que este dispositivo solicite una al router; el router no puede enviársela a un dispositivo conectado. La forma más rápida de aplicarla es desconectar y volver a conectar el dispositivo (Wi-Fi o Ethernet) o reiniciarlo; esto suele funcionar, pero no se garantiza que surta efecto de inmediato. De lo contrario, el dispositivo adoptará la nueva dirección por sí solo en un plazo de hasta 12 horas.',
@@ -554,4 +554,5 @@ export default {
   582: 'Resolutores a los que acceden a través del túnel los perfiles que usan esta VPN sin DNS propio. Sepárelos con comas.',
   583: 'Introduzca direcciones IP separadas por comas',
   580: 'Sistema (fuera de la VPN)',
+  585: 'Prefijo delegado',
 } satisfies i18n

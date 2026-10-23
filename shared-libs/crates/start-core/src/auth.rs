@@ -1,6 +1,4 @@
 use std::collections::BTreeMap;
-use std::sync::LazyLock;
-use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
 use clap::Parser;
@@ -22,7 +20,6 @@ use crate::sign::AnyVerifyingKey;
 use crate::util::crypto::EncryptedWire;
 use crate::util::io::create_file_mod;
 use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
-use crate::util::sync::SyncMutex;
 use crate::{Error, ResultExt, ensure_code};
 
 /// The server's enrolled auth keys, keyed by their PEM encoding. Each enrolled
@@ -108,9 +105,7 @@ pub async fn write_shadow(password: &str) -> Result<(), Error> {
     shadow_file.sync_all().await?;
     tokio::fs::copy("/media/startos/config/overlay/etc/shadow", "/etc/shadow").await?;
 
-    // The MOK enrollment is protected by this password, so `init`'s attempt at boot is
-    // always too early on a fresh install — setup writes the password after calling it.
-    // Staging it here is what gets the user prompted on the next boot.
+    // MOK enrollment requires the password established during setup.
     crate::util::mok::enroll_mok(std::path::Path::new("/"))
         .await
         .log_err();
@@ -262,9 +257,7 @@ where
             let secret = ed25519_dalek::SigningKey::generate(&mut crate::util::crypto::os_rng());
             crate::developer::write_signing_key(&secret, &ctx.id_key_path).await?;
         }
-        let pubkey = ctx
-            .id_key()
-            .map(|k| AnyVerifyingKey::Ed25519(k.into()).to_string())?;
+        let pubkey = ctx.id_key()?.verifying_key().await?.to_string();
 
         ctx.call_remote::<C>(
             method,
@@ -322,11 +315,6 @@ pub struct LoginParams {
 rpc_toolkit::reflect_ts!(LoginParams);
 rpc_toolkit::ts_export!(LoginParams, namespaces = [""]);
 
-const LOGIN_RATE_LIMIT_WINDOW: Duration = Duration::from_secs(20);
-const LOGIN_RATE_LIMIT_MAX_ATTEMPTS: usize = 3;
-static LOGIN_RATE_LIMITER: LazyLock<SyncMutex<(usize, Instant)>> =
-    LazyLock::new(|| SyncMutex::new((0, Instant::now())));
-
 #[instrument(skip_all)]
 pub async fn login_impl<C: LoginContext>(
     ctx: C,
@@ -344,22 +332,6 @@ pub async fn login_impl<C: LoginContext>(
             ErrorKind::InvalidRequest,
         ));
     }
-
-    LOGIN_RATE_LIMITER.mutate(|(count, time)| {
-        if time.elapsed() >= LOGIN_RATE_LIMIT_WINDOW {
-            *count = 0;
-        }
-        if *count >= LOGIN_RATE_LIMIT_MAX_ATTEMPTS {
-            Err(Error::new(
-                eyre!("{}", t!("middleware.auth.rate-limited-login")),
-                ErrorKind::RateLimited,
-            ))
-        } else {
-            *count += 1;
-            *time = Instant::now();
-            Ok(())
-        }
-    })?;
 
     let now = Utc::now();
     let pubkey = pubkey.to_string();
@@ -511,7 +483,6 @@ pub struct ListParams {
 
 rpc_toolkit::reflect_ts!(ListParams);
 
-// #[command(display(display_sessions))]
 #[instrument(skip_all)]
 pub async fn list<C: LoginContext>(
     ctx: C,
