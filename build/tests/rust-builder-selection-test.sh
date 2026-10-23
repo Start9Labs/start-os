@@ -9,6 +9,7 @@ mkdir "$scratch/bin"
 export DOCKER_LOG="$scratch/docker.log"
 export OBJDUMP_LOG="$scratch/objdump.log"
 export PATH="$scratch/bin:$PATH"
+export ENVIRONMENT=dev-unstable
 unset RUST_BUILDER_IMAGE FMT_NATIVE RISCV_OBJDUMP
 
 cat > "$scratch/bin/docker" <<'MOCK'
@@ -57,7 +58,7 @@ done
 bash shared-libs/crates/start-core/run-tests.sh
 assert_log_contains "RUST_BUILDER_IMAGE=$image"
 assert_log_contains start9/start-core-testenv
-assert_log_contains --features=test,ts,
+assert_log_contains --features=test,ts,dev,unstable
 
 : > "$DOCKER_LOG"
 RUST_BUILDER_IMAGE=start9/start-core-testenv bash shared-libs/crates/start-core/run-tests.sh
