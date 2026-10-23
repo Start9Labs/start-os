@@ -59,6 +59,8 @@ Change your admin password. The admin password protects the web interface and is
 
 1. Click "Save".
 
+Saving signs out every other browser and `startwrt-cli` login. The browser you saved from stays signed in.
+
 ## SSH Keys
 
 Manage the public keys authorized to access your router's command line over SSH. See [SSH Access](ssh.md) for adding keys and connecting.
