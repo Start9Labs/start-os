@@ -183,7 +183,25 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "auth",
-            auth::auth::<C, RpcContext>()
+            auth::auth::<C, RpcContext, CliContext>()
+                .subcommand(
+                    "reset-password",
+                    from_fn_async(auth::reset_password_impl).no_cli(),
+                )
+                .subcommand(
+                    "reset-password",
+                    from_fn_async(auth::cli_reset_password)
+                        .no_display()
+                        .with_about("about.reset-password"),
+                )
+                .subcommand(
+                    "get-pubkey",
+                    from_fn_async(auth::get_pubkey)
+                        .with_metadata("authenticated", Value::Bool(false))
+                        .no_display()
+                        .with_about("about.get-pubkey-from-server")
+                        .with_call_remote::<CliContext>(),
+                )
                 .subcommand(
                     "token",
                     auth::token::<C, RpcContext>().with_about("about.commands-auth-tokens"),

@@ -93,6 +93,7 @@ export type ActivityListParamsInput = z.input<typeof schemas.ActivityListParams>
 export type AffectedPublishedPort = z.output<
   typeof schemas.AffectedPublishedPort
 >
+export type AnyVerifyingKeyInput = z.input<typeof schemas.AnyVerifyingKey>
 export type ApChannel = z.output<typeof schemas.ApChannel>
 
 /**
@@ -133,27 +134,30 @@ export type ExecReqInput = z.input<typeof schemas.ExecReq>
 export type ExecRes = z.output<typeof schemas.ExecRes>
 export type FileContents = z.output<typeof schemas.FileContents>
 export type FileType = z.output<typeof schemas.FileType>
+export type FollowLogsParamsInput = z.input<typeof schemas.FollowLogsParams>
 export type GetArgsInput = z.input<typeof schemas.GetArgs>
 export type GetFileArgsInput = z.input<typeof schemas.GetFileArgs>
+export type Guid = z.output<typeof schemas.Guid>
 
 /**
- * Unguessable random token, used as a one-time REST endpoint path segment.
- * Wraps `startos::util::new_guid()` (160-bit, base32-encoded, 32 chars).
+ * Proof that a set of auth keys was unenrolled — removed from the persisted
+ * and ephemeral signer stores with any continuations they opened killed.
+ * Obtained via [`SignatureAuthContext::unenroll`], or [`Self::unenroll`]
+ * from inside a db transaction.
  */
-export type Guid = z.output<typeof schemas.Guid>
+export type HasUnenrolledKeys = z.output<typeof schemas.HasUnenrolledKeys>
 export type InjectedDnsRecord = z.output<typeof schemas.InjectedDnsRecord>
 export type IoFormatInput = z.input<typeof schemas.IoFormat>
+export type KillParamsInput = z.input<typeof schemas.KillParams>
 export type LanIpv4Response = z.output<typeof schemas.LanIpv4Response>
 export type LanIpv4SetRequestInput = z.input<typeof schemas.LanIpv4SetRequest>
 export type LanIpv6Response = z.output<typeof schemas.LanIpv6Response>
 export type LanIpv6SetRequestInput = z.input<typeof schemas.LanIpv6SetRequest>
+export type ListParamsInput = z.input<typeof schemas.ListParams>
 export type LogEntry = z.output<typeof schemas.LogEntry>
-export type LoginParamsInput = z.input<typeof schemas.LoginParams>
-export type LoginRes = z.output<typeof schemas.LoginRes>
 export type LogoutParamsInput = z.input<typeof schemas.LogoutParams>
 export type MacStrategy = z.output<typeof schemas.MacStrategy>
 export type MacStrategyInput = z.input<typeof schemas.MacStrategy>
-export type OutboundVpn = z.output<typeof schemas.OutboundVpn>
 export type OutboundVpnCreateRequestInput = z.input<
   typeof schemas.OutboundVpnCreateRequest
 >
@@ -166,6 +170,7 @@ export type OutboundVpnDeleteRequestInput = z.input<
 export type OutboundVpnSetEnabledRequestInput = z.input<
   typeof schemas.OutboundVpnSetEnabledRequest
 >
+export type OutboundVpnStatus = z.output<typeof schemas.OutboundVpnStatus>
 export type OutboundVpnUpdateRequestInput = z.input<
   typeof schemas.OutboundVpnUpdateRequest
 >
@@ -192,6 +197,7 @@ export type ScheduleWindow = z.output<typeof schemas.ScheduleWindow>
 export type ScheduleWindowInput = z.input<typeof schemas.ScheduleWindow>
 export type Section = z.output<typeof schemas.Section>
 export type SectionInput = z.input<typeof schemas.Section>
+export type Session = z.output<typeof schemas.Session>
 export type SetAutoForwardRequestInput = z.input<
   typeof schemas.SetAutoForwardRequest
 >
@@ -238,6 +244,12 @@ export type WanIpv6ModeInput = z.input<typeof schemas.WanIpv6Mode>
 export type WifiRadio = z.output<typeof schemas.WifiRadio>
 export type WifiRadioInput = z.input<typeof schemas.WifiRadio>
 export type ActivityListResponse = z.output<typeof schemas.ActivityListResponse>
+
+/**
+ * Sessions keyed by their credential: an enrolled key's PEM encoding, or a
+ * bearer token's hash.
+ */
+export type AuthKeys = z.output<typeof schemas.AuthKeys>
 export type BackupCreateRes = z.output<typeof schemas.BackupCreateRes>
 export type BackupRestoreRes = z.output<typeof schemas.BackupRestoreRes>
 export type BandChannels = z.output<typeof schemas.BandChannels>
@@ -258,7 +270,10 @@ export type EditArgsInput = z.input<typeof schemas.EditArgs>
  */
 export type EthernetSetRequestInput = z.input<typeof schemas.EthernetSetRequest>
 export type EthernetSetResult = z.output<typeof schemas.EthernetSetResult>
+export type FollowLogsRes = z.output<typeof schemas.FollowLogsRes>
+export type LoginParamsInput = z.input<typeof schemas.LoginParams>
 export type LogsResponse = z.output<typeof schemas.LogsResponse>
+export type OutboundVpn = z.output<typeof schemas.OutboundVpn>
 export type PeerAddArgsInput = z.input<typeof schemas.PeerAddArgs>
 export type ProfileSetRequestInput = z.input<typeof schemas.ProfileSetRequest>
 export type PublishedPort = z.output<typeof schemas.PublishedPort>
@@ -322,8 +337,14 @@ export type PublishedPortsSetResult = z.output<
 >
 
 /**
+ * The server's sessions, by credential type.
+ */
+export type Sessions = z.output<typeof schemas.Sessions>
+
+/**
  * Response containing all VPN servers
  */
 export type VpnServers = z.output<typeof schemas.VpnServers>
 export type WifiRegulatory = z.output<typeof schemas.WifiRegulatory>
+export type SessionList = z.output<typeof schemas.SessionList>
 export type Api = RpcSchemaTree<typeof schemas.Api>

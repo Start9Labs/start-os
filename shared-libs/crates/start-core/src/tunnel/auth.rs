@@ -115,7 +115,7 @@ impl SignatureAuthContext for TunnelContext {
         _: &rpc_toolkit::RpcRequest,
     ) -> Result<(), Error> {
         if let Some(key) = key {
-            crate::auth::touch_session(self, &key).await?;
+            crate::auth::touch_last_active(self, &key).await?;
         }
         Ok(())
     }
@@ -144,7 +144,7 @@ pub struct SignerInfo {
 rpc_toolkit::reflect_ts!(SignerInfo);
 
 pub fn auth_api<C: Context>() -> ParentHandler<C> {
-    crate::auth::auth::<C, TunnelContext>()
+    crate::auth::auth::<C, TunnelContext, CliContext>()
         .subcommand("set-password", from_fn_async(set_password_rpc).no_cli())
         .subcommand(
             "set-password",

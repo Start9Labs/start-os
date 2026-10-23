@@ -1,0 +1,1 @@
+- `start-tunnel auth get-pubkey` is removed; the tunnel server never answered it.
