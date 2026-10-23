@@ -100,7 +100,7 @@ export const ENGLISH: Record<string, number> = {
   'of': 92,
   'Old password': 93,
   'Password': 94,
-  'Password changed successfully': 95,
+  'Password changed. Every other browser and startwrt-cli login was signed out.': 95,
   'Password is invalid': 96,
   'Preparing...': 97,
   'Preserve your configuration, update firmware': 98,
@@ -568,4 +568,5 @@ export const ENGLISH: Record<string, number> = {
   'The router is sending to your VPN provider\'s server and getting no reply. Profiles using this VPN have no internet until it responds. Check with your provider that the server is online and that this configuration is still valid. You may need to download a new one. To get these profiles back online in the meantime, switch them to another VPN. Disabling this VPN also restores their internet, but their traffic will then bypass the VPN.': 591,
   'Turned off. Profiles can\'t use it until it\'s enabled again.': 592,
   'Never': 593,
+  'Changing the password signs out every other browser and startwrt-cli login. This browser stays signed in.': 594,
 }

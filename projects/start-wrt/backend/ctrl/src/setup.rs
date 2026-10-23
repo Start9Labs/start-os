@@ -15,8 +15,8 @@ const EMMC_ROOTFS_MOUNT: &str = "/mnt/emmc_rootfs";
 const EMMC_OVERLAY_MOUNT: &str = "/mnt/emmc_overlay";
 const EMMC_MERGED_MOUNT: &str = "/mnt/emmc_merged";
 
-/// Files excluded from conffiles backup — the wizard writes its own versions.
-const CONFFILES_EXCLUDE: &[&str] = &["/etc/shadow"];
+/// Not restored by an update: the wizard sets a new admin password.
+const CONFFILES_EXCLUDE: &[&str] = &["/etc/shadow", crate::auth::AUTH_DB_PATH];
 
 // ---------------------------------------------------------------------------
 // Boot / device detection
@@ -1013,12 +1013,16 @@ Conffiles:
         fs::create_dir_all(&keep_d).unwrap();
         fs::write(
             keep_d.join("base"),
-            "/etc/shadow\n/etc/config/wireless\n/etc/config/network\n",
+            "/etc/shadow\n/etc/startwrt/auth.db\n/etc/config/wireless\n/etc/config/network\n",
         )
         .unwrap();
 
         let files = list_conffiles(root.to_str().unwrap());
         assert!(!files.contains("/etc/shadow"), "shadow should be excluded");
+        assert!(
+            !files.contains("/etc/startwrt/auth.db"),
+            "sign-ins should not outlive the wizard's new password"
+        );
         assert!(
             files.contains("/etc/config/wireless"),
             "wireless should be preserved (Update path keeps user VLAN/profile config)"

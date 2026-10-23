@@ -95,7 +95,7 @@ export default {
   92: 'sur',
   93: 'Ancien mot de passe',
   94: 'Mot de passe',
-  95: 'Mot de passe modifié avec succès',
+  95: 'Mot de passe modifié. Tous les autres navigateurs et toutes les sessions startwrt-cli ont été déconnectés.',
   96: 'Le mot de passe est invalide',
   97: 'Préparation…',
   98: 'Conservez votre configuration, mettez à jour le firmware',
@@ -563,4 +563,5 @@ export default {
   591: "Le routeur envoie des données au serveur de votre fournisseur VPN et ne reçoit aucune réponse. Les profils qui utilisent ce VPN n'ont pas d'internet tant qu'il ne répond pas. Vérifiez auprès de votre fournisseur que le serveur est en ligne et que cette configuration est toujours valide. Vous devrez peut-être en télécharger une nouvelle. Pour remettre ces profils en ligne entre-temps, basculez-les vers un autre VPN. Désactiver ce VPN rétablit aussi leur accès à internet, mais leur trafic contournera alors le VPN.",
   592: "Désactivé. Les profils ne peuvent pas l'utiliser tant qu'il n'est pas réactivé.",
   593: 'Jamais',
+  594: 'Modifier le mot de passe déconnecte tous les autres navigateurs et toutes les sessions startwrt-cli. Ce navigateur reste connecté.',
 } satisfies i18n

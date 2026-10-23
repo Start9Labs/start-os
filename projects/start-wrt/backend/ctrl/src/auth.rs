@@ -3,7 +3,7 @@ use std::net::IpAddr;
 use std::path::Path;
 use std::time::{Duration, SystemTime};
 
-use chrono::TimeDelta;
+use chrono::{DateTime, TimeDelta, Utc};
 use clap::Parser;
 use imbl_value::imbl::OrdMap;
 use imbl_value::{json, InternedString, Value};
@@ -13,10 +13,11 @@ use patch_db::{HasModel, ModelExt, PatchDb};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{from_fn_async, CallRemote, Empty, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
-use startos::auth::{AuthKeys, LoginContext};
+use startos::auth::{AuthKeys, LoginContext, Session};
 use startos::middleware::auth::local::LocalAuthContext;
 use startos::middleware::auth::signature::{
-    check_enrolled, url_host_str, LoginMetadata, NonceCache, SignatureAuthContext,
+    check_enrolled, url_host_str, HasUnenrolledKeys, LoginMetadata, NonceCache,
+    SignatureAuthContext,
 };
 use startos::middleware::auth::DbContext;
 use startos::prelude::{Model, TypedPatchDb};
@@ -32,12 +33,25 @@ use crate::{captive, CliContext, CtrlContext, ServerContext};
 
 pub const LOCAL_AUTH_COOKIE_PATH: &str = "/run/startwrt/rpc.authcookie";
 
-const AUTH_DB_PATH: &str = "/etc/startwrt/auth.db";
+pub(crate) const AUTH_DB_PATH: &str = "/etc/startwrt/auth.db";
+
+const SHADOW_PATH: &str = "/etc/shadow";
 
 /// Written by dnsmasq's ntp hotplug once ntpd reports a valid time.
 const TIME_VALID_PATH: &str = "/var/state/dnsmasqsec";
 
-const IDLE_KEY_SWEEP: Duration = Duration::from_secs(60 * 60);
+const EXPIRED_KEY_SWEEP: Duration = Duration::from_secs(60 * 60);
+
+/// A sign-in ends this long after login, however often it is used.
+const SIGN_IN_LIFETIME: TimeDelta = TimeDelta::hours(24);
+
+/// How far ahead of a trusted clock a login time may lie.
+const LOGIN_CLOCK_SKEW: TimeDelta = TimeDelta::minutes(5);
+
+/// A clock not yet trusted judges age alone.
+fn sign_in_ended(logged_in: DateTime<Utc>, now: DateTime<Utc>, clock_trusted: bool) -> bool {
+    now - logged_in > SIGN_IN_LIFETIME || (clock_trusted && logged_in - now > LOGIN_CLOCK_SKEW)
+}
 
 #[derive(Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -194,8 +208,15 @@ impl SignatureAuthContext for ServerContext {
         pubkey: Option<&AnyVerifyingKey>,
         metadata: Self::AdditionalMetadata,
     ) -> Result<Self::CheckPubkeyRes, startos::Error> {
+        let now = Utc::now();
+        let clock_trusted = Path::new(TIME_VALID_PATH).exists();
         check_enrolled(pubkey, metadata.login, |key| {
-            Ok(db.as_session_pubkeys().de()?.0.contains_key(&**key))
+            Ok(db
+                .as_session_pubkeys()
+                .de()?
+                .0
+                .get(&**key)
+                .is_some_and(|session| !sign_in_ended(session.logged_in, now, clock_trusted)))
         })
     }
     async fn post_auth_hook(
@@ -220,10 +241,13 @@ impl LoginContext for ServerContext {
         db.as_session_pubkeys_mut()
     }
     fn check_password(_: &Model<Self::Database>, password: &str) -> Result<(), startos::Error> {
-        check_password_sync(password).map_err(|e| {
+        check_password_sync(Path::new(SHADOW_PATH), password).map_err(|e| {
             crate::activity::log("auth", "login", false, "Login failed", Some(&e.to_string()));
             e.into()
         })
+    }
+    fn sign_in_expired(session: &Session, now: DateTime<Utc>) -> bool {
+        sign_in_ended(session.logged_in, now, true)
     }
     async fn post_login_hook(&self, _: &str) -> Result<(), startos::Error> {
         crate::activity::log("auth", "login", true, "Logged in", None);
@@ -231,13 +255,13 @@ impl LoginContext for ServerContext {
     }
 }
 
-/// Unenrolls idle keys for the daemon's lifetime.
+/// Unenrolls expired keys for the daemon's lifetime.
 pub async fn reap_idle_keys(ctx: ServerContext) {
     loop {
         if let Err(e) = startos::auth::reap_idle_keys(&ctx).await {
             tracing::error!("idle key sweep failed: {e}");
         }
-        tokio::time::sleep(IDLE_KEY_SWEEP).await;
+        tokio::time::sleep(EXPIRED_KEY_SWEEP).await;
     }
 }
 
@@ -275,10 +299,10 @@ fn interface_addresses() -> Vec<IpAddr> {
 }
 
 /// `None` when the account has no password or is locked.
-fn get_shadow_hash(username: &str) -> Result<Option<String>, Error> {
-    let shadow_content = std::fs::read_to_string("/etc/shadow").map_err(|e| {
+fn get_shadow_hash(shadow: &Path, username: &str) -> Result<Option<String>, Error> {
+    let shadow_content = std::fs::read_to_string(shadow).map_err(|e| {
         Error::new(
-            eyre!("Failed to read /etc/shadow: {}", e),
+            eyre!("Failed to read {}: {}", shadow.display(), e),
             ErrorKind::Filesystem,
         )
     })?;
@@ -297,6 +321,11 @@ fn get_shadow_hash(username: &str) -> Result<Option<String>, Error> {
     Ok(None)
 }
 
+async fn get_root_hash(shadow: &Path) -> Result<Option<String>, Error> {
+    let shadow = shadow.to_owned();
+    tokio::task::spawn_blocking(move || get_shadow_hash(&shadow, "root")).await?
+}
+
 const MIN_PASSWORD_LEN: usize = 12;
 
 fn validate_password_length(password: &str) -> Result<(), Error> {
@@ -310,7 +339,7 @@ fn validate_password_length(password: &str) -> Result<(), Error> {
 }
 
 /// `STARTWRT_DEV_PASSWORD` replaces the shadow check for development without root.
-fn check_password_sync(password: &str) -> Result<(), Error> {
+fn check_password_sync(shadow: &Path, password: &str) -> Result<(), Error> {
     if let Ok(dev_password) = std::env::var("STARTWRT_DEV_PASSWORD") {
         tracing::warn!("DEV MODE: Using development password authentication");
         if password == dev_password {
@@ -322,25 +351,26 @@ fn check_password_sync(password: &str) -> Result<(), Error> {
         ));
     }
 
-    match get_shadow_hash("root")? {
-        // Root has no password until setup sets one; a factory reset clears it.
-        None => Ok(()),
-        Some(hash) => {
-            if pwhash::unix::verify(password, &hash) {
-                Ok(())
-            } else {
-                Err(Error::new(
-                    eyre!("Incorrect password"),
-                    ErrorKind::IncorrectPassword,
-                ))
-            }
-        }
+    let Some(hash) = get_shadow_hash(shadow, "root")? else {
+        return Err(Error::new(
+            eyre!("admin password is not set"),
+            ErrorKind::Uninitialized,
+        ));
+    };
+    if pwhash::unix::verify(password, &hash) {
+        Ok(())
+    } else {
+        Err(Error::new(
+            eyre!("Incorrect password"),
+            ErrorKind::IncorrectPassword,
+        ))
     }
 }
 
-pub async fn check_password(password: &str) -> Result<(), Error> {
+pub async fn check_password(shadow: &Path, password: &str) -> Result<(), Error> {
+    let shadow = shadow.to_owned();
     let password = password.to_owned();
-    tokio::task::spawn_blocking(move || check_password_sync(&password)).await?
+    tokio::task::spawn_blocking(move || check_password_sync(&shadow, &password)).await?
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, visit_rs::VisitFields)]
@@ -355,7 +385,7 @@ pub async fn verify_password_impl(
     _ctx: ServerContext,
     VerifyPasswordParams { password }: VerifyPasswordParams,
 ) -> Result<(), Error> {
-    check_password(&password).await
+    check_password(Path::new(SHADOW_PATH), &password).await
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, visit_rs::VisitFields)]
@@ -363,16 +393,21 @@ pub async fn verify_password_impl(
 pub struct ResetPasswordParams {
     pub old_password: String,
     pub new_password: String,
+    #[arg(skip)]
+    #[visit(ts(skip))]
+    #[serde(rename = "__Auth_signer")]
+    pub signer: Option<InternedString>,
 }
 rpc_toolkit::reflect_ts!(ResetPasswordParams);
 
-async fn update_shadow_hash(username: &str, new_hash: &str) -> Result<(), Error> {
-    const SHADOW_PATH: &str = "/etc/shadow";
-    let shadow_path = Path::new(SHADOW_PATH);
-
-    let shadow_content = tokio::fs::read_to_string(SHADOW_PATH).await.map_err(|e| {
+async fn update_shadow_hash(
+    shadow_path: &Path,
+    username: &str,
+    new_hash: &str,
+) -> Result<(), Error> {
+    let shadow_content = tokio::fs::read_to_string(shadow_path).await.map_err(|e| {
         Error::new(
-            eyre!("Failed to read /etc/shadow: {e}"),
+            eyre!("Failed to read {}: {e}", shadow_path.display()),
             ErrorKind::Filesystem,
         )
     })?;
@@ -431,15 +466,47 @@ async fn update_shadow_hash(username: &str, new_hash: &str) -> Result<(), Error>
     Ok(())
 }
 
+async fn unenroll_all_except(
+    ctx: &ServerContext,
+    keep: Option<&InternedString>,
+) -> Result<(), Error> {
+    let continuations = ctx.open_authed_continuations();
+    let ephemeral = ctx.ephemeral_auth_keys();
+    ctx.auth
+        .db
+        .mutate(|db| {
+            let revoked = db
+                .as_session_pubkeys()
+                .de()?
+                .0
+                .into_keys()
+                .filter(|key| Some(key) != keep);
+            HasUnenrolledKeys::unenroll::<ServerContext>(continuations, ephemeral, db, revoked)
+        })
+        .await
+        .result?;
+    Ok(())
+}
+
 #[instrument(skip_all)]
 pub async fn reset_password_impl(
-    _ctx: ServerContext,
+    ctx: ServerContext,
+    params: ResetPasswordParams,
+) -> Result<(), Error> {
+    reset_password(&ctx, Path::new(SHADOW_PATH), params).await
+}
+
+/// Keeps the requesting key enrolled and unenrolls every other.
+async fn reset_password(
+    ctx: &ServerContext,
+    shadow: &Path,
     ResetPasswordParams {
         old_password,
         new_password,
+        signer,
     }: ResetPasswordParams,
 ) -> Result<(), Error> {
-    check_password(&old_password).await?;
+    check_password(shadow, &old_password).await?;
     validate_password_length(&new_password)?;
 
     let new_hash = pwhash::sha512_crypt::hash(&new_password).map_err(|e| {
@@ -449,7 +516,7 @@ pub async fn reset_password_impl(
         )
     })?;
 
-    let result = update_shadow_hash("root", &new_hash).await;
+    let result = update_shadow_hash(shadow, "root", &new_hash).await;
     match &result {
         Ok(()) => crate::activity::log(
             "auth",
@@ -466,7 +533,8 @@ pub async fn reset_password_impl(
             Some(&e.to_string()),
         ),
     }
-    result
+    result?;
+    unenroll_all_except(ctx, signer.as_ref()).await
 }
 
 #[instrument(skip_all)]
@@ -519,7 +587,7 @@ rpc_toolkit::reflect_ts!(CheckInitializedRes);
 
 #[instrument(skip_all)]
 pub async fn check_initialized_impl(_ctx: ServerContext) -> Result<CheckInitializedRes, Error> {
-    let has_password = tokio::task::spawn_blocking(|| get_shadow_hash("root")).await??;
+    let has_password = get_root_hash(Path::new(SHADOW_PATH)).await?;
     Ok(CheckInitializedRes {
         initialized: has_password.is_some(),
     })
@@ -540,25 +608,7 @@ pub async fn set_initial_password_impl(
     ctx: ServerContext,
     SetInitialPasswordParams { password, timezone }: SetInitialPasswordParams,
 ) -> Result<(), Error> {
-    if tokio::task::spawn_blocking(|| get_shadow_hash("root"))
-        .await??
-        .is_some()
-    {
-        return Err(Error::new(
-            eyre!("admin password is already set"),
-            ErrorKind::InvalidRequest,
-        ));
-    }
-
-    validate_password_length(&password)?;
-
-    let new_hash = pwhash::sha512_crypt::hash(&password).map_err(|e| {
-        Error::new(
-            eyre!("failed to hash password: {e}"),
-            ErrorKind::PasswordHashGeneration,
-        )
-    })?;
-    update_shadow_hash("root", &new_hash).await?;
+    set_initial_password(&ctx, Path::new(SHADOW_PATH), &password).await?;
 
     if let Some(timezone) = timezone {
         let params = crate::system::SetTimezoneParams { timezone };
@@ -575,13 +625,43 @@ pub async fn set_initial_password_impl(
     Ok(())
 }
 
+/// Unenrolls every key.
+async fn set_initial_password(
+    ctx: &ServerContext,
+    shadow: &Path,
+    password: &str,
+) -> Result<(), Error> {
+    if get_root_hash(shadow).await?.is_some() {
+        return Err(Error::new(
+            eyre!("admin password is already set"),
+            ErrorKind::InvalidRequest,
+        ));
+    }
+
+    validate_password_length(password)?;
+
+    let new_hash = pwhash::sha512_crypt::hash(password).map_err(|e| {
+        Error::new(
+            eyre!("failed to hash password: {e}"),
+            ErrorKind::PasswordHashGeneration,
+        )
+    })?;
+    update_shadow_hash(shadow, "root", &new_hash).await?;
+    unenroll_all_except(ctx, None).await
+}
+
 pub fn auth<C: CtrlContext>() -> ParentHandler<C> {
     startos::auth::auth::<C, ServerContext, CliContext>()
         .subcommand(
             "verify-password",
             from_fn_async(verify_password_impl).no_cli(),
         )
-        .subcommand("set-password", from_fn_async(reset_password_impl).no_cli())
+        .subcommand(
+            "set-password",
+            from_fn_async(reset_password_impl)
+                .with_metadata("get_signer", Value::Bool(true))
+                .no_cli(),
+        )
         .subcommand(
             "set-password",
             from_fn_async(cli_reset_password)
@@ -604,8 +684,6 @@ pub fn auth<C: CtrlContext>() -> ParentHandler<C> {
 
 #[cfg(test)]
 mod tests {
-    use chrono::Utc;
-
     use super::*;
 
     const LAST_ACTIVE_RESOLUTION: TimeDelta =
@@ -677,20 +755,22 @@ mod tests {
         assert!(remaining.0.is_empty());
     }
 
-    #[tokio::test]
-    async fn idle_sweep_spares_refreshed_key() {
-        let ctx = ServerContext::default();
-        let expired = Utc::now() - startos::auth::MAX_IDLE - TimeDelta::minutes(1);
-        let keys = ["idle", "refreshed"]
-            .into_iter()
-            .map(|key| {
-                (
-                    InternedString::intern(key),
-                    startos::auth::Session {
-                        last_active: expired,
-                        ..Default::default()
-                    },
-                )
+    async fn enroll(ctx: &ServerContext, keys: &[&str]) {
+        let now = Utc::now();
+        let keys: Vec<_> = keys.iter().map(|key| (*key, now)).collect();
+        enroll_logged_in(ctx, &keys).await;
+    }
+
+    async fn enroll_logged_in(ctx: &ServerContext, keys: &[(&str, DateTime<Utc>)]) {
+        let keys = keys
+            .iter()
+            .map(|(key, logged_in)| {
+                let session = Session {
+                    logged_in: *logged_in,
+                    last_active: Utc::now(),
+                    ..Default::default()
+                };
+                (InternedString::intern(*key), session)
             })
             .collect();
         ctx.auth
@@ -703,9 +783,181 @@ mod tests {
             )
             .await
             .unwrap();
-        startos::auth::touch_last_active(&ctx, &InternedString::intern("refreshed"))
+    }
+
+    async fn enrolled(ctx: &ServerContext) -> BTreeSet<InternedString> {
+        ctx.auth
+            .db
+            .peek()
+            .await
+            .as_session_pubkeys()
+            .de()
+            .unwrap()
+            .0
+            .into_keys()
+            .collect()
+    }
+
+    fn write_shadow(dir: &tempfile::TempDir, root_hash: &str) -> std::path::PathBuf {
+        let shadow = dir.path().join("shadow");
+        std::fs::write(
+            &shadow,
+            format!("root:{root_hash}:0:0:99999:7:::\ndaemon:*:0:0:99999:7:::\n"),
+        )
+        .unwrap();
+        shadow
+    }
+
+    fn hash(password: &str) -> String {
+        pwhash::sha512_crypt::hash(password).unwrap()
+    }
+
+    fn reset_params(signer: Option<&str>) -> ResetPasswordParams {
+        ResetPasswordParams {
+            old_password: "old-admin-password".into(),
+            new_password: "new-admin-password".into(),
+            signer: signer.map(InternedString::intern),
+        }
+    }
+
+    #[test]
+    fn login_needs_a_root_password() {
+        let dir = tempfile::TempDir::new().unwrap();
+        for root_hash in ["", "*", "!", "x"] {
+            let shadow = write_shadow(&dir, root_hash);
+            let Err(err) = check_password_sync(&shadow, "any-password-at-all") else {
+                panic!("a password matched root hash {root_hash:?}");
+            };
+            assert_eq!(err.kind, ErrorKind::Uninitialized);
+        }
+    }
+
+    #[tokio::test]
+    async fn set_password_unenrolls_every_other_key() {
+        let ctx = ServerContext::default();
+        enroll(&ctx, &["caller", "other-a", "other-b"]).await;
+        let dir = tempfile::TempDir::new().unwrap();
+        let shadow = write_shadow(&dir, &hash("old-admin-password"));
+
+        reset_password(&ctx, &shadow, reset_params(Some("caller")))
             .await
             .unwrap();
+
+        assert_eq!(
+            enrolled(&ctx).await,
+            BTreeSet::from([InternedString::intern("caller")])
+        );
+        check_password_sync(&shadow, "new-admin-password").unwrap();
+    }
+
+    #[tokio::test]
+    async fn local_set_password_unenrolls_every_key() {
+        let ctx = ServerContext::default();
+        enroll(&ctx, &["browser", "cli"]).await;
+        let dir = tempfile::TempDir::new().unwrap();
+        let shadow = write_shadow(&dir, &hash("old-admin-password"));
+
+        reset_password(&ctx, &shadow, reset_params(None))
+            .await
+            .unwrap();
+
+        assert!(enrolled(&ctx).await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn failed_password_write_unenrolls_nothing() {
+        let ctx = ServerContext::default();
+        enroll(&ctx, &["caller", "other"]).await;
+        let dir = tempfile::TempDir::new().unwrap();
+        let shadow = write_shadow(&dir, &hash("old-admin-password"));
+        let blocked_write = startos::util::io::to_tmp_path(&shadow).unwrap();
+        std::fs::create_dir(blocked_write).unwrap();
+
+        reset_password(&ctx, &shadow, reset_params(Some("caller")))
+            .await
+            .unwrap_err();
+
+        assert_eq!(enrolled(&ctx).await.len(), 2);
+        check_password_sync(&shadow, "old-admin-password").unwrap();
+    }
+
+    #[tokio::test]
+    async fn initial_password_unenrolls_every_key() {
+        let ctx = ServerContext::default();
+        enroll(&ctx, &["before-setup-a", "before-setup-b"]).await;
+        let dir = tempfile::TempDir::new().unwrap();
+        let shadow = write_shadow(&dir, "");
+
+        set_initial_password(&ctx, &shadow, "initial-admin-password")
+            .await
+            .unwrap();
+
+        assert!(enrolled(&ctx).await.is_empty());
+        check_password_sync(&shadow, "initial-admin-password").unwrap();
+    }
+
+    #[tokio::test]
+    async fn requests_are_refused_a_day_after_login() {
+        let ctx = ServerContext::default();
+        let pubkey = |seed| {
+            use ed25519_dalek::pkcs8::EncodePublicKey;
+            ed25519_dalek::SigningKey::from_bytes(&[seed; 32])
+                .verifying_key()
+                .to_public_key_pem(Default::default())
+                .unwrap()
+                .parse::<AnyVerifyingKey>()
+                .unwrap()
+        };
+        let (expired, live) = (pubkey(1), pubkey(2));
+        let (expired_pem, live_pem) = (expired.to_string(), live.to_string());
+        let now = Utc::now();
+        enroll_logged_in(
+            &ctx,
+            &[
+                (
+                    expired_pem.as_str(),
+                    now - TimeDelta::hours(24) - TimeDelta::seconds(1),
+                ),
+                (
+                    live_pem.as_str(),
+                    now - TimeDelta::hours(23) - TimeDelta::minutes(59),
+                ),
+            ],
+        )
+        .await;
+        let db = ctx.auth.db.peek().await;
+        let check = |key: &AnyVerifyingKey| {
+            ctx.check_pubkey(&db, Some(key), LoginMetadata { login: false })
+        };
+
+        let Err(err) = check(&expired) else {
+            panic!("a key signed in over a day ago was accepted");
+        };
+        assert_eq!(err.kind, startos::ErrorKind::Authorization);
+        assert_eq!(check(&live).unwrap(), Some(live.interned_pem()));
+    }
+
+    #[test]
+    fn only_a_trusted_clock_ends_a_future_login() {
+        let now = Utc::now();
+        assert!(!sign_in_ended(now + TimeDelta::days(3), now, false));
+        assert!(sign_in_ended(now + TimeDelta::days(3), now, true));
+        assert!(!sign_in_ended(now + TimeDelta::minutes(1), now, true));
+    }
+
+    #[tokio::test]
+    async fn sweep_unenrolls_keys_a_day_after_login() {
+        let ctx = ServerContext::default();
+        let now = Utc::now();
+        enroll_logged_in(
+            &ctx,
+            &[
+                ("in-use", now - TimeDelta::hours(25)),
+                ("fresh", now - TimeDelta::hours(1)),
+                ("future", now + TimeDelta::hours(1)),
+            ],
+        )
+        .await;
         let continuations = &ctx.auth.open_authed_continuations;
         ctx.auth
             .db
@@ -713,9 +965,10 @@ mod tests {
             .await
             .result
             .unwrap();
-        let remaining = ctx.auth.db.peek().await.as_session_pubkeys().de().unwrap();
-        assert_eq!(remaining.0.len(), 1);
-        assert!(remaining.0.contains_key("refreshed"));
+        assert_eq!(
+            enrolled(&ctx).await,
+            BTreeSet::from([InternedString::intern("fresh")])
+        );
     }
 
     #[tokio::test]
