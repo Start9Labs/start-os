@@ -77,6 +77,11 @@ pub trait LoginContext: SignatureAuthContext {
         None
     }
     fn check_password(db: &Model<Self::Database>, password: &str) -> Result<(), Error>;
+    /// Whether a sign-in has ended, judged by a trusted clock. Defaults to
+    /// [`MAX_IDLE`] without use.
+    fn sign_in_expired(session: &Session, now: DateTime<Utc>) -> bool {
+        now - session.last_active > MAX_IDLE
+    }
     #[allow(unused_variables)]
     fn post_login_hook(&self, password: &str) -> impl Future<Output = Result<(), Error>> + Send {
         async { Ok(()) }
@@ -321,35 +326,35 @@ pub async fn create_token<C: LoginContext>(
     Ok(CreatedToken { id, token })
 }
 
-/// Sessions unused this long are revoked by [`reap_idle_keys`].
+/// Keys and tokens unused this long expire by default.
 pub const MAX_IDLE: TimeDelta = TimeDelta::days(30);
 
-fn idle_keys(keys: &AuthKeys, now: DateTime<Utc>) -> Vec<InternedString> {
+fn expired_keys<C: LoginContext>(keys: &AuthKeys, now: DateTime<Utc>) -> Vec<InternedString> {
     keys.0
         .iter()
-        .filter(|(_, session)| now - session.last_active > MAX_IDLE)
+        .filter(|(_, session)| C::sign_in_expired(session, now))
         .map(|(key, _)| key.clone())
         .collect()
 }
 
-/// Unenrolls keys and revokes tokens idle past [`MAX_IDLE`] inside an open db
-/// transaction. The caller has established that the clock is trustworthy.
+/// Unenrolls keys and revokes tokens whose sign-in has expired inside an open
+/// db transaction. The caller has established that the clock is trustworthy.
 pub fn reap_idle_keys_in<C: LoginContext>(
     continuations: &OpenAuthedContinuations<Option<InternedString>>,
     ephemeral: Option<&SyncMutex<AuthKeys>>,
     db: &mut Model<C::Database>,
 ) -> Result<(), Error> {
     let now = Utc::now();
-    let expired = idle_keys(&C::access_auth_keys(db).de()?, now);
+    let expired = expired_keys::<C>(&C::access_auth_keys(db).de()?, now);
     HasUnenrolledKeys::unenroll::<C>(continuations, ephemeral, db, expired)?;
     let expired = C::access_tokens(db)
         .map(|tokens| tokens.de())
         .transpose()?
-        .map_or_else(Vec::new, |tokens| idle_keys(&tokens, now));
+        .map_or_else(Vec::new, |tokens| expired_keys::<C>(&tokens, now));
     revoke_tokens::<C>(continuations, db, expired)
 }
 
-/// Unenrolls keys and revokes tokens idle past [`MAX_IDLE`]. Waits for a
+/// Unenrolls keys and revokes tokens whose sign-in has expired. Waits for a
 /// trusted clock, so a wrong boot-time clock cannot reap live sign-ins.
 pub async fn reap_idle_keys<C: LoginContext>(ctx: &C) -> Result<(), Error> {
     if !ctx.clock_synced().await {
