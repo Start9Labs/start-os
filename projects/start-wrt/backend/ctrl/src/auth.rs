@@ -248,7 +248,7 @@ fn signing_identities(
 ) -> BTreeSet<InternedString> {
     std::iter::once(InternedString::intern(crate::ssl::ROUTER_HOSTNAME))
         .chain(addresses.into_iter().map(url_host_str))
-        .chain(ddns)
+        .chain(ddns.map(|hostname| InternedString::intern(hostname.to_ascii_lowercase())))
         .collect()
 }
 
@@ -635,6 +635,53 @@ mod tests {
                 .map(InternedString::intern)
                 .collect();
         assert_eq!(identities, expected);
+    }
+
+    #[test]
+    fn ddns_signing_identity_matches_browser_hostname_case() {
+        let identities = signing_identities([], Some("Home.Example.COM".into()));
+        assert!(identities.contains("home.example.com"));
+    }
+
+    #[tokio::test]
+    async fn idle_sweep_spares_refreshed_key() {
+        let ctx = ServerContext::default();
+        let expired = Utc::now() - startos::auth::MAX_IDLE - TimeDelta::minutes(1);
+        let keys = ["idle", "refreshed"]
+            .into_iter()
+            .map(|key| {
+                (
+                    InternedString::intern(key),
+                    startos::auth::Session {
+                        last_active: expired,
+                        ..Default::default()
+                    },
+                )
+            })
+            .collect();
+        ctx.auth
+            .db
+            .put(
+                &patch_db::json_ptr::ROOT,
+                &AuthDatabase {
+                    session_pubkeys: AuthKeys(keys),
+                },
+            )
+            .await
+            .unwrap();
+        startos::auth::touch_last_active(&ctx, &InternedString::intern("refreshed"))
+            .await
+            .unwrap();
+        let continuations = &ctx.auth.open_authed_continuations;
+        ctx.auth
+            .db
+            .mutate(|db| startos::auth::reap_idle_keys_in::<ServerContext>(continuations, None, db))
+            .await
+            .result
+            .unwrap();
+        let remaining = ctx.auth.db.peek().await.as_session_pubkeys().de().unwrap();
+        assert_eq!(remaining.0.len(), 1);
+        assert!(remaining.0.contains_key("refreshed"));
     }
 
     #[tokio::test]

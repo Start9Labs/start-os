@@ -239,14 +239,12 @@ pub async fn reap_idle_keys<C: LoginContext>(ctx: &C) -> Result<(), Error> {
     if !ctx.clock_synced().await {
         return Ok(());
     }
-    let expired = idle_keys(
-        &C::access_auth_keys(&mut ctx.db().peek().await).de()?,
-        Utc::now(),
-    );
-    if !expired.is_empty() {
-        ctx.unenroll(expired).await?;
-    }
-    Ok(())
+    let continuations = ctx.open_authed_continuations();
+    let ephemeral = ctx.ephemeral_auth_keys();
+    ctx.db()
+        .mutate(|db| reap_idle_keys_in::<C>(continuations, ephemeral, db))
+        .await
+        .result
 }
 
 /// Records a request by an enrolled key, persisting the time at most once per
