@@ -139,7 +139,7 @@ pub fn vhost_api<C: Context>() -> ParentHandler<C> {
                         }
                     }
 
-                    table.print_tty(false)?;
+                    crate::util::output::print_table(&table)?;
 
                     Ok(())
                 })

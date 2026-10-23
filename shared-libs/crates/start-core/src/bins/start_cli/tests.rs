@@ -1,9 +1,10 @@
 use std::ffi::OsString;
-use std::os::unix::process::ExitStatusExt;
+use std::io::{IoSlice, Write};
+use std::net::{Shutdown, TcpListener, TcpStream};
 use std::path::Path;
 use std::process::Command;
 
-const CHILD_ARGS: &str = "START_CLI_SIGPIPE_ARGS";
+const CHILD_ARGS: &str = "START_CLI_OUTPUT_ARGS";
 const BROKEN_STREAM: &str = "START_CLI_BROKEN_STREAM";
 
 fn child(directory: &Path, args: &[&str]) -> Command {
@@ -38,16 +39,57 @@ fn run_cli_child() {
             _ => panic!("unknown stream"),
         }
     }
-    super::main(
-        std::iter::once(OsString::from("start-cli")).chain(args.into_iter().map(OsString::from)),
-    );
+    let value = 42;
+    match args[0].as_str() {
+        "stdout-macros" => {
+            print!("print:{value}");
+            println!();
+            println!("line:{value:04}");
+        }
+        "stderr-macros" => {
+            eprint!("print:{value}");
+            eprintln!();
+            eprintln!("line:{value:04}");
+        }
+        "table-output" => {
+            let table = prettytable::Table::init(vec![prettytable::Row::new(vec![
+                prettytable::Cell::new("value"),
+            ])]);
+            crate::util::output::print_table(&table).unwrap();
+        }
+        "socket-errors" => {
+            super::main([OsString::from("start-cli"), OsString::from("git-info")]);
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            let mut stream = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
+            let (_peer, _) = listener.accept().unwrap();
+            stream.shutdown(Shutdown::Write).unwrap();
+            assert_eq!(
+                stream.write(b"value").unwrap_err().kind(),
+                std::io::ErrorKind::BrokenPipe
+            );
+            assert_eq!(
+                stream
+                    .write_vectored(&[IoSlice::new(b"a"), IoSlice::new(b"b")])
+                    .unwrap_err()
+                    .kind(),
+                std::io::ErrorKind::BrokenPipe,
+            );
+            println!("socket errors handled");
+        }
+        _ => super::main(
+            std::iter::once(OsString::from("start-cli"))
+                .chain(args.into_iter().map(OsString::from)),
+        ),
+    }
     std::process::exit(0);
 }
 
 #[test]
-fn stdout_uses_sigpipe_for_all_display_paths() {
+fn stdout_exits_quietly_for_all_display_paths() {
     let directory = tempfile::tempdir().unwrap();
     for args in [
+        vec!["stdout-macros"],
+        vec!["table-output"],
         vec!["net", "dns", "query", "localhost"],
         vec!["net", "dns", "query", "localhost", "--format", "json"],
         vec![
@@ -77,22 +119,21 @@ fn stdout_uses_sigpipe_for_all_display_paths() {
         assert!(normal.status.success(), "{args:?}: {normal:?}");
         assert!(!normal.stdout.is_empty(), "{args:?}");
         assert!(normal.stderr.is_empty(), "{args:?}: {normal:?}");
+        if args == ["stdout-macros"] {
+            assert!(normal.stdout.ends_with(b"print:42\nline:0042\n"));
+        }
 
         let broken = child(directory.path(), &args)
             .env(BROKEN_STREAM, "stdout")
             .output()
             .unwrap();
-        assert_eq!(
-            broken.status.signal(),
-            Some(libc::SIGPIPE),
-            "{args:?}: {broken:?}"
-        );
+        assert_eq!(broken.status.code(), Some(141), "{args:?}: {broken:?}");
         assert!(broken.stderr.is_empty(), "{args:?}: {broken:?}");
     }
 }
 
 #[test]
-fn stderr_uses_sigpipe_and_normal_errors_keep_their_exit_code() {
+fn stderr_exits_quietly_and_normal_errors_keep_their_exit_code() {
     let directory = tempfile::tempdir().unwrap();
     std::fs::write(directory.path().join("invalid.json"), b"{").unwrap();
     let args = ["-c", "invalid.json", "git-info"];
@@ -103,9 +144,30 @@ fn stderr_uses_sigpipe_and_normal_errors_keep_their_exit_code() {
     );
     assert!(!normal.stderr.is_empty(), "{normal:?}");
 
-    let broken = child(directory.path(), &args)
-        .env(BROKEN_STREAM, "stderr")
+    for args in [args.as_slice(), &["stderr-macros"]] {
+        let broken = child(directory.path(), args)
+            .env(BROKEN_STREAM, "stderr")
+            .output()
+            .unwrap();
+        assert_eq!(broken.status.code(), Some(141), "{broken:?}");
+    }
+    let normal = child(directory.path(), &["stderr-macros"])
         .output()
         .unwrap();
-    assert_eq!(broken.status.signal(), Some(libc::SIGPIPE), "{broken:?}");
+    assert!(normal.status.success(), "{normal:?}");
+    assert_eq!(normal.stderr, b"print:42\nline:0042\n");
+}
+
+#[test]
+fn socket_write_errors_do_not_terminate_the_cli() {
+    let directory = tempfile::tempdir().unwrap();
+    let output = child(directory.path(), &["socket-errors"])
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{output:?}");
+    assert!(
+        output.stdout.ends_with(b"socket errors handled\n"),
+        "{output:?}"
+    );
+    assert!(output.stderr.is_empty(), "{output:?}");
 }

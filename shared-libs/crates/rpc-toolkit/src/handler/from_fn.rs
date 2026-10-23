@@ -53,7 +53,7 @@ where
     <Self as HandlerTypes>::Ok: Display,
 {
     fn print(&self, _: HandlerArgsFor<Context, Self>, result: Self::Ok) -> Result<(), Self::Err> {
-        Ok(println!("{result}"))
+        Ok(crate::output::println(format_args!("{result}")))
     }
 }
 impl<Context, F, T, E, Args> CliBindings<Context> for FromFn<F, T, E, Args>
@@ -163,7 +163,7 @@ where
     <Self as HandlerTypes>::Ok: Display,
 {
     fn print(&self, _: HandlerArgsFor<Context, Self>, result: Self::Ok) -> Result<(), Self::Err> {
-        Ok(println!("{result}"))
+        Ok(crate::output::println(format_args!("{result}")))
     }
 }
 impl<Context, F, Fut, T, E, Args> CliBindings<Context> for FromFnAsync<F, Fut, T, E, Args>
@@ -260,7 +260,7 @@ where
     <Self as HandlerTypes>::Ok: Display,
 {
     fn print(&self, _: HandlerArgsFor<Context, Self>, result: Self::Ok) -> Result<(), Self::Err> {
-        Ok(println!("{result}"))
+        Ok(crate::output::println(format_args!("{result}")))
     }
 }
 impl<Context, F, Fut, T, E, Args> CliBindings<Context> for FromFnAsyncLocal<F, Fut, T, E, Args>

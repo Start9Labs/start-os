@@ -451,7 +451,7 @@ mod yaml_tests {
 
 pub fn display_serializable<T: Serialize>(format: IoFormat, result: T) -> Result<(), Error> {
     use std::io::Write as _;
-    let mut stdout = std::io::stdout().lock();
+    let mut stdout = rpc_toolkit::output::stdout();
     format.to_writer(&mut stdout, &result)?;
     if format == IoFormat::JsonPretty {
         writeln!(stdout)?;

@@ -164,7 +164,7 @@ pub fn forward_api<C: Context>() -> ParentHandler<C> {
                 table.add_row(row![external, target.target, target.reqs]);
             }
 
-            table.print_tty(false)?;
+            crate::util::output::print_table(&table)?;
 
             Ok(())
         })

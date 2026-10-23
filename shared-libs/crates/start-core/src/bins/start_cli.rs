@@ -23,15 +23,14 @@ fn app() -> CliApp<CliContext, ClientConfig> {
 }
 
 pub fn completions(_: CliContext, params: CompletionsParams) -> Result<(), Error> {
-    params.generate(app().into_command(), &mut std::io::stdout())
+    params.generate(app().into_command(), &mut rpc_toolkit::output::stdout())
 }
 
 pub fn main(args: impl IntoIterator<Item = OsString>) {
-    unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL) };
     LOGGER.enable();
 
     if let Err(e) = app().run(args) {
-        let mut stderr = std::io::stderr().lock();
+        let mut stderr = rpc_toolkit::output::stderr();
         let _ = match e.data {
             Some(Value::String(s)) => writeln!(stderr, "{}: {}", e.message, s),
             Some(Value::Object(o)) => match o.get("details") {

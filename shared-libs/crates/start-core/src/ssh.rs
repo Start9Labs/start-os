@@ -221,7 +221,7 @@ fn display_all_ssh_keys(
         ];
         table.add_row(row);
     }
-    table.print_tty(false)?;
+    crate::util::output::print_table(&table)?;
 
     Ok(())
 }

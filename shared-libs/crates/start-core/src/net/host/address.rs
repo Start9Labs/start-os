@@ -205,7 +205,7 @@ pub fn address_api<C: Context, Kind: HostApiKind>()
                         ]);
                     }
 
-                    table.print_tty(false)?;
+                    crate::util::output::print_table(&table)?;
 
                     Ok(())
                 })

@@ -28,6 +28,7 @@ how `startbox` dispatches to `startd`, `start-cli`, etc. The per-entrypoint logi
 ## Key Modules
 
 - `src/bins/` — Per-binary entrypoints + `MultiExecutable` dispatch
+- `src/output_macros.rs` — Crate-local print macros backed by `rpc_toolkit::output`; `src/util/output.rs` adapts table output to the same broken-pipe policy.
 - `src/context/` — Context types (RpcContext, CliContext, InitContext, DiagnosticContext)
 - `src/service/` — Service lifecycle management with actor pattern (`service_actor.rs`)
 - `src/db/model/` — Patch-DB models (`public.rs` synced to frontend, `private.rs` backend-only)

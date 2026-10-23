@@ -1,3 +1,6 @@
+#[macro_use]
+mod output_macros;
+
 use const_format::formatcp;
 
 rust_i18n::i18n!("locales", fallback = ["en_US"]);
@@ -612,7 +615,7 @@ pub fn package<C: Context>() -> ParentHandler<C> {
                             table.add_row(row![&*id, "N/A", "0 MiB", "0 MiB", "0"]);
                         }
                     }
-                    table.print_tty(false)?;
+                    crate::util::output::print_table(&table)?;
                     Ok(())
                 })
                 .with_about("about.list-lxc-container-info")

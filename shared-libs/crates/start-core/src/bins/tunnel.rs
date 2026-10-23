@@ -221,7 +221,7 @@ fn app() -> CliApp<CliContext, ClientConfig> {
 }
 
 fn completions(_: CliContext, params: CompletionsParams) -> Result<(), Error> {
-    params.generate(app().into_command(), &mut std::io::stdout())
+    params.generate(app().into_command(), &mut rpc_toolkit::output::stdout())
 }
 
 pub fn cli(args: impl IntoIterator<Item = OsString>) {
