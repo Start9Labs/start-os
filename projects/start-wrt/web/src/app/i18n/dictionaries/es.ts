@@ -95,7 +95,7 @@ export default {
   92: 'de',
   93: 'Contraseña anterior',
   94: 'Contraseña',
-  95: 'Contraseña cambiada correctamente',
+  95: 'Contraseña cambiada. Se cerró la sesión en todos los demás navegadores y en startwrt-cli.',
   96: 'La contraseña no es válida',
   97: 'Preparando...',
   98: 'Conserva tu configuración y actualiza el firmware',
@@ -563,4 +563,5 @@ export default {
   591: 'El router está enviando al servidor de su proveedor de VPN y no recibe respuesta. Los perfiles que usan esta VPN no tienen internet hasta que responda. Consulte con su proveedor que el servidor esté en línea y que esta configuración siga siendo válida. Puede que tenga que descargar una nueva. Para volver a conectar estos perfiles mientras tanto, cámbielos a otra VPN. Desactivar esta VPN también restablece su internet, pero entonces su tráfico no pasará por la VPN.',
   592: 'Apagada. Los perfiles no pueden usarla hasta que se vuelva a activar.',
   593: 'Nunca',
+  594: 'Cambiar la contraseña cierra la sesión en todos los demás navegadores y en startwrt-cli. Este navegador mantiene la sesión iniciada.',
 } satisfies i18n

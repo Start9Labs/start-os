@@ -53,7 +53,7 @@ StartWRT's multi-password Wi-Fi uses WPA2's identity PSK feature with dynamic VL
 
 - **Admin password** — Stored as a SHA-512 hash in `/etc/shadow`
 - **Wi-Fi password** — Printed on the sticker and stored in the router's EEPROM
-- **Sign-in** — Logging in creates a key your browser holds but cannot export, and the browser signs every request with it. A sign-in lasts until you log out or leave it unused for 30 days.
+- **Sign-in** — Logging in creates a key your browser holds but cannot export, and the browser signs every request with it. A sign-in lasts 24 hours from when you log in, or until you log out or the admin password is changed from another device.
 - **Rate limiting** — 3 login attempts per 20 seconds
 - **SSH** — Public key authentication or password auth (Admin password)
 - **TLS** — rustls with a Root CA certificate chain
