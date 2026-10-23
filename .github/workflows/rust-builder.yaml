@@ -1,6 +1,7 @@
 name: Rust Builder
 
 on:
+  workflow_call:
   pull_request:
     paths:
       - 'build/rust-builder/**'
