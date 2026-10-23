@@ -884,7 +884,7 @@ impl Serialize for Port {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Reversible<T, Container = Vec<T>>
 where
     for<'a> &'a Container: IntoDoubleEndedIterator<&'a T>,
@@ -893,12 +893,25 @@ where
     data: Container,
     phantom: PhantomData<T>,
 }
+impl<T, Container> Clone for Reversible<T, Container>
+where
+    for<'a> &'a Container: IntoDoubleEndedIterator<&'a T>,
+    Container: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            reversed: self.reversed,
+            data: self.data.clone(),
+            phantom: PhantomData,
+        }
+    }
+}
 impl<T, Container> Reversible<T, Container>
 where
     for<'a> &'a Container: IntoDoubleEndedIterator<&'a T>,
 {
     pub fn new(data: Container) -> Self {
-        Reversible {
+        Self {
             reversed: false,
             data,
             phantom: PhantomData,
@@ -958,7 +971,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        Ok(Reversible::new(Deserialize::deserialize(deserializer)?))
+        Ok(Self::new(Deserialize::deserialize(deserializer)?))
     }
     fn deserialize_in_place<D>(deserializer: D, place: &mut Self) -> Result<(), D::Error>
     where

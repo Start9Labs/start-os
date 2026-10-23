@@ -8,7 +8,7 @@ import type { Api, RpcParamType, RpcReturnType } from './bindings'
 })
 export abstract class ApiService {
   abstract login(params: LoginReq): Promise<RpcReturnType<Api, 'auth.login'>>
-  abstract logout(): Promise<null>
+  abstract logout(): Promise<RpcReturnType<Api, 'auth.logout'>>
   abstract exec(params: ExecReq): Promise<ExecRes>
   abstract getFile(params: GetFileReq): Promise<GetFileRes>
   abstract setFile(params: SetFileReq): Promise<null>
@@ -62,6 +62,7 @@ export abstract class ApiService {
   abstract setupStatus(): Promise<SetupStatusRes>
   abstract systemFactoryReset(): Promise<null>
   abstract systemLogs(): Promise<LogsResponse>
+  abstract followLogs(): Promise<RpcReturnType<Api, 'system.logs-follow'>>
   abstract devicesList(): Promise<DeviceFromApi[]>
   abstract devicesUpdate(params: DeviceUpdateReq): Promise<null>
   abstract devicesSetAutoForward(params: {

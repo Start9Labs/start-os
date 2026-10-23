@@ -5,6 +5,7 @@
 .DEFAULT_GOAL := help
 
 include build/common.mk
+include build/rust-builder/build.mk
 include shared-libs/crates/start-core/build.mk
 include shared-libs/crates/rpc-toolkit/build.mk
 include shared-libs/ts-modules/build.mk
@@ -17,14 +18,14 @@ include projects/start-wrt/build.mk
 include projects/start-docs/build.mk
 include build/complexity.mk
 
-.PHONY: help start-os metadata start-os-install clean format format-check complexity complexity-top complexity-diff complexity-record complexity-verify start-cli-install start-cli start-cli-deb start-os-uis start-os-ui start-os-emulate-reflash start-os-deb start-os-$(IMAGE_TYPE) start-os-squashfs start-os-wormhole start-os-wormhole-deb start-os-update start-os-update-from-gha test start-core-test start-sdk-test backup-fs-test container-runtime-test start-os-scripts-test start-wrt-test start-registry start-registry-install start-tunnel start-tunnel-install start-core-ts-bindings
+.PHONY: help start-os metadata start-os-install clean format format-check start-cli-install start-cli start-cli-deb start-os-uis start-os-ui start-os-emulate-reflash start-os-deb start-os-$(IMAGE_TYPE) start-os-squashfs start-os-wormhole start-os-wormhole-deb start-os-update start-os-update-from-gha test start-core-test start-sdk-test backup-fs-test container-runtime-test start-os-scripts-test start-wrt-test start-registry start-registry-install start-tunnel start-tunnel-install start-core-ts-bindings
 
 help:
 	@echo "No default target — specify one. Common targets:"
 	@echo "  start-os start-os-deb start-os-squashfs start-os-ui start-os-uis start-os-install   (StartOS)"
 	@echo "  start-cli start-cli-deb start-registry start-tunnel start-wrt start-wrt-image        (other products)"
 	@echo "  test start-core-test start-sdk-test container-runtime-test start-os-scripts-test start-wrt-test release-notes-test (tests)"
-	@echo "  format format-check start-core-ts-bindings clean                                     (tooling)"
+	@echo "  format format-check start-core-ts-bindings rust-builder rust-builder-check clean     (tooling)"
 	@echo "  complexity complexity-top complexity-diff                                            (complexity)"
 	@echo "See AGENTS.md for the full list."
 
@@ -53,6 +54,7 @@ format-check:
 .PHONY: release-notes-test package-ci-test
 release-notes-test:
 	node --test scripts/tests/*-test.mjs
+	bash scripts/tests/release-resume-test.sh
 
 package-ci-test:
 	node --test .github/actions/tests/*.test.mjs

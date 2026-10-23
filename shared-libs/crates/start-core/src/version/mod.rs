@@ -794,7 +794,7 @@ mod tests {
             "packageVersionCompat": ">=0.3.0 <0.5.0",
             "postInitMigrationTodos": {},
         }, "packageData": { "service": { "setting": "preserved" } } } });
-        let packages = db["public"]["packageData"].clone();
+        let packages = json!({ "service": { "setting": "preserved", "outboundDns": null } });
         let pre_ups = PreUps::load(&previous, &registered).await.unwrap();
         migrate_from_unchecked(&previous, &registered, pre_ups, &mut db).unwrap();
         assert_eq!(db["public"]["serverInfo"]["version"], json!("0.4.0.3"));
