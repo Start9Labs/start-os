@@ -95,7 +95,7 @@ export default {
   92: 'z',
   93: 'Stare hasło',
   94: 'Hasło',
-  95: 'Hasło zostało zmienione',
+  95: 'Hasło zostało zmienione. Wszystkie inne przeglądarki i sesje startwrt-cli zostały wylogowane.',
   96: 'Hasło jest nieprawidłowe',
   97: 'Przygotowywanie...',
   98: 'Zachowaj konfigurację, zaktualizuj firmware',
@@ -563,4 +563,5 @@ export default {
   591: 'Router wysyła dane do serwera Twojego dostawcy VPN i nie otrzymuje odpowiedzi. Profile korzystające z tego VPN nie mają internetu, dopóki serwer nie odpowie. Sprawdź u dostawcy, czy serwer działa i czy ta konfiguracja jest nadal ważna. Może być konieczne pobranie nowej. Aby w międzyczasie przywrócić tym profilom internet, przełącz je na inny VPN. Wyłączenie tego VPN również przywróci im internet, ale ich ruch będzie wtedy omijał VPN.',
   592: 'Wyłączony. Profile nie mogą z niego korzystać, dopóki nie zostanie ponownie włączony.',
   593: 'Nigdy',
+  594: 'Zmiana hasła wyloguje wszystkie inne przeglądarki i sesje startwrt-cli. Ta przeglądarka pozostanie zalogowana.',
 } satisfies i18n
