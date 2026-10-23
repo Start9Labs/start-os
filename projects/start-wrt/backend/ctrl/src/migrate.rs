@@ -29,6 +29,7 @@ const MIGRATIONS: &[Migration] = &[
     Migration::StoreLanAccessMode,
     Migration::ExpandLogRetention,
     Migration::StoreLogsUnderVar,
+    Migration::RemoveSessionsJson,
 ];
 
 #[derive(Clone, Copy, Debug)]
@@ -48,6 +49,7 @@ enum Migration {
     /// Earlier images kept `/var` in RAM, the system log in `/etc/log` and
     /// the activity log in `/etc/startwrt`.
     StoreLogsUnderVar,
+    RemoveSessionsJson,
 }
 
 impl Migration {
@@ -59,6 +61,7 @@ impl Migration {
             Migration::StoreLanAccessMode => store_lan_access_mode(root).await,
             Migration::ExpandLogRetention => expand_log_retention(root).await,
             Migration::StoreLogsUnderVar => store_logs_under_var(root).await,
+            Migration::RemoveSessionsJson => remove_sessions_json(root).await,
         }
     }
 }
@@ -156,6 +159,13 @@ async fn remove_etc_nftables_rules(root: &Path) -> Result<(), Error> {
         }
     }
     Ok(())
+}
+
+async fn remove_sessions_json(root: &Path) -> Result<(), Error> {
+    match tokio::fs::remove_file(root.join("etc/startwrt/sessions.json")).await {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.into()),
+        _ => Ok(()),
+    }
 }
 
 async fn strip_unreferenced_wan_zone_vpns(root: &Path) -> Result<(), Error> {
@@ -399,6 +409,17 @@ config forwarding
 
     fn current() -> String {
         format!("{}\n", MIGRATIONS.len())
+    }
+
+    #[tokio::test]
+    async fn log_migration_record_runs_session_cleanup_next() {
+        let dir = router(Some("6\n"), true);
+        write(&dir, "etc/startwrt/sessions.json", "{}");
+        write(&dir, "etc/startwrt/auth.db", "enrolled keys");
+        run(dir.path()).await.unwrap();
+        assert!(!dir.path().join("etc/startwrt/sessions.json").exists());
+        assert_eq!(read(&dir, "etc/startwrt/auth.db"), "enrolled keys");
+        assert_eq!(read(&dir, RECORD), current());
     }
 
     #[tokio::test]

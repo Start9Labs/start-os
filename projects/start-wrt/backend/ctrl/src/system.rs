@@ -798,9 +798,9 @@ async fn restart(_ctx: ServerContext) -> Result<(), Error> {
 
 #[derive(Debug, Deserialize, Serialize, visit_rs::VisitFields)]
 #[serde(rename_all = "camelCase")]
-struct SetTimezoneParams {
+pub(crate) struct SetTimezoneParams {
     /// IANA timezone name, e.g. "America/New_York"
-    timezone: String,
+    pub timezone: String,
 }
 rpc_toolkit::reflect_ts!(SetTimezoneParams);
 
@@ -859,7 +859,7 @@ async fn get_timezones(_ctx: ServerContext) -> Result<Vec<String>, Error> {
 /// the correct local time. No `zoneinfo` package needed. crond caches the zone
 /// at launch, so we restart it afterward to pick up the new `/etc/TZ`.
 #[instrument(skip_all)]
-async fn set_timezone<C: CtrlContext>(
+pub(crate) async fn set_timezone<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(params): DeserializeStdin<SetTimezoneParams>,
 ) -> Result<(), Error> {
@@ -952,13 +952,13 @@ pub fn system<C: CtrlContext>() -> ParentHandler<C> {
         .subcommand(
             "info",
             from_fn_async_local(info::<C>)
-                .with_metadata("no_auth", Value::Bool(true))
+                .with_metadata("authenticated", Value::Bool(false))
                 .with_display_serializable(),
         )
         .subcommand(
             "newer-versions",
             from_fn_async(newer_versions)
-                .with_metadata("no_auth", Value::Bool(true))
+                .with_metadata("authenticated", Value::Bool(false))
                 .with_display_serializable()
                 .with_call_remote::<CliContext>(),
         )
@@ -997,7 +997,7 @@ pub fn system<C: CtrlContext>() -> ParentHandler<C> {
         .subcommand(
             "get-timezones",
             from_fn_async(get_timezones)
-                .with_metadata("no_auth", Value::Bool(true))
+                .with_metadata("authenticated", Value::Bool(false))
                 .with_display_serializable()
                 .with_call_remote::<CliContext>(),
         )
@@ -1006,6 +1006,12 @@ pub fn system<C: CtrlContext>() -> ParentHandler<C> {
             from_fn_async(crate::logs::get_logs)
                 .with_display_serializable()
                 .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "logs-follow",
+            from_fn_async(crate::logs::follow_logs)
+                .with_metadata("get_signer", Value::Bool(true))
+                .no_cli(),
         )
 }
 

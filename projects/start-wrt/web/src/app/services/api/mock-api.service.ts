@@ -130,10 +130,10 @@ export class MockApiService extends ApiService {
   async login(params: LoginReq): Promise<RpcReturnType<Api, 'auth.login'>> {
     await pauseFor(250)
 
-    return { session: 'mock-session' }
+    return null
   }
 
-  async logout(): Promise<null> {
+  async logout(): Promise<RpcReturnType<Api, 'auth.logout'>> {
     await pauseFor(250)
 
     return null
@@ -1084,7 +1084,8 @@ export class MockApiService extends ApiService {
   ): Promise<RpcReturnType<Api, 'auth.set-initial-password'>> {
     await pauseFor(250)
     this.mockInitialized = true
-    return { session: 'mock-session' }
+    if (params.timezone) this.mockSystemInfo.timezone = params.timezone
+    return null
   }
 
   async setupStatus(): Promise<SetupStatusRes> {
@@ -1095,6 +1096,11 @@ export class MockApiService extends ApiService {
   async systemFactoryReset(): Promise<null> {
     await pauseFor(2000)
     return null
+  }
+
+  async followLogs(): Promise<RpcReturnType<Api, 'system.logs-follow'>> {
+    await pauseFor(250)
+    return { guid: 'MOCKLOGSFOLLOWGUIDAAAAAAAAAAAAAA' }
   }
 
   async systemLogs(): Promise<LogsResponse> {

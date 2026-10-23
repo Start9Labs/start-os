@@ -26,7 +26,6 @@ pub struct DiagnosticsCreateRes {
 }
 rpc_toolkit::reflect_ts!(DiagnosticsCreateRes);
 
-/// RPC handler: build the gzipped report, register download continuation, return guid + filename.
 #[instrument(skip_all)]
 async fn create(ctx: ServerContext) -> Result<DiagnosticsCreateRes, Error> {
     let date = chrono::Utc::now().format("%Y-%m-%d");
@@ -57,22 +56,24 @@ async fn create(ctx: ServerContext) -> Result<DiagnosticsCreateRes, Error> {
 
     let fname = filename.clone();
     let guid = Guid::new();
-    ctx.continuations.add(
-        guid.clone(),
-        RpcContinuation::rest(
-            move |_req| async move {
-                Ok(Response::builder()
-                    .header(header::CONTENT_TYPE, "application/gzip")
-                    .header(
-                        header::CONTENT_DISPOSITION,
-                        format!("attachment; filename=\"{fname}\""),
-                    )
-                    .body(Body::from(body))
-                    .unwrap())
-            },
-            continuations::DEFAULT_TTL,
-        ),
-    );
+    ctx.continuations
+        .add(
+            guid.clone(),
+            RpcContinuation::rest(
+                move |_req| async move {
+                    Ok(Response::builder()
+                        .header(header::CONTENT_TYPE, "application/gzip")
+                        .header(
+                            header::CONTENT_DISPOSITION,
+                            format!("attachment; filename=\"{fname}\""),
+                        )
+                        .body(Body::from(body))
+                        .unwrap())
+                },
+                continuations::DEFAULT_TTL,
+            ),
+        )
+        .await;
 
     Ok(DiagnosticsCreateRes { guid, filename })
 }
@@ -194,7 +195,6 @@ async fn read_trimmed(path: &str) -> String {
         .unwrap_or_else(|_| "unknown".to_string())
 }
 
-/// CLI handler: call diagnostics.create via RPC, download the file, write to ~/Downloads.
 #[instrument(skip_all)]
 async fn cli_download(
     HandlerArgs {
