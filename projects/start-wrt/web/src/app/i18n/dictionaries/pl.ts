@@ -555,4 +555,12 @@ export default {
   583: 'Wprowadź adresy IP oddzielone przecinkami',
   580: 'System (poza VPN)',
   585: 'Delegowany prefiks',
+  586: 'Bezczynny',
+  587: 'Nie odpowiada',
+  588: 'Ostatni handshake',
+  589: 'Tunel niedawno wykonał handshake. Ruch profili korzystających z tego VPN przechodzi przez niego.',
+  590: 'Włączony, bez niedawnego ruchu. Nic nie potrzebowało tego tunelu, więc w tej chwili nie jest połączony. Połączy się, gdy profil, który z niego korzysta, wyśle ruch.',
+  591: 'Router wysyła dane do serwera Twojego dostawcy VPN i nie otrzymuje odpowiedzi. Profile korzystające z tego VPN nie mają internetu, dopóki serwer nie odpowie. Sprawdź u dostawcy, czy serwer działa i czy ta konfiguracja jest nadal ważna. Może być konieczne pobranie nowej. Aby w międzyczasie przywrócić tym profilom internet, przełącz je na inny VPN. Wyłączenie tego VPN również przywróci im internet, ale ich ruch będzie wtedy omijał VPN.',
+  592: 'Wyłączony. Profile nie mogą z niego korzystać, dopóki nie zostanie ponownie włączony.',
+  593: 'Nigdy',
 } satisfies i18n

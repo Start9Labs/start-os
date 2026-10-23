@@ -362,6 +362,11 @@ diff -u /tmp/pristine openwrt/<path> \
 (Keep the explanatory header block above the diff — patch tooling ignores everything before
 the first `---`/`diff` line.)
 
+A patch to a package's own directory (its `Makefile` or `files/`) does not invalidate that
+package's build stamp in the carried-over `build_dir/`, so an incremental image reinstalls the
+stale package. Run `make -C projects/start-wrt/openwrt package/<path>/{clean,compile}` before
+re-imaging; CI builds from a clean workspace and is unaffected.
+
 **Bumping the upstream release.** Update both values in `build/openwrt-version` (the new
 version and the sha256 of its tag tarball — download it once and `sha256sum` it), set each
 feed in [`build/feeds.conf`](build/feeds.conf) to the `^<commit>` the tag's own

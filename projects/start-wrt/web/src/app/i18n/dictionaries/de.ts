@@ -555,4 +555,12 @@ export default {
   583: 'IP-Adressen durch Kommas getrennt eingeben',
   580: 'System (außerhalb des VPN)',
   585: 'Delegiertes Präfix',
+  586: 'Inaktiv',
+  587: 'Antwortet nicht',
+  588: 'Letzter Handshake',
+  589: 'Der Tunnel hat kürzlich einen Handshake abgeschlossen. Der Datenverkehr der Profile, die dieses VPN nutzen, läuft durch ihn.',
+  590: 'Aktiviert, ohne aktuellen Datenverkehr. Nichts hat diesen Tunnel benötigt, daher ist er gerade nicht verbunden. Er verbindet sich, sobald ein Profil, das ihn nutzt, Daten sendet.',
+  591: 'Der Router sendet an den Server Ihres VPN-Anbieters und erhält keine Antwort. Profile, die dieses VPN nutzen, haben kein Internet, bis er antwortet. Fragen Sie bei Ihrem Anbieter nach, ob der Server online ist und ob diese Konfiguration noch gültig ist. Möglicherweise müssen Sie eine neue herunterladen. Um diese Profile in der Zwischenzeit wieder online zu bringen, wechseln Sie sie zu einem anderen VPN. Wenn Sie dieses VPN deaktivieren, haben sie ebenfalls wieder Internet, aber ihr Datenverkehr umgeht dann das VPN.',
+  592: 'Ausgeschaltet. Profile können es erst wieder nutzen, wenn es aktiviert ist.',
+  593: 'Nie',
 } satisfies i18n

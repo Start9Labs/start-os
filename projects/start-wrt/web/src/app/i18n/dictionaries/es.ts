@@ -555,4 +555,12 @@ export default {
   583: 'Introduzca direcciones IP separadas por comas',
   580: 'Sistema (fuera de la VPN)',
   585: 'Prefijo delegado',
+  586: 'Inactivo',
+  587: 'No responde',
+  588: 'Último handshake',
+  589: 'El túnel completó un handshake recientemente. El tráfico de los perfiles que usan esta VPN pasa por él.',
+  590: 'Activada, sin tráfico reciente. Nada ha necesitado este túnel, así que ahora mismo no está conectado. Se conecta cuando un perfil que lo usa envía tráfico.',
+  591: 'El router está enviando al servidor de su proveedor de VPN y no recibe respuesta. Los perfiles que usan esta VPN no tienen internet hasta que responda. Consulte con su proveedor que el servidor esté en línea y que esta configuración siga siendo válida. Puede que tenga que descargar una nueva. Para volver a conectar estos perfiles mientras tanto, cámbielos a otra VPN. Desactivar esta VPN también restablece su internet, pero entonces su tráfico no pasará por la VPN.',
+  592: 'Apagada. Los perfiles no pueden usarla hasta que se vuelva a activar.',
+  593: 'Nunca',
 } satisfies i18n

@@ -8,6 +8,7 @@ use axum::response::IntoResponse;
 pub use startos::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
 
 pub const DEFAULT_TTL: Duration = Duration::from_secs(60);
+pub const MAX_UPLOAD_BYTES: usize = 64 * 1024 * 1024;
 
 fn server_error(e: startos::Error) -> Response<Body> {
     Response::builder()

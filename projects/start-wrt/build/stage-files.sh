@@ -179,6 +179,7 @@ for f in "$PROJECT_DIR"/backend/nftables/ruleset-pre/*.nft; do
 done
 
 # Runs one-time upgrade migrations after uci-defaults and before network.
+# reload_config notifies the services already running of what they changed.
 cat > "${FILES_DIR}/etc/init.d/startwrt-migrate" << 'MIGRATEEOF'
 #!/bin/sh /etc/rc.common
 
@@ -186,6 +187,7 @@ START=15
 
 start() {
     /usr/bin/startwrt-cli migrate 2>&1 | logger -t startwrt-migrate
+    /sbin/reload_config
 }
 MIGRATEEOF
 chmod +x "${FILES_DIR}/etc/init.d/startwrt-migrate"
@@ -214,6 +216,8 @@ cat > "${FILES_DIR}/lib/upgrade/keep.d/startwrt" << 'KEEPEOF'
 # Per-device IPv6 address history (same atomic-write pattern) — the stability
 # evidence the ipv6_tracker's election needs across reboots.
 /etc/startwrt/ipv6_neighbors.json
+# The persistent system log (system.log_file) and its rotated half.
+/var/log/
 KEEPEOF
 
 echo "==> Staging complete."

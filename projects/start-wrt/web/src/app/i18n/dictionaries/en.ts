@@ -560,4 +560,12 @@ export const ENGLISH: Record<string, number> = {
   'Enter IP addresses separated by commas': 583,
   'System (outside VPN)': 580,
   'Delegated Prefix': 585,
+  'Idle': 586,
+  'Not responding': 587,
+  'Last handshake': 588,
+  'The tunnel completed a handshake recently. Traffic from the profiles using this VPN goes through it.': 589,
+  'Enabled, with no recent traffic. Nothing has needed this tunnel, so it isn\'t connected right now. It connects when a profile using it sends traffic.': 590,
+  'The router is sending to your VPN provider\'s server and getting no reply. Profiles using this VPN have no internet until it responds. Check with your provider that the server is online and that this configuration is still valid. You may need to download a new one. To get these profiles back online in the meantime, switch them to another VPN. Disabling this VPN also restores their internet, but their traffic will then bypass the VPN.': 591,
+  'Turned off. Profiles can\'t use it until it\'s enabled again.': 592,
+  'Never': 593,
 }

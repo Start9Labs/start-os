@@ -445,7 +445,8 @@ async fn inner_main() -> Result<(), Error> {
         // RPC continuation endpoint (binary I/O for backup/restore/diagnostics)
         .route(
             "/rest/rpc/{guid}",
-            any(continuations::continuation_handler).layer(DefaultBodyLimit::max(10 * 1024 * 1024)),
+            any(continuations::continuation_handler)
+                .layer(DefaultBodyLimit::max(continuations::MAX_UPLOAD_BYTES)),
         )
         // WebSocket continuation endpoint (update progress, live logs).
         // Registered with `any` (not `get`) so HTTP/2 CONNECT requests (RFC

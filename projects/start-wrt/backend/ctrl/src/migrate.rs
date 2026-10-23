@@ -6,8 +6,9 @@
 
 use std::path::{Path, PathBuf};
 
+use tokio::io::AsyncWriteExt;
 use uciedit::openwrt::{InterfaceProto, NetworkInterface};
-use uciedit::{dump_all, parse_all, Arena};
+use uciedit::{dump_all, parse_all, Arena, TypedSection};
 
 use crate::prelude::*;
 use crate::wan::WAN_INTERFACE;
@@ -26,6 +27,8 @@ const MIGRATIONS: &[Migration] = &[
     Migration::StripUnreferencedWanZoneVpns,
     Migration::PppoeWanIpv6,
     Migration::StoreLanAccessMode,
+    Migration::ExpandLogRetention,
+    Migration::StoreLogsUnderVar,
     Migration::RemoveSessionsJson,
 ];
 
@@ -41,8 +44,11 @@ enum Migration {
     PppoeWanIpv6,
     /// Earlier releases kept a profile's LAN Access only as its forwardings.
     StoreLanAccessMode,
-    /// Cookie sessions lived in `/etc/startwrt/sessions.json` before sign-ins
-    /// enrolled keys.
+    /// Earlier images capped the persistent log at 512 KiB.
+    ExpandLogRetention,
+    /// Earlier images kept `/var` in RAM, the system log in `/etc/log` and
+    /// the activity log in `/etc/startwrt`.
+    StoreLogsUnderVar,
     RemoveSessionsJson,
 }
 
@@ -53,6 +59,8 @@ impl Migration {
             Migration::StripUnreferencedWanZoneVpns => strip_unreferenced_wan_zone_vpns(root).await,
             Migration::PppoeWanIpv6 => pppoe_wan_ipv6(root).await,
             Migration::StoreLanAccessMode => store_lan_access_mode(root).await,
+            Migration::ExpandLogRetention => expand_log_retention(root).await,
+            Migration::StoreLogsUnderVar => store_logs_under_var(root).await,
             Migration::RemoveSessionsJson => remove_sessions_json(root).await,
         }
     }
@@ -202,9 +210,124 @@ async fn store_lan_access_mode(root: &Path) -> Result<(), Error> {
     Ok(())
 }
 
+#[derive(Debug, TypedSection, Default)]
+#[uci(ty = "system")]
+struct SystemLog {
+    log_file: Option<String>,
+    log_size: Option<String>,
+    log_buffer_size: Option<String>,
+}
+
+/// A size other than the shipped one is a later choice and stays.
+async fn expand_log_retention(root: &Path) -> Result<(), Error> {
+    let arena = Arena::new();
+    let mut cfgs = parse_all(uci_root(root), &arena, &["system"]).await?;
+    let mut changed = false;
+    for section in &mut cfgs["system"].sections {
+        if let Some(mut log) = section.get_typed::<SystemLog>()? {
+            if log.log_size.as_deref() == Some("512") && log.log_buffer_size.is_none() {
+                log.log_size = Some("32768".to_string());
+                log.log_buffer_size = Some("512".to_string());
+                section.set(&log)?;
+                changed = true;
+            }
+            break;
+        }
+    }
+    if changed {
+        dump_all(uci_root(root), cfgs).await?;
+    }
+    Ok(())
+}
+
+const LEGACY_ACTIVITY_DB: &str = "etc/startwrt/activity.db";
+
+/// Lines the follower wrote to the old file on this boot follow a log
+/// already at the new location. A log file other than the shipped one stays.
+async fn store_logs_under_var(root: &Path) -> Result<(), Error> {
+    for (from, to) in crate::logs::LEGACY_HISTORY_FILES
+        .into_iter()
+        .zip(crate::logs::HISTORY_FILES)
+    {
+        move_file(&root.join(from), &root.join(to), Collision::Append).await?;
+    }
+    let _ = tokio::fs::remove_dir(root.join("etc/log")).await;
+    move_file(
+        &root.join(LEGACY_ACTIVITY_DB),
+        &root.join(crate::activity::ACTIVITY_DB.trim_start_matches('/')),
+        Collision::Keep,
+    )
+    .await?;
+
+    let arena = Arena::new();
+    let mut cfgs = parse_all(uci_root(root), &arena, &["system"]).await?;
+    let mut changed = false;
+    for section in &mut cfgs["system"].sections {
+        if let Some(mut log) = section.get_typed::<SystemLog>()? {
+            if log.log_file.as_deref() == Some("/etc/log/messages") {
+                log.log_file = Some("/var/log/messages".to_string());
+                section.set(&log)?;
+                changed = true;
+            }
+            break;
+        }
+    }
+    if changed {
+        dump_all(uci_root(root), cfgs).await?;
+    }
+    Ok(())
+}
+
+/// What becomes of a file moved onto one already at the destination.
+#[derive(Clone, Copy)]
+enum Collision {
+    /// Its contents follow the destination's.
+    Append,
+    /// It stays where it was.
+    Keep,
+}
+
+/// A missing source is a no-op. Crosses filesystems.
+async fn move_file(from: &Path, to: &Path, collision: Collision) -> Result<(), Error> {
+    match tokio::fs::symlink_metadata(from).await {
+        Ok(_) => {}
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(e.into()),
+    }
+    if let Some(parent) = to.parent() {
+        tokio::fs::create_dir_all(parent).await?;
+    }
+    if tokio::fs::try_exists(to).await? {
+        match collision {
+            Collision::Keep => return Ok(()),
+            Collision::Append => {
+                let moved = tokio::fs::read(from).await?;
+                let mut dest = tokio::fs::OpenOptions::new().append(true).open(to).await?;
+                dest.write_all(&moved).await?;
+                dest.flush().await?;
+                tokio::fs::remove_file(from).await?;
+                return Ok(());
+            }
+        }
+    }
+    if tokio::fs::rename(from, to).await.is_ok() {
+        return Ok(());
+    }
+    tokio::fs::copy(from, to).await?;
+    tokio::fs::remove_file(from).await?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const SHIPPED_SYSTEM: &str = "\
+config system
+\toption hostname 'router'
+\toption log_size '512'
+\toption log_file '/etc/log/messages'
+";
 
     const PPPOE_WAN: &str = "\
 config interface 'wan'
@@ -289,6 +412,17 @@ config forwarding
     }
 
     #[tokio::test]
+    async fn log_migration_record_runs_session_cleanup_next() {
+        let dir = router(Some("6\n"), true);
+        write(&dir, "etc/startwrt/sessions.json", "{}");
+        write(&dir, "etc/startwrt/auth.db", "enrolled keys");
+        run(dir.path()).await.unwrap();
+        assert!(!dir.path().join("etc/startwrt/sessions.json").exists());
+        assert_eq!(read(&dir, "etc/startwrt/auth.db"), "enrolled keys");
+        assert_eq!(read(&dir, RECORD), current());
+    }
+
+    #[tokio::test]
     async fn fresh_config_is_recorded_current_without_migrating() {
         let dir = router(None, false);
         write(&dir, "etc/config/network", PPPOE_WAN);
@@ -303,7 +437,6 @@ config forwarding
         write(&dir, "etc/config/network", PPPOE_WAN);
         write(&dir, "etc/nftables.d/12-startwrt-sni-divert.nft", "");
         write(&dir, "etc/nftables.d/user.nft", "");
-        write(&dir, "etc/startwrt/sessions.json", "{}");
         write(
             &dir,
             "etc/config/firewall",
@@ -317,7 +450,6 @@ config forwarding
             .join("etc/nftables.d/12-startwrt-sni-divert.nft")
             .exists());
         assert!(dir.path().join("etc/nftables.d/user.nft").exists());
-        assert!(!dir.path().join("etc/startwrt/sessions.json").exists());
         let firewall = read(&dir, "etc/config/firewall");
         assert!(!firewall.contains("wg_old"));
         assert!(firewall.contains("list network 'wan'"));
@@ -334,6 +466,7 @@ config forwarding
             &format!("config zone 'wan'\n\toption name 'wan'\n\toption input 'REJECT'\n\toption output 'ACCEPT'\n\toption forward 'REJECT'\n\tlist network 'wan'\n\tlist network 'wg_old'\n{LEGACY_PROFILE_ZONES}"),
         );
         write(&dir, "etc/config/startwrt", LEGACY_PROFILES);
+        write(&dir, "etc/config/system", SHIPPED_SYSTEM);
         for migration in MIGRATIONS {
             migration.apply(dir.path()).await.unwrap();
         }
@@ -341,6 +474,7 @@ config forwarding
             read(&dir, "etc/config/network"),
             read(&dir, "etc/config/firewall"),
             read(&dir, "etc/config/startwrt"),
+            read(&dir, "etc/config/system"),
         ];
         for migration in MIGRATIONS {
             migration.apply(dir.path()).await.unwrap();
@@ -348,6 +482,7 @@ config forwarding
         assert_eq!(read(&dir, "etc/config/network"), migrated[0]);
         assert_eq!(read(&dir, "etc/config/firewall"), migrated[1]);
         assert_eq!(read(&dir, "etc/config/startwrt"), migrated[2]);
+        assert_eq!(read(&dir, "etc/config/system"), migrated[3]);
         assert_eq!(wan_ipv6(&dir).as_deref(), Some("1"));
         assert!(migrated[1].contains("option dest 'vlan_guest'"));
         assert!(migrated[2].contains("option lan_access 'all'"));
@@ -416,6 +551,81 @@ config forwarding
             assert_eq!(wan_ipv6(&dir).as_deref(), expected, "{network}");
             assert_eq!(record(&dir), current());
         }
+    }
+
+    #[tokio::test]
+    async fn log_retention_expands_only_the_shipped_size() {
+        let dir = router(None, true);
+        write(&dir, "etc/config/system", SHIPPED_SYSTEM);
+        expand_log_retention(dir.path()).await.unwrap();
+        let system = read(&dir, "etc/config/system");
+        assert!(system.contains("option log_size '32768'"), "{system}");
+        assert!(system.contains("option log_buffer_size '512'"), "{system}");
+        assert!(system.contains("option hostname 'router'"), "{system}");
+        assert!(
+            system.contains("option log_file '/etc/log/messages'"),
+            "{system}"
+        );
+
+        for custom in [
+            SHIPPED_SYSTEM.replace("'512'", "'2048'"),
+            format!("{SHIPPED_SYSTEM}\toption log_buffer_size '128'\n"),
+        ] {
+            let dir = router(None, true);
+            write(&dir, "etc/config/system", &custom);
+            expand_log_retention(dir.path()).await.unwrap();
+            assert_eq!(read(&dir, "etc/config/system"), custom);
+        }
+    }
+
+    #[tokio::test]
+    async fn logs_move_from_etc_into_var() {
+        let dir = router(None, true);
+        write(&dir, "etc/config/system", SHIPPED_SYSTEM);
+        write(&dir, "etc/log/messages.old", "a\n");
+        write(&dir, "etc/log/messages", "b\n");
+        write(&dir, LEGACY_ACTIVITY_DB, "db");
+        store_logs_under_var(dir.path()).await.unwrap();
+        assert_eq!(read(&dir, "var/log/messages.old"), "a\n");
+        assert_eq!(read(&dir, "var/log/messages"), "b\n");
+        assert_eq!(read(&dir, "var/lib/startwrt/activity.db"), "db");
+        assert!(!dir.path().join("etc/log").exists());
+        assert!(!dir.path().join(LEGACY_ACTIVITY_DB).exists());
+        let system = read(&dir, "etc/config/system");
+        assert!(
+            system.contains("option log_file '/var/log/messages'"),
+            "{system}"
+        );
+        assert!(system.contains("option log_size '512'"), "{system}");
+        assert!(system.contains("option hostname 'router'"), "{system}");
+
+        store_logs_under_var(dir.path()).await.unwrap();
+        assert_eq!(read(&dir, "var/log/messages"), "b\n");
+        assert_eq!(read(&dir, "etc/config/system"), system);
+    }
+
+    #[tokio::test]
+    async fn lines_logged_before_the_move_follow_the_log_already_in_var() {
+        let dir = router(None, true);
+        write(&dir, "etc/config/system", SHIPPED_SYSTEM);
+        write(&dir, "var/log/messages", "history\n");
+        write(&dir, "etc/log/messages", "boot\n");
+        write(&dir, "var/lib/startwrt/activity.db", "new");
+        write(&dir, LEGACY_ACTIVITY_DB, "old");
+        store_logs_under_var(dir.path()).await.unwrap();
+        assert_eq!(read(&dir, "var/log/messages"), "history\nboot\n");
+        assert!(!dir.path().join("etc/log").exists());
+        assert_eq!(read(&dir, "var/lib/startwrt/activity.db"), "new");
+        assert_eq!(read(&dir, LEGACY_ACTIVITY_DB), "old");
+    }
+
+    #[tokio::test]
+    async fn a_custom_log_file_stays_where_it_is() {
+        let dir = router(None, true);
+        let custom = SHIPPED_SYSTEM.replace("/etc/log/messages", "/mnt/usb/messages");
+        write(&dir, "etc/config/system", &custom);
+        store_logs_under_var(dir.path()).await.unwrap();
+        assert_eq!(read(&dir, "etc/config/system"), custom);
     }
 
     #[tokio::test]

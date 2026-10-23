@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use axum::body::Body;
 use axum::http::{header, Response};
@@ -30,10 +30,8 @@ pub struct BackupRestoreRes {
 }
 rpc_toolkit::reflect_ts!(BackupRestoreRes);
 
-/// RPC handler: buffer backup, register download continuation, return guid + filename.
 #[instrument(skip_all)]
 async fn create(ctx: ServerContext) -> Result<BackupCreateRes, Error> {
-    // Get hostname for the filename
     let hostname = match Command::new("uci")
         .args(["get", "system.@system[0].hostname"])
         .invoke(ErrorKind::Filesystem.into())
@@ -107,7 +105,6 @@ async fn create(ctx: ServerContext) -> Result<BackupCreateRes, Error> {
     Ok(BackupCreateRes { guid, filename })
 }
 
-/// CLI handler: call backup.create via RPC, download the file, write to ~/Downloads.
 #[instrument(skip_all)]
 async fn cli_download(
     HandlerArgs {
@@ -148,7 +145,6 @@ async fn cli_download(
     Ok(())
 }
 
-/// RPC handler: register upload continuation for restore, return guid.
 #[instrument(skip_all)]
 async fn restore(ctx: ServerContext) -> Result<BackupRestoreRes, Error> {
     let guid = Guid::new();
@@ -157,13 +153,13 @@ async fn restore(ctx: ServerContext) -> Result<BackupRestoreRes, Error> {
             guid.clone(),
             RpcContinuation::rest(
                 move |req| async move {
-                    let body_bytes = axum::body::to_bytes(req.into_body(), 10 * 1024 * 1024)
-                        .await
-                        .map_err(|e| {
-                            Error::new(eyre!("Failed to read upload: {e}"), ErrorKind::Network)
-                        })?;
+                    let body_bytes =
+                        axum::body::to_bytes(req.into_body(), continuations::MAX_UPLOAD_BYTES)
+                            .await
+                            .map_err(|e| {
+                                Error::new(eyre!("Failed to read upload: {e}"), ErrorKind::Network)
+                            })?;
 
-                    // Atomic file write
                     let tmp_path = "/tmp/backup-restore.tar.gz";
                     startos::util::io::write_file_atomic(tmp_path, &body_bytes)
                         .await
@@ -189,7 +185,8 @@ async fn restore(ctx: ServerContext) -> Result<BackupRestoreRes, Error> {
                         .into());
                     };
 
-                    // Apply the backup
+                    let log_history = crate::logs::snapshot_history(Path::new("/")).await;
+
                     let apply = Command::new("sysupgrade")
                         .args(["--restore-backup", tmp_path])
                         .invoke(ErrorKind::Filesystem.into())
@@ -208,13 +205,25 @@ async fn restore(ctx: ServerContext) -> Result<BackupRestoreRes, Error> {
                         return Err(e.into());
                     }
 
-                    if let Err(e) = crate::migrate::forget_unless_restored(
-                        std::path::Path::new("/"),
-                        &String::from_utf8_lossy(&listing),
-                    )
-                    .await
+                    let listing = String::from_utf8_lossy(&listing);
+                    if let Err(e) =
+                        crate::migrate::forget_unless_restored(Path::new("/"), &listing).await
                     {
                         tracing::error!("failed to reset migration record after restore: {e}");
+                    }
+                    match log_history {
+                        Ok(before) => {
+                            if let Err(e) = crate::logs::merge_restored_history(
+                                Path::new("/"),
+                                before,
+                                &listing,
+                            )
+                            .await
+                            {
+                                tracing::error!("failed to merge system log after restore: {e}");
+                            }
+                        }
+                        Err(e) => tracing::error!("failed to read system log before restore: {e}"),
                     }
 
                     crate::activity::log(
@@ -225,7 +234,6 @@ async fn restore(ctx: ServerContext) -> Result<BackupRestoreRes, Error> {
                         None,
                     );
 
-                    // Spawn delayed reboot
                     tokio::spawn(async {
                         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                         if let Err(e) = Command::new("reboot")
@@ -255,7 +263,6 @@ struct RestoreParams {
 }
 rpc_toolkit::reflect_ts!(RestoreParams);
 
-/// CLI handler: read local file, call backup.restore via RPC, upload the file.
 #[instrument(skip_all)]
 async fn cli_upload(
     HandlerArgs {

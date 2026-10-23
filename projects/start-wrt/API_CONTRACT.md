@@ -1305,6 +1305,23 @@ struct OutboundVpn {
     hostname_endpoint: bool,
     /// Resolvers reached through the tunnel (the interface's `list dns`).
     dns: Vec<IpAddr>,
+    status: OutboundVpnStatus,
+    /// Seconds since the tunnel's latest handshake, measured on the router.
+    /// null when it has never completed one.
+    last_handshake_secs: Option<u64>,
+}
+
+#[serde(rename_all = "kebab-case")]
+enum OutboundVpnStatus {
+    Disabled,
+    /// A handshake completed within the last 180 seconds.
+    Connected,
+    /// Nothing has sent through the tunnel since its session lapsed.
+    Idle,
+    /// Sends go unanswered: the peer never answered a second handshake
+    /// initiation, or the router sent after the session lapsed within the last
+    /// 120 seconds. Also an enabled tunnel with no peer endpoint.
+    NotResponding,
 }
 // Response: Vec<OutboundVpn>
 ```
@@ -2068,7 +2085,7 @@ struct ActivityListResponse {
     entries: Vec<ActivityEntry>,
     total: usize,
 }
-// Backend: reads the SQLite activity log (/etc/startwrt/activity.db),
+// Backend: reads the SQLite activity log (/var/lib/startwrt/activity.db),
 // newest first
 ```
 
@@ -2116,11 +2133,13 @@ struct BackupCreateRes {
 
 #[derive(Serialize)]
 struct BackupRestoreRes {
-    /// POST the .tar.gz to /rest/rpc/{guid} (10 MB body limit)
+    /// POST the .tar.gz to /rest/rpc/{guid} (64 MiB body limit)
     upload: String,
 }
 // Backend: the upload continuation validates the archive (`tar -tzf`), applies
-// it with `sysupgrade --restore-backup`, then reboots after a short delay
+// it with `sysupgrade --restore-backup`, keeps the router's own system log
+// preceded by any older history the backup carried, then reboots after a
+// short delay
 ```
 
 ---
@@ -2136,10 +2155,12 @@ struct BackupRestoreRes {
 struct DiagnosticsCreateRes {
     /// Download the log via GET /rest/rpc/{guid}
     guid: String,
-    filename: String,  // "diagnostics-startwrt-<YYYY-MM-DD>.log"
+    filename: String,  // "diagnostics-startwrt-<YYYY-MM-DD>.log.gz"
 }
-// Backend: captures `logread` output and registers a one-shot download
-// continuation at /rest/rpc/{guid}
+// Backend: gzips a system summary (version, board, kernel, uptime, boot ID,
+// eMMC wear), the persistent system log (`/var/log/messages.old` then
+// `/var/log/messages`, or `logread` when neither exists) and the activity
+// log, and registers a one-shot download continuation at /rest/rpc/{guid}
 ```
 
 ---
@@ -2186,16 +2207,16 @@ struct InjectedDnsRecord {
 Every RPC method above is a JSON-RPC 2.0 call to a single endpoint: **`POST /rpc/v1`**.
 The daemon (`backend/ctrl/src/bins/daemon.rs`) also serves:
 
-| Route                                              | Method    | Auth                                       | Purpose                                                                                      |
-| -------------------------------------------------- | --------- | ------------------------------------------ | -------------------------------------------------------------------------------------------- |
-| `/rpc/v1`                                          | POST      | Request signature or local token (see § 1) | JSON-RPC 2.0 endpoint for all RPC methods                                                    |
-| `/rest/rpc/{guid}`                                 | GET/POST  | GUID capability (one-shot)                 | RPC continuation: binary download (backup, diagnostics) / upload (restore); 10 MB body limit |
-| `/ws/rpc/{guid}`                                   | WebSocket | GUID capability (one-shot)                 | Streaming: update progress (`system.update`), live logs (`system.logs-follow`)               |
-| `/api/setup/flash`                                 | POST      | None (setup wizard)                        | Streams NDJSON `SetupEvent` progress while flashing the eMMC; one flash at a time            |
-| `/static/local-root-ca.crt`                        | GET       | None                                       | Root CA certificate download                                                                 |
-| `/static/local-root-ca.mobileconfig`               | GET       | None                                       | Root CA as an Apple configuration profile                                                    |
-| `/cgi-bin/*`, `/luci-static/*`, `/ubus`, `/ubus/*` | any       | LuCI's own                                 | Reverse proxy to uhttpd (LuCI) on localhost:8080; `/luci` redirects to `/cgi-bin/luci`       |
-| everything else                                    | any       | None                                       | Embedded web UI                                                                              |
+| Route                                              | Method    | Auth                                       | Purpose                                                                                       |
+| -------------------------------------------------- | --------- | ------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| `/rpc/v1`                                          | POST      | Request signature or local token (see § 1) | JSON-RPC 2.0 endpoint for all RPC methods                                                     |
+| `/rest/rpc/{guid}`                                 | GET/POST  | GUID capability (one-shot)                 | RPC continuation: binary download (backup, diagnostics) / upload (restore); 64 MiB body limit |
+| `/ws/rpc/{guid}`                                   | WebSocket | GUID capability (one-shot)                 | Streaming: update progress (`system.update`), live logs (`system.logs-follow`)                |
+| `/api/setup/flash`                                 | POST      | None (setup wizard)                        | Streams NDJSON `SetupEvent` progress while flashing the eMMC; one flash at a time             |
+| `/static/local-root-ca.crt`                        | GET       | None                                       | Root CA certificate download                                                                  |
+| `/static/local-root-ca.mobileconfig`               | GET       | None                                       | Root CA as an Apple configuration profile                                                     |
+| `/cgi-bin/*`, `/luci-static/*`, `/ubus`, `/ubus/*` | any       | LuCI's own                                 | Reverse proxy to uhttpd (LuCI) on localhost:8080; `/luci` redirects to `/cgi-bin/luci`        |
+| everything else                                    | any       | None                                       | Embedded web UI                                                                               |
 
 ---
 
