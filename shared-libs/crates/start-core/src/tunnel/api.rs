@@ -15,7 +15,7 @@ use crate::net::forward::nft_rule;
 use crate::net::port_map::server::GatewayBackend;
 use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
-use crate::tunnel::db::{DnsRecordEntry, PortForward};
+use crate::tunnel::db::{DnsRecordEntry, PortForward, TunnelDatabase};
 use crate::tunnel::forward::pinhole;
 use crate::tunnel::wg::{
     DnsConfig, WIREGUARD_INTERFACE_NAME, WgClientKind, WgConfig, WgSubnetClients, WgSubnetConfig,
@@ -180,8 +180,6 @@ pub async fn restart(ctx: TunnelContext) -> Result<(), Error> {
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct SubnetParams {
-    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     subnet: Ipv4Net,
 }
 
@@ -323,8 +321,6 @@ pub fn device_api<C: Context>() -> ParentHandler<C> {
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct SetDnsInjectionParams {
-    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     subnet: Ipv4Net,
     ip: Ipv4Addr,
     #[arg(long)]
@@ -372,8 +368,6 @@ pub async fn set_dns_injection(
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct SetAutoPortForwardParams {
-    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     subnet: Ipv4Net,
     ip: Ipv4Addr,
     #[arg(long)]
@@ -420,8 +414,6 @@ pub async fn set_auto_port_forward(
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct SetDeviceKindParams {
-    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     subnet: Ipv4Net,
     ip: Ipv4Addr,
     #[arg(long, value_enum)]
@@ -713,16 +705,9 @@ pub struct SetSubnetDnsParams {
     mode: DnsMode,
     /// The selected device's WireGuard IP; required when `mode` is `device`.
     #[arg(long, help = "help.arg.dns-device-ip")]
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     device_ip: Option<Ipv4Addr>,
     /// Up to 3 upstream servers (bare IP or `ip:port`); used when `mode` is `custom`.
     #[arg(long = "server", action = clap::ArgAction::Append, help = "help.arg.dns-server")]
-    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     servers: Vec<String>,
 }
 
@@ -809,11 +794,6 @@ pub async fn set_subnet_dns(
 #[serde(rename_all = "camelCase")]
 pub struct SetSubnetWanParams {
     #[arg(long)]
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     wan_ip: Option<Ipv4Addr>,
 }
 
@@ -849,11 +829,6 @@ pub struct SetSubnetIpv6Params {
     /// The routed IPv6 prefix delegated to this subnet (e.g. a /64 from Hetzner,
     /// a /56 from Linode). `null` disables IPv6 on the subnet.
     #[arg(long)]
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     prefix: Option<Ipv6Net>,
 }
 
@@ -974,16 +949,9 @@ pub async fn set_subnet_ipv6(
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct SetDeviceWanParams {
-    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     subnet: Ipv4Net,
     ip: Ipv4Addr,
     #[arg(long)]
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     wan_ip: Option<Ipv4Addr>,
 }
 
@@ -1018,15 +986,8 @@ pub async fn set_device_wan(
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct AddDeviceParams {
-    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     subnet: Ipv4Net,
     name: InternedString,
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     ip: Option<Ipv4Addr>,
     /// Client (no autoconfig) or Server (gateway-autoconfig on by default).
     #[serde(default)]
@@ -1138,8 +1099,6 @@ pub async fn add_device(
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDeviceParams {
-    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     subnet: Ipv4Net,
     ip: Ipv4Addr,
 }
@@ -1178,8 +1137,6 @@ pub async fn remove_device(
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct ListDevicesParams {
-    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     subnet: Ipv4Net,
 }
 
@@ -1204,14 +1161,11 @@ pub async fn list_devices(
 #[group(skip)]
 #[serde(rename_all = "camelCase")]
 pub struct ShowConfigParams {
-    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     subnet: Ipv4Net,
     ip: Ipv4Addr,
     #[serde(rename = "__ConnectInfo_local_addr")]
     #[arg(skip)]
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
+    #[visit(ts(skip))]
     local_addr: Option<SocketAddr>,
 }
 
@@ -1324,11 +1278,6 @@ pub async fn add_forward(
     })?;
     let source = SocketAddrV4::new(external_ip, external_port);
 
-    // Port 80 is owned by the HTTP→HTTPS redirect (default on per public IPv4).
-    // The redirect and a port-80 forward are mutually exclusive — reject rather
-    // than silently override, so the user disables the redirect first. The
-    // redirect is active on this IP (and thus conflicts) only when it's a public
-    // IPv4 the user hasn't turned off.
     let covers_80 =
         external_port <= 80 && 80 <= external_port.saturating_add(count.saturating_sub(1));
     if covers_80 {
@@ -1363,7 +1312,6 @@ pub async fn add_forward(
         return Ok(());
     }
 
-    // The span must fit the u16 port range on both the external and target side.
     if external_port.checked_add(count - 1).is_none()
         || target.port().checked_add(count - 1).is_none()
     {
@@ -1376,12 +1324,9 @@ pub async fn add_forward(
         ));
     }
 
-    // DB is the source of truth: atomically reject an overlapping or duplicate
-    // forward and reserve the slot in one mutate before touching the dataplane
-    // (mirrors add_sni_forward). A detached peek-then-insert let two concurrent
-    // adds both pass the overlap check.
     ctx.db
         .mutate(|db| {
+            db.as_webserver().de()?.check_plain_forward(source, count)?;
             db.as_port_forwards_mut().mutate(|pf| {
                 if let Some(conflict) = pf.overlapping(source, count) {
                     return Err(Error::new(
@@ -1585,13 +1530,68 @@ pub struct SetPortForwardEnabledParams {
 rpc_toolkit::reflect_ts!(SetPortForwardEnabledParams);
 rpc_toolkit::ts_export!(SetPortForwardEnabledParams, namespaces = ["tunnel"]);
 
-/// Carries what the db.mutate selected so the dataplane action runs after it.
 enum ForwardToggle {
-    Dnat(SocketAddrV4),
+    Dnat {
+        target: SocketAddrV4,
+        count: u16,
+    },
     Sni {
         hostname: String,
         target: SocketAddrV4,
     },
+}
+
+fn update_forward_enabled(
+    db: &mut Model<TunnelDatabase>,
+    source: SocketAddrV4,
+    enabled: bool,
+    hostname: Option<&str>,
+) -> Result<ForwardToggle, Error> {
+    let web = db.as_webserver().de()?;
+    db.as_port_forwards_mut().mutate(|pf| {
+        let entry = pf.0.get_mut(&source).ok_or_else(|| {
+            Error::new(
+                eyre!("Port forward from {source} not found"),
+                ErrorKind::NotFound,
+            )
+        })?;
+        match entry {
+            PortForward::Dnat {
+                enabled: e,
+                target,
+                count,
+                ..
+            } => {
+                if enabled {
+                    web.check_plain_forward(source, *count)?;
+                }
+                *e = enabled;
+                Ok(ForwardToggle::Dnat {
+                    target: *target,
+                    count: *count,
+                })
+            }
+            PortForward::Sni { routes, .. } => {
+                let hostname = hostname.ok_or_else(|| {
+                    Error::new(
+                        eyre!("--hostname is required to toggle an SNI route"),
+                        ErrorKind::InvalidRequest,
+                    )
+                })?;
+                let route = routes.get_mut(hostname).ok_or_else(|| {
+                    Error::new(
+                        eyre!("No SNI route for {hostname} on {source}"),
+                        ErrorKind::NotFound,
+                    )
+                })?;
+                route.enabled = enabled;
+                Ok(ForwardToggle::Sni {
+                    hostname: hostname.to_owned(),
+                    target: route.target,
+                })
+            }
+        }
+    })
 }
 
 pub async fn set_forward_enabled(
@@ -1605,53 +1605,17 @@ pub async fn set_forward_enabled(
     let _guard = ctx.forward_write_lock.lock().await;
     let toggle = ctx
         .db
-        .mutate(|db| {
-            db.as_port_forwards_mut().mutate(|pf| {
-                let entry = pf.0.get_mut(&source).ok_or_else(|| {
-                    Error::new(
-                        eyre!("Port forward from {source} not found"),
-                        ErrorKind::NotFound,
-                    )
-                })?;
-                match entry {
-                    PortForward::Dnat {
-                        enabled: e, target, ..
-                    } => {
-                        *e = enabled;
-                        Ok(ForwardToggle::Dnat(*target))
-                    }
-                    PortForward::Sni { routes, .. } => {
-                        let hostname = hostname.clone().ok_or_else(|| {
-                            Error::new(
-                                eyre!("--hostname is required to toggle an SNI route"),
-                                ErrorKind::InvalidRequest,
-                            )
-                        })?;
-                        let route = routes.get_mut(&hostname).ok_or_else(|| {
-                            Error::new(
-                                eyre!("No SNI route for {hostname} on {source}"),
-                                ErrorKind::NotFound,
-                            )
-                        })?;
-                        route.enabled = enabled;
-                        Ok(ForwardToggle::Sni {
-                            hostname,
-                            target: route.target,
-                        })
-                    }
-                }
-            })
-        })
+        .mutate(|db| update_forward_enabled(db, source, enabled, hostname.as_deref()))
         .await
         .result?;
 
     match toggle {
-        ForwardToggle::Dnat(target) => {
+        ForwardToggle::Dnat { target, count } => {
             if enabled {
                 let prefix = crate::tunnel::forward::igd::prefix_for(&ctx, target.ip()).await;
                 let rc = ctx
                     .forward
-                    .add_forward(source, target, prefix, None)
+                    .add_forward_range(source, target, count, prefix, None)
                     .await?;
                 ctx.active_forwards.mutate(|m| {
                     m.insert(source, rc);
@@ -1899,6 +1863,97 @@ pub async fn list_http_redirects(ctx: TunnelContext) -> Result<Vec<HttpRedirectS
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn enabling_plain_forward_checks_active_ui_and_preserves_range() {
+        use std::collections::BTreeMap;
+
+        use crate::tunnel::db::PortForwards;
+        use crate::tunnel::web::WebserverInfo;
+
+        let source = "203.0.113.4:442".parse().unwrap();
+        let target = "10.0.0.2:8442".parse().unwrap();
+        let mut db = Model::new(&TunnelDatabase::default()).unwrap();
+        db.as_webserver_mut()
+            .ser(&WebserverInfo {
+                enabled: true,
+                listen: Some("0.0.0.0:443".parse().unwrap()),
+                certificate: None,
+            })
+            .unwrap();
+        db.as_port_forwards_mut()
+            .ser(&PortForwards(BTreeMap::from([(
+                source,
+                PortForward::Dnat {
+                    target,
+                    label: None,
+                    enabled: false,
+                    count: 3,
+                    auto: false,
+                },
+            )])))
+            .unwrap();
+        let error = update_forward_enabled(&mut db, source, true, None)
+            .err()
+            .unwrap();
+        assert_eq!(error.kind, ErrorKind::InvalidRequest);
+        assert!(matches!(
+            db.as_port_forwards().de().unwrap().0[&source],
+            PortForward::Dnat { enabled: false, .. }
+        ));
+        update_forward_enabled(&mut db, source, false, None).unwrap();
+        db.as_webserver_mut().as_enabled_mut().ser(&false).unwrap();
+        let toggle = update_forward_enabled(&mut db, source, true, None).unwrap();
+        assert!(matches!(toggle, ForwardToggle::Dnat { target: t, count: 3 } if t == target));
+        assert!(matches!(
+            db.as_port_forwards().de().unwrap().0[&source],
+            PortForward::Dnat {
+                enabled: true,
+                count: 3,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn enabling_hostname_route_can_share_active_ui_port() {
+        use std::collections::BTreeMap;
+
+        use crate::tunnel::db::{PortForwards, SniRoute};
+        use crate::tunnel::web::WebserverInfo;
+
+        let source = "203.0.113.4:443".parse().unwrap();
+        let target = "10.0.0.2:443".parse().unwrap();
+        let mut db = Model::new(&TunnelDatabase::default()).unwrap();
+        db.as_webserver_mut()
+            .ser(&WebserverInfo {
+                enabled: true,
+                listen: Some("0.0.0.0:443".parse().unwrap()),
+                certificate: None,
+            })
+            .unwrap();
+        db.as_port_forwards_mut()
+            .ser(&PortForwards(BTreeMap::from([(
+                source,
+                PortForward::Sni {
+                    routes: BTreeMap::from([(
+                        "service.example.com".to_owned(),
+                        SniRoute {
+                            target,
+                            label: None,
+                            enabled: false,
+                            auto: false,
+                        },
+                    )]),
+                    fallback: None,
+                },
+            )])))
+            .unwrap();
+        assert!(matches!(
+            update_forward_enabled(&mut db, source, true, Some("service.example.com")).unwrap(),
+            ForwardToggle::Sni { target: t, .. } if t == target
+        ));
+    }
 
     #[test]
     fn parse_dns_server_defaults_to_port_53() {

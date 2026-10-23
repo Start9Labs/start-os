@@ -14,13 +14,13 @@ use crate::prelude::*;
 use crate::progress::FullProgressTracker;
 use crate::registry::asset::BufferedHttpSource;
 use crate::registry::context::RegistryContext;
+use crate::registry::package::icon::icons_dir;
 use crate::registry::package::index::PackageVersionInfo;
 use crate::s9pk::S9pk;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::v2::SIG_CONTEXT;
 use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
-use crate::sign::ed25519::Ed25519;
-use crate::sign::{AnySignature, AnyVerifyingKey, SignatureScheme};
+use crate::sign::{AnySignature, AnyVerifyingKey};
 use crate::util::VersionString;
 use crate::util::io::TrackingIO;
 use crate::util::serde::Base64;
@@ -28,12 +28,9 @@ use crate::util::serde::Base64;
 #[derive(Debug, Deserialize, Serialize, VisitFields)]
 #[serde(rename_all = "camelCase")]
 pub struct AddPackageParams {
-    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub urls: Vec<Url>,
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(skip))]
     #[serde(rename = "__Auth_signer")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub uploader: AnyVerifyingKey,
     pub commitment: MerkleArchiveCommitment,
     pub signature: AnySignature,
@@ -51,9 +48,8 @@ pub async fn add_package(
         signature,
     }: AddPackageParams,
 ) -> Result<(), Error> {
-    uploader
-        .scheme()
-        .verify_commitment(&uploader, &commitment, SIG_CONTEXT, &signature)?;
+    let signature =
+        crate::sign::compat::verify_commitment(&uploader, &commitment, SIG_CONTEXT, &signature)?;
     let peek = ctx.db.peek().await;
     let uploader_guid = peek.as_index().as_signers().get_signer(&uploader)?;
 
@@ -80,7 +76,7 @@ pub async fn add_package(
 
     let manifest = s9pk.as_manifest();
 
-    let mut info = PackageVersionInfo::from_s9pk(&s9pk, urls).await?;
+    let mut info = PackageVersionInfo::from_s9pk(&s9pk, urls, &icons_dir(&ctx.datadir)).await?;
     for (_, s9pk) in &mut info.s9pks {
         if !s9pk.signatures.contains_key(&uploader) && s9pk.commitment == commitment {
             s9pk.signatures.insert(uploader.clone(), signature.clone());
@@ -191,7 +187,10 @@ pub async fn cli_add_package_impl(
 
     sign_phase.start();
     let commitment = s9pk.as_archive().commitment().await?;
-    let signature = Ed25519.sign_commitment(ctx.id_key()?, &commitment, SIG_CONTEXT)?;
+    let signature = ctx
+        .id_key()?
+        .sign_commitment(&commitment, SIG_CONTEXT)
+        .await?;
     sign_phase.complete();
 
     for (url, mut phase) in verify {
@@ -207,7 +206,7 @@ pub async fn cli_add_package_impl(
         "package.add",
         imbl_value::json!({
             "urls": &url,
-            "signature": AnySignature::Ed25519(signature),
+            "signature": signature,
             "commitment": commitment,
         }),
     )
@@ -234,10 +233,9 @@ pub struct RemovePackageParams {
     #[arg(long, help = "help.arg.force-remove-package")]
     #[serde(default)]
     pub force: bool,
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(skip))]
     #[arg(skip)]
     #[serde(rename = "__Auth_signer")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub signer: Option<AnyVerifyingKey>,
 }
 
@@ -346,9 +344,8 @@ pub async fn remove_package(
 #[serde(rename_all = "camelCase")]
 pub struct AddMirrorParams {
     pub url: Url,
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(skip))]
     #[serde(rename = "__Auth_signer")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub uploader: AnyVerifyingKey,
     pub commitment: MerkleArchiveCommitment,
     pub signature: AnySignature,
@@ -366,9 +363,8 @@ pub async fn add_mirror(
         signature,
     }: AddMirrorParams,
 ) -> Result<(), Error> {
-    uploader
-        .scheme()
-        .verify_commitment(&uploader, &commitment, SIG_CONTEXT, &signature)?;
+    let signature =
+        crate::sign::compat::verify_commitment(&uploader, &commitment, SIG_CONTEXT, &signature)?;
     let peek = ctx.db.peek().await;
     let uploader_guid = peek.as_index().as_signers().get_signer(&uploader)?;
 
@@ -380,7 +376,8 @@ pub async fn add_mirror(
 
     let manifest = s9pk.as_manifest();
 
-    let mut info = PackageVersionInfo::from_s9pk(&s9pk, vec![url]).await?;
+    let mut info =
+        PackageVersionInfo::from_s9pk(&s9pk, vec![url], &icons_dir(&ctx.datadir)).await?;
     for (_, s9pk) in &mut info.s9pks {
         if !s9pk.signatures.contains_key(&uploader) && s9pk.commitment == commitment {
             s9pk.signatures.insert(uploader.clone(), signature.clone());
@@ -475,7 +472,10 @@ pub async fn cli_add_mirror(
 
     sign_phase.start();
     let commitment = s9pk.as_archive().commitment().await?;
-    let signature = Ed25519.sign_commitment(ctx.id_key()?, &commitment, SIG_CONTEXT)?;
+    let signature = ctx
+        .id_key()?
+        .sign_commitment(&commitment, SIG_CONTEXT)
+        .await?;
     sign_phase.complete();
 
     for (url, mut phase) in verify {
@@ -491,7 +491,7 @@ pub async fn cli_add_mirror(
         &parent_method.into_iter().chain(method).join("."),
         imbl_value::json!({
             "url": &url,
-            "signature": AnySignature::Ed25519(signature),
+            "signature": signature,
             "commitment": commitment,
         }),
     )
@@ -515,10 +515,9 @@ pub struct RemoveMirrorParams {
     pub version: VersionString,
     #[arg(long, help = "help.arg.mirror-url")]
     pub url: Url,
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(skip))]
     #[arg(skip)]
     #[serde(rename = "__Auth_signer")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub signer: Option<AnyVerifyingKey>,
 }
 

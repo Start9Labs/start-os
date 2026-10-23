@@ -41,14 +41,7 @@ pub enum Progress {
     NotStarted(()),
     Complete(bool),
     Progress {
-        #[visit(ts(type = "z.number()"), wire = "rpc_toolkit::ts::Unknown")]
-        #[visit(opaque, type_attributes(visit::wire))]
         done: u64,
-        #[visit(
-            ts(type = "z.number().nullable()"),
-            wire = "Option<rpc_toolkit::ts::Unknown>"
-        )]
-        #[visit(opaque, type_attributes(visit::wire))]
         total: Option<u64>,
         units: Option<ProgressUnits>,
     },

@@ -25,7 +25,7 @@ Topical references: [rpc-toolkit.md](rpc-toolkit.md), [patchdb.md](patchdb.md),
 Install stable Rust and Docker. `rust-analyzer` is recommended.
 
 - `cargo check -p start-core` — type-check the library.
-- `make start-core-test` — run the test suite (wraps `run-tests.sh`, which builds `testenv.Dockerfile`
+- `make start-core-test` — run the start-core and exver test suites (wraps `run-tests.sh`, which builds `testenv.Dockerfile`
   over the Rust builder with Node 24 and SquashFS oracle tools, uses the `test` and `ts` features, and
   skips `export_` tests). `RUST_BUILDER_IMAGE` selects a prebuilt test image instead. Or run a single
   test directly: `cargo test -p start-core <name> --features=test` (add `ts` for binding tests).

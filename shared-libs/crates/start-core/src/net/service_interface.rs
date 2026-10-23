@@ -1,5 +1,5 @@
 use std::collections::BTreeSet;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6};
+use std::net::{IpAddr, Ipv6Addr, SocketAddr, SocketAddrV6};
 
 use imbl_value::InternedString;
 use serde::{Deserialize, Serialize};
@@ -45,9 +45,7 @@ pub enum HostnameMetadata {
         package_id: PackageId,
         remove_action: Option<ActionId>,
         overflow_actions: Vec<ActionId>,
-        #[visit(ts(type = "z.unknown()"), wire = "rpc_toolkit::ts::Unknown")]
         #[serde(default)]
-        #[visit(opaque, type_attributes(visit::wire))]
         info: Value,
     },
 }
@@ -67,13 +65,9 @@ impl HostnameInfo {
 
     /// True for loopback and the bridge's own addresses.
     pub fn is_internal(&self) -> bool {
-        match self.hostname.parse::<IpAddr>() {
-            Ok(IpAddr::V4(v4)) => v4.is_loopback() || v4 == Ipv4Addr::from(crate::HOST_IP),
-            Ok(IpAddr::V6(v6)) => {
-                v6.is_loopback() || v6 == crate::net::forward::START9_BRIDGE_V6_ADDR
-            }
-            Err(_) => false,
-        }
+        self.hostname
+            .parse::<IpAddr>()
+            .is_ok_and(crate::net::utils::is_internal_ip)
     }
 
     /// If this address is an IPv6 **global unicast** address (a GUA — not
@@ -132,9 +126,7 @@ pub struct PluginHostnameInfo {
     pub public: bool,
     pub hostname: InternedString,
     pub port: Option<u16>,
-    #[visit(ts(type = "z.unknown()"), wire = "rpc_toolkit::ts::Unknown")]
     #[serde(default)]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub info: Value,
 }
 
@@ -228,17 +220,7 @@ pub struct AddressInfo {
     pub username: Option<String>,
     pub host_id: HostId,
     pub internal_port: u16,
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub scheme: Option<InternedString>,
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub ssl_scheme: Option<InternedString>,
     pub suffix: String,
 }
@@ -260,11 +242,6 @@ pub struct RangeServiceInterface {
     pub id: ServiceInterfaceId,
     pub name: String,
     pub description: String,
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub scheme: Option<InternedString>,
 }
 

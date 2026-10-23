@@ -6,17 +6,16 @@ use crate::prelude::*;
 use crate::s9pk::S9pk;
 use crate::s9pk::merkle_archive::MerkleArchive;
 use crate::s9pk::merkle_archive::source::FileSource;
-use crate::sign::commitment::{Commitment, Digestable};
+use crate::sign::commitment::{Commitment, Digestable, SignedCommitment};
 use crate::util::io::TrackingIO;
 use crate::util::serde::Base64;
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, HasModel, VisitFields, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", tag = "type", rename = "merkle-archive")]
 #[model = "Model<Self>"]
+#[visit(ts(rename = "MerkleArchiveCommitment"))]
 pub struct MerkleArchiveCommitment {
     pub root_sighash: Base64<[u8; 32]>,
-    #[visit(ts(type = "z.number()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub root_maxsize: u64,
 }
 
@@ -50,6 +49,10 @@ impl MerkleArchiveCommitment {
             Ok(None)
         }
     }
+}
+impl SignedCommitment for MerkleArchiveCommitment {
+    const TYPE_ID: u8 = 2;
+    const TYPE_NAME: &'static str = "merkle-archive";
 }
 impl Digestable for MerkleArchiveCommitment {
     fn update<D: Update>(&self, digest: &mut D) {

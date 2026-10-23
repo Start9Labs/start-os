@@ -63,22 +63,17 @@ pub fn version_api<C: Context>() -> ParentHandler<C> {
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct AddVersionParams {
-    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[arg(help = "help.arg.os-version")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub version: Version,
     #[arg(help = "help.arg.version-headline")]
     pub headline: String,
     #[arg(help = "help.arg.release-notes")]
     pub release_notes: String,
-    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[arg(help = "help.arg.source-version-range")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub source_version: VersionRange,
     #[arg(skip)]
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(skip))]
     #[serde(rename = "__Auth_signer")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub signer: Option<AnyVerifyingKey>,
 }
 
@@ -121,9 +116,7 @@ pub async fn add_version(
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveVersionParams {
-    #[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
     #[arg(help = "help.arg.os-version")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub version: Version,
 }
 
@@ -151,33 +144,17 @@ pub async fn remove_version(
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct GetOsVersionParams {
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
     #[arg(long = "src", help = "help.arg.source-version")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub source_version: Option<Version>,
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
     #[arg(long, help = "help.arg.target-version-range")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub target_version: Option<VersionRange>,
     #[arg(long = "id", help = "help.arg.server-id")]
     server_id: Option<String>,
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
     #[arg(long, help = "help.arg.platform")]
-    #[visit(opaque, type_attributes(visit::wire))]
     platform: Option<InternedString>,
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
+    #[visit(ts(skip))]
     #[arg(skip)]
     #[serde(rename = "__DeviceInfo_device_info")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub device_info: Option<DeviceInfo>,
 }
 

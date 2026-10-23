@@ -701,8 +701,7 @@ where
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, VisitFields)]
-#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(opaque, ts(type = "z.string()"))]
 pub struct Duration(std::time::Duration);
 
 rpc_toolkit::reflect_ts!(Duration);
@@ -885,7 +884,7 @@ impl Serialize for Port {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Reversible<T, Container = Vec<T>>
 where
     for<'a> &'a Container: IntoDoubleEndedIterator<&'a T>,
@@ -894,12 +893,25 @@ where
     data: Container,
     phantom: PhantomData<T>,
 }
+impl<T, Container> Clone for Reversible<T, Container>
+where
+    for<'a> &'a Container: IntoDoubleEndedIterator<&'a T>,
+    Container: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            reversed: self.reversed,
+            data: self.data.clone(),
+            phantom: PhantomData,
+        }
+    }
+}
 impl<T, Container> Reversible<T, Container>
 where
     for<'a> &'a Container: IntoDoubleEndedIterator<&'a T>,
 {
     pub fn new(data: Container) -> Self {
-        Reversible {
+        Self {
             reversed: false,
             data,
             phantom: PhantomData,
@@ -959,7 +971,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        Ok(Reversible::new(Deserialize::deserialize(deserializer)?))
+        Ok(Self::new(Deserialize::deserialize(deserializer)?))
     }
     fn deserialize_in_place<D>(deserializer: D, place: &mut Self) -> Result<(), D::Error>
     where
@@ -1014,8 +1026,7 @@ impl<'de, K: Deserialize<'de>, V: Deserialize<'de>> Deserialize<'de> for KeyVal<
 }
 
 #[derive(VisitFields)]
-#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(opaque, ts(type = "z.string()"))]
 pub struct Base16<T>(pub T);
 
 rpc_toolkit::reflect_ts!(impl [T] for Base16<T> where []);
@@ -1052,8 +1063,7 @@ impl<T: AsRef<[u8]>> std::fmt::Display for Base16<T> {
 }
 
 #[derive(VisitFields)]
-#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(opaque, ts(type = "z.string()"))]
 pub struct Base32<T>(pub T);
 
 rpc_toolkit::reflect_ts!(impl [T] for Base32<T> where []);
@@ -1110,8 +1120,7 @@ pub const BASE64: base64::engine::GeneralPurpose =
     );
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, VisitFields)]
-#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(opaque, ts(type = "z.string()"))]
 pub struct Base64<T>(pub T);
 
 rpc_toolkit::reflect_ts!(impl [T] for Base64<T> where []);
@@ -1221,6 +1230,7 @@ impl<T: DeserializeOwned + Clone + Send + Sync + 'static> ValueParserFactory
 
 #[derive(Clone, Debug)]
 pub struct Regex(regex::Regex);
+rpc_toolkit::impl_ts!(Regex => "z.string()", "z.ZodString");
 impl From<Regex> for regex::Regex {
     fn from(value: Regex) -> Self {
         value.0
@@ -1462,8 +1472,7 @@ pub mod pem {
 #[derive(
     Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, Hash, VisitFields,
 )]
-#[visit(ts(type = "z.string()"), wire = "rpc_toolkit::ts::Unknown")]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(opaque, ts(type = "z.string()"))]
 pub struct Pem<T: PemEncoding>(#[serde(with = "pem")] pub T);
 
 rpc_toolkit::reflect_ts!(impl [T: PemEncoding] for Pem<T> where []);
@@ -1512,11 +1521,7 @@ impl<T: PemEncoding> ValueParserFactory for Pem<T> {
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, VisitFields)]
-#[visit(
-    ts(type = "z.union([z.string(), z.array(z.number())])"),
-    wire = "rpc_toolkit::ts::Unknown"
-)]
-#[visit(opaque, type_attributes(visit::wire))]
+#[visit(ts(type = "z.union([z.string(), z.array(z.number())])"))]
 pub struct MaybeUtf8String(pub Vec<u8>);
 
 rpc_toolkit::reflect_ts!(MaybeUtf8String);

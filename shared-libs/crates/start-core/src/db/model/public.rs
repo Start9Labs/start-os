@@ -26,6 +26,7 @@ use crate::net::vhost::{AlpnInfo, PassthroughInfo};
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::system::{KeyboardOptions, SmtpValue};
+use crate::update::signers::{TrustedOsUpdateSigners, initial_signers};
 use crate::util::cpupower::{Epp, Governor};
 use crate::util::lshw::LshwDevice;
 use crate::util::serde::MaybeUtf8String;
@@ -40,8 +41,6 @@ pub static DB_UI_SEED_CELL: OnceLock<&'static str> = OnceLock::new();
 pub struct Public {
     pub server_info: ServerInfo,
     pub package_data: AllPackageData,
-    #[visit(ts(type = "z.unknown()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub ui: Value,
 }
 
@@ -122,8 +121,8 @@ impl Public {
                         );
                         acme
                     },
-                    dns: Default::default(),
                     default_outbound: None,
+                    outbound_dns: None,
                     passthroughs: Vec::new(),
                 },
                 status_info: ServerStatus {
@@ -133,6 +132,7 @@ impl Public {
                     restarting: false,
                     restart: None,
                 },
+                trusted_os_update_signers: initial_signers(),
                 unread_notification_count: 0,
                 pubkey: ssh_key::PublicKey::from(&account.ssh_key)
                     .to_openssh()
@@ -172,26 +172,17 @@ pub struct ServerInfo {
     pub hostname: InternedString,
     pub version: Version,
     pub package_version_compat: VersionRange,
-    #[visit(
-        ts(type = "z.record(z.string(), z.unknown())"),
-        wire = "rpc_toolkit::ts::Unknown"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
+    #[visit(ts(type = "z.record(z.string(), z.unknown())"))]
     pub post_init_migration_todos: BTreeMap<Version, Value>,
     #[serde(default)]
     pub latest_migration_revision: usize,
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub last_backup: Option<DateTime<Utc>>,
     pub network: NetworkInfo,
     #[serde(default)]
     pub status_info: ServerStatus,
-    #[visit(ts(type = "z.number()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub unread_notification_count: u64,
+    #[serde(default)]
+    pub trusted_os_update_signers: TrustedOsUpdateSigners,
     pub pubkey: String,
     pub ca_fingerprint: String,
     #[serde(default)]
@@ -203,11 +194,7 @@ pub struct ServerInfo {
     pub epp: Option<Epp>,
     pub smtp: Option<SmtpValue>,
     #[serde(default = "default_echoip_urls")]
-    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub echoip_urls: Vec<Url>,
-    #[visit(ts(type = "z.number()"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub ram: u64,
     pub devices: Vec<LshwDevice>,
     pub kiosk: Option<bool>,
@@ -236,21 +223,14 @@ rpc_toolkit::ts_export!(RestartReason, namespaces = [""]);
 pub struct NetworkInfo {
     pub wifi: WifiInfo,
     pub host: Host,
-    #[visit(wire = "BTreeMap::<GatewayId, NetworkInterfaceInfo>")]
     #[serde(default)]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub gateways: OrdMap<GatewayId, NetworkInterfaceInfo>,
     #[serde(default)]
     pub acme: BTreeMap<AcmeProvider, AcmeSettings>,
     #[serde(default)]
-    pub dns: DnsSettings,
-    #[serde(default)]
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub default_outbound: Option<GatewayId>,
+    #[serde(default)]
+    pub outbound_dns: Option<VecDeque<SocketAddr>>,
     #[serde(default)]
     pub passthroughs: Vec<PassthroughInfo>,
 }
@@ -258,28 +238,42 @@ pub struct NetworkInfo {
 rpc_toolkit::reflect_ts!(NetworkInfo);
 rpc_toolkit::ts_export!(NetworkInfo, namespaces = [""]);
 
-#[derive(Debug, Default, Deserialize, Serialize, HasModel, VisitFields)]
+/// Per-gateway DNS intent and effective upstreams. `static_servers` is the persisted
+/// override; `servers` and `source` are derived from it and the link configuration.
+/// Without an override or gateway-provided resolvers, the public fallback is used.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize, HasModel, VisitFields)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct DnsSettings {
-    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
-    pub dhcp_servers: VecDeque<SocketAddr>,
-    #[visit(
-        ts(type = "z.array(z.string()).nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub static_servers: Option<VecDeque<SocketAddr>>,
+    pub servers: VecDeque<SocketAddr>,
+    pub source: DnsSource,
 }
 
 rpc_toolkit::reflect_ts!(DnsSettings);
 rpc_toolkit::ts_export!(DnsSettings, namespaces = [""]);
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, VisitVariants)]
+#[serde(rename_all = "kebab-case")]
+pub enum DnsSource {
+    Gateway,
+    Static,
+    /// Cloudflare's public IPv4 and IPv6 resolvers.
+    PublicFallback,
+}
+
+rpc_toolkit::reflect_ts!(DnsSource);
+rpc_toolkit::ts_export!(DnsSource, namespaces = [""]);
+
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel, VisitFields)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct NetworkInterfaceInfo {
+    /// Exact names eligible for host-only DNS bootstrap over the underlay.
+    #[serde(default)]
+    pub wireguard_endpoint_domains: OrdSet<InternedString>,
+    #[serde(default)]
+    pub dns: DnsSettings,
     pub name: Option<InternedString>,
     pub secure: Option<bool>,
     pub ip_info: Option<Arc<IpInfo>>,
@@ -331,11 +325,6 @@ rpc_toolkit::ts_export!(GatewayPortMapCapabilities, namespaces = [""]);
 pub struct CapabilityVerdict {
     /// `None` = never probed.
     pub supported: Option<bool>,
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub at: Option<DateTime<Utc>>,
 }
 
@@ -402,19 +391,17 @@ pub struct IpInfo {
     pub name: InternedString,
     pub scope_id: u32,
     pub device_type: Option<NetworkInterfaceType>,
-    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub subnets: OrdSet<IpNet>,
-    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub lan_ip: OrdSet<IpAddr>,
     pub wan_ip: Option<Ipv4Addr>,
-    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub ntp_servers: OrdSet<InternedString>,
-    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub dns_servers: OrdSet<IpAddr>,
+    /// Lowest IPv4 default-route metric in `main`, or `None` when absent.
+    #[serde(default)]
+    pub default_route_v4: Option<u32>,
+    /// Lowest IPv6 default-route metric in `main`, or `None` when absent.
+    #[serde(default)]
+    pub default_route_v6: Option<u32>,
 }
 
 rpc_toolkit::reflect_ts!(IpInfo);
@@ -517,11 +504,6 @@ pub struct WifiInfo {
     pub interface: Option<GatewayId>,
     pub ssids: BTreeSet<String>,
     pub selected: Option<String>,
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub last_region: Option<CountryCode>,
 }
 

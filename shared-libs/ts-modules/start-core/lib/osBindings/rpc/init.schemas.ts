@@ -4,11 +4,7 @@ const wire = <A extends z.ZodType, B extends z.ZodType>(input: A, output: B) =>
 const object = <Shape extends z.core.$ZodLooseShape>(shape: Shape) =>
   z.object(shape).meta({ additionalProperties: true })
 const empty: z.ZodType<{}, {}> = /* @__PURE__ */ object({})
-const literal_0 = /* @__PURE__ */ z.union([z.number(), z.string()]).nullable()
-const literal_1 = /* @__PURE__ */ z.string()
-const literal_2 = /* @__PURE__ */ z.number()
-const literal_3 = /* @__PURE__ */ z.number().nullable()
-const literal_4 = /* @__PURE__ */ z.string().nullable()
+const literal_0 = /* @__PURE__ */ z.string()
 export const ApiState: z.ZodEnum<{
   error: 'error'
   initializing: 'initializing'
@@ -16,10 +12,52 @@ export const ApiState: z.ZodEnum<{
 }> = /* @__PURE__ */ z.enum(['error', 'initializing', 'running']).meta({
   id: 'ApiState',
 })
-export const Guid: typeof literal_1 = /* @__PURE__ */ literal_1.meta({
+export const CapabilityVerdict: z.ZodObject<{
+  /**
+   * `None` = never probed.
+   */
+  supported: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodBoolean>>,
+    z.ZodNullable<z.ZodBoolean>
+  >
+  at: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodString>>,
+    z.ZodNullable<z.ZodString>
+  >
+}> = /* @__PURE__ */ object({
+  /**
+   * `None` = never probed.
+   */
+  supported: wire(
+    z.boolean().nullable().optional(),
+    z.boolean().nullable(),
+  ).meta({
+    description: '`None` = never probed.',
+  }),
+  at: wire(z.string().nullable().optional(), z.string().nullable()),
+}).meta({
+  id: 'CapabilityVerdict',
+})
+export const DnsSource: z.ZodEnum<{
+  gateway: 'gateway'
+  static: 'static'
+  'public-fallback': 'public-fallback'
+}> = /* @__PURE__ */ z.enum(['gateway', 'static', 'public-fallback']).meta({
+  id: 'DnsSource',
+})
+export const GatewayId: typeof literal_0 = /* @__PURE__ */ literal_0.meta({
+  id: 'GatewayId',
+})
+export const GatewayType: z.ZodEnum<{
+  'inbound-outbound': 'inbound-outbound'
+  'outbound-only': 'outbound-only'
+}> = /* @__PURE__ */ z.enum(['inbound-outbound', 'outbound-only']).meta({
+  id: 'GatewayType',
+})
+export const Guid: typeof literal_0 = /* @__PURE__ */ literal_0.meta({
   id: 'Guid',
 })
-export const HostId: typeof literal_1 = /* @__PURE__ */ literal_1.meta({
+export const HostId: typeof literal_0 = /* @__PURE__ */ literal_0.meta({
   id: 'HostId',
 })
 export const IoFormat: z.ZodEnum<{
@@ -35,11 +73,11 @@ export const IoFormat: z.ZodEnum<{
     id: 'IoFormat',
   })
 export const LogEntry: z.ZodObject<{
-  timestamp: typeof literal_1
+  timestamp: z.ZodString
   message: z.ZodString
   bootId: z.ZodString
 }> = /* @__PURE__ */ object({
-  timestamp: literal_1,
+  timestamp: z.string(),
   message: z.string(),
   bootId: z.string(),
 }).meta({
@@ -56,7 +94,18 @@ export const NamedProgress: z.ZodObject<{
 }).meta({
   id: 'NamedProgress',
 })
-export const PackageId: typeof literal_1 = /* @__PURE__ */ literal_1.meta({
+export const NetworkInterfaceType: z.ZodEnum<{
+  ethernet: 'ethernet'
+  wireless: 'wireless'
+  bridge: 'bridge'
+  wireguard: 'wireguard'
+  loopback: 'loopback'
+}> = /* @__PURE__ */ z
+  .enum(['ethernet', 'wireless', 'bridge', 'wireguard', 'loopback'])
+  .meta({
+    id: 'NetworkInterfaceType',
+  })
+export const PackageId: typeof literal_0 = /* @__PURE__ */ literal_0.meta({
   id: 'PackageId',
 })
 export const ProgressUnits: z.ZodEnum<{ bytes: 'bytes'; steps: 'steps' }> =
@@ -74,15 +123,46 @@ export const QueryDnsParams: z.ZodObject<{ fqdn: z.ZodString }> =
  * IPv4 and an `AAAA` at the box's IPv6 GUA. Either may be absent.
  */
 export const QueryDnsRes: z.ZodObject<{
-  ipv4: z.ZodCodec<z.ZodOptional<typeof literal_4>, typeof literal_4>
-  ipv6: z.ZodCodec<z.ZodOptional<typeof literal_4>, typeof literal_4>
+  ipv4: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodString>>,
+    z.ZodNullable<z.ZodString>
+  >
+  ipv6: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodString>>,
+    z.ZodNullable<z.ZodString>
+  >
 }> = /* @__PURE__ */ object({
-  ipv4: wire(literal_4.optional(), literal_4),
-  ipv6: wire(literal_4.optional(), literal_4),
+  ipv4: wire(z.string().nullable().optional(), z.string().nullable()),
+  ipv6: wire(z.string().nullable().optional(), z.string().nullable()),
 }).meta({
   id: 'QueryDnsRes',
   description:
     "What a public domain currently resolves to, per address family. A public\ndomain is DualStack: the operator points an `A` record at the gateway's WAN\nIPv4 and an `AAAA` at the box's IPv6 GUA. Either may be absent.",
+})
+
+/**
+ * Per-gateway DNS intent and effective upstreams. `static_servers` is the persisted
+ * override; `servers` and `source` are derived from it and the link configuration.
+ * Without an override or gateway-provided resolvers, the public fallback is used.
+ */
+export const DnsSettings: z.ZodObject<{
+  staticServers: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString>>>,
+    z.ZodNullable<z.ZodArray<z.ZodString>>
+  >
+  servers: z.ZodArray<z.ZodString>
+  source: typeof DnsSource
+}> = /* @__PURE__ */ object({
+  staticServers: wire(
+    z.array(z.string()).nullable().optional(),
+    z.array(z.string()).nullable(),
+  ),
+  servers: z.array(z.string()),
+  source: DnsSource,
+}).meta({
+  id: 'DnsSettings',
+  description:
+    'Per-gateway DNS intent and effective upstreams. `static_servers` is the persisted\noverride; `servers` and `source` are derived from it and the link configuration.\nWithout an override or gateway-provided resolvers, the public fallback is used.',
 })
 export const FullProgress: z.ZodObject<{
   overall: typeof Progress
@@ -94,6 +174,98 @@ export const FullProgress: z.ZodObject<{
   phases: z.array(NamedProgress),
 }).meta({
   id: 'FullProgress',
+})
+
+/**
+ * Whether the gateway reachable via this interface speaks each port-mapping
+ * protocol, as last probed. Fed by the watcher's periodic probes and by
+ * failure/success evidence from the port-map client, and synced to the db so a
+ * chronically uncooperative gateway is visible (and skipped) instead of being
+ * retried forever.
+ */
+export const GatewayPortMapCapabilities: z.ZodObject<{
+  pcp: typeof CapabilityVerdict
+  natPmp: typeof CapabilityVerdict
+  upnp: typeof CapabilityVerdict
+  /**
+   * The PCP server answers ANNOUNCE with the Start9 capability marker, i.e.
+   * it honors OPTION_HOSTNAME (SNI demux).
+   */
+  pcpHostname: typeof CapabilityVerdict
+}> = /* @__PURE__ */ object({
+  pcp: CapabilityVerdict,
+  natPmp: CapabilityVerdict,
+  upnp: CapabilityVerdict,
+  /**
+   * The PCP server answers ANNOUNCE with the Start9 capability marker, i.e.
+   * it honors OPTION_HOSTNAME (SNI demux).
+   */
+  pcpHostname: CapabilityVerdict.meta({
+    description:
+      'The PCP server answers ANNOUNCE with the Start9 capability marker, i.e.\nit honors OPTION_HOSTNAME (SNI demux).',
+  }),
+}).meta({
+  id: 'GatewayPortMapCapabilities',
+  description:
+    "Whether the gateway reachable via this interface speaks each port-mapping\nprotocol, as last probed. Fed by the watcher's periodic probes and by\nfailure/success evidence from the port-map client, and synced to the db so a\nchronically uncooperative gateway is visible (and skipped) instead of being\nretried forever.",
+})
+export const IpInfo: z.ZodObject<{
+  name: z.ZodString
+  scopeId: z.ZodInt
+  deviceType: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<typeof NetworkInterfaceType>>,
+    z.ZodNullable<typeof NetworkInterfaceType>
+  >
+  subnets: z.ZodArray<z.ZodString>
+  lanIp: z.ZodArray<z.ZodString>
+  wanIp: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodString>>,
+    z.ZodNullable<z.ZodString>
+  >
+  ntpServers: z.ZodArray<z.ZodString>
+  dnsServers: z.ZodArray<z.ZodString>
+  /**
+   * Lowest IPv4 default-route metric in `main`, or `None` when absent.
+   */
+  defaultRouteV4: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodInt>>,
+    z.ZodNullable<z.ZodInt>
+  >
+  /**
+   * Lowest IPv6 default-route metric in `main`, or `None` when absent.
+   */
+  defaultRouteV6: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodInt>>,
+    z.ZodNullable<z.ZodInt>
+  >
+}> = /* @__PURE__ */ object({
+  name: z.string(),
+  scopeId: z.int(),
+  deviceType: wire(
+    NetworkInterfaceType.nullable().optional(),
+    NetworkInterfaceType.nullable(),
+  ),
+  subnets: z.array(z.string()),
+  lanIp: z.array(z.string()),
+  wanIp: wire(z.string().nullable().optional(), z.string().nullable()),
+  ntpServers: z.array(z.string()),
+  dnsServers: z.array(z.string()),
+  /**
+   * Lowest IPv4 default-route metric in `main`, or `None` when absent.
+   */
+  defaultRouteV4: wire(z.int().nullable().optional(), z.int().nullable()).meta({
+    description:
+      'Lowest IPv4 default-route metric in `main`, or `None` when absent.',
+  }),
+  /**
+   * Lowest IPv6 default-route metric in `main`, or `None` when absent.
+   */
+  defaultRouteV6: wire(z.int().nullable().optional(), z.int().nullable()).meta({
+    description:
+      'Lowest IPv6 default-route metric in `main`, or `None` when absent.',
+  }),
+}).meta({
+  id: 'IpInfo',
 })
 export const LogFollowResponse: z.ZodObject<{
   startCursor: z.ZodCodec<
@@ -138,13 +310,109 @@ export const InitProgressRes: z.ZodObject<{
 }> = /* @__PURE__ */ object({ progress: FullProgress, guid: Guid }).meta({
   id: 'InitProgressRes',
 })
+export const NetworkInterfaceInfo: z.ZodCodec<
+  z.ZodObject<{
+    /**
+     * Exact names eligible for host-only DNS bootstrap over the underlay.
+     */
+    wireguardEndpointDomains: z.ZodOptional<z.ZodArray<z.ZodString>>
+    dns: z.ZodOptional<typeof DnsSettings>
+    name: z.ZodOptional<z.ZodNullable<z.ZodString>>
+    secure: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>
+    ipInfo: z.ZodOptional<z.ZodNullable<typeof IpInfo>>
+    type: z.ZodOptional<z.ZodNullable<typeof GatewayType>>
+    portMap: z.ZodOptional<typeof GatewayPortMapCapabilities>
+    /**
+     * The gateway's resolver accepted our last RFC 2136 DNS UPDATE — evidence
+     * from the update client (`net::dns_update`). A WireGuard gateway only
+     * serves the injected `<hostname>.local` while this is `supported`, so
+     * only then is the name listed on it.
+     */
+    dnsUpdate: z.ZodOptional<typeof CapabilityVerdict>
+  }>,
+  z.ZodObject<{
+    /**
+     * Exact names eligible for host-only DNS bootstrap over the underlay.
+     */
+    wireguardEndpointDomains: z.ZodArray<z.ZodString>
+    dns: typeof DnsSettings
+    name: z.ZodNullable<z.ZodString>
+    secure: z.ZodNullable<z.ZodBoolean>
+    ipInfo: z.ZodNullable<typeof IpInfo>
+    type: typeof GatewayType
+    portMap: typeof GatewayPortMapCapabilities
+    /**
+     * The gateway's resolver accepted our last RFC 2136 DNS UPDATE — evidence
+     * from the update client (`net::dns_update`). A WireGuard gateway only
+     * serves the injected `<hostname>.local` while this is `supported`, so
+     * only then is the name listed on it.
+     */
+    dnsUpdate: typeof CapabilityVerdict
+  }>
+> = /* @__PURE__ */ wire(
+  object({
+    /**
+     * Exact names eligible for host-only DNS bootstrap over the underlay.
+     */
+    wireguardEndpointDomains: z.array(z.string()).optional().meta({
+      description:
+        'Exact names eligible for host-only DNS bootstrap over the underlay.',
+    }),
+    dns: DnsSettings.optional(),
+    name: z.string().nullable().optional(),
+    secure: z.boolean().nullable().optional(),
+    ipInfo: IpInfo.nullable().optional(),
+    type: GatewayType.nullable().optional(),
+    portMap: GatewayPortMapCapabilities.optional(),
+    /**
+     * The gateway's resolver accepted our last RFC 2136 DNS UPDATE — evidence
+     * from the update client (`net::dns_update`). A WireGuard gateway only
+     * serves the injected `<hostname>.local` while this is `supported`, so
+     * only then is the name listed on it.
+     */
+    dnsUpdate: CapabilityVerdict.optional().meta({
+      description:
+        "The gateway's resolver accepted our last RFC 2136 DNS UPDATE — evidence\nfrom the update client (`net::dns_update`). A WireGuard gateway only\nserves the injected `<hostname>.local` while this is `supported`, so\nonly then is the name listed on it.",
+    }),
+  }),
+  object({
+    /**
+     * Exact names eligible for host-only DNS bootstrap over the underlay.
+     */
+    wireguardEndpointDomains: z.array(z.string()).meta({
+      description:
+        'Exact names eligible for host-only DNS bootstrap over the underlay.',
+    }),
+    dns: DnsSettings,
+    name: z.string().nullable(),
+    secure: z.boolean().nullable(),
+    ipInfo: IpInfo.nullable(),
+    type: GatewayType,
+    portMap: GatewayPortMapCapabilities,
+    /**
+     * The gateway's resolver accepted our last RFC 2136 DNS UPDATE — evidence
+     * from the update client (`net::dns_update`). A WireGuard gateway only
+     * serves the injected `<hostname>.local` while this is `supported`, so
+     * only then is the name listed on it.
+     */
+    dnsUpdate: CapabilityVerdict.meta({
+      description:
+        "The gateway's resolver accepted our last RFC 2136 DNS UPDATE — evidence\nfrom the update client (`net::dns_update`). A WireGuard gateway only\nserves the injected `<hostname>.local` while this is `supported`, so\nonly then is the name listed on it.",
+    }),
+  }),
+).meta({
+  id: 'NetworkInterfaceInfo',
+})
 export const Progress: z.ZodUnion<
   readonly [
     z.ZodNull,
     z.ZodBoolean,
     z.ZodObject<{
-      done: typeof literal_2
-      total: z.ZodCodec<z.ZodOptional<typeof literal_3>, typeof literal_3>
+      done: z.ZodInt
+      total: z.ZodCodec<
+        z.ZodOptional<z.ZodNullable<z.ZodInt>>,
+        z.ZodNullable<z.ZodInt>
+      >
       units: z.ZodCodec<
         z.ZodOptional<z.ZodNullable<typeof ProgressUnits>>,
         z.ZodNullable<typeof ProgressUnits>
@@ -157,8 +425,8 @@ export const Progress: z.ZodUnion<
     z.null(),
     z.boolean(),
     object({
-      done: literal_2,
-      total: wire(literal_3.optional(), literal_3),
+      done: z.int(),
+      total: wire(z.int().nullable().optional(), z.int().nullable()),
       units: wire(
         ProgressUnits.nullable().optional(),
         ProgressUnits.nullable(),
@@ -172,6 +440,50 @@ export const Progress: z.ZodUnion<
   .meta({
     id: 'Progress',
   })
+export const NetworkGatewayInfo: z.ZodObject<{
+  id: typeof GatewayId
+  info: typeof NetworkInterfaceInfo
+}> = /* @__PURE__ */ object({ id: GatewayId, info: NetworkInterfaceInfo }).meta(
+  {
+    id: 'NetworkGatewayInfo',
+  },
+)
+
+/**
+ * Active DNS authority and its bootstrap gateway.
+ */
+export const DnsStatus: z.ZodObject<{
+  /**
+   * True until stored network policy takes authority.
+   */
+  bootstrap: z.ZodBoolean
+  /**
+   * Present only before stored network policy takes authority.
+   */
+  gateway: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<typeof NetworkGatewayInfo>>,
+    z.ZodNullable<typeof NetworkGatewayInfo>
+  >
+}> = /* @__PURE__ */ object({
+  /**
+   * True until stored network policy takes authority.
+   */
+  bootstrap: z.boolean().meta({
+    description: 'True until stored network policy takes authority.',
+  }),
+  /**
+   * Present only before stored network policy takes authority.
+   */
+  gateway: wire(
+    NetworkGatewayInfo.nullable().optional(),
+    NetworkGatewayInfo.nullable(),
+  ).meta({
+    description: 'Present only before stored network policy takes authority.',
+  }),
+}).meta({
+  id: 'DnsStatus',
+  description: 'Active DNS authority and its bootstrap gateway.',
+})
 export const Api = {
   _PARAMS: /* @__PURE__ */ empty,
   _CHILDREN: {
@@ -236,7 +548,10 @@ export const Api = {
                 z.string().nullable().optional(),
                 z.string().nullable(),
               ),
-              boot: wire(literal_0.optional(), literal_0),
+              boot: wire(
+                z.union([z.number(), z.string()]).nullable().optional(),
+                z.union([z.number(), z.string()]).nullable(),
+              ),
               before: wire(z.boolean().optional(), z.boolean()),
             }),
             empty,
@@ -254,7 +569,10 @@ export const Api = {
                     z.string().nullable().optional(),
                     z.string().nullable(),
                   ),
-                  boot: wire(literal_0.optional(), literal_0),
+                  boot: wire(
+                    z.union([z.number(), z.string()]).nullable().optional(),
+                    z.union([z.number(), z.string()]).nullable(),
+                  ),
                   before: wire(z.boolean().optional(), z.boolean()),
                 }),
                 empty,
@@ -271,7 +589,10 @@ export const Api = {
                 z.string().nullable().optional(),
                 z.string().nullable(),
               ),
-              boot: wire(literal_0.optional(), literal_0),
+              boot: wire(
+                z.union([z.number(), z.string()]).nullable().optional(),
+                z.union([z.number(), z.string()]).nullable(),
+              ),
               before: wire(z.boolean().optional(), z.boolean()),
             }),
             empty,
@@ -289,7 +610,10 @@ export const Api = {
                     z.string().nullable().optional(),
                     z.string().nullable(),
                   ),
-                  boot: wire(literal_0.optional(), literal_0),
+                  boot: wire(
+                    z.union([z.number(), z.string()]).nullable().optional(),
+                    z.union([z.number(), z.string()]).nullable(),
+                  ),
                   before: wire(z.boolean().optional(), z.boolean()),
                 }),
                 empty,
@@ -326,6 +650,10 @@ export const Api = {
                 QueryDnsParams,
               ),
               _RETURN: /* @__PURE__ */ QueryDnsRes,
+            },
+            status: {
+              _PARAMS: /* @__PURE__ */ empty,
+              _RETURN: /* @__PURE__ */ DnsStatus,
             },
           },
         },
@@ -426,6 +754,7 @@ export const Api = {
           ),
           _CHILDREN: {},
         },
+        'update-signers': { _PARAMS: /* @__PURE__ */ empty, _CHILDREN: {} },
       },
     },
     setup: {

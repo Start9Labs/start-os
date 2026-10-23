@@ -16,6 +16,7 @@ chrono = ["ts", "dep:chrono"]
 default = ["cbor"]
 exver = ["ts", "dep:exver"]
 ipnet = ["ts", "dep:ipnet"]
+isocountry = ["ts", "dep:isocountry"]
 josekit = ["ts", "dep:josekit"]
 mcp = ["dep:rmcp", "dep:tower-service"]
 patch-db = ["ts", "dep:patch-db"]
@@ -43,10 +44,11 @@ chrono = { version = "0.4", optional = true, default-features = false, features 
   "serde",
 ] }
 exver = { path = "../exver", optional = true, features = ["serde"] }
-imbl = { version = "6", optional = true }
+imbl = { version = "7", optional = true }
 imbl-value = { path = "../imbl-value" }
 inventory = { version = "0.3", optional = true }
 ipnet = { version = "2", optional = true, features = ["serde"] }
+isocountry = { version = "0.3.2", optional = true }
 itertools = "0.14"
 josekit = { version = "0.10", optional = true }
 lazy_format = "2"

@@ -32,8 +32,6 @@ pub mod ts {
     impl<T: ?Sized> TS for T {}
 
     #[derive(Debug, Clone, Copy)]
-    pub struct Unknown;
-    #[derive(Debug, Clone, Copy)]
     pub enum Never {}
 }
 

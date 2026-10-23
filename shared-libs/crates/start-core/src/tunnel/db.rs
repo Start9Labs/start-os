@@ -36,8 +36,7 @@ use crate::util::serde::{HandlerExtSerde, apply_expr};
 #[model = "Model<Self>"]
 pub struct TunnelDatabase {
     #[serde(default)]
-    #[visit(ts(skip), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
+    #[visit(ts(skip))]
     pub migrations: BTreeSet<InternedString>,
     pub webserver: WebserverInfo,
     pub password: Option<String>,
@@ -45,8 +44,6 @@ pub struct TunnelDatabase {
     /// default (empty — everyone signs in again) with no migration.
     #[serde(default)]
     pub session_pubkeys: AuthKeys,
-    #[visit(wire = "std::collections::BTreeMap::<GatewayId, NetworkInterfaceInfo>")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub gateways: OrdMap<GatewayId, NetworkInterfaceInfo>,
     pub wg: WgServer,
     pub port_forwards: PortForwards,
@@ -236,8 +233,6 @@ impl PortForward {
 #[serde(rename_all = "camelCase")]
 pub struct HttpRedirects {
     #[serde(default)]
-    #[visit(ts(type = "z.array(z.string())"), wire = "rpc_toolkit::ts::Unknown")]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub disabled: BTreeSet<Ipv4Addr>,
 }
 

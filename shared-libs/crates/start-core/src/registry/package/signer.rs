@@ -55,11 +55,6 @@ pub struct AddPackageSignerParams {
     #[arg(help = "help.arg.signer-id")]
     pub signer: Guid,
     #[arg(long, help = "help.arg.version-range")]
-    #[visit(
-        ts(type = "z.string().nullable()"),
-        wire = "Option<rpc_toolkit::ts::Unknown>"
-    )]
-    #[visit(opaque, type_attributes(visit::wire))]
     pub versions: Option<VersionRange>,
     #[arg(long, help = "help.arg.merge")]
     pub merge: bool,
