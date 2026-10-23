@@ -644,6 +644,40 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn logout_requires_a_signing_key() {
+        let ctx = ServerContext::default();
+        let key = InternedString::intern("key");
+        ctx.auth
+            .db
+            .put(
+                &patch_db::json_ptr::ROOT,
+                &AuthDatabase {
+                    session_pubkeys: AuthKeys(
+                        [(key.clone(), startos::auth::Session::default())]
+                            .into_iter()
+                            .collect(),
+                    ),
+                },
+            )
+            .await
+            .unwrap();
+        let Err(err) =
+            startos::auth::logout(ctx.clone(), imbl_value::from_value(json!({})).unwrap()).await
+        else {
+            panic!("logout without a signing key succeeded");
+        };
+        assert_eq!(err.kind, startos::ErrorKind::InvalidRequest);
+        startos::auth::logout(
+            ctx.clone(),
+            imbl_value::from_value(json!({ "__Auth_signer": key })).unwrap(),
+        )
+        .await
+        .unwrap();
+        let remaining = ctx.auth.db.peek().await.as_session_pubkeys().de().unwrap();
+        assert!(remaining.0.is_empty());
+    }
+
+    #[tokio::test]
     async fn idle_sweep_spares_refreshed_key() {
         let ctx = ServerContext::default();
         let expired = Utc::now() - startos::auth::MAX_IDLE - TimeDelta::minutes(1);

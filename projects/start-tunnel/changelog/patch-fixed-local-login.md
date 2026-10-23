@@ -1,1 +1,1 @@
-- `auth login` rejects redundant key enrollment when the request authenticates with the local auth cookie.
+- On the StartTunnel host itself, `start-tunnel auth login` and `auth logout` explain that no login is needed there.

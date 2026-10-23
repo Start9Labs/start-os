@@ -1,2 +1,1 @@
-- Local-cookie callers can run `start-cli auth logout` without a signing key, and signed local requests identify their current key in `auth session list`.
-- `auth login` rejects redundant key enrollment when the request authenticates with the local auth cookie.
+- On the server itself, `start-cli auth login` and `auth logout` explain that no login is needed there, instead of failing with an unclear error.

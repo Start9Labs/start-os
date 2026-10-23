@@ -59,7 +59,7 @@ Endpoints registered with `authenticated: false` metadata answer without either.
 
 ### `auth.login`
 
-The request must be signed by the key it enrolls. A valid local auth token rejects the call as unnecessary; local callers already have access without enrolling a key.
+The request must be signed by the key it enrolls. A valid local auth token rejects the call as unnecessary.
 
 ```rust
 #[derive(Deserialize)]
@@ -78,8 +78,8 @@ struct LoginParams {
 
 ### `auth.logout`
 
-Revokes the key that signed the request and closes the streams it opened. A
-local-token caller holds no key, so the call succeeds without revoking one.
+Revokes the key that signed the request and closes the streams it opened. An
+unsigned local-token request is rejected as unnecessary.
 
 ```rust
 // Request: {} (empty object)

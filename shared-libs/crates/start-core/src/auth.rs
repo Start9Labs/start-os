@@ -464,15 +464,17 @@ pub struct LogoutParams {
 
 rpc_toolkit::reflect_ts!(LogoutParams);
 
-/// A local-token caller holds no key to revoke.
 pub async fn logout<C: SignatureAuthContext>(
     ctx: C,
     LogoutParams { signer }: LogoutParams,
 ) -> Result<Option<HasUnenrolledKeys>, Error> {
-    match signer {
-        Some(signer) => Ok(Some(ctx.unenroll([signer]).await?)),
-        None => Ok(None),
-    }
+    let Some(signer) = signer else {
+        return Err(Error::new(
+            eyre!("{}", t!("auth.local-logout-unnecessary")),
+            ErrorKind::InvalidRequest,
+        ));
+    };
+    Ok(Some(ctx.unenroll([signer]).await?))
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, VisitFields)]

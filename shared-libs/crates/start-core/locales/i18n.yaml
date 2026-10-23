@@ -3430,6 +3430,13 @@ auth.passwords-do-not-match:
   fr_FR: "Les mots de passe ne correspondent pas"
   pl_PL: "Hasła nie pasują do siebie"
 
+auth.local-logout-unnecessary:
+  en_US: "Logout is unnecessary when using the local auth cookie."
+  de_DE: "Bei Verwendung des lokalen Authentifizierungs-Cookies ist keine Abmeldung erforderlich."
+  es_ES: "No es necesario cerrar sesión al usar la cookie de autenticación local."
+  fr_FR: "La déconnexion est inutile lorsque le cookie d'authentification local est utilisé."
+  pl_PL: "Wylogowanie nie jest potrzebne podczas korzystania z lokalnego pliku cookie uwierzytelniania."
+
 # util/tui.rs
 util.tui.terminal-must-be-interactive:
   en_US: "Terminal must be in interactive mode for this wizard"
