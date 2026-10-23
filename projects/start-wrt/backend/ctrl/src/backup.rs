@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use axum::body::Body;
 use axum::http::{header, Response};
@@ -154,11 +154,12 @@ async fn restore(ctx: ServerContext) -> Result<BackupRestoreRes, Error> {
         guid.clone(),
         RpcContinuation::rest(
             move |req| async move {
-                let body_bytes = axum::body::to_bytes(req.into_body(), 10 * 1024 * 1024)
-                    .await
-                    .map_err(|e| {
-                        Error::new(eyre!("Failed to read upload: {e}"), ErrorKind::Network)
-                    })?;
+                let body_bytes =
+                    axum::body::to_bytes(req.into_body(), continuations::MAX_UPLOAD_BYTES)
+                        .await
+                        .map_err(|e| {
+                            Error::new(eyre!("Failed to read upload: {e}"), ErrorKind::Network)
+                        })?;
 
                 // Atomic file write
                 let tmp_path = "/tmp/backup-restore.tar.gz";
@@ -185,6 +186,8 @@ async fn restore(ctx: ServerContext) -> Result<BackupRestoreRes, Error> {
                     ));
                 };
 
+                let log_history = crate::logs::snapshot_history(Path::new("/")).await;
+
                 // Apply the backup
                 let apply = Command::new("sysupgrade")
                     .args(["--restore-backup", tmp_path])
@@ -204,13 +207,22 @@ async fn restore(ctx: ServerContext) -> Result<BackupRestoreRes, Error> {
                     return Err(e.into());
                 }
 
-                if let Err(e) = crate::migrate::forget_unless_restored(
-                    std::path::Path::new("/"),
-                    &String::from_utf8_lossy(&listing),
-                )
-                .await
+                let listing = String::from_utf8_lossy(&listing);
+                if let Err(e) =
+                    crate::migrate::forget_unless_restored(Path::new("/"), &listing).await
                 {
                     tracing::error!("failed to reset migration record after restore: {e}");
+                }
+                match log_history {
+                    Ok(before) => {
+                        if let Err(e) =
+                            crate::logs::merge_restored_history(Path::new("/"), before, &listing)
+                                .await
+                        {
+                            tracing::error!("failed to merge system log after restore: {e}");
+                        }
+                    }
+                    Err(e) => tracing::error!("failed to read system log before restore: {e}"),
                 }
 
                 crate::activity::log(
