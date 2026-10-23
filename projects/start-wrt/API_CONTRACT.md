@@ -677,7 +677,7 @@ struct LanIpv4SetRequest {
 // Backend: updates UCI network.lan ipaddr (netmask /24) — and every profile's
 // addresses on a /16 block change — then clears DHCP leases, cycles only the LAN
 // interface (plus every profile interface on a block change) with ifdown/ifup,
-// reloads the firewall, restarts dnsmasq and Wi-Fi, and regenerates the HTTPS
+// reloads the firewall and dnsmasq, restarts Wi-Fi, and regenerates the HTTPS
 // certificate.
 // Inbound VPN peers the change would break fail the call with
 //   ErrorKind::VpnPeersWouldBreak unless force is set.
@@ -960,10 +960,10 @@ struct DeviceMacReq {
 // `_allow_pcp` flag with the host section, so those forwards would otherwise
 // outlive the authorization that created them — flushes
 // matching neighbor/ARP entries (`ip neigh del`), and rewrites every dnsmasq
-// lease file (the base file plus per-profile /tmp/dhcp.leases.dns_*) with
-// dnsmasq stopped (stop → edit → start), so the in-memory lease can't
-// resurrect the entry. A still-connected device reappears on its next
-// network activity.
+// lease file (the base file plus per-profile /tmp/dhcp.leases.dns_*) with each
+// instance holding the lease stopped by name, so the in-memory lease can't
+// resurrect the entry, then reloads dnsmasq. A still-connected device reappears
+// on its next network activity.
 ```
 
 ### `devices.data-usage`
