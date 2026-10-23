@@ -1221,6 +1221,31 @@ mod tests {
         Ipv4Addr::new(192, 168, 1, host)
     }
 
+    #[test]
+    fn divert_rules_leave_wan_arrivals_to_published_ports() {
+        let rules: Vec<&str> = include_str!("../../nftables/13-startwrt-dns-update-divert.nft")
+            .lines()
+            .map(str::trim)
+            .filter(|l| l.contains("redirect to"))
+            .collect();
+        let lan_target = format!("redirect to :{DNS_UPDATE_PORT_LAN}");
+        let wg_target = format!("redirect to :{DNS_UPDATE_PORT_WG}");
+        let (lan, wg): (Vec<&str>, Vec<&str>) = rules
+            .iter()
+            .copied()
+            .partition(|r| r.ends_with(&lan_target));
+        assert_eq!(lan.len(), 2, "{rules:?}");
+        assert_eq!(wg.len(), 2, "{rules:?}");
+        for rule in lan {
+            assert!(rule.starts_with("iifname \"br-lan*\" "), "{rule}");
+            assert!(rule.contains("fib daddr . iif type local"), "{rule}");
+        }
+        for rule in wg {
+            assert!(rule.ends_with(&wg_target), "{rule}");
+            assert!(rule.starts_with("iifname \"wg_*\" "), "{rule}");
+        }
+    }
+
     /// A directory with one permitted LAN device and one WireGuard peer.
     fn directory() -> SyncMutex<Directory> {
         let mut d = Directory::default();
