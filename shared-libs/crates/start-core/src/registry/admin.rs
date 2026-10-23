@@ -184,7 +184,7 @@ pub fn display_signers<T>(
             &info.keys.into_iter().join("\n"),
         ]);
     }
-    crate::util::output::print_table(&table)?;
+    print_table(&table)?;
     Ok(())
 }
 
@@ -215,7 +215,7 @@ pub fn display_package_signers<T>(
             &versions.to_string()
         ]);
     }
-    crate::util::output::print_table(&table)?;
+    print_table(&table)?;
     Ok(())
 }
 

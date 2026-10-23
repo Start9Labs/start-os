@@ -553,7 +553,7 @@ fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) -> Resul
         }
         table.add_row(row);
     }
-    crate::util::output::print_table(&table)?;
+    print_table(&table)?;
     Ok(())
 }
 

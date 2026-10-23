@@ -189,7 +189,7 @@ pub(crate) fn display_governor_info(
             table.add_row(row![entry]);
         }
     }
-    crate::util::output::print_table(&table)?;
+    print_table(&table)?;
     Ok(())
 }
 
@@ -290,7 +290,7 @@ pub fn display_time(params: WithIoFormat<Empty>, arg: TimeInfo) -> Result<(), Er
     let mut table = Table::new();
     table.add_row(row![bc -> "NOW", &arg.now]);
     table.add_row(row![bc -> "UPTIME", &uptime_string]);
-    crate::util::output::print_table(&table)?;
+    print_table(&table)?;
     Ok(())
 }
 
@@ -345,7 +345,7 @@ pub fn display_device_info(params: WithIoFormat<Empty>, info: DeviceInfo) -> Res
             }
         }
     }
-    crate::util::output::print_table(&table)?;
+    print_table(&table)?;
     Ok(())
 }
 
@@ -1529,7 +1529,7 @@ pub(crate) fn display_epp_info(
             table.add_row(row![entry]);
         }
     }
-    crate::util::output::print_table(&table)?;
+    print_table(&table)?;
     Ok(())
 }
 

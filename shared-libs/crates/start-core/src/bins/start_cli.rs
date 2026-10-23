@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 use std::io::Write;
 
-use rpc_toolkit::CliApp;
+use rpc_toolkit::{CliApp, output};
 use serde_json::Value;
 
 use super::completions::CompletionsParams;
@@ -23,14 +23,14 @@ fn app() -> CliApp<CliContext, ClientConfig> {
 }
 
 pub fn completions(_: CliContext, params: CompletionsParams) -> Result<(), Error> {
-    params.generate(app().into_command(), &mut rpc_toolkit::output::stdout())
+    params.generate(app().into_command(), &mut output::stdout())
 }
 
 pub fn main(args: impl IntoIterator<Item = OsString>) {
     LOGGER.enable();
 
     if let Err(e) = app().run(args) {
-        let mut stderr = rpc_toolkit::output::stderr();
+        let mut stderr = output::stderr();
         let _ = match e.data {
             Some(Value::String(s)) => writeln!(stderr, "{}: {}", e.message, s),
             Some(Value::Object(o)) => match o.get("details") {

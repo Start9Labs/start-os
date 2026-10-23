@@ -13,6 +13,7 @@ use tokio::io::{AsyncBufReadExt, AsyncRead, AsyncWrite, AsyncWriteExt, BufReader
 use url::Url;
 use yajrc::{Id, RpcError};
 
+use crate::output::handle_broken_pipe;
 #[cfg(feature = "ts")]
 use crate::ts::{
     intersection_writer, type_writer, ParamsTS, PassthroughChildrenTS, PassthroughReturnTS,
@@ -79,7 +80,7 @@ impl<Context: crate::Context + Clone, Config: CommandFactory + FromArgMatches>
         let matches = match cmd.try_get_matches_from(args) {
             Ok(matches) => matches,
             Err(error) => {
-                let _ = crate::output::handle_broken_pipe(error.print());
+                let _ = handle_broken_pipe(error.print());
                 std::process::exit(error.exit_code());
             }
         };

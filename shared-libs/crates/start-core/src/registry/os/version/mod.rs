@@ -253,6 +253,6 @@ pub fn display_version_info<T>(
             &info.squashfs.keys().into_iter().join(", "),
         ]);
     }
-    crate::util::output::print_table(&table)?;
+    print_table(&table)?;
     Ok(())
 }

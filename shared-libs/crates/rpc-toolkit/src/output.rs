@@ -54,6 +54,49 @@ pub fn eprint(args: fmt::Arguments<'_>) {
     print_to(stderr(), args);
 }
 
+/// Prints a line to stderr with the same error handling as [`eprint`].
+pub fn eprintln(args: fmt::Arguments<'_>) {
+    eprint(format_args!("{}\n", args));
+}
+
+/// `std::print!` that exits with status 141 on a broken pipe.
+#[macro_export]
+macro_rules! print {
+    ($($args:tt)*) => {
+        $crate::output::print(::core::format_args!($($args)*))
+    };
+}
+
+/// `std::println!` that exits with status 141 on a broken pipe.
+#[macro_export]
+macro_rules! println {
+    () => {
+        $crate::output::print(::core::format_args!("\n"))
+    };
+    ($($args:tt)*) => {
+        $crate::output::println(::core::format_args!($($args)*))
+    };
+}
+
+/// `std::eprint!` that exits with status 141 on a broken pipe.
+#[macro_export]
+macro_rules! eprint {
+    ($($args:tt)*) => {
+        $crate::output::eprint(::core::format_args!($($args)*))
+    };
+}
+
+/// `std::eprintln!` that exits with status 141 on a broken pipe.
+#[macro_export]
+macro_rules! eprintln {
+    () => {
+        $crate::output::eprint(::core::format_args!("\n"))
+    };
+    ($($args:tt)*) => {
+        $crate::output::eprintln(::core::format_args!($($args)*))
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -270,7 +270,7 @@ pub fn device_api<C: Context>() -> ParentHandler<C> {
                         table.add_row(row![config.name, ip, config.key.verifying_key()]);
                     }
 
-                    crate::util::output::print_table(&table)?;
+                    print_table(&table)?;
 
                     Ok(())
                 })

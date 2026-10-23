@@ -471,12 +471,12 @@ pub fn display_package_info(
     if let Some(_) = params.rest.id {
         if params.rest.other_versions.unwrap_or_default() == PackageDetailLevel::Full {
             for table in from_value::<GetPackageResponseFull>(info)?.tables() {
-                crate::util::output::print_table(&table)?;
+                print_table(&table)?;
                 println!();
             }
         } else {
             for table in from_value::<GetPackageResponse>(info)?.tables() {
-                crate::util::output::print_table(&table)?;
+                print_table(&table)?;
                 println!();
             }
         }
@@ -484,14 +484,14 @@ pub fn display_package_info(
         if params.rest.other_versions.unwrap_or_default() == PackageDetailLevel::Full {
             for (_, package) in from_value::<GetPackagesResponseFull>(info)? {
                 for table in package.tables() {
-                    crate::util::output::print_table(&table)?;
+                    print_table(&table)?;
                     println!();
                 }
             }
         } else {
             for (_, package) in from_value::<GetPackagesResponse>(info)? {
                 for table in package.tables() {
-                    crate::util::output::print_table(&table)?;
+                    print_table(&table)?;
                     println!();
                 }
             }

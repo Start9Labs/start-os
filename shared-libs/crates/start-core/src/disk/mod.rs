@@ -282,7 +282,7 @@ fn display_disk_info(params: WithIoFormat<Empty>, args: Vec<DiskInfo>) -> Result
             table.add_row(row);
         }
     }
-    crate::util::output::print_table(&table)?;
+    print_table(&table)?;
     Ok(())
 }
 

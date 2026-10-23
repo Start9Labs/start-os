@@ -111,7 +111,7 @@ pub fn dns_api<C: Context>() -> ParentHandler<C> {
                         }
                     }
 
-                    crate::util::output::print_table(&table)?;
+                    print_table(&table)?;
 
                     Ok(())
                 })

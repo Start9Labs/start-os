@@ -280,7 +280,7 @@ fn display_backup_info(params: WithIoFormat<InfoParams>, info: BackupInfo) -> Re
         ];
         table.add_row(row);
     }
-    crate::util::output::print_table(&table)?;
+    print_table(&table)?;
     Ok(())
 }
 

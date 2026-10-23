@@ -10,8 +10,8 @@ use serde::Serialize;
 
 use crate::util::PhantomData;
 use crate::{
-    CliBindings, Empty, HandlerArgs, HandlerArgsFor, HandlerFor, HandlerTypes, LeafHandler,
-    PrintCliResult,
+    println, CliBindings, Empty, HandlerArgs, HandlerArgsFor, HandlerFor, HandlerTypes,
+    LeafHandler, PrintCliResult,
 };
 
 pub struct FromFn<F, T, E, Args> {
@@ -53,7 +53,7 @@ where
     <Self as HandlerTypes>::Ok: Display,
 {
     fn print(&self, _: HandlerArgsFor<Context, Self>, result: Self::Ok) -> Result<(), Self::Err> {
-        Ok(crate::output::println(format_args!("{result}")))
+        Ok(println!("{result}"))
     }
 }
 impl<Context, F, T, E, Args> CliBindings<Context> for FromFn<F, T, E, Args>
@@ -163,7 +163,7 @@ where
     <Self as HandlerTypes>::Ok: Display,
 {
     fn print(&self, _: HandlerArgsFor<Context, Self>, result: Self::Ok) -> Result<(), Self::Err> {
-        Ok(crate::output::println(format_args!("{result}")))
+        Ok(println!("{result}"))
     }
 }
 impl<Context, F, Fut, T, E, Args> CliBindings<Context> for FromFnAsync<F, Fut, T, E, Args>
@@ -260,7 +260,7 @@ where
     <Self as HandlerTypes>::Ok: Display,
 {
     fn print(&self, _: HandlerArgsFor<Context, Self>, result: Self::Ok) -> Result<(), Self::Err> {
-        Ok(crate::output::println(format_args!("{result}")))
+        Ok(println!("{result}"))
     }
 }
 impl<Context, F, Fut, T, E, Args> CliBindings<Context> for FromFnAsyncLocal<F, Fut, T, E, Args>

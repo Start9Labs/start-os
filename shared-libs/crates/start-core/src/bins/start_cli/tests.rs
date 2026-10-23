@@ -4,6 +4,8 @@ use std::net::{Shutdown, TcpListener, TcpStream};
 use std::path::Path;
 use std::process::Command;
 
+use crate::prelude::*;
+
 const CHILD_ARGS: &str = "START_CLI_OUTPUT_ARGS";
 const BROKEN_STREAM: &str = "START_CLI_BROKEN_STREAM";
 
@@ -55,7 +57,7 @@ fn run_cli_child() {
             let table = prettytable::Table::init(vec![prettytable::Row::new(vec![
                 prettytable::Cell::new("value"),
             ])]);
-            crate::util::output::print_table(&table).unwrap();
+            print_table(&table).unwrap();
         }
         "socket-errors" => {
             super::main([OsString::from("start-cli"), OsString::from("git-info")]);

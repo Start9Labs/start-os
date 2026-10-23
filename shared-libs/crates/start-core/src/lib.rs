@@ -1,5 +1,5 @@
 #[macro_use]
-mod output_macros;
+extern crate rpc_toolkit;
 
 use const_format::formatcp;
 
@@ -107,6 +107,7 @@ use crate::context::{CliContext, DiagnosticContext, InitContext, RpcContext};
 use crate::disk::fsck::RequiresReboot;
 use crate::registry::context::{RegistryContext, RegistryUrlParams};
 use crate::system::kiosk;
+use crate::util::output::print_table;
 use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
 
 #[derive(Deserialize, Serialize, Parser, visit_rs::VisitFields)]
@@ -615,7 +616,7 @@ pub fn package<C: Context>() -> ParentHandler<C> {
                             table.add_row(row![&*id, "N/A", "0 MiB", "0 MiB", "0"]);
                         }
                     }
-                    crate::util::output::print_table(&table)?;
+                    print_table(&table)?;
                     Ok(())
                 })
                 .with_about("about.list-lxc-container-info")

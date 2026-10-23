@@ -207,6 +207,6 @@ pub fn display_categories<T>(
     for (id, info) in categories {
         table.add_row(row![&*id, &info.name.localized()]);
     }
-    crate::util::output::print_table(&table)?;
+    print_table(&table)?;
     Ok(())
 }

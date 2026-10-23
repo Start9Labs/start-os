@@ -750,7 +750,7 @@ pub fn binding<C: Context, Kind: HostApiKind>()
                         ]);
                     }
 
-                    crate::util::output::print_table(&table)?;
+                    print_table(&table)?;
 
                     Ok(())
                 })

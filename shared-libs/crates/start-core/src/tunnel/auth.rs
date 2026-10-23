@@ -192,7 +192,7 @@ pub fn auth_api<C: Context>() -> ParentHandler<C> {
                             for (key, info) in res.0 {
                                 table.add_row(row![info.name.as_deref().unwrap_or("-"), key]);
                             }
-                            crate::util::output::print_table(&table)?;
+                            print_table(&table)?;
                             Ok(())
                         })
                         .with_about("about.list-authorized-keys")
