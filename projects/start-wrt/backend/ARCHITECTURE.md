@@ -178,7 +178,7 @@ The daemon runs `start-core`'s `Auth` middleware with `LocalAuth` and `Signature
 Handler metadata:
 
 - `authenticated: false` — no credential needed (status endpoints, first-time setup)
-- `login: true` — the request must be signed, by a key not yet enrolled
+- `login: true` — enroll the signing key by password; reject enrollment when a valid local auth token is supplied
 - `get_signer: true` — inject the signing key as `__Auth_signer`
 
 Every other call needs a valid signature or the local token; the peer address grants nothing.

@@ -1,0 +1,1 @@
+- `auth login` rejects redundant key enrollment when the request authenticates with the local auth cookie.
