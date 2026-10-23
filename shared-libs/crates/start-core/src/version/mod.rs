@@ -788,7 +788,7 @@ mod tests {
     #[tokio::test]
     async fn revision_three_migrates_and_rolls_back_without_changing_service_data() {
         let previous = v0_4_0_2::Version;
-        let current = Current::default();
+        let current = v0_4_0_3::Version;
         let registered = Version::from_exver_version(current.semver())
             .as_version_t()
             .unwrap();
@@ -813,6 +813,39 @@ mod tests {
         assert_eq!(db["public"]["packageData"], packages);
         rollback_to_unchecked(&registered, &previous, &mut db).unwrap();
         assert_eq!(db["public"]["serverInfo"]["version"], json!("0.4.0.2"));
+        assert_eq!(db["public"]["packageData"], packages);
+    }
+
+    #[tokio::test]
+    async fn revision_four_migrates_and_rolls_back_without_changing_service_data() {
+        let previous = v0_4_0_3::Version;
+        let current = v0_4_0_4::Version;
+        let registered = Version::from_exver_version(current.semver())
+            .as_version_t()
+            .unwrap();
+        assert_eq!(registered.previous().semver(), previous.semver());
+        let mut db = json!({ "public": { "serverInfo": {
+            "version": "0.4.0.3",
+            "packageVersionCompat": ">=0.3.0 <0.5.0",
+            "postInitMigrationTodos": {},
+            "latestMigrationRevision": 0,
+        }, "packageData": { "service": { "setting": "preserved", "outboundDns": null } } } });
+        let packages = db["public"]["packageData"].clone();
+        let pre_ups = PreUps::load(&previous, &registered).await.unwrap();
+        migrate_from_unchecked(&previous, &registered, pre_ups, &mut db).unwrap();
+        assert_eq!(db["public"]["serverInfo"]["version"], json!("0.4.0.4"));
+        assert_eq!(
+            db["public"]["serverInfo"]["packageVersionCompat"],
+            to_value(current.compat()).unwrap()
+        );
+        assert_eq!(
+            db["public"]["serverInfo"]["postInitMigrationTodos"],
+            json!({ "0.4.0.4": null })
+        );
+        assert_eq!(applied_migration_revision(&mut db).unwrap(), 0);
+        assert_eq!(db["public"]["packageData"], packages);
+        rollback_to_unchecked(&registered, &previous, &mut db).unwrap();
+        assert_eq!(db["public"]["serverInfo"]["version"], json!("0.4.0.3"));
         assert_eq!(db["public"]["packageData"], packages);
     }
 
