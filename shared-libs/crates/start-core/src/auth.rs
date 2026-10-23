@@ -714,7 +714,7 @@ fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) -> Resul
         }
         table.add_row(row);
     }
-    table.print_tty(false)?;
+    print_table(&table)?;
     Ok(())
 }
 
