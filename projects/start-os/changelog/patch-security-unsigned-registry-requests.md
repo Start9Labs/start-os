@@ -1,1 +1,0 @@
-- **Registry requests are no longer signed with the server's key**, so a registry cannot link a server's requests to one another.

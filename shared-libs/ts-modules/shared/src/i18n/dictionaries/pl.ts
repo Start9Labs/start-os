@@ -633,8 +633,6 @@ export default {
   716: 'Przejdź do konfiguracji',
   717: 'Ustaw bramę wychodzącą',
   718: 'Bieżący',
-  719: 'Domyślne systemu',
-  720: 'Brama wychodząca',
   721: 'Wybierz bramę dla ruchu wychodzącego',
   722: 'Typ bramy',
   723: 'Tylko wychodzący',
@@ -837,4 +835,7 @@ export default {
   950: 'Używaj DNS bramy',
   951: 'Zapasowy',
   952: 'Ustawienia ruchu wychodzącego są niedostępne, gdy ta usługa jest nieaktywna.',
+  953: 'Aktualizacja systemu zablokowana',
+  954: 'Ta aktualizacja systemu nie wymienia żadnego zaufanego sygnatariusza. Instalacja z poziomu interfejsu jest zablokowana. Złośliwa aktualizacja mogłaby przejąć pełną kontrolę nad Twoim serwerem, wykraść klucze prywatne i hasła lub trwale zniszczyć Twoje dane.',
+  955: 'Użyj bramy systemowej',
 } satisfies i18n

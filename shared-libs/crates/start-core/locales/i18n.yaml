@@ -1741,6 +1741,12 @@ backup.restore.package-error:
   es_ES: "Error al restaurar el paquete %{id}: %{error}"
   fr_FR: "Erreur lors de la restauration du paquet %{id} : %{error}"
   pl_PL: "Błąd przywracania pakietu %{id}: %{error}"
+backup.restore.package-installed:
+  en_US: "Cannot restore %{id}: it is already installed. Uninstall it first."
+  de_DE: "%{id} kann nicht wiederhergestellt werden: Es ist bereits installiert. Deinstalliere es zuerst."
+  es_ES: "No se puede restaurar %{id}: ya está instalado. Desinstálalo primero."
+  fr_FR: "Impossible de restaurer %{id} : il est déjà installé. Désinstallez-le d’abord."
+  pl_PL: "Nie można przywrócić %{id}: jest już zainstalowany. Najpierw go odinstaluj."
 
 # backup/target/cifs.rs
 backup.target.cifs.target-not-found:
@@ -2579,6 +2585,13 @@ registry.package.remove-mirror.unauthorized:
   pl_PL: "Brak autoryzacji"
 
 # registry/package/index.rs
+registry.package.icon.invalid-name:
+  en_US: "invalid package icon name: %{name}"
+  de_DE: "Ungültiger Paketsymbolname: %{name}"
+  es_ES: "nombre de icono de paquete no válido: %{name}"
+  fr_FR: "nom d'icône de paquet invalide : %{name}"
+  pl_PL: "nieprawidłowa nazwa ikony pakietu: %{name}"
+
 registry.package.index.metadata-mismatch:
   en_US: "package metadata mismatch: remove the existing version first, then re-add"
   de_DE: "Paketmetadaten stimmen nicht überein: vorhandene Version zuerst entfernen, dann erneut hinzufügen"
@@ -3184,6 +3197,13 @@ middleware.auth.enrolled-key-mismatch:
   fr_FR: "La clé enregistrée doit correspondre à la clé avec laquelle la demande de connexion a été signée."
   pl_PL: "Zarejestrowany klucz musi być zgodny z kluczem, którym podpisano żądanie logowania."
 
+middleware.auth.local-login-unnecessary:
+  en_US: "Login is unnecessary when using the local auth cookie."
+  de_DE: "Bei Verwendung des lokalen Authentifizierungs-Cookies ist keine Anmeldung erforderlich."
+  es_ES: "No es necesario iniciar sesión al usar la cookie de autenticación local."
+  fr_FR: "La connexion est inutile lorsque le cookie d'authentification local est utilisé."
+  pl_PL: "Logowanie nie jest potrzebne podczas korzystania z lokalnego pliku cookie uwierzytelniania."
+
 # middleware/auth/signature.rs
 middleware.auth.key-not-authorized:
   en_US: "Key is not authorized"
@@ -3409,6 +3429,13 @@ auth.passwords-do-not-match:
   es_ES: "Las contraseñas no coinciden"
   fr_FR: "Les mots de passe ne correspondent pas"
   pl_PL: "Hasła nie pasują do siebie"
+
+auth.local-logout-unnecessary:
+  en_US: "Logout is unnecessary when using the local auth cookie."
+  de_DE: "Bei Verwendung des lokalen Authentifizierungs-Cookies ist keine Abmeldung erforderlich."
+  es_ES: "No es necesario cerrar sesión al usar la cookie de autenticación local."
+  fr_FR: "La déconnexion est inutile lorsque le cookie d'authentification local est utilisé."
+  pl_PL: "Wylogowanie nie jest potrzebne podczas korzystania z lokalnego pliku cookie uwierzytelniania."
 
 tunnel.api.endpoint-required:
   en_US: 'WAN IP %{wan_ip} is not public; supply --endpoint <HOST> with the address the device uses to reach this tunnel server'
@@ -5661,6 +5688,13 @@ about.commands-setup:
   fr_FR: "Commandes liées à la configuration initiale"
   pl_PL: "Polecenia związane z początkową konfiguracją"
 
+about.commands-os-update-signers:
+  en_US: "Manage trusted OS update signers"
+  de_DE: "Vertrauenswürdige Unterzeichner für Betriebssystem-Updates verwalten"
+  es_ES: "Administrar firmantes de confianza para actualizaciones del sistema"
+  fr_FR: "Gérer les signataires de confiance des mises à jour du système"
+  pl_PL: "Zarządzaj zaufanymi sygnatariuszami aktualizacji systemu"
+
 about.commands-ssh-keys:
   en_US: "Commands for interacting with ssh keys i.e. add, delete, list"
   de_DE: "Befehle zur Interaktion mit SSH-Schlüsseln, z.B. hinzufügen, löschen, auflisten"
@@ -6059,6 +6093,13 @@ about.get-device-info:
   es_ES: "Mostrar información del dispositivo"
   fr_FR: "Afficher les informations de l'appareil"
   pl_PL: "Wyświetl informacje o urządzeniu"
+
+about.get-os-update-signer:
+  en_US: "Get a trusted OS update signer's label"
+  de_DE: "Bezeichnung eines vertrauenswürdigen Update-Unterzeichners abrufen"
+  es_ES: "Obtener la etiqueta de un firmante de confianza de actualizaciones del sistema"
+  fr_FR: "Obtenir le libellé d’un signataire de confiance des mises à jour du système"
+  pl_PL: "Pobierz etykietę zaufanego sygnatariusza aktualizacji systemu"
 
 about.get-id-pubkey:
   en_US: "Get the identity public key"
@@ -7251,6 +7292,20 @@ tunnel.web.ui-port-reserved:
   es_ES: "Este rango incluye el puerto de la interfaz de administración habilitada; use nombres SNI para compartirlo, o desactive primero la interfaz o cambie su dirección."
   fr_FR: "Cette plage inclut le port de l'interface d'administration activée ; utilisez des noms SNI pour le partager, ou désactivez d'abord l'interface ou changez son adresse."
   pl_PL: "Ten zakres obejmuje port włączonego panelu administracyjnego; użyj nazw SNI, aby go współdzielić, albo najpierw wyłącz panel lub zmień jego adres."
+
+update.signers.already-exists:
+  en_US: "This public key is already a trusted OS update signer"
+  de_DE: "Dieser öffentliche Schlüssel ist bereits als Update-Unterzeichner vertrauenswürdig"
+  es_ES: "Esta clave pública ya es un firmante de confianza de actualizaciones del sistema"
+  fr_FR: "Cette clé publique est déjà un signataire de confiance des mises à jour du système"
+  pl_PL: "Ten klucz publiczny jest już zaufanym sygnatariuszem aktualizacji systemu"
+
+update.signers.not-found:
+  en_US: "Trusted OS update signer not found"
+  de_DE: "Vertrauenswürdiger Update-Unterzeichner nicht gefunden"
+  es_ES: "No se encontró el firmante de confianza de actualizaciones del sistema"
+  fr_FR: "Signataire de confiance des mises à jour du système introuvable"
+  pl_PL: "Nie znaleziono zaufanego sygnatariusza aktualizacji systemu"
 
 # volume.rs
 volume.restore-conflict:

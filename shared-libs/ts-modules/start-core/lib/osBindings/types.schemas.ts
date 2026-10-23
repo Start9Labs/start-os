@@ -1564,20 +1564,10 @@ export const TimeInfo: z.ZodObject<{ now: z.ZodString; uptime: z.ZodInt }> =
   /* @__PURE__ */ object({ now: z.string(), uptime: z.int() }).meta({
     id: 'TimeInfo',
   })
-export const UpdateSystemParams: z.ZodObject<{
-  registry: z.ZodString
-  targetVersion: z.ZodCodec<
-    z.ZodOptional<z.ZodNullable<z.ZodString>>,
-    z.ZodNullable<z.ZodString>
-  >
-  progress: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
-}> = /* @__PURE__ */ object({
-  registry: z.string(),
-  targetVersion: wire(z.string().nullable().optional(), z.string().nullable()),
-  progress: wire(z.boolean().optional(), z.boolean()),
-}).meta({
-  id: 'UpdateSystemParams',
-})
+export const TrustedOsUpdateSigner: z.ZodObject<{ label: z.ZodString }> =
+  /* @__PURE__ */ object({ label: z.string() }).meta({
+    id: 'TrustedOsUpdateSigner',
+  })
 
 /**
  * How the OS reverse proxy validates the container's TLS certificate when it
@@ -3260,6 +3250,11 @@ export const Notification: z.ZodObject<{
 }).meta({
   id: 'Notification',
 })
+export const OsUpdateSignerKeyParams: z.ZodObject<{
+  key: typeof AnyVerifyingKey
+}> = /* @__PURE__ */ object({ key: AnyVerifyingKey }).meta({
+  id: 'OsUpdateSignerKeyParams',
+})
 export const OsVersionInfo: z.ZodObject<{
   headline: z.ZodString
   releaseNotes: z.ZodString
@@ -3301,6 +3296,24 @@ export const PackageBackupInfo: z.ZodObject<{
 }).meta({
   id: 'PackageBackupInfo',
 })
+
+/**
+ * Inline for StartOS before 0.4.0.3 and from registries before 1.2.0.
+ */
+export const PackageIcon: z.ZodUnion<readonly [typeof DataUrl, z.ZodString]> =
+  /* @__PURE__ */ z
+    .union([
+      DataUrl,
+      z.string().meta({
+        description:
+          "A path under the registry's `/icons/`, led by the scheme that names the file.",
+      }),
+    ])
+    .meta({
+      id: 'PackageIcon',
+      description:
+        'Inline for StartOS before 0.4.0.3 and from registries before 1.2.0.',
+    })
 export const PackageInfoShort: z.ZodObject<{
   releaseNotes: typeof LocaleString
 }> = /* @__PURE__ */ object({ releaseNotes: LocaleString }).meta({
@@ -3702,6 +3715,12 @@ export const SetMainStatus: z.ZodObject<{
   status: typeof SetMainStatusStatus
 }> = /* @__PURE__ */ object({ status: SetMainStatusStatus }).meta({
   id: 'SetMainStatus',
+})
+export const SetOsUpdateSignerParams: z.ZodObject<{
+  key: typeof AnyVerifyingKey
+  label: z.ZodString
+}> = /* @__PURE__ */ object({ key: AnyVerifyingKey, label: z.string() }).meta({
+  id: 'SetOsUpdateSignerParams',
 })
 export const SetOutboundGatewayParams: z.ZodObject<{
   package: typeof PackageId
@@ -4203,7 +4222,7 @@ export const DependencyMetadata: z.ZodIntersection<
       z.ZodOptional<z.ZodNullable<typeof LocaleString>>,
       z.ZodNullable<typeof LocaleString>
     >
-    icon: z.ZodOptional<z.ZodNullable<typeof DataUrl>>
+    icon: z.ZodOptional<z.ZodNullable<typeof PackageIcon>>
     description: z.ZodCodec<
       z.ZodOptional<z.ZodNullable<typeof LocaleString>>,
       z.ZodNullable<typeof LocaleString>
@@ -4221,7 +4240,7 @@ export const DependencyMetadata: z.ZodIntersection<
   .intersection(
     object({
       title: wire(LocaleString.nullable().optional(), LocaleString.nullable()),
-      icon: DataUrl.nullable().optional(),
+      icon: PackageIcon.nullable().optional(),
       description: wire(
         LocaleString.nullable().optional(),
         LocaleString.nullable(),
@@ -4825,6 +4844,37 @@ export const Task: z.ZodObject<{
 }).meta({
   id: 'Task',
 })
+export const UpdateSystemParams: z.ZodObject<{
+  registry: z.ZodString
+  /**
+   * Additional signer requirements checked before starting the update.
+   */
+  acceptSigners: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<typeof AcceptSigners>>,
+    z.ZodNullable<typeof AcceptSigners>
+  >
+  targetVersion: z.ZodCodec<
+    z.ZodOptional<z.ZodNullable<z.ZodString>>,
+    z.ZodNullable<z.ZodString>
+  >
+  progress: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
+}> = /* @__PURE__ */ object({
+  registry: z.string(),
+  /**
+   * Additional signer requirements checked before starting the update.
+   */
+  acceptSigners: wire(
+    AcceptSigners.nullable().optional(),
+    AcceptSigners.nullable(),
+  ).meta({
+    description:
+      'Additional signer requirements checked before starting the update.',
+  }),
+  targetVersion: wire(z.string().nullable().optional(), z.string().nullable()),
+  progress: wire(z.boolean().optional(), z.boolean()),
+}).meta({
+  id: 'UpdateSystemParams',
+})
 export const UrlPluginClearUrlsParams: z.ZodObject<{
   except: z.ZodArray<typeof PluginHostnameInfo>
 }> = /* @__PURE__ */ object({ except: z.array(PluginHostnameInfo) }).meta({
@@ -5242,10 +5292,7 @@ export const OsIndex: z.ZodObject<{ versions: typeof OsVersionInfoMap }> =
   })
 export const PackageVersionInfo: z.ZodIntersection<
   z.ZodObject<{
-    /**
-     * Absent for clients that load icons from the registry's `/icons/` route.
-     */
-    icon: z.ZodOptional<z.ZodNullable<typeof DataUrl>>
+    icon: z.ZodOptional<z.ZodNullable<typeof PackageIcon>>
     dependencyMetadata: z.ZodRecord<z.ZodString, typeof DependencyMetadata>
     sourceVersion: z.ZodCodec<
       z.ZodOptional<z.ZodNullable<z.ZodString>>,
@@ -5265,13 +5312,7 @@ export const PackageVersionInfo: z.ZodIntersection<
 > = /* @__PURE__ */ z
   .intersection(
     object({
-      /**
-       * Absent for clients that load icons from the registry's `/icons/` route.
-       */
-      icon: DataUrl.nullable().optional().meta({
-        description:
-          "Absent for clients that load icons from the registry's `/icons/` route.",
-      }),
+      icon: PackageIcon.nullable().optional(),
       dependencyMetadata: z.record(z.string(), DependencyMetadata),
       sourceVersion: wire(
         z.string().nullable().optional(),
@@ -5846,6 +5887,10 @@ export const ServerInfo: z.ZodObject<{
     typeof ServerStatus
   >
   unreadNotificationCount: z.ZodInt
+  trustedOsUpdateSigners: z.ZodCodec<
+    z.ZodOptional<z.ZodRecord<z.ZodString, typeof TrustedOsUpdateSigner>>,
+    z.ZodRecord<z.ZodString, typeof TrustedOsUpdateSigner>
+  >
   pubkey: z.ZodString
   caFingerprint: z.ZodString
   ntpSynced: z.ZodCodec<z.ZodOptional<z.ZodBoolean>, z.ZodBoolean>
@@ -5891,6 +5936,10 @@ export const ServerInfo: z.ZodObject<{
   network: NetworkInfo,
   statusInfo: wire(ServerStatus.optional(), ServerStatus),
   unreadNotificationCount: z.int(),
+  trustedOsUpdateSigners: wire(
+    z.record(z.string(), TrustedOsUpdateSigner).optional(),
+    z.record(z.string(), TrustedOsUpdateSigner),
+  ),
   pubkey: z.string(),
   caFingerprint: z.string(),
   ntpSynced: wire(z.boolean().optional(), z.boolean()),

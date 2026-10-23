@@ -529,7 +529,7 @@ async fn write_sticker_wifi(merged_mount: &str) -> Result<(), Error> {
 /// success / UTC-fallback shows up once the device boots from eMMC.
 async fn write_timezone(merged_mount: &str, iana: &str) -> Result<(), Error> {
     let config_dir = format!("{merged_mount}/etc/config");
-    let activity_db = format!("{merged_mount}/etc/startwrt/activity.db");
+    let activity_db = format!("{merged_mount}{}", crate::activity::ACTIVITY_DB);
 
     let posix = match crate::system::resolve_posix_tz(iana).await? {
         Some(p) => p,
@@ -846,7 +846,7 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
     ParentHandler::new().subcommand(
         "status",
         from_fn_async(setup_status_impl)
-            .with_metadata("no_auth", Value::Bool(true))
+            .with_metadata("authenticated", Value::Bool(false))
             .no_cli(),
     )
 }

@@ -633,8 +633,6 @@ export const ENGLISH: Record<string, number> = {
   'Continue to Setup': 716,
   'Set Outbound Gateway': 717,
   'Current': 718,
-  'System default': 719,
-  'Outbound Gateway': 720,
   'Select the gateway for outbound traffic': 721,
   'The type of gateway': 722,
   'Outbound Only': 723,
@@ -838,4 +836,7 @@ export const ENGLISH: Record<string, number> = {
   'Use Gateway DNS': 950,
   'Fallback': 951,
   'Outbound settings are unavailable while this service is inactive.': 952,
+  'OS update blocked': 953,
+  'No trusted signer is listed for this OS update. Installing it from the UI is blocked. A malicious OS update could take full control of your server, steal private keys and passwords, or permanently destroy your data.': 954,
+  'Use system gateway': 955,
 }

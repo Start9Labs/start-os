@@ -873,7 +873,6 @@ mod tests {
 fn check_matching_info_short() {
     use crate::registry::package::index::PackageMetadata;
     use crate::s9pk::manifest::Description;
-    use crate::util::DataUrl;
 
     let lang_map =
         |s: &str| LocaleString::LanguageMap([("en".into(), s.into())].into_iter().collect());
@@ -902,7 +901,9 @@ fn check_matching_info_short() {
             plugins: BTreeSet::new(),
             satisfies: BTreeSet::new(),
         },
-        icon: Some(DataUrl::from_vec("image/png", vec![])),
+        icon: Some(crate::registry::package::icon::PackageIcon::Stored(
+            "blake3/icon.png".into(),
+        )),
         dependency_metadata: BTreeMap::new(),
         source_version: None,
         s9pks: Vec::new(),

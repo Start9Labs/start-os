@@ -633,8 +633,6 @@ export default {
   716: 'Continuer vers la configuration',
   717: 'Définir la passerelle sortante',
   718: 'Actuel',
-  719: 'Par défaut du système',
-  720: 'Passerelle sortante',
   721: 'Sélectionnez la passerelle pour le trafic sortant',
   722: 'Le type de passerelle',
   723: 'Sortant uniquement',
@@ -837,4 +835,7 @@ export default {
   950: 'Utiliser le DNS de la passerelle',
   951: 'Secours',
   952: 'Les paramètres du trafic sortant sont indisponibles tant que ce service est inactif.',
+  953: 'Mise à jour du système bloquée',
+  954: 'Cette mise à jour du système ne mentionne aucun signataire de confiance. Son installation depuis l’interface est bloquée. Une mise à jour malveillante pourrait prendre le contrôle total de votre serveur, voler vos clés privées et vos mots de passe ou détruire définitivement vos données.',
+  955: 'Utiliser la passerelle du système',
 } satisfies i18n

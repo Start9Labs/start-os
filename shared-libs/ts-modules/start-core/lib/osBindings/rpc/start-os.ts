@@ -278,8 +278,10 @@ export type TermSizeInput = z.input<typeof schemas.TermSize>
 export type TimeInfo = z.output<typeof schemas.TimeInfo>
 export type TrustCaParamsInput = z.input<typeof schemas.TrustCaParams>
 export type TrustedCa = z.output<typeof schemas.TrustedCa>
+export type TrustedOsUpdateSigner = z.output<
+  typeof schemas.TrustedOsUpdateSigner
+>
 export type UiParamsInput = z.input<typeof schemas.UiParams>
-export type UpdateSystemParamsInput = z.input<typeof schemas.UpdateSystemParams>
 
 /**
  * How the OS reverse proxy validates the container's TLS certificate when it
@@ -296,6 +298,7 @@ export type VersionInput = z.input<typeof schemas.Version>
 export type WifiAddParamsInput = z.input<typeof schemas.WifiAddParams>
 export type WifiSsidParamsInput = z.input<typeof schemas.WifiSsidParams>
 export type ZramParamsInput = z.input<typeof schemas.ZramParams>
+export type AcceptSignersInput = z.input<typeof schemas.AcceptSigners>
 export type ActionInput = z.output<typeof schemas.ActionInput>
 export type ActionResultMember = z.output<typeof schemas.ActionResultMember>
 export type ActionResultV1 = z.output<typeof schemas.ActionResultV1>
@@ -421,8 +424,16 @@ export type MetricsSummary = z.output<typeof schemas.MetricsSummary>
 export type MountParamsInput = z.input<typeof schemas.MountParams>
 export type Notification = z.output<typeof schemas.Notification>
 export type OsInfo = z.output<typeof schemas.OsInfo>
+export type OsUpdateSignerKeyParamsInput = z.input<
+  typeof schemas.OsUpdateSignerKeyParams
+>
 export type OsVersionInfo = z.output<typeof schemas.OsVersionInfo>
 export type PackageBackupInfo = z.output<typeof schemas.PackageBackupInfo>
+
+/**
+ * Inline for StartOS before 0.4.0.3 and from registries before 1.2.0.
+ */
+export type PackageIcon = z.output<typeof schemas.PackageIcon>
 export type PackageIdParamsInput = z.input<typeof schemas.PackageIdParams>
 export type PackageInfoShort = z.output<typeof schemas.PackageInfoShort>
 export type PassthroughInfo = z.output<typeof schemas.PassthroughInfo>
@@ -480,6 +491,9 @@ export type SetGatewaySecureParamsInput = z.input<
   typeof schemas.SetGatewaySecureParams
 >
 export type SetIconParamsInput = z.input<typeof schemas.SetIconParams>
+export type SetOsUpdateSignerParamsInput = z.input<
+  typeof schemas.SetOsUpdateSignerParams
+>
 export type SetOutboundGatewayParamsInput = z.input<
   typeof schemas.SetOutboundGatewayParams
 >
@@ -532,6 +546,7 @@ export type ResetPasswordParamsInput = z.input<
 >
 export type ServiceInterface = z.output<typeof schemas.ServiceInterface>
 export type SessionList = z.output<typeof schemas.SessionList>
+export type UpdateSystemParamsInput = z.input<typeof schemas.UpdateSystemParams>
 export type WifiListInfo = z.output<typeof schemas.WifiListInfo>
 export type AddSslOptions = z.output<typeof schemas.AddSslOptions>
 export type BackupTarget = z.output<typeof schemas.BackupTarget>
