@@ -95,7 +95,7 @@ export default {
   92: 'von',
   93: 'Altes Passwort',
   94: 'Passwort',
-  95: 'Passwort erfolgreich geändert',
+  95: 'Passwort geändert. Alle anderen Browser und startwrt-cli-Anmeldungen wurden abgemeldet.',
   96: 'Passwort ist ungültig',
   97: 'Wird vorbereitet...',
   98: 'Konfiguration behalten, Firmware aktualisieren',
@@ -563,4 +563,5 @@ export default {
   591: 'Der Router sendet an den Server Ihres VPN-Anbieters und erhält keine Antwort. Profile, die dieses VPN nutzen, haben kein Internet, bis er antwortet. Fragen Sie bei Ihrem Anbieter nach, ob der Server online ist und ob diese Konfiguration noch gültig ist. Möglicherweise müssen Sie eine neue herunterladen. Um diese Profile in der Zwischenzeit wieder online zu bringen, wechseln Sie sie zu einem anderen VPN. Wenn Sie dieses VPN deaktivieren, haben sie ebenfalls wieder Internet, aber ihr Datenverkehr umgeht dann das VPN.',
   592: 'Ausgeschaltet. Profile können es erst wieder nutzen, wenn es aktiviert ist.',
   593: 'Nie',
+  594: 'Das Ändern des Passworts meldet alle anderen Browser und startwrt-cli-Anmeldungen ab. Dieser Browser bleibt angemeldet.',
 } satisfies i18n
