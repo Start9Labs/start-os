@@ -99,6 +99,8 @@ cd start-technologies
 
 `make start-core-ts-bindings` regenerates the TypeScript bindings from the Rust types, and `make clean` removes all compiled artifacts (ask before running it). Cross-layer changes (Rust → bindings → SDK → web/runtime) are described in [ARCHITECTURE.md](ARCHITECTURE.md#build-pipeline).
 
+The shared Rust builder image is defined in `build/rust-builder/`. `make rust-builder` builds it locally and `make rust-builder-check` verifies the resulting image. `.github/workflows/rust-builder.yaml` verifies native amd64 and arm64 builds before publishing their combined manifest to GHCR on master. See [`build/rust-builder/README.md`](build/rust-builder/README.md) for image inputs and update conventions.
+
 ### Build configuration
 
 The shared build recipes accept these environment variables. StartWRT pins its router architecture in `projects/start-wrt/build.mk` rather than deriving it from `PLATFORM`:
