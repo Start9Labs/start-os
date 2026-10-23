@@ -450,10 +450,13 @@ mod yaml_tests {
 }
 
 pub fn display_serializable<T: Serialize>(format: IoFormat, result: T) -> Result<(), Error> {
-    format.to_writer(std::io::stdout(), &result)?;
+    use std::io::Write as _;
+    let mut stdout = std::io::stdout().lock();
+    format.to_writer(&mut stdout, &result)?;
     if format == IoFormat::JsonPretty {
-        println!()
+        writeln!(stdout)?;
     }
+    stdout.flush()?;
     Ok(())
 }
 
