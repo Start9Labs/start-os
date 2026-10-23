@@ -1798,6 +1798,8 @@ export class MockApiService extends ApiService {
       mtu: null,
       hostname_endpoint: false,
       dns: ['10.2.0.1'],
+      status: 'connected',
+      last_handshake_secs: 42,
     },
     {
       id: 'wg_mullvad',
@@ -1813,6 +1815,8 @@ export class MockApiService extends ApiService {
       mtu: 1280,
       hostname_endpoint: false,
       dns: [],
+      status: 'not-responding',
+      last_handshake_secs: null,
     },
   ]
 
@@ -1821,6 +1825,9 @@ export class MockApiService extends ApiService {
     return structuredClone(
       this.mockVpnClients.map(c => ({
         ...c,
+        ...(c.enabled
+          ? {}
+          : { status: 'disabled' as const, last_handshake_secs: null }),
         used_by: this.mockProfiles
           .filter(p => p.outbound === c.id)
           .map(p => p.fullname),
@@ -1847,6 +1854,8 @@ export class MockApiService extends ApiService {
           Number(/(^|\n)\s*MTU\s*=\s*(\d+)/i.exec(params.config)?.[2]) || null,
         hostname_endpoint: hasHostnameEndpoint(params.config),
         dns: params.dns ?? configDnsServers(params.config),
+        status: 'idle',
+        last_handshake_secs: null,
       },
     ]
     this.logActivity(
