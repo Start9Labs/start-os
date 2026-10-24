@@ -9,7 +9,7 @@ StartWRT is an OpenWrt-based router OS for home self-hosting. It pairs a Rust ba
 - **Router OS:** OpenWrt (SpacemiT K1 / BananaPi F3 target)
 - **Config storage:** UCI files (`/etc/config/`) — no separate database
 - **API:** JSON-RPC 2.0 over HTTP POST at `/rpc/v1`
-- **Auth:** Password + session cookie (SHA-256 hashed tokens, 1-day expiry)
+- **Auth:** Password login enrolls a browser-held Ed25519 key that signs every request (`start-core` signature auth); the CLI on the router uses a local token
 
 ## Project Structure
 
@@ -49,15 +49,15 @@ StartWRT is an OpenWrt-based router OS for home self-hosting. It pairs a Rust ba
 
 - **`web/`** — Angular SPA using Taiga UI. Signal-based state, zoneless change detection, standalone components. Communicates with the backend over JSON-RPC 2.0 at `/rpc/v1`, plus the streaming and continuation routes listed under Data Flow. Embeds contextual help on every page. See [web/ARCHITECTURE.md](web/ARCHITECTURE.md).
 
-- **`openwrt/`** — Disposable build workspace (plain directory, no git repo) rebuilt by `build/openwrt-setup.sh` from the sha256-pinned upstream OpenWrt release tarball (`build/openwrt-version`) plus the Start9 delta: `openwrt-patches/` modifies a handful of upstream build-infra files, `openwrt-overlay/` adds the SpacemiT K1 target (`target/linux/spacemit/`) and boot packages (`opensbi-spacemit`, `uboot-spacemit`). The build system compiles the Rust backend + Angular frontend, stages them into `openwrt/files/`, and produces a flashable image.
+- **`openwrt/`** — Disposable build workspace (plain directory, no git repo) rebuilt by `build/openwrt-setup.sh` from the sha256-pinned upstream OpenWrt release tarball (`build/openwrt-version`) plus the Start9 delta: `openwrt-patches/` modifies a handful of upstream files (build infrastructure and a few runtime scripts), `openwrt-overlay/` adds the SpacemiT K1 target (`target/linux/spacemit/`) and boot packages (`opensbi-spacemit`, `uboot-spacemit`). The build system compiles the Rust backend + Angular frontend, stages them into `openwrt/files/`, and produces a flashable image.
 
 ## Data Flow
 
 ```
 Browser (Angular SPA)
-  → HTTP POST /rpc/v1  (JSON-RPC 2.0, session cookie)
+  → HTTP POST /rpc/v1  (JSON-RPC 2.0, X-Start-Auth-Sig request signature)
   → Axum router on port 80/443
-  → SessionAuth middleware (validates cookie, rate-limits login)
+  → start-core Auth middleware (verifies signature or local token, rate-limits login)
   → rpc-toolkit handler dispatch
   → Handler reads/writes UCI files via uciedit (arena-based, atomic writes)
   → Handler calls /etc/init.d/<service> reload to apply changes
@@ -66,10 +66,9 @@ Browser (Angular SPA)
 
 Additional HTTP routes:
 
-- `GET /api/logs` — WebSocket for live log streaming
 - `POST /api/setup/flash` — NDJSON streaming for setup wizard
 - `GET|POST /rest/rpc/{guid}` — Continuation endpoint for backup/restore/diagnostics
-- `GET /ws/rpc/{guid}` — WebSocket continuation for update progress
+- `GET /ws/rpc/{guid}` — WebSocket continuation for update progress and live logs
 - `GET /static/local-root-ca.crt`, `GET /static/local-root-ca.mobileconfig` — Root CA download, as a certificate or an Apple configuration profile (no auth)
 - `/cgi-bin/*`, `/luci-static/*`, `/ubus/*` — LuCI reverse proxy (localhost:8080); `/luci` redirects to `/cgi-bin/luci`
 - Fallback — Serves embedded web UI

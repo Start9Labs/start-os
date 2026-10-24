@@ -130,10 +130,10 @@ export class MockApiService extends ApiService {
   async login(params: LoginReq): Promise<RpcReturnType<Api, 'auth.login'>> {
     await pauseFor(250)
 
-    return { session: 'mock-session' }
+    return null
   }
 
-  async logout(): Promise<null> {
+  async logout(): Promise<RpcReturnType<Api, 'auth.logout'>> {
     await pauseFor(250)
 
     return null
@@ -1084,7 +1084,8 @@ export class MockApiService extends ApiService {
   ): Promise<RpcReturnType<Api, 'auth.set-initial-password'>> {
     await pauseFor(250)
     this.mockInitialized = true
-    return { session: 'mock-session' }
+    if (params.timezone) this.mockSystemInfo.timezone = params.timezone
+    return null
   }
 
   async setupStatus(): Promise<SetupStatusRes> {
@@ -1095,6 +1096,11 @@ export class MockApiService extends ApiService {
   async systemFactoryReset(): Promise<null> {
     await pauseFor(2000)
     return null
+  }
+
+  async followLogs(): Promise<RpcReturnType<Api, 'system.logs-follow'>> {
+    await pauseFor(250)
+    return { guid: 'MOCKLOGSFOLLOWGUIDAAAAAAAAAAAAAA' }
   }
 
   async systemLogs(): Promise<LogsResponse> {
@@ -1798,6 +1804,8 @@ export class MockApiService extends ApiService {
       mtu: null,
       hostname_endpoint: false,
       dns: ['10.2.0.1'],
+      status: 'connected',
+      last_handshake_secs: 42,
     },
     {
       id: 'wg_mullvad',
@@ -1813,6 +1821,8 @@ export class MockApiService extends ApiService {
       mtu: 1280,
       hostname_endpoint: false,
       dns: [],
+      status: 'not-responding',
+      last_handshake_secs: null,
     },
   ]
 
@@ -1821,6 +1831,9 @@ export class MockApiService extends ApiService {
     return structuredClone(
       this.mockVpnClients.map(c => ({
         ...c,
+        ...(c.enabled
+          ? {}
+          : { status: 'disabled' as const, last_handshake_secs: null }),
         used_by: this.mockProfiles
           .filter(p => p.outbound === c.id)
           .map(p => p.fullname),
@@ -1847,6 +1860,8 @@ export class MockApiService extends ApiService {
           Number(/(^|\n)\s*MTU\s*=\s*(\d+)/i.exec(params.config)?.[2]) || null,
         hostname_endpoint: hasHostnameEndpoint(params.config),
         dns: params.dns ?? configDnsServers(params.config),
+        status: 'idle',
+        last_handshake_secs: null,
       },
     ]
     this.logActivity(
@@ -2125,7 +2140,7 @@ export class MockApiService extends ApiService {
     await pauseFor(500)
     return {
       guid: 'mock-diag-guid',
-      filename: 'diagnostics-startwrt-2026-03-19.log',
+      filename: 'diagnostics-startwrt-2026-03-19.log.gz',
     }
   }
 

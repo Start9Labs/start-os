@@ -1,1 +1,0 @@
-- Restoring a service that is still installed is refused with an error; uninstall it first.

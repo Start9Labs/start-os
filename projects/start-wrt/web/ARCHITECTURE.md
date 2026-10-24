@@ -148,7 +148,7 @@ skill. `routes/published-ports/` is the project-local example of a table/dialog 
 
 - **Transport:** JSON-RPC 2.0 over a single HTTP POST endpoint (`/rpc/v1`)
 - **Contract:** the generated `bindings.ts` types every RPC method; `ApiService` (abstract) defines the methods the UI calls. `LiveApiService` calls `RpcService`; `MockApiService` returns static data for dev.
-- **Auth:** RPC error code 34 triggers auto-logout. Session cookie with `withCredentials: true`.
+- **Auth:** login enrolls a non-extractable WebCrypto key (`AuthKeyService` from `@start9labs/shared`) and `RpcService` signs every request with it. RPC error code 34 clears the key and logs out.
 - **Mocks:** Toggle via `config.json` → `useMocks`. Dev server runs without a real router.
 
 ## i18n
