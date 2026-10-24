@@ -76,7 +76,12 @@ If none of the three is set, the profile's DNS goes to your ISP's DNS servers ou
 
 Click a VPN label in the table to open its detail page, which shows:
 
-- **Status** — **Connected** while the VPN is enabled, **Disabled** otherwise.
+- **Status** — The tunnel's live state, with a note explaining it:
+  - **Connected** — The tunnel completed a handshake within the last three minutes.
+  - **Idle** — Enabled, but nothing has sent traffic through the tunnel recently, so it has no active session. It connects when a profile using it sends traffic.
+  - **Not responding** — The router is sending to the VPN server and getting no reply. Profiles using this VPN have no internet until it responds. Check with your provider that the server is online and that the configuration is still valid.
+  - **Disabled** — The VPN is turned off.
+- **Last handshake** — How long ago the tunnel last completed a handshake with the VPN server, or **Never**. Shown while the VPN is enabled.
 - **Connection Path** — This VPN's chain outward to your WAN, each hop carrying the one before it (e.g. "Mullvad → Proton → Internet" means Mullvad's tunnel runs through Proton, and Proton connects over the WAN). Traffic routed here exits at the first VPN listed.
 - **Used by** — Which [Security Profiles](security-profiles.md) currently route their traffic through this VPN. Check this before making changes to understand the impact.
 - **Label** — Edit the display name.

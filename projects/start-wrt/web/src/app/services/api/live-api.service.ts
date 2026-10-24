@@ -101,7 +101,7 @@ export class LiveApiService extends ApiService {
     return this.rpc.request({ method: 'system.get-timezones', params: {} })
   }
 
-  async logout(): Promise<null> {
+  async logout(): Promise<RpcReturnType<Api, 'auth.logout'>> {
     return this.rpc.request({ method: 'auth.logout', params: {} })
   }
 
@@ -277,6 +277,10 @@ export class LiveApiService extends ApiService {
 
   async systemLogs(): Promise<LogsResponse> {
     return this.rpc.request({ method: 'system.logs', params: {} })
+  }
+
+  async followLogs(): Promise<RpcReturnType<Api, 'system.logs-follow'>> {
+    return this.rpc.request({ method: 'system.logs-follow', params: {} })
   }
 
   async devicesList(): Promise<DeviceFromApi[]> {

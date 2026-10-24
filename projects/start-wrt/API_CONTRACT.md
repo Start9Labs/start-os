@@ -50,36 +50,75 @@ enum Protocol {
 
 ## 1. Auth
 
+A request is authorized if either credential is valid:
+
+- **Request signature** — an `X-Start-Auth-Sig` header carrying an Ed25519 signature, by a key enrolled through `auth.login`, over a timestamp, a nonce, the body's BLAKE3 hash, and the server identity the client addressed (`router.lan`, any non-loopback address on the router's interfaces, or the enabled DDNS hostname; a loopback address only from a loopback peer). The protocol is `start-core`'s `SignatureAuth`; the browser holds a non-extractable WebCrypto key in IndexedDB. Timestamps must fall within 30 seconds of the router's clock once ntpd reports valid time; a replayed nonce is rejected.
+- **Local auth token** — `Authorization: Bearer <token>`, where the token is the contents of `/run/startwrt/rpc.authcookie` (regenerated at daemon start, mode `0640`, `root:root`). `startwrt-cli` sends it only to loopback hosts.
+
+Endpoints registered with `authenticated: false` metadata answer without either. Enrolled keys persist in `/etc/startwrt/auth.db`, which sysupgrade keeps, and stay valid until revoked by `auth.logout`, `auth.session.kill`, or a password change, or until 24 hours after their `loggedIn` time, however recently they were used. The microSD wizard's Keep settings reflash does not carry them over. An expired key is rejected as unauthorized (code 34) on its next request. Before ntpd reports valid time the check judges age alone; afterwards a `loggedIn` more than 5 minutes in the future also counts as expired. The sweep that unenrolls expired keys runs hourly and waits for ntpd to report valid time.
+
 ### `auth.login`
+
+The request must be signed by the key it enrolls. A valid local auth token rejects the call as unnecessary. Before first-time setup sets a password, every login fails with Uninitialized (code 40).
 
 ```rust
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct LoginParams {
     password: String,
-    /// Injected by the auth middleware from the HTTP User-Agent header —
-    /// clients don't send it.
-    user_agent: Option<String>,
+    /// PEM-encoded Ed25519 public key to enroll
+    pubkey: AnyVerifyingKey,
+    /// Enroll in memory only. Unsupported (InvalidRequest).
+    #[serde(default)]
+    ephemeral: bool,
 }
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct LoginRes {
-    session: String,
-}
-// Response: LoginRes. The middleware also sets the session cookie on the HTTP
-// response (`Set-Cookie: session=…; Path=/; SameSite=Strict; HttpOnly; Max-Age=86400`).
-// Rate-limited: 3 attempts per 20 seconds.
+// Response: null
+// Rate-limited: 3 attempts per 20 seconds per signed server identity.
 ```
 
 ### `auth.logout`
+
+Revokes the key that signed the request and closes the streams it opened. An
+unsigned local-token request is rejected as unnecessary.
 
 ```rust
 // Request: {} (empty object)
 // Response: null
 ```
 
+### `auth.session.list`
+
+```rust
+// Request: {}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct SessionList {
+    /// The key that signed this request
+    current: Option<String>,
+    /// Enrolled keys by PEM: { name, loggedIn, lastActive, userAgent }.
+    /// `lastActive` is persisted at most hourly.
+    sessions: BTreeMap<String, Session>,
+}
+```
+
+### `auth.session.kill`
+
+```rust
+#[derive(Deserialize)]
+struct KillParams {
+    /// PEM-encoded keys to revoke
+    ids: Vec<String>,
+}
+// Response: null
+```
+
 ### `auth.set-password`
+
+Once the new hash is written, revokes every enrolled key except the one that
+signed the request, and closes the streams they opened. A local-token request
+revokes every key. A failed write revokes none. Fails with Uninitialized
+(code 40) before first-time setup.
 
 ```rust
 #[derive(Deserialize)]
@@ -93,7 +132,7 @@ struct ResetPasswordParams {
 
 ### `auth.verify-password`
 
-Verifies the admin password without creating a session (used internally by the
+Verifies the admin password without enrolling a key (used internally by the
 CLI before prompting for a new one).
 
 ```rust
@@ -102,7 +141,8 @@ CLI before prompting for a new one).
 struct VerifyPasswordParams {
     password: String,
 }
-// Response: null (IncorrectPassword, code 7, on a wrong password)
+// Response: null (IncorrectPassword, code 7, on a wrong password;
+// Uninitialized, code 40, before first-time setup)
 ```
 
 ### `auth.check-initialized`
@@ -123,8 +163,9 @@ struct CheckInitializedRes {
 
 ### `auth.set-initial-password`
 
-First-time setup: no session required (registered with login metadata, so it
-shares `auth.login`'s rate limiter). Rejected once a password is already set.
+First-time setup: no auth required. Rejected once a password is already set.
+Enrolls nothing — the setup page runs over plain HTTP, where a browser cannot
+sign, so the user logs in afterwards over HTTPS.
 
 ```rust
 #[derive(Deserialize)]
@@ -132,10 +173,12 @@ shares `auth.login`'s rate limiter). Rejected once a password is already set.
 struct SetInitialPasswordParams {
     /// Minimum 12 characters (same rule as auth.set-password)
     password: String,
+    /// IANA timezone name, e.g. "America/New_York". An unknown name is skipped.
+    timezone: Option<String>,
 }
-// Response: LoginRes { session } — the caller is immediately authenticated
-// Backend: writes the root hash to /etc/shadow, disables the captive portal,
-// creates a login session
+// Response: null
+// Backend: writes the root hash to /etc/shadow, revokes every enrolled key,
+// applies the timezone, disables the captive portal
 ```
 
 ---
@@ -273,8 +316,8 @@ on `ifup`, `ifupdate`, and `ifdown` of `wan` or `wan6`.
 
 ### `system.set-timezone`
 
-Auth required. The setup wizard calls it right after
-`auth.set-initial-password`, whose response sets the session cookie.
+Auth required. First-time setup passes its timezone to
+`auth.set-initial-password` instead.
 
 ```rust
 #[derive(Deserialize)]
@@ -325,17 +368,26 @@ struct LogsResponse {
 // Backend: runs `logread`, parses syslog lines
 ```
 
-### `/api/logs` (WebSocket)
+### `system.logs-follow`
 
-Live-streaming endpoint for the web UI.
+Live-streaming endpoint for the web UI. Not exposed to the CLI.
 
-1. Client opens WebSocket to `/api/logs`
+```rust
+// Request: {}
+
+#[derive(Serialize)]
+struct FollowLogsRes {
+    guid: Guid,
+}
+// Response: FollowLogsRes
+```
+
+1. Client opens a WebSocket to `/ws/rpc/{guid}` within 30 seconds; the GUID is single-use
 2. Server spawns `logread -f` (dumps historical entries then follows new ones)
 3. Each line is parsed into `LogEntry` and sent as a JSON text frame
-4. Connection closes when either side disconnects; child process is killed on drop
-5. **Auth required** — a valid session cookie, or the local auth cookie (`local`, checked against `/run/startwrt/rpc.authcookie`), is validated before the WebSocket upgrade (returns 401 if invalid)
-6. Each message is a single `LogEntry` JSON object (not wrapped in `LogsResponse`)
-7. Unparseable lines are silently dropped (same as the RPC endpoint)
+4. Connection closes when either side disconnects, or when the key that requested it is revoked; child process is killed on drop
+5. Each message is a single `LogEntry` JSON object (not wrapped in `LogsResponse`)
+6. Unparseable lines are silently dropped (same as the RPC endpoint)
 
 ---
 
@@ -1172,7 +1224,7 @@ struct AutomaticPortUse {
 ```
 
 Internal endpoint, **not called from the frontend**; its `startwrt-cli` caller
-authenticates with the local auth cookie. Fired by the
+authenticates with the local auth token. Fired by the
 `/etc/hotplug.d/iface/99-startwrt-port-control` hook on `wan` `ifup`/
 `ifupdate`: forwards to the daemon, which re-keys live SNI hostname routes
 onto the (possibly changed) WAN IPv4 — their listeners bind the WAN address
@@ -1189,7 +1241,7 @@ configs-only mode.
 ```
 
 Internal endpoint, **not called from the frontend**; its `startwrt-cli` caller
-authenticates with the local auth cookie. Fired two
+authenticates with the local auth token. Fired two
 ways: by the `/etc/hotplug.d/iface/99-startwrt-published-ports` hook on `wan6`
 `ifup`/`ifupdate` (i.e. when the ISP-delegated IPv6 prefix changes) — the CLI
 forwards the call to the daemon (`with_call_remote`), where the `ipv6_tracker`'s
@@ -1259,6 +1311,23 @@ struct OutboundVpn {
     hostname_endpoint: bool,
     /// Resolvers reached through the tunnel (the interface's `list dns`).
     dns: Vec<IpAddr>,
+    status: OutboundVpnStatus,
+    /// Seconds since the tunnel's latest handshake, measured on the router.
+    /// null when it has never completed one.
+    last_handshake_secs: Option<u64>,
+}
+
+#[serde(rename_all = "kebab-case")]
+enum OutboundVpnStatus {
+    Disabled,
+    /// A handshake completed within the last 180 seconds.
+    Connected,
+    /// Nothing has sent through the tunnel since its session lapsed.
+    Idle,
+    /// Sends go unanswered: the peer never answered a second handshake
+    /// initiation, or the router sent after the session lapsed within the last
+    /// 120 seconds. Also an enabled tunnel with no peer endpoint.
+    NotResponding,
 }
 // Response: Vec<OutboundVpn>
 ```
@@ -2022,7 +2091,7 @@ struct ActivityListResponse {
     entries: Vec<ActivityEntry>,
     total: usize,
 }
-// Backend: reads the SQLite activity log (/etc/startwrt/activity.db),
+// Backend: reads the SQLite activity log (/var/lib/startwrt/activity.db),
 // newest first
 ```
 
@@ -2070,11 +2139,13 @@ struct BackupCreateRes {
 
 #[derive(Serialize)]
 struct BackupRestoreRes {
-    /// POST the .tar.gz to /rest/rpc/{guid} (10 MB body limit)
+    /// POST the .tar.gz to /rest/rpc/{guid} (64 MiB body limit)
     upload: String,
 }
 // Backend: the upload continuation validates the archive (`tar -tzf`), applies
-// it with `sysupgrade --restore-backup`, then reboots after a short delay
+// it with `sysupgrade --restore-backup`, keeps the router's own system log
+// preceded by any older history the backup carried, then reboots after a
+// short delay
 ```
 
 ---
@@ -2090,10 +2161,12 @@ struct BackupRestoreRes {
 struct DiagnosticsCreateRes {
     /// Download the log via GET /rest/rpc/{guid}
     guid: String,
-    filename: String,  // "diagnostics-startwrt-<YYYY-MM-DD>.log"
+    filename: String,  // "diagnostics-startwrt-<YYYY-MM-DD>.log.gz"
 }
-// Backend: captures `logread` output and registers a one-shot download
-// continuation at /rest/rpc/{guid}
+// Backend: gzips a system summary (version, board, kernel, uptime, boot ID,
+// eMMC wear), the persistent system log (`/var/log/messages.old` then
+// `/var/log/messages`, or `logread` when neither exists) and the activity
+// log, and registers a one-shot download continuation at /rest/rpc/{guid}
 ```
 
 ---
@@ -2140,17 +2213,16 @@ struct InjectedDnsRecord {
 Every RPC method above is a JSON-RPC 2.0 call to a single endpoint: **`POST /rpc/v1`**.
 The daemon (`backend/ctrl/src/bins/daemon.rs`) also serves:
 
-| Route                                              | Method    | Auth                                                     | Purpose                                                                                      |
-| -------------------------------------------------- | --------- | -------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `/rpc/v1`                                          | POST      | Session or local cookie (unless `no_auth`)               | JSON-RPC 2.0 endpoint for all RPC methods                                                    |
-| `/rest/rpc/{guid}`                                 | GET/POST  | GUID capability (one-shot)                               | RPC continuation: binary download (backup, diagnostics) / upload (restore); 10 MB body limit |
-| `/ws/rpc/{guid}`                                   | WebSocket | Session or local cookie, plus GUID capability (one-shot) | Progress streaming (`system.update`)                                                         |
-| `/api/logs`                                        | WebSocket | Session or local cookie                                  | Live log streaming (see § 2)                                                                 |
-| `/api/setup/flash`                                 | POST      | None (setup wizard)                                      | Streams NDJSON `SetupEvent` progress while flashing the eMMC; one flash at a time            |
-| `/static/local-root-ca.crt`                        | GET       | None                                                     | Root CA certificate download                                                                 |
-| `/static/local-root-ca.mobileconfig`               | GET       | None                                                     | Root CA as an Apple configuration profile                                                    |
-| `/cgi-bin/*`, `/luci-static/*`, `/ubus`, `/ubus/*` | any       | LuCI's own                                               | Reverse proxy to uhttpd (LuCI) on localhost:8080; `/luci` redirects to `/cgi-bin/luci`       |
-| everything else                                    | any       | None                                                     | Embedded web UI                                                                              |
+| Route                                              | Method    | Auth                                       | Purpose                                                                                       |
+| -------------------------------------------------- | --------- | ------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| `/rpc/v1`                                          | POST      | Request signature or local token (see § 1) | JSON-RPC 2.0 endpoint for all RPC methods                                                     |
+| `/rest/rpc/{guid}`                                 | GET/POST  | GUID capability (one-shot)                 | RPC continuation: binary download (backup, diagnostics) / upload (restore); 64 MiB body limit |
+| `/ws/rpc/{guid}`                                   | WebSocket | GUID capability (one-shot)                 | Streaming: update progress (`system.update`), live logs (`system.logs-follow`)                |
+| `/api/setup/flash`                                 | POST      | None (setup wizard)                        | Streams NDJSON `SetupEvent` progress while flashing the eMMC; one flash at a time             |
+| `/static/local-root-ca.crt`                        | GET       | None                                       | Root CA certificate download                                                                  |
+| `/static/local-root-ca.mobileconfig`               | GET       | None                                       | Root CA as an Apple configuration profile                                                     |
+| `/cgi-bin/*`, `/luci-static/*`, `/ubus`, `/ubus/*` | any       | LuCI's own                                 | Reverse proxy to uhttpd (LuCI) on localhost:8080; `/luci` redirects to `/cgi-bin/luci`        |
+| everything else                                    | any       | None                                       | Embedded web UI                                                                               |
 
 ---
 
@@ -2160,10 +2232,12 @@ The daemon (`backend/ctrl/src/bins/daemon.rs`) also serves:
 | ----------------------------------- | --------------- | --------------------------- |
 | `auth.login`                        | Auth            | Rate-limited                |
 | `auth.logout`                       | Auth            |                             |
+| `auth.session.list`                 | Auth            |                             |
+| `auth.session.kill`                 | Auth            |                             |
 | `auth.verify-password`              | Auth            |                             |
 | `auth.set-password`                 | Auth            |                             |
 | `auth.check-initialized`            | Auth            | No auth                     |
-| `auth.set-initial-password`         | Auth            | No session; rate-limited    |
+| `auth.set-initial-password`         | Auth            | No auth                     |
 | `system.info`                       | System          | No auth                     |
 | `system.newer-versions`             | System          | No auth                     |
 | `system.update`                     | System          |                             |
@@ -2174,6 +2248,7 @@ The daemon (`backend/ctrl/src/bins/daemon.rs`) also serves:
 | `system.set-timezone`               | System          |                             |
 | `system.get-timezones`              | System          | No auth                     |
 | `system.logs`                       | System          |                             |
+| `system.logs-follow`                | System          |                             |
 | `setup.status`                      | Setup           | No auth                     |
 | `wan.ipv4-get`                      | WAN             |                             |
 | `wan.ipv4-set`                      | WAN             |                             |

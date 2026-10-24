@@ -169,7 +169,7 @@ Physical access (microSD) = sufficient authorization.
  2. User selects "Keep settings"
  3. Create admin password (minimum 12 characters)
  4. Confirm admin password
- 5. Backup config files (sysupgrade conffiles list, excluding /etc/shadow)
+ 5. Backup config files (sysupgrade conffiles list, excluding /etc/shadow and /etc/startwrt/auth.db)
  6. Flash new firmware (replace squashfs base, wipe overlay)
  7. Provision eMMC boot partitions (boot0/boot1: bootinfo + FSBL, skipped when already current)
  8. Restore config files

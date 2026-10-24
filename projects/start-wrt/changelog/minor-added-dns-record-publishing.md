@@ -8,7 +8,8 @@
   Profile can reach the publishing device. The router drops a record whose
   device loses the address it published from, and revoking the permission
   removes the device's names immediately. A read-only table on the device page
-  shows what a device has published.
+  shows what a device has published. DNS record publishing coexists with DNS
+  servers published on port 53, including access from the WAN and LAN.
 - **Inbound VPN clients can publish DNS records.** A client added on an earlier
   release must be deleted and re-added before it can publish; its new
   configuration carries the address the router expects.

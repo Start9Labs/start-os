@@ -7,7 +7,6 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
-use chrono::{TimeDelta, Utc};
 use imbl::OrdMap;
 use imbl_value::InternedString;
 use josekit::jwk::Jwk;
@@ -33,7 +32,7 @@ use crate::disk::mount::guard::MountGuard;
 use crate::init::{InitResult, check_time_is_synchronized};
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::lxc::LxcManager;
-use crate::middleware::auth::signature::{HasUnenrolledKeys, NonceCache};
+use crate::middleware::auth::signature::NonceCache;
 use crate::net::gateway::WildcardListener;
 use crate::net::net_controller::{NetController, NetService};
 use crate::net::socks::DEFAULT_SOCKS_LISTEN;
@@ -164,8 +163,8 @@ impl ReloadableHttpClient {
     }
 }
 
-/// Drop enrolled keys idle for more than 30 days. No-op until the clock is
-/// NTP-synced, so a wrong boot-time clock can't reap live sessions.
+/// No-op until the clock is NTP-synced, so a wrong boot-time clock can't reap
+/// live sessions.
 fn reap_idle_sessions(
     continuations: &OpenAuthedContinuations<Option<InternedString>>,
     ephemeral: &SyncMutex<AuthKeys>,
@@ -174,20 +173,7 @@ fn reap_idle_sessions(
     if !db.as_public().as_server_info().as_ntp_synced().de()? {
         return Ok(());
     }
-    let now = Utc::now();
-    let expired = db
-        .as_private()
-        .as_session_pubkeys()
-        .as_entries()?
-        .into_iter()
-        .map(|(id, session)| Ok::<_, Error>((id, session.de()?.last_active)))
-        .collect::<Result<Vec<_>, _>>()?
-        .into_iter()
-        .filter(|(_, last_active)| now - *last_active > TimeDelta::days(30))
-        .map(|(id, _)| id)
-        .collect::<Vec<_>>();
-    HasUnenrolledKeys::unenroll::<RpcContext>(continuations, Some(ephemeral), db, expired)?;
-    Ok(())
+    crate::auth::reap_idle_keys_in::<RpcContext>(continuations, Some(ephemeral), db)
 }
 
 impl RpcContext {

@@ -1,1 +1,0 @@
-- **The marketplace and service pages load package icons as they are shown**, instead of with every registry listing and database update, so they open faster. Icons show a loading placeholder and are cached across page reloads.

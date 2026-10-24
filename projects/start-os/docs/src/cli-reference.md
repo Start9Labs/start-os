@@ -23,6 +23,15 @@ These apply to all subcommands.
 
 The Debian package and StartOS image enable Bash tab completion automatically in new shells. For other installations, add `eval "$(start-cli completions bash)"` to `~/.bashrc`. `start-cli completions <shell>` also supports Zsh, fish, elvish, and PowerShell.
 
+## From the Browser Console
+
+The same API is reachable from the StartOS web interface. While logged in, open your browser's developer console and call a command through `rpcClient.rpc`, writing its path in camelCase and passing its arguments as an object:
+
+```js
+await rpcClient.rpc.server.setHostname({ hostname: 'my-server' })
+await rpcClient.rpc.package.start({ id: 'bitcoind' })
+```
+
 ## Authentication
 
 Log in, log out, manage enrolled device keys, and reset the master password.
