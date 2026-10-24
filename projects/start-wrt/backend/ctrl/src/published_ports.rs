@@ -2408,15 +2408,7 @@ pub(crate) async fn reload_firewall_wait() -> Result<(), Error> {
 }
 
 pub(crate) fn reload_dnsmasq() {
-    tokio::spawn(async {
-        if let Err(e) = crate::run_quiet_async(
-            tokio::process::Command::new("/etc/init.d/dnsmasq").arg("reload"),
-        )
-        .await
-        {
-            tracing::error!("failed to reload dnsmasq: {e}");
-        }
-    });
+    crate::devices::reload_dnsmasq();
 }
 
 pub(crate) fn reload_odhcpd() {
