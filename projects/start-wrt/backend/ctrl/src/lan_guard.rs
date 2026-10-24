@@ -59,12 +59,22 @@ async fn sync_ra_allow_file(uci_root: &Path, path: &Path) -> Result<bool, Error>
     .await
 }
 
-/// [`sync_ra_allow`], then a firewall reload when it wrote.
 pub(crate) async fn apply_ra_allow(uci_root: impl AsRef<Path>) -> Result<(), Error> {
-    if sync_ra_allow(uci_root).await? {
-        crate::published_ports::reload_firewall_wait().await?;
-    }
-    Ok(())
+    apply_ra_allow_file(
+        uci_root.as_ref(),
+        Path::new(RA_ALLOW_PATH),
+        crate::published_ports::reload_firewall_wait,
+    )
+    .await
+}
+
+async fn apply_ra_allow_file<F, Fut>(uci_root: &Path, path: &Path, reload: F) -> Result<(), Error>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = Result<(), Error>>,
+{
+    sync_ra_allow_file(uci_root, path).await?;
+    reload().await
 }
 
 /// Boot heal: the include lives outside `/etc` and is not kept by sysupgrade.
@@ -118,15 +128,16 @@ pub async fn set_router_advertisements<C: CtrlContext>(
         })
         .await
         .inspect_err(log_failure)?;
-    if !written {
-        return Ok(());
-    }
     if ctx.effectful() {
-        // The write may create a host section that dnsmasq must reload.
-        crate::devices::reload_dnsmasq();
+        if written {
+            crate::devices::reload_dnsmasq();
+        }
         apply_ra_allow(ctx.uci_root())
             .await
             .inspect_err(log_failure)?;
+    }
+    if !written {
+        return Ok(());
     }
     crate::activity::log(
         "device",
@@ -176,6 +187,33 @@ config host 'host_bad'
             .ends_with("add element bridge startwrt_lan_guard ra_allow { aa:bb:cc:dd:ee:ff }\n"));
         assert!(!rendered.contains("11:22:33"));
         assert!(!rendered.contains("not-a-mac"));
+    }
+
+    #[tokio::test]
+    async fn retries_activation_when_include_already_matches() {
+        let dir = tempfile::tempdir().unwrap();
+        tokio::fs::write(dir.path().join("dhcp"), DHCP)
+            .await
+            .unwrap();
+        let include = dir.path().join("ruleset-pre/ra.nft");
+        let attempts = std::cell::Cell::new(0);
+
+        let result = apply_ra_allow_file(dir.path(), &include, || async {
+            attempts.set(attempts.get() + 1);
+            Err(Error::new(eyre!("activation failed"), ErrorKind::Network))
+        })
+        .await;
+        assert!(result.is_err());
+        assert!(include.exists());
+        assert_eq!(attempts.get(), 1);
+
+        apply_ra_allow_file(dir.path(), &include, || async {
+            attempts.set(attempts.get() + 1);
+            Ok(())
+        })
+        .await
+        .unwrap();
+        assert_eq!(attempts.get(), 2);
     }
 
     #[test]

@@ -1955,13 +1955,6 @@ pub async fn forget<C: CtrlContext>(
                 return Err(err.into());
             }
             Ok(()) => {
-                crate::activity::log(
-                    "device",
-                    "forgotten",
-                    true,
-                    &format!("Forgot device {}", mac_upper),
-                    None,
-                );
                 crate::device_names::forget(&mac_upper).await;
                 crate::port_control::close_device_forwards(&mac_upper, &removed_static_ips).await;
                 // The sweep drops the device's published DNS records now.
@@ -1977,14 +1970,24 @@ pub async fn forget<C: CtrlContext>(
                     }
                 }
                 if ctx.effectful() {
-                    // Ahead of the flush, which waits out a dnsmasq restart.
-                    if let Err(e) = crate::lan_guard::apply_ra_allow(ctx.uci_root()).await {
-                        tracing::error!(
-                            "lan-guard: router-advertisement allow list not updated: {e}"
-                        );
-                    }
+                    // Revokes routing authority before the potentially slow dnsmasq restart.
+                    let ra_result = crate::lan_guard::apply_ra_allow(ctx.uci_root())
+                        .await
+                        .inspect_err(|e| {
+                            tracing::error!(
+                                "lan-guard: router-advertisement allow list not updated: {e}"
+                            );
+                        });
                     flush_device_from_network(&mac_upper).await;
+                    ra_result?;
                 }
+                crate::activity::log(
+                    "device",
+                    "forgotten",
+                    true,
+                    &format!("Forgot device {}", mac_upper),
+                    None,
+                );
                 return Ok(());
             }
         }

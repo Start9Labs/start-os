@@ -2211,8 +2211,6 @@ const V6_MAC_BIND_PATH: &str = "/usr/share/nftables.d/ruleset-pre/11-startwrt-pp
 
 /// Renders the bridge table that sends traffic for each enabled IPv6 published
 /// port's address only to the MAC the port was published for.
-///
-/// Raw payloads, for the reason given in `10-startwrt-lan-dhcp-guard.nft`.
 fn v6_mac_bind_ruleset(firewall: &uciedit::Config<'_>) -> String {
     let mut bindings: BTreeMap<Ipv6Addr, BTreeSet<String>> = BTreeMap::new();
     for section in &firewall.sections {
