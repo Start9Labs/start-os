@@ -1971,15 +1971,20 @@ pub async fn forget<C: CtrlContext>(
                 }
                 if ctx.effectful() {
                     // Revokes routing authority before the potentially slow dnsmasq restart.
-                    let ra_result = crate::lan_guard::apply_ra_allow(ctx.uci_root())
-                        .await
-                        .inspect_err(|e| {
-                            tracing::error!(
-                                "lan-guard: router-advertisement allow list not updated: {e}"
-                            );
-                        });
+                    let ra_result = crate::lan_guard::apply_ra_allow(ctx.uci_root()).await;
                     flush_device_from_network(&mac_upper).await;
-                    ra_result?;
+                    if let Err(err) = ra_result {
+                        crate::activity::log(
+                            "device",
+                            "forgotten",
+                            false,
+                            &format!(
+                                "Forgot device {mac_upper}, but could not revoke its IPv6 router advertisements"
+                            ),
+                            Some(&err.to_string()),
+                        );
+                        return Err(err);
+                    }
                 }
                 crate::activity::log(
                     "device",

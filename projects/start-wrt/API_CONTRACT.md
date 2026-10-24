@@ -963,8 +963,11 @@ struct SetRouterAdvertisementsReq {
 // Backend: stores `_allow_ra` on the device's DHCP host section, creating one
 // if needed, renders the allowed MACs into the LAN guard's `ra_allow` set
 // (/usr/share/nftables.d/ruleset-pre/11-startwrt-lan-ra-allow.nft), and
-// reloads the firewall. Default is off: the guard drops router advertisements
-// switched between bridge ports from any other source MAC.
+// reloads the firewall on every call, including one that changes nothing, so
+// repeating a request whose reload failed applies it. A failed reload is an
+// error even though the setting is saved. Default is off: the guard drops
+// router advertisements switched between bridge ports from any other source
+// MAC.
 ```
 
 ### `devices.forget`
@@ -984,7 +987,8 @@ struct DeviceMacReq {
 // lease file (the base file plus per-profile /tmp/dhcp.leases.dns_*) with
 // dnsmasq stopped (stop → edit → start), so the in-memory lease can't
 // resurrect the entry. A still-connected device reappears on its next
-// network activity.
+// network activity. If the allow-list reload fails, the rest still happens
+// and the call returns the error; forgetting again retries it.
 ```
 
 ### `devices.data-usage`
